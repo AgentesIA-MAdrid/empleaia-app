@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * stripe:bootstrap — crea/actualiza productos + prices en Stripe (modo
- * test). Idempotente: usa metadata.fichaje_key como identificador
- * estable; si el product ya existe con esa key, lo reutiliza.
+ * stripe:bootstrap — crea/actualiza productos + prices en Stripe.
+ * Idempotente: usa metadata.fichaje_key como identificador estable; si
+ * el product ya existe con esa key, lo reutiliza.
  *
  * Catálogo:
  *   3 productos (starter, pro, enterprise) × 2 prices (monthly, yearly)
@@ -10,27 +10,38 @@
  *   7 productos addon × 1 price (monthly) = 7 prices de addons.
  *   Total: 10 productos + 13 prices.
  *
- * Modelo de planes Fase 8 — pricing per-seat con mínimo mensual:
- *   starter:    4 €/empleado/mes,  mínimo 39 €/mes
- *   pro:        5 €/empleado/mes,  mínimo 49 €/mes
- *   enterprise: 6 €/empleado/mes,  mínimo 99 €/mes
- *
- * IMPORTANTE: este script crea precios `flat` placeholder que dejan
- * la configuración inicial en Stripe; el operador ajusta luego en
- * dashboard.stripe.com a `unit_amount + transform_quantity` para
- * facturar per-employee con mínimo. Ver docs/arch/billing.md (TODO).
+ * Modelo de planes — pricing per-seat (billing_scheme=per_unit). Los
+ * importes de plan se DERIVAN de `plan-pricing.ts` (fuente de verdad)
+ * para no desincronizarse del backend (`calculateQuantity`):
+ *   starter:    4 €/empleado/mes  (PLAN_PRICING.starter.pricePerEmployeeCents)
+ *   pro:        5 €/empleado/mes
+ *   enterprise: 6 €/empleado/mes
+ * El `unit_amount` del price es el precio POR EMPLEADO; el mínimo de
+ * `MIN_BILLABLE_SEATS` (15) usuarios lo impone el backend al calcular
+ * la `quantity` del line_item, no Stripe. El yearly aplica 10 meses
+ * (descuento implícito de 2 meses).
  *
  * Al finalizar, emite a stdout las env vars STRIPE_PRICE_* listas para
- * copiar al .env.
+ * copiar al entorno (Dokploy / .env).
  *
- * Uso:
+ * Uso (TEST):
  *   STRIPE_SECRET_KEY=sk_test_... npm run stripe:bootstrap
  *
- * Requisitos: cuenta Stripe en modo test. NUNCA correr con sk_live.
+ * Uso (LIVE — productos REALES en la cuenta de cobro):
+ *   STRIPE_SECRET_KEY=sk_live_... STRIPE_BOOTSTRAP_ALLOW_LIVE=1 npm run stripe:bootstrap
+ *
+ * Por seguridad, con una key `sk_live_` el script ABORTA salvo que se
+ * pase explícitamente STRIPE_BOOTSTRAP_ALLOW_LIVE=1 (confirmación
+ * deliberada de que se quiere tocar la cuenta real).
  */
 
 import "dotenv/config";
 import { stripe } from "../src/lib/stripe/client";
+import {
+  PLAN_PRICING,
+  PLAN_ORDER,
+  MIN_BILLABLE_SEATS,
+} from "../src/lib/billing/plan-pricing";
 import type Stripe from "stripe";
 
 type ProductDef = {
@@ -40,39 +51,37 @@ type ProductDef = {
   prices: { lookupKey: string; amountCents: number; interval: "month" | "year" }[];
 };
 
-const PRODUCTS: ProductDef[] = [
-  // Planes — los `amountCents` son los **mínimos mensuales**
-  // (placeholder en Stripe). En dashboard.stripe.com el operador
-  // ajusta a per-seat con `unit_amount = pricePerEmployeeCents` y
-  // `transform_quantity` o `tiers` para honrar el mínimo.
-  // Anualidad: 10 meses (descuento implícito de 2 meses).
-  {
-    fichajeKey: "plan_starter",
-    name: "Plan Starter",
-    description: "Para equipos pequeños — 4 €/empleado/mes (mín. 39 €/mes). Hasta 10 empleados, 1 sede.",
+/** Meses facturados en el price anual (2 de descuento sobre 12). */
+const YEARLY_MONTHS = 10;
+
+// Planes — derivados de PLAN_PRICING para que el `unit_amount` (precio
+// por empleado/mes) sea SIEMPRE el mismo que usa el backend. El mínimo
+// monetario por plan (15 × precio) se muestra en la descripción a modo
+// informativo; lo aplica `calculateQuantity`, no este price.
+const PLAN_PRODUCTS: ProductDef[] = PLAN_ORDER.map((key) => {
+  const p = PLAN_PRICING[key];
+  const perEmp = (p.pricePerEmployeeCents / 100).toLocaleString("es-ES");
+  const min = (p.monthlyMinimumCents / 100).toLocaleString("es-ES");
+  return {
+    fichajeKey: `plan_${key}`,
+    name: `Plan ${p.displayName}`,
+    description: `${p.tagline} — ${perEmp} €/empleado/mes (mín. ${min} €/mes, ${MIN_BILLABLE_SEATS} usuarios).`,
     prices: [
-      { lookupKey: "plan_starter_monthly", amountCents: 3900, interval: "month" },
-      { lookupKey: "plan_starter_yearly", amountCents: 39000, interval: "year" },
+      {
+        lookupKey: `plan_${key}_monthly`,
+        amountCents: p.pricePerEmployeeCents,
+        interval: "month",
+      },
+      {
+        lookupKey: `plan_${key}_yearly`,
+        amountCents: p.pricePerEmployeeCents * YEARLY_MONTHS,
+        interval: "year",
+      },
     ],
-  },
-  {
-    fichajeKey: "plan_pro",
-    name: "Plan Pro",
-    description: "Para empresas en crecimiento — 5 €/empleado/mes (mín. 49 €/mes). Hasta 50 empleados, 5 sedes, turnos, geofencing.",
-    prices: [
-      { lookupKey: "plan_pro_monthly", amountCents: 4900, interval: "month" },
-      { lookupKey: "plan_pro_yearly", amountCents: 49000, interval: "year" },
-    ],
-  },
-  {
-    fichajeKey: "plan_enterprise",
-    name: "Plan Enterprise",
-    description: "Para empresas grandes — 6 €/empleado/mes (mín. 99 €/mes). Empleados ilimitados, branding, dominio, API, SSO, SLA.",
-    prices: [
-      { lookupKey: "plan_enterprise_monthly", amountCents: 9900, interval: "month" },
-      { lookupKey: "plan_enterprise_yearly", amountCents: 99000, interval: "year" },
-    ],
-  },
+  };
+});
+
+const ADDON_PRODUCTS: ProductDef[] = [
   {
     fichajeKey: "addon_dominio_personalizado",
     name: "Addon — Dominio personalizado",
@@ -116,6 +125,8 @@ const PRODUCTS: ProductDef[] = [
     prices: [{ lookupKey: "addon_emails_extra", amountCents: 900, interval: "month" }],
   },
 ];
+
+const PRODUCTS: ProductDef[] = [...PLAN_PRODUCTS, ...ADDON_PRODUCTS];
 
 async function upsertProduct(def: ProductDef): Promise<Stripe.Product> {
   // Buscar por metadata.fichaje_key.
@@ -183,11 +194,20 @@ async function main() {
     console.error("Falta STRIPE_SECRET_KEY.");
     process.exit(2);
   }
-  if (secret.startsWith("sk_live_")) {
+  const isLive = secret.startsWith("sk_live_");
+  const allowLive = process.env.STRIPE_BOOTSTRAP_ALLOW_LIVE === "1";
+  if (isLive && !allowLive) {
     console.error(
-      "ERROR: este script NO debe correrse con sk_live. Use modo test.",
+      "ERROR: key sk_live detectada. Este script creará productos/precios\n" +
+        "en la cuenta REAL de Stripe (cobros de verdad). Si es lo que quieres,\n" +
+        "re-ejecuta añadiendo STRIPE_BOOTSTRAP_ALLOW_LIVE=1.",
     );
     process.exit(2);
+  }
+  if (isLive) {
+    console.log(
+      "⚠️  MODO LIVE — creando productos/precios en la cuenta REAL de Stripe.\n",
+    );
   }
 
   const out: Record<string, string> = {};

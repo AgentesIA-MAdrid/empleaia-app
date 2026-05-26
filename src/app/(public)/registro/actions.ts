@@ -118,9 +118,10 @@ export async function registrarTenantAction(
   // 5. Crear Checkout Session.
   // En el registro inicial el tenant no tiene empleados todavía, así que
   // partimos de 0 y `calculateQuantity` devuelve el suelo del plan
-  // (Starter=5, Pro=11, Enterprise=51 seats). El cliente verá en factura
-  // ese mínimo independientemente de cuánta gente cargue después, hasta
-  // que supere el suelo y empiece a facturarse el variable real.
+  // (MIN_BILLABLE_SEATS = 15 usuarios, igual en todos los planes). El
+  // cliente verá en factura ese mínimo independientemente de cuánta gente
+  // cargue después, hasta que supere el suelo y empiece a facturarse el
+  // variable real.
   const trialDays = parseInt(process.env.STRIPE_TRIAL_DAYS ?? "14", 10);
   const requiresCard =
     (process.env.STRIPE_TRIAL_REQUIRES_CARD ?? "true") === "true";
