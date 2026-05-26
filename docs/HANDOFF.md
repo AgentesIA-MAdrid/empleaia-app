@@ -4,6 +4,11 @@ Documento para retomar el trabajo desde otra cuenta de Claude (o
 máquina). Resume lo que hay en marcha, decisiones recientes y
 operativa básica. Para reglas de código permanentes ver `AGENTS.md`.
 
+> **Actualización 2026-05-27** (solo lectura de estado, sin cambios de
+> código): ya hay **3 tenants reales** en prod (la BD dejó de estar
+> vacía). El provisioning E2E quedó confirmado por `mobileshop`. Ver
+> §3 (tabla de tenants) y §7.0 (pendiente 🔴 cerrado).
+
 ---
 
 ## 1. Qué es esto
@@ -46,9 +51,24 @@ Producción ya corre desde esta rama vía Dokploy.
   cliente `prismaMaster`/`prismaRuntime`) y `prisma/schema-tenant.prisma`
   (producto `tenant_<slug>.*`, cliente `prismaApp` — Proxy multiplexado
   por tenant via `runWithTenant`).
-- Tenants activos en prod: **0** (wipe completo 12-may, ver §4.bis).
-  La BD está limpia, lista para primer cliente real.
-- Solo queda `tenant_template` (plantilla limpia para clonar).
+- Tenants en prod (a **2026-05-27**): **3 registrados** en
+  `master.tenants` — 2 activos con schema provisionado + 1 `pending`
+  abandonado. (El wipe del 12-may dejó la BD vacía; estas son las
+  primeras altas reales por `app.empleaia.es/registro`.)
+
+  | slug | nombre | estado | plan | suscripción | alta |
+  |---|---|---|---|---|---|
+  | `mobileshop` | Mobileshop Comunicaciones | active | enterprise | `active` (periodo→26-jun) | 12-may |
+  | `manuel` | Manuel | active | enterprise | `trialing` (**trial vence 27-may 09:46**) | 13-may |
+  | `asdasd` | dasdas | pending | — | sin suscripción | 13-may |
+
+- Schemas existentes: `tenant_mobileshop`, `tenant_manuel` y
+  `tenant_template` (plantilla limpia para clonar). **No existe
+  `tenant_asdasd`**: el alta se quedó en `pending` sin llegar a
+  provisionar (sin `stripe_customer_id`). Candidato a limpiar.
+- ⚠️ `manuel` está en trial que **vence hoy 27-may**: si no convierte,
+  Stripe lo pasará a `past_due`/`canceled` y `withTenant` empezará a
+  responder 402 (`suspended`). Vigilar.
 - Ver `AGENTS.md` — incluye reglas críticas (handlers usan
   `withTenant`, pages usan `withTenantPage`, no `fetch` interno entre
   rutas, etc.).
@@ -467,15 +487,16 @@ el handler real, no solo el toggle local en `ConfiguracionEmpresa`.
 
 ## 7.0. Pendiente al cerrar 13-may (próxima sesión empieza por aquí)
 
-🔴 **Verificación E2E real del provisioning** (sigue abierto):
-- Hacer alta de un tenant nuevo (cualquier slug, p. ej. `mobileshop`)
-  por `app.empleaia.es/registro` para confirmar que tras commits
-  `b940025` + `a25bc3e` + Sprint 4 (3 commits) el flujo va end-to-end
-  sin atascos. La migración Sprint 4 ya está en formal, así que el
-  entrypoint la aplica automáticamente al `tenant_template`.
-- Si OK: marcar definitivamente cerrado el incidente del 12-may.
-- Si NO: investigar logs `docker service logs empleaia-empleaiaapp-apdwzc`
-  con `grep -iE 'webhook|provision|tenant|error|migrate'`.
+✅ **Verificación E2E real del provisioning** (CERRADO 2026-05-27):
+- Confirmado por las altas reales `mobileshop` (12-may) y `manuel`
+  (13-may): ambos están `active` con su schema (`tenant_mobileshop`,
+  `tenant_manuel`) provisionado y suscripción enterprise. El flujo
+  `app.empleaia.es/registro` → webhook checkout → provisioning va
+  end-to-end sin atascos. Incidente "mobileshop" del 12-may **cerrado
+  definitivamente**.
+- Nota: el alta `asdasd` quedó en `pending` sin schema — pero por
+  abandono del usuario (no llegó a pagar/completar checkout), no por
+  fallo del provisioning.
 
 🟡 **Stripe a modo LIVE** (necesario antes de cobrar a cliente real):
 - Hoy `sk_test_*`. Pasar a `sk_live_*`. Pasos: crear productos/precios
