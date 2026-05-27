@@ -498,14 +498,76 @@ el handler real, no solo el toggle local en `ConfiguracionEmpresa`.
   abandono del usuario (no llegó a pagar/completar checkout), no por
   fallo del provisioning.
 
-🟡 **Stripe a modo LIVE** (necesario antes de cobrar a cliente real):
-- Hoy `sk_test_*`. Pasar a `sk_live_*`. Pasos: crear productos/precios
-  en cuenta LIVE de Stripe, configurar webhook en LIVE apuntando a
-  `https://app.empleaia.es/api/webhooks/stripe`, actualizar env vars
-  `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` en Dokploy →
-  `empleaia-app` → Environment.
-- ⚠️ Verificar IDs de price en `src/lib/stripe/price-catalog.ts` o
-  donde corresponda.
+🟡 **Stripe a modo LIVE** (necesario antes de cobrar a cliente real) —
+runbook completo, EN CURSO desde 2026-05-27. Cuenta Stripe ya activada
+para cobros reales (confirmado por el usuario).
+
+**Diagnóstico (auditoría 2026-05-27):** la integración está bien hecha
+para el cutover — los price IDs NO están hardcodeados, vienen de env
+vars `STRIPE_PRICE_*`; el cliente lee `STRIPE_SECRET_KEY` y el webhook
+`STRIPE_WEBHOOK_SECRET`. Cambiar a LIVE = recrear productos/precios +
+webhook en la cuenta LIVE + cambiar env vars en Dokploy. Sin tocar
+lógica.
+
+**Modelo de pricing real (verificado en los precios test de prod):**
+per-seat `billing_scheme=per_unit`, `unit_amount` = precio POR EMPLEADO
+(starter 400 / pro 500 / enterprise 600 cents = 4/5/6 €/empleado/mes).
+El mínimo de `MIN_BILLABLE_SEATS=15` usuarios lo aplica el backend
+(`calculateQuantity` en `checkout.ts`), NO Stripe (`transform_quantity`
+None). Fuente de verdad: `src/lib/billing/plan-pricing.ts`. El flujo de
+alta y de cambio de plan usan SOLO el price `_MONTHLY` del plan; yearly
+y addons no se usan todavía.
+
+⚠️ **Trampa cerrada:** `scripts/stripe-bootstrap.ts` antes creaba
+precios FLAT 39/49/99 € (desalineados con el modelo per-seat →
+cobraría 15×39). Commit `6fa9381` (2026-05-27) lo corrige: ahora deriva
+de `plan-pricing.ts` (per_unit correcto) y añade guarda LIVE — con
+`sk_live` aborta salvo `STRIPE_BOOTSTRAP_ALLOW_LIVE=1`. Los precios test
+los creó el usuario A MANO en dashboard, no con el script viejo.
+
+**Estado actual en Dokploy `empleaia-app`** (todas las STRIPE_* en
+TEST): `STRIPE_SECRET_KEY` (sk_test), `STRIPE_PUBLISHABLE_KEY` (pk_test),
+`STRIPE_WEBHOOK_SECRET` (whsec test), y solo 3 precios:
+`STRIPE_PRICE_{STARTER,PRO,ENTERPRISE}_MONTHLY`. Los `_YEARLY` y todos
+los `STRIPE_PRICE_ADDON_*` NO están configurados (ni en test).
+
+**Runbook (pasos del usuario — requieren login Stripe + secretos):**
+
+1. **Claves LIVE**: dashboard.stripe.com (toggle en *Live*) → Developers
+   → API keys. Copiar `sk_live_…` y `pk_live_…`. ⚠️ Nunca pegarlas en
+   el chat de Claude (riesgo de quedar en transcript → rotación).
+2. **Crear productos/precios en LIVE** — en terminal propia (no `!` en
+   sesión Claude, para que la sk_live no entre al historial):
+   ```bash
+   STRIPE_SECRET_KEY=sk_live_XXXX STRIPE_BOOTSTRAP_ALLOW_LIVE=1 \
+     npm run stripe:bootstrap
+   ```
+   Emite ~13 líneas `STRIPE_PRICE_*=price_…` (NO secretas). Solo hacen
+   falta los 3 `_MONTHLY` para el flujo actual.
+3. **Webhook LIVE**: Developers → Webhooks → Add endpoint. URL
+   `https://app.empleaia.es/api/webhooks/stripe`. Los **9 eventos** que
+   escucha `src/lib/stripe/dispatch.ts`: `checkout.session.completed`,
+   `checkout.session.expired`, `customer.subscription.{updated,deleted,
+   paused,resumed,trial_will_end}`, `invoice.payment_{succeeded,failed}`.
+   Copiar el *Signing secret* `whsec_…` (secreto → directo a Dokploy).
+4. **Env vars en Dokploy** `empleaia-app` → Environment (backup del env
+   antes): `STRIPE_SECRET_KEY`→sk_live, `STRIPE_PUBLISHABLE_KEY`→pk_live,
+   `STRIPE_WEBHOOK_SECRET`→whsec del endpoint live,
+   `STRIPE_PRICE_{STARTER,PRO,ENTERPRISE}_MONTHLY`→price_ live. Guardar →
+   redeploy.
+5. **Verificación**: confirmar modo live (env enmascarado) + precios live
+   per_unit 4/5/6. Alta real de prueba — ⚠️ en LIVE las tarjetas de test
+   (4242…) NO valen, usar tarjeta real (reembolsable). Comprobar webhook
+   entregado (200) + tenant provisionado + subscription `active`.
+6. **Tenants existentes**: mobileshop/manuel/asdasd tienen subs de TEST;
+   al pasar a live la app deja de verlas. Re-suscribir mobileshop/manuel
+   si son reales; borrar `asdasd`.
+
+Helper para inspeccionar precios en Stripe sin exponer la key (desde el
+host VPS, la key sale del env del contenedor): ver el patrón usado en la
+auditoría — `docker exec "$APP" printenv STRIPE_SECRET_KEY` a variable +
+`python3` con `urllib` contra `api.stripe.com/v1/prices/<id>` (el
+contenedor app NO tiene curl ni python3; usar el python3 del host).
 
 🟢 **Cerrados en Sprint 4 (2026-05-13)** — ver §4.0:
 - Prenómina: salario por empleado, marcar enviada, exports Sage/A3.
