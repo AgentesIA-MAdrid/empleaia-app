@@ -131,6 +131,46 @@ export async function persistSubscription(
   }
 }
 
+/**
+ * Asigna las features de un plan a un tenant SIN subscription Stripe.
+ *
+ * Usado por el alta directa sin tarjeta (`provisionTenantDirect`).
+ * Equivalente a `recomposeTenantFeatures` pero tomando el `planKey`
+ * directamente (no hay items de Stripe que mapear) y sin addons.
+ * Borra las filas `source IN ('plan','addon')` y reinserta las del plan;
+ * preserva `manual_override`.
+ */
+export async function applyPlanFeatures(
+  tenantId: string,
+  planKey: string,
+): Promise<void> {
+  const plan = await prismaMaster.plan.findUnique({
+    where: { key: planKey },
+    include: { planFeatures: true },
+  });
+  if (!plan) {
+    // Plan desconocido: no asignamos features-por-plan. El operador
+    // debe revisar el catálogo master.plans. No lanzamos para no
+    // bloquear el alta.
+    return;
+  }
+
+  await prismaMaster.tenantFeature.deleteMany({
+    where: { tenantId, source: { in: ["plan", "addon"] } },
+  });
+
+  for (const pf of plan.planFeatures) {
+    await prismaMaster.tenantFeature.create({
+      data: {
+        tenantId,
+        featureKey: pf.featureKey,
+        value: pf.value as never,
+        source: "plan",
+      },
+    });
+  }
+}
+
 function inferPlanKey(subscription: Stripe.Subscription): string {
   // Buscamos el primer item que matchee como "plan".
   for (const item of subscription.items.data) {

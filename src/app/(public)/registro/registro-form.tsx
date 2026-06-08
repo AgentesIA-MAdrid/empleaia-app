@@ -62,13 +62,9 @@ export function RegistroForm({ planes }: { planes: Plan[] }) {
         </select>
       </label>
 
-      <label className="grid gap-1.5">
-        <span className="text-sm font-medium text-[var(--color-text-dark,#0F172A)]">Periodo de facturación</span>
-        <select name="billingPeriod" required className={INPUT_CLASS}>
-          <option value="monthly">Mensual</option>
-          <option value="yearly">Anual (2 meses gratis)</option>
-        </select>
-      </label>
+      {/* Sin pago en el alta: periodo fijado a mensual. Se reactivará
+          cuando vuelva Stripe Checkout. */}
+      <input type="hidden" name="billingPeriod" value="monthly" />
 
       {state?.kind === "error" && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-800">
@@ -86,7 +82,7 @@ export function RegistroForm({ planes }: { planes: Plan[] }) {
         disabled={pending}
         className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-dark)] px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/30 focus-visible:ring-offset-1 disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        {pending ? "Procesando…" : "Continuar al pago"}
+        {pending ? "Creando tu cuenta…" : "Crear cuenta"}
       </button>
     </form>
   );

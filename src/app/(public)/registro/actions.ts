@@ -6,36 +6,10 @@
 
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { prismaMaster } from "@/lib/prisma";
-import { stripe } from "@/lib/stripe/client";
-import { getPlanPriceId } from "@/lib/stripe/price-catalog";
-import { calculateQuantity } from "@/lib/billing/checkout";
 import { registroSchema, suggestSlugAlternatives } from "@/lib/registro/schema";
-
-/**
- * Resuelve la URL base pública del subdominio app a partir del request.
- * Prioridad:
- *   1. STRIPE_CHECKOUT_BASE_URL (env override).
- *   2. NEXTAUTH_URL (canonical de la app).
- *   3. host del request (con `https` por defecto si TENANT_ROOT_DOMAIN
- *      no es localhost).
- *
- * Garantiza que en producción NO se filtre `localhost` ni `app.localhost`.
- */
-async function resolveCheckoutBaseUrl(): Promise<string> {
-  const override = process.env.STRIPE_CHECKOUT_BASE_URL;
-  if (override) return override.replace(/\/$/, "");
-
-  const nextAuthUrl = process.env.NEXTAUTH_URL;
-  if (nextAuthUrl) return nextAuthUrl.replace(/\/$/, "");
-
-  const h = await headers();
-  const host = h.get("host") ?? "app.empleaia.es";
-  const proto = host.includes("localhost") ? "http" : "https";
-  return `${proto}://${host}`;
-}
+import { provisionTenantDirect } from "@/lib/registro/provision-direct";
 
 export type RegistroResult =
   | { kind: "ok"; redirectUrl: string } // server action redirige; este caso no se devuelve normalmente
@@ -77,16 +51,7 @@ export async function registrarTenantAction(
     };
   }
 
-  // 3. Resolver Stripe price.
-  const priceId = getPlanPriceId(data.planKey, data.billingPeriod);
-  if (!priceId) {
-    return {
-      kind: "error",
-      message: `Plan ${data.planKey} ${data.billingPeriod} no configurado en Stripe. Contacta soporte.`,
-    };
-  }
-
-  // 4. INSERT master.tenants con prismaMaster (Enmienda 1 del plan).
+  // 3. INSERT master.tenants con prismaMaster (Enmienda 1 del plan).
   let tenant;
   try {
     tenant = await prismaMaster.tenant.create({
@@ -115,49 +80,32 @@ export async function registrarTenantAction(
     throw err;
   }
 
-  // 5. Crear Checkout Session.
-  // En el registro inicial el tenant no tiene empleados todavía, así que
-  // partimos de 0 y `calculateQuantity` devuelve el suelo del plan
-  // (MIN_BILLABLE_SEATS = 15 usuarios, igual en todos los planes). El
-  // cliente verá en factura ese mínimo independientemente de cuánta gente
-  // cargue después, hasta que supere el suelo y empiece a facturarse el
-  // variable real.
-  const trialDays = parseInt(process.env.STRIPE_TRIAL_DAYS ?? "14", 10);
-  const requiresCard =
-    (process.env.STRIPE_TRIAL_REQUIRES_CARD ?? "true") === "true";
-  const initialQuantity = calculateQuantity(0, data.planKey);
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    line_items: [{ price: priceId, quantity: initialQuantity }],
-    client_reference_id: tenant.id,
-    metadata: { tenant_id: tenant.id, tenant_slug: tenant.slug },
-    subscription_data: {
-      metadata: { tenant_id: tenant.id, tenant_slug: tenant.slug },
-      ...(requiresCard && trialDays > 0
-        ? { trial_period_days: trialDays }
-        : {}),
-    },
-    // customer_creation NO aplica en mode=subscription — Stripe crea el
-    // Customer automáticamente al completar el checkout. En su día se
-    // incluyó copiando del plan §2.1; rompía la API real con
-    // "customer_creation can only be used in payment mode" (verificado
-    // en E2E real Fase 4).
-    customer_email: data.email,
-    success_url:
-      process.env.STRIPE_CHECKOUT_SUCCESS_URL ??
-      `${await resolveCheckoutBaseUrl()}/registro/exito?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url:
-      process.env.STRIPE_CHECKOUT_CANCEL_URL ??
-      `${await resolveCheckoutBaseUrl()}/registro/cancelado`,
-  });
-
-  if (!session.url) {
+  // 4. Provisionar el tenant directamente, SIN tarjeta (Stripe sale del
+  //    alta temporalmente; se reintegrará por el webhook al cambiar de
+  //    cuenta). Crea schema + migraciones + OWNER + features del plan, y
+  //    deja el tenant en `active`. Es síncrono (5-15s típicamente).
+  try {
+    await provisionTenantDirect(
+      {
+        id: tenant.id,
+        slug: tenant.slug,
+        name: tenant.name,
+        email: tenant.email,
+      },
+      data.planKey,
+    );
+  } catch (err) {
+    console.error(
+      `[registro] fallo al provisionar tenant ${tenant.slug}:`,
+      err,
+    );
     return {
       kind: "error",
-      message: "Stripe no devolvió URL de checkout.",
+      message:
+        "No pudimos preparar tu cuenta. Inténtalo de nuevo en unos minutos o contacta con soporte.",
     };
   }
 
-  // 6. Redirect a Stripe Checkout.
-  redirect(session.url);
+  // 5. Redirect a la página de éxito (revisa email para set-password).
+  redirect(`/registro/exito?slug=${encodeURIComponent(tenant.slug)}`);
 }
