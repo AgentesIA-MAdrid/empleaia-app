@@ -18,6 +18,7 @@ const userSelect = {
   tienda: { select: { id: true, nombre: true } },
   activo: true,
   salarioBase: true,
+  horasSemanalesContrato: true,
   password: true,
   resetToken: true,
   createdAt: true,
@@ -105,6 +106,7 @@ export const PUT = withTenant(async (request: NextRequest,
       managerId,
       activo,
       salarioBase,
+      horasSemanalesContrato,
     } = body as {
       email?: string;
       password?: string;
@@ -118,6 +120,7 @@ export const PUT = withTenant(async (request: NextRequest,
       managerId?: string | null;
       activo?: boolean;
       salarioBase?: number | null;
+      horasSemanalesContrato?: number | null;
     };
 
     // Non-admins cannot change their own role or tienda
@@ -167,6 +170,22 @@ export const PUT = withTenant(async (request: NextRequest,
       } else {
         return Response.json(
           { error: "salarioBase_invalid", reason: "número entre 0 y 1.000.000 €" },
+          { status: 400 },
+        );
+      }
+    }
+    if (horasSemanalesContrato !== undefined && userRol === Rol.OWNER) {
+      if (horasSemanalesContrato === null) {
+        updateData.horasSemanalesContrato = null;
+      } else if (
+        typeof horasSemanalesContrato === "number" &&
+        horasSemanalesContrato >= 0 &&
+        horasSemanalesContrato <= 168
+      ) {
+        updateData.horasSemanalesContrato = horasSemanalesContrato;
+      } else {
+        return Response.json(
+          { error: "horasSemanalesContrato_invalid", reason: "número entre 0 y 168 h" },
           { status: 400 },
         );
       }

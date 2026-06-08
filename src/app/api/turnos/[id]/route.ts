@@ -33,9 +33,10 @@ export const PUT = withTenant(async (request: NextRequest,
     }
 
     const body = await request.json();
-    const { userId, tiendaId, fecha, horaInicio, horaFin, nota, estado } = body as {
+    const { userId, tiendaId, tipoTurnoId, fecha, horaInicio, horaFin, nota, estado } = body as {
       userId?: string;
       tiendaId?: string;
+      tipoTurnoId?: string | null;
       fecha?: string;
       horaInicio?: string;
       horaFin?: string;
@@ -56,6 +57,7 @@ export const PUT = withTenant(async (request: NextRequest,
       data: {
         ...(userId && { userId }),
         ...(tiendaId && { tiendaId }),
+        ...(tipoTurnoId !== undefined && { tipoTurnoId }),
         ...(fecha && { fecha: new Date(fecha) }),
         ...(horaInicio && { horaInicio }),
         ...(horaFin && { horaFin }),
@@ -68,6 +70,16 @@ export const PUT = withTenant(async (request: NextRequest,
         },
         tienda: {
           select: { id: true, nombre: true, color: true },
+        },
+        tipoTurno: {
+          select: {
+            id: true,
+            nombre: true,
+            abreviatura: true,
+            color: true,
+            horas: true,
+            esLibre: true,
+          },
         },
       },
     });

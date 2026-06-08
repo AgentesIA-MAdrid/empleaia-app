@@ -29,6 +29,7 @@ interface Empleado {
   tiendaId?: string;
   managerId?: string;
   tienda?: { nombre: string; color: string };
+  horasSemanalesContrato?: number | string | null;
 }
 
 function getEstadoEmpleado(emp: Empleado): { label: string; tone: "warning" | "neutral" | "success" } {
@@ -46,7 +47,7 @@ interface Tienda {
 const FORM_INICIAL = {
   nombre: "", apellidos: "", email: "", dni: "", telefono: "",
   password: "", rol: "EMPLEADO" as "OWNER" | "MANAGER" | "EMPLEADO", tiendaId: "",
-  managerId: "",
+  managerId: "", horasSemanalesContrato: "",
 };
 
 // Password field only used when editing (to change existing password)
@@ -103,6 +104,10 @@ export default function EmpleadosPage() {
       dni: emp.dni || "", telefono: emp.telefono || "", password: "",
       rol: emp.rol, tiendaId: emp.tiendaId || "",
       managerId: (emp as { managerId?: string }).managerId || "",
+      horasSemanalesContrato:
+        emp.horasSemanalesContrato === null || emp.horasSemanalesContrato === undefined
+          ? ""
+          : String(emp.horasSemanalesContrato),
     });
     setDialogOpen(true);
   };
@@ -121,6 +126,11 @@ export default function EmpleadosPage() {
       if (!body.tiendaId) body.tiendaId = null;
       // managerId vacío = quitar manager. "ninguno" del select también vacío.
       if (!body.managerId || body.managerId === "ninguno") body.managerId = null;
+      // Horas de contrato: "" = null; resto número.
+      body.horasSemanalesContrato =
+        body.horasSemanalesContrato === "" || body.horasSemanalesContrato == null
+          ? null
+          : Number(body.horasSemanalesContrato);
 
       const url = editando ? `/api/empleados/${editando.id}` : "/api/empleados";
       const method = editando ? "PUT" : "POST";
@@ -393,6 +403,19 @@ export default function EmpleadosPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="col-span-2">
+                <Label>Horas semanales de contrato <span className="text-slate-400 font-normal">(opcional)</span></Label>
+                <Input
+                  className="mt-1"
+                  type="number"
+                  min={0}
+                  max={168}
+                  step={0.5}
+                  placeholder="Ej: 38"
+                  value={form.horasSemanalesContrato}
+                  onChange={(e) => setForm((f) => ({ ...f, horasSemanalesContrato: e.target.value }))}
+                />
               </div>
               <div className="col-span-2">
                 <Label>Manager (responsable directo)</Label>

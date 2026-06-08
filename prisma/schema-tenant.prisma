@@ -184,6 +184,9 @@ model User {
   // Salario base mensual del empleado. Si null, se usa
   // `ConfiguracionEmpresa.nominaSalarioBaseDefault` al calcular prenómina.
   salarioBase              Decimal?                  @db.Decimal(10, 2) @map("salario_base")
+  // Horas semanales contratadas del empleado (columna "HORAS A CONTRATO"
+  // del cuadrante). Si null, se usa `ConfiguracionEmpresa.horasSemanales`.
+  horasSemanalesContrato   Decimal?                  @db.Decimal(5, 2) @map("horas_semanales_contrato")
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
 
@@ -218,22 +221,50 @@ model Fichaje {
 }
 
 model Turno {
-  id         String      @id @default(cuid())
-  userId     String
-  user       User        @relation(fields: [userId], references: [id])
-  tiendaId   String
-  tienda     Tienda      @relation(fields: [tiendaId], references: [id])
-  fecha      DateTime
-  horaInicio String
-  horaFin    String
-  nota       String?
-  estado     EstadoTurno @default(BORRADOR)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id])
+  tiendaId    String
+  tienda      Tienda      @relation(fields: [tiendaId], references: [id])
+  // Tipo de turno del catálogo del cliente (Mañana, Tarde, Doble…).
+  // Opcional: un turno puede ser un rango a medida sin tipo asociado.
+  tipoTurnoId String?
+  tipoTurno   TipoTurno?  @relation(fields: [tipoTurnoId], references: [id])
+  fecha       DateTime
+  horaInicio  String
+  horaFin     String
+  nota        String?
+  estado      EstadoTurno @default(BORRADOR)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   @@index([userId])
   @@index([tiendaId])
+  @@index([tipoTurnoId])
   @@index([fecha])
+}
+
+// Catálogo de tipos de turno que cada cliente define (Mañana, Tarde,
+// Doble, M/T, Libre, rangos a medida…). Análogo a TipoAusencia.
+model TipoTurno {
+  id          String   @id @default(cuid())
+  nombre      String
+  // Etiqueta corta que se pinta en la celda del cuadrante: "M", "DOBLE",
+  // "M/T", "LIBRE", o el rango. Si vacía, se usa `nombre`.
+  abreviatura String   @default("")
+  color       String   @default("#6366f1")
+  // Rango horario por defecto del tipo (opcional; los turnos a medida
+  // pueden sobrescribirlo en el propio Turno).
+  horaInicio  String?
+  horaFin     String?
+  // Horas que computa este turno (Mañana=6, Doble=12, M/T=7, Libre=0).
+  horas       Decimal  @default(0) @db.Decimal(5, 2)
+  // Marca un turno de descanso ("LIBRE"): computa 0 horas.
+  esLibre     Boolean  @default(false)
+  orden       Int      @default(0)
+  activo      Boolean  @default(true)
+  turnos      Turno[]
+  createdAt   DateTime @default(now())
 }
 
 model TipoAusencia {

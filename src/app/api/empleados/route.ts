@@ -65,6 +65,7 @@ export const GET = withTenant(async (request: NextRequest) => {
         rol: true,
         tiendaId: true,
         tienda: { select: { id: true, nombre: true } },
+        horasSemanalesContrato: true,
         activo: true,
         password: true,
         resetToken: true,
@@ -125,6 +126,7 @@ export const POST = withTenant(
       rol = Rol.EMPLEADO,
       tiendaId,
       managerId,
+      horasSemanalesContrato,
     } = body as {
       email: string;
       nombre: string;
@@ -135,6 +137,7 @@ export const POST = withTenant(
       rol?: Rol;
       tiendaId?: string;
       managerId?: string | null;
+      horasSemanalesContrato?: number | null;
     };
 
     if (!email || !nombre || !apellidos) {
@@ -186,6 +189,8 @@ export const POST = withTenant(
           rol,
           tiendaId: tiendaId || null,
           managerId: managerId || null,
+          horasSemanalesContrato:
+            horasSemanalesContrato === undefined ? null : horasSemanalesContrato,
           resetToken,
           resetTokenExpiry,
         },
@@ -200,6 +205,7 @@ export const POST = withTenant(
           rol: true,
           tiendaId: true,
           tienda: { select: { id: true, nombre: true } },
+          horasSemanalesContrato: true,
           activo: true,
           password: true,
           resetToken: true,

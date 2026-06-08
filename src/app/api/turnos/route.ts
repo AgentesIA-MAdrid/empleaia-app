@@ -60,6 +60,16 @@ export const GET = withTenant(withFeature("turnos_publicacion", async (request: 
         tienda: {
           select: { id: true, nombre: true, color: true },
         },
+        tipoTurno: {
+          select: {
+            id: true,
+            nombre: true,
+            abreviatura: true,
+            color: true,
+            horas: true,
+            esLibre: true,
+          },
+        },
       },
       orderBy: { fecha: "asc" },
     });
@@ -87,6 +97,7 @@ export const POST = withTenant(withFeature("turnos_publicacion", async (request:
     const {
       userId,
       tiendaId,
+      tipoTurnoId,
       fecha,
       horaInicio,
       horaFin,
@@ -95,16 +106,39 @@ export const POST = withTenant(withFeature("turnos_publicacion", async (request:
     } = body as {
       userId: string;
       tiendaId: string;
+      tipoTurnoId?: string | null;
       fecha: string;
-      horaInicio: string;
-      horaFin: string;
+      horaInicio?: string;
+      horaFin?: string;
       nota?: string;
       estado?: EstadoTurno;
     };
 
-    if (!userId || !tiendaId || !fecha || !horaInicio || !horaFin) {
+    // Si se indica un tipo de turno, hereda su horario por defecto cuando
+    // el body no trae rango propio. Permite crear el turno solo con tipo.
+    let inicio = horaInicio;
+    let fin = horaFin;
+    if (tipoTurnoId) {
+      const tipo = await prisma.tipoTurno.findUnique({
+        where: { id: tipoTurnoId },
+        select: { horaInicio: true, horaFin: true },
+      });
+      if (!tipo) {
+        return Response.json({ error: "tipo_turno_no_existe" }, { status: 400 });
+      }
+      inicio = inicio || tipo.horaInicio || "";
+      fin = fin || tipo.horaFin || "";
+    }
+
+    if (!userId || !tiendaId || !fecha) {
       return Response.json(
-        { error: "Faltan campos obligatorios: userId, tiendaId, fecha, horaInicio, horaFin" },
+        { error: "Faltan campos obligatorios: userId, tiendaId, fecha" },
+        { status: 400 }
+      );
+    }
+    if (!tipoTurnoId && (!inicio || !fin)) {
+      return Response.json(
+        { error: "Indica un tipo de turno o un rango horaInicio/horaFin" },
         { status: 400 }
       );
     }
@@ -121,9 +155,10 @@ export const POST = withTenant(withFeature("turnos_publicacion", async (request:
       data: {
         userId,
         tiendaId,
+        tipoTurnoId: tipoTurnoId ?? null,
         fecha: new Date(fecha),
-        horaInicio,
-        horaFin,
+        horaInicio: inicio ?? "",
+        horaFin: fin ?? "",
         nota,
         estado,
       },
@@ -133,6 +168,16 @@ export const POST = withTenant(withFeature("turnos_publicacion", async (request:
         },
         tienda: {
           select: { id: true, nombre: true, color: true },
+        },
+        tipoTurno: {
+          select: {
+            id: true,
+            nombre: true,
+            abreviatura: true,
+            color: true,
+            horas: true,
+            esLibre: true,
+          },
         },
       },
     });
