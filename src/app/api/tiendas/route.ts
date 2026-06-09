@@ -7,6 +7,7 @@ import { withTenant } from "@/lib/tenant/with-tenant";
 import { currentTenant } from "@/lib/tenant/context";
 import { getLimit } from "@/lib/tenant/features";
 import { HttpError, wrapHttpErrors } from "@/lib/feature-guard/http-error";
+import { geocodeAddress } from "@/lib/tiendas/geocode";
 export const GET = withTenant(async () => {
   try {
     const session = await auth();
@@ -82,6 +83,17 @@ export const POST = withTenant(
       );
     }
 
+    // Geocodifica automáticamente si el cliente no fijó coordenadas a mano.
+    let lat = latitud;
+    let lon = longitud;
+    if (lat == null || lon == null) {
+      const geo = await geocodeAddress(direccion, ciudad, codigoPostal);
+      if (geo) {
+        lat = geo.latitud;
+        lon = geo.longitud;
+      }
+    }
+
     const { tenantId } = currentTenant();
 
     const tienda = await prisma.$transaction(async (tx) => {
@@ -110,8 +122,8 @@ export const POST = withTenant(
           codigoPostal,
           telefono,
           email,
-          latitud,
-          longitud,
+          latitud: lat,
+          longitud: lon,
           radio,
           color,
         },

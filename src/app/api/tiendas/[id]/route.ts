@@ -4,6 +4,7 @@ import { Rol } from "@/generated/prisma-tenant/client";
 import type { NextRequest } from "next/server";
 
 import { withTenant } from "@/lib/tenant/with-tenant";
+import { geocodeAddress } from "@/lib/tiendas/geocode";
 export const PUT = withTenant(async (request: NextRequest,
   { params }: { params: Promise<{ id: string }> }) => {
   try {
@@ -51,6 +52,24 @@ export const PUT = withTenant(async (request: NextRequest,
       activa?: boolean;
     };
 
+    // Si cambia la dirección y NO se envían coordenadas explícitas,
+    // re-geocodifica para mantener la ubicación al día.
+    let lat = latitud;
+    let lon = longitud;
+    const cambiaDireccion =
+      direccion !== undefined || ciudad !== undefined || codigoPostal !== undefined;
+    if (cambiaDireccion && latitud === undefined && longitud === undefined) {
+      const geo = await geocodeAddress(
+        direccion ?? tienda.direccion,
+        ciudad ?? tienda.ciudad,
+        codigoPostal ?? tienda.codigoPostal,
+      );
+      if (geo) {
+        lat = geo.latitud;
+        lon = geo.longitud;
+      }
+    }
+
     const updated = await prisma.tienda.update({
       where: { id },
       data: {
@@ -60,8 +79,8 @@ export const PUT = withTenant(async (request: NextRequest,
         ...(codigoPostal !== undefined && { codigoPostal }),
         ...(telefono !== undefined && { telefono }),
         ...(email !== undefined && { email }),
-        ...(latitud !== undefined && { latitud }),
-        ...(longitud !== undefined && { longitud }),
+        ...(lat !== undefined && { latitud: lat }),
+        ...(lon !== undefined && { longitud: lon }),
         ...(radio !== undefined && { radio }),
         ...(color !== undefined && { color }),
         ...(activa !== undefined && { activa }),
