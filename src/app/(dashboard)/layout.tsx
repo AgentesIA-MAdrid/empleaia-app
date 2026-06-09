@@ -26,6 +26,22 @@ async function DashboardLayout({
     tiendaId: user.tiendaId ?? null,
   };
 
+  // Onboarding obligatorio: empleados y managers deben rellenar sus datos
+  // personales (DNI, teléfono, fecha de nacimiento) en el primer acceso.
+  // El OWNER queda exento. Se consulta en BD para reflejar el estado real
+  // (el JWT podría estar desactualizado tras completar el perfil).
+  if (sessionUser.rol === "EMPLEADO" || sessionUser.rol === "MANAGER") {
+    const u = await prisma.user
+      .findUnique({
+        where: { id: sessionUser.id },
+        select: { perfilCompletado: true },
+      })
+      .catch(() => null);
+    if (u && !u.perfilCompletado) {
+      redirect("/completar-perfil");
+    }
+  }
+
   const branding = await prisma.configuracionEmpresa.findFirst({
     select: { logo: true, appNombre: true, nombre: true },
   }).catch(() => null);

@@ -13,12 +13,14 @@ const userSelect = {
   dni: true,
   telefono: true,
   foto: true,
+  fechaNacimiento: true,
   rol: true,
   tiendaId: true,
   tienda: { select: { id: true, nombre: true } },
   activo: true,
   salarioBase: true,
   horasSemanalesContrato: true,
+  perfilCompletado: true,
   password: true,
   resetToken: true,
   createdAt: true,
@@ -87,7 +89,17 @@ export const PUT = withTenant(async (request: NextRequest,
       return Response.json({ error: "No autorizado" }, { status: 403 });
     }
 
-    const empleado = await prisma.user.findUnique({ where: { id }, select: { id: true, email: true, rol: true } });
+    const empleado = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        rol: true,
+        dni: true,
+        telefono: true,
+        fechaNacimiento: true,
+      },
+    });
     if (!empleado) {
       return Response.json({ error: "Empleado no encontrado" }, { status: 404 });
     }
@@ -100,6 +112,7 @@ export const PUT = withTenant(async (request: NextRequest,
       apellidos,
       dni,
       telefono,
+      fechaNacimiento,
       foto,
       rol,
       tiendaId,
@@ -114,6 +127,7 @@ export const PUT = withTenant(async (request: NextRequest,
       apellidos?: string;
       dni?: string;
       telefono?: string;
+      fechaNacimiento?: string | null;
       foto?: string;
       rol?: Rol;
       tiendaId?: string;
@@ -148,7 +162,24 @@ export const PUT = withTenant(async (request: NextRequest,
     if (apellidos !== undefined) updateData.apellidos = apellidos;
     if (dni !== undefined) updateData.dni = dni;
     if (telefono !== undefined) updateData.telefono = telefono;
+    if (fechaNacimiento !== undefined) {
+      updateData.fechaNacimiento = fechaNacimiento ? new Date(fechaNacimiento) : null;
+    }
     if (foto !== undefined) updateData.foto = foto;
+
+    // Recalcular perfilCompletado si se tocó alguno de los 3 datos
+    // personales obligatorios (DNI, teléfono, fecha de nacimiento).
+    if (
+      dni !== undefined ||
+      telefono !== undefined ||
+      fechaNacimiento !== undefined
+    ) {
+      const dniEf = dni !== undefined ? dni : empleado.dni;
+      const telEf = telefono !== undefined ? telefono : empleado.telefono;
+      const fnEf =
+        fechaNacimiento !== undefined ? fechaNacimiento : empleado.fechaNacimiento;
+      updateData.perfilCompletado = Boolean(dniEf && telEf && fnEf);
+    }
     if (rol !== undefined && userRol === Rol.OWNER) updateData.rol = rol;
     if (tiendaId !== undefined && userRol === Rol.OWNER) updateData.tiendaId = tiendaId;
     if (managerId !== undefined && (userRol === Rol.OWNER || userRol === Rol.MANAGER)) {

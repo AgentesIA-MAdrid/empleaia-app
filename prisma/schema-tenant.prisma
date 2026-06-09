@@ -187,6 +187,10 @@ model User {
   // Horas semanales contratadas del empleado (columna "HORAS A CONTRATO"
   // del cuadrante). Si null, se usa `ConfiguracionEmpresa.horasSemanales`.
   horasSemanalesContrato   Decimal?                  @db.Decimal(5, 2) @map("horas_semanales_contrato")
+  // Marca si el empleado/manager ya rellenó sus datos personales
+  // obligatorios (DNI, teléfono, fecha de nacimiento) en su primer
+  // acceso. El OWNER queda exento del flujo.
+  perfilCompletado         Boolean                   @default(false) @map("perfil_completado")
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
 
