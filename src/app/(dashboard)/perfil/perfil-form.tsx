@@ -11,6 +11,7 @@ interface User {
   email: string;
   dni: string | null;
   telefono: string | null;
+  fechaNacimiento: string | null;
   foto: string | null;
 }
 
@@ -41,6 +42,7 @@ export function PerfilForm({ user }: { user: User }) {
           email: fd.get("email"),
           dni: (fd.get("dni") as string) || undefined,
           telefono: (fd.get("telefono") as string) || undefined,
+          fechaNacimiento: (fd.get("fechaNacimiento") as string) || null,
         }),
       });
       const data = await r.json();
@@ -113,6 +115,10 @@ export function PerfilForm({ user }: { user: User }) {
           <label className="grid gap-1.5">
             <span className="text-sm font-medium">Teléfono</span>
             <input type="tel" name="telefono" defaultValue={user.telefono ?? ""} className={INPUT} />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="text-sm font-medium">Fecha de nacimiento</span>
+            <input type="date" name="fechaNacimiento" defaultValue={user.fechaNacimiento ?? ""} className={INPUT} />
           </label>
         </div>
 

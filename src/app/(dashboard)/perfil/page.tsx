@@ -19,12 +19,20 @@ async function PerfilPage() {
       email: true,
       dni: true,
       telefono: true,
+      fechaNacimiento: true,
       foto: true,
       rol: true,
       tienda: { select: { nombre: true } },
     },
   });
   if (!user) redirect("/login");
+
+  const userForm = {
+    ...user,
+    fechaNacimiento: user.fechaNacimiento
+      ? user.fechaNacimiento.toISOString().slice(0, 10)
+      : null,
+  };
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -44,7 +52,7 @@ async function PerfilPage() {
       </header>
 
       <div className="rounded-xl border border-[var(--color-border,#E2E8F0)] bg-white p-6">
-        <PerfilForm user={user} />
+        <PerfilForm user={userForm} />
       </div>
     </div>
   );
