@@ -18,7 +18,7 @@
 export const PUBLIC_AUTH_PATHS: readonly string[] = [
   "/login",
   "/set-password",
-  // TODO Fase 5+: /forgot-password, /reset-password si se materializan.
+  "/recuperar-password",
 ] as const;
 
 /**

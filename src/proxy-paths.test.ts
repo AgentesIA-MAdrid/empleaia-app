@@ -51,12 +51,13 @@ describe("isPublicAuthPath", () => {
 });
 
 describe("PUBLIC_AUTH_PATHS", () => {
-  it("incluye /login y /set-password", () => {
+  it("incluye /login, /set-password y /recuperar-password", () => {
     expect(PUBLIC_AUTH_PATHS).toContain("/login");
     expect(PUBLIC_AUTH_PATHS).toContain("/set-password");
+    expect(PUBLIC_AUTH_PATHS).toContain("/recuperar-password");
   });
 
-  it("solo 2 paths por ahora (forgot-password y reset-password son TODO)", () => {
-    expect(PUBLIC_AUTH_PATHS).toHaveLength(2);
+  it("3 paths del flujo de auth (login, set-password, recuperar-password)", () => {
+    expect(PUBLIC_AUTH_PATHS).toHaveLength(3);
   });
 });
