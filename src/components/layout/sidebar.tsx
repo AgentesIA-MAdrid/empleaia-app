@@ -106,7 +106,7 @@ function getSidebarConfig(rol: string, pendingAusencias = 0): SidebarConfig {
           key: "plataforma",
           label: "PLATAFORMA",
           items: [
-            { label: "Chat", href: "/admin/chat", icon: MessageCircle, feature: "chat" },
+            { label: "Chat", href: "/chat", icon: MessageCircle, feature: "chat" },
             { label: "WhatsApp Bot", href: "/admin/whatsapp-bot", icon: MessageSquare, feature: "whatsapp_bot" },
             { label: "Marketplace", href: "/admin/marketplace", icon: Boxes, feature: "marketplace" },
             { label: "Grupo empresarial", href: "/admin/grupo", icon: Building, feature: "multi_empresa" },
@@ -198,7 +198,7 @@ function getSidebarConfig(rol: string, pendingAusencias = 0): SidebarConfig {
           { label: "Comunicados", href: "/empleado/comunicados", icon: Megaphone },
           { label: "Artículos", href: "/empleado/articulos", icon: BookOpen },
           { label: "Encuestas", href: "/empleado/encuestas", icon: MessageSquare, feature: "encuestas_clima" },
-          { label: "Chat", href: "/admin/chat", icon: MessageCircle, feature: "chat" },
+          { label: "Chat", href: "/chat", icon: MessageCircle, feature: "chat" },
         ],
       },
       {
