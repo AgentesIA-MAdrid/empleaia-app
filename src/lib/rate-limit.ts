@@ -11,7 +11,12 @@
  */
 
 type RateBucket = { count: number; resetAt: number };
-type LockoutEntry = { unlockAt: number; failures: number };
+// `failures` se acumula mientras estemos dentro de `windowExpiresAt`.
+// `lockedUntil` es el bloqueo REAL: 0 (o pasado) = no bloqueado.
+// Separar ambos es crítico: si reusáramos un único `unlockAt` como TTL
+// del contador, `isLocked` trataría como bloqueada cualquier entrada con
+// un solo fallo (ver bug "1 intento fallido bloquea 15 min").
+type LockoutEntry = { failures: number; windowExpiresAt: number; lockedUntil: number };
 
 const RATES: Map<string, RateBucket> =
   (globalThis as { _rateLimitBuckets?: Map<string, RateBucket> })._rateLimitBuckets ??
@@ -57,11 +62,14 @@ export function isLocked(key: string): LockoutResult {
   const entry = LOCKOUTS.get(key);
   if (!entry) return { locked: false };
   const now = Date.now();
-  if (entry.unlockAt <= now) {
-    LOCKOUTS.delete(key);
-    return { locked: false };
+  if (entry.lockedUntil > now) {
+    return { locked: true, unlockAt: entry.lockedUntil, remainingMs: entry.lockedUntil - now };
   }
-  return { locked: true, unlockAt: entry.unlockAt, remainingMs: entry.unlockAt - now };
+  // No bloqueado. Si además la ventana del contador caducó, limpiamos.
+  if (entry.windowExpiresAt <= now) {
+    LOCKOUTS.delete(key);
+  }
+  return { locked: false };
 }
 
 /**
@@ -80,20 +88,24 @@ export function recordFailure(
   const entry = LOCKOUTS.get(key);
 
   // Si ya estaba locked y aún no venció, no hace falta tocar el contador.
-  if (entry && entry.unlockAt > now) {
-    return { locked: true, failures: entry.failures, unlockAt: entry.unlockAt };
+  if (entry && entry.lockedUntil > now) {
+    return { locked: true, failures: entry.failures, unlockAt: entry.lockedUntil };
   }
 
-  const failures = (entry?.failures ?? 0) + 1;
+  // Acumular sobre el contador solo si su ventana sigue vigente; si
+  // caducó (o no había entrada) empezamos de cero.
+  const prevFailures = entry && entry.windowExpiresAt > now ? entry.failures : 0;
+  const failures = prevFailures + 1;
 
   if (failures >= threshold) {
-    const unlockAt = now + lockoutMs;
-    LOCKOUTS.set(key, { unlockAt, failures });
-    return { locked: true, failures, unlockAt };
+    const lockedUntil = now + lockoutMs;
+    LOCKOUTS.set(key, { failures, windowExpiresAt: lockedUntil, lockedUntil });
+    return { locked: true, failures, unlockAt: lockedUntil };
   }
 
-  // Mantener contador con TTL = lockoutMs (si no hay más fallos, expira).
-  LOCKOUTS.set(key, { unlockAt: now + lockoutMs, failures });
+  // Mantener contador con TTL = lockoutMs (si no hay más fallos, expira),
+  // pero SIN bloquear (lockedUntil = 0).
+  LOCKOUTS.set(key, { failures, windowExpiresAt: now + lockoutMs, lockedUntil: 0 });
   return { locked: false, failures };
 }
 
