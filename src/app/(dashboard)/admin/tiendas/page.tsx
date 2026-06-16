@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Edit2, MapPin, Phone, Mail, Users, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Edit2, MapPin, Phone, Mail, Users, ToggleLeft, ToggleRight, LocateFixed, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { SedeHorariosDialog } from "@/components/admin/sede-horarios-dialog";
+import { SedeEmpleadosDialog } from "@/components/admin/sede-empleados-dialog";
 
 interface Tienda {
   id: string;
@@ -43,7 +45,37 @@ export default function TiendasPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editando, setEditando] = useState<Tienda | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
   const [form, setForm] = useState(FORM_INICIAL);
+  const [horariosTienda, setHorariosTienda] = useState<{ id: string; nombre: string } | null>(null);
+  const [empleadosTienda, setEmpleadosTienda] = useState<{ id: string; nombre: string } | null>(null);
+
+  const ubicar = async () => {
+    if (!form.direccion || !form.ciudad) {
+      toast({ title: "Indica dirección y ciudad para ubicar", variant: "destructive" });
+      return;
+    }
+    setGeocoding(true);
+    try {
+      const params = new URLSearchParams({
+        direccion: form.direccion,
+        ciudad: form.ciudad,
+        cp: form.codigoPostal,
+      });
+      const res = await fetch(`/api/tiendas/geocodificar?${params.toString()}`);
+      if (!res.ok) {
+        toast({ title: "No se pudo ubicar la dirección", description: "Revísala o introduce las coordenadas a mano.", variant: "destructive" });
+        return;
+      }
+      const data = await res.json();
+      setForm((f) => ({ ...f, latitud: String(data.latitud), longitud: String(data.longitud) }));
+      toast({ title: "Ubicación encontrada", description: "Revisa que el punto sea correcto." });
+    } catch {
+      toast({ title: "Error al ubicar", variant: "destructive" });
+    } finally {
+      setGeocoding(false);
+    }
+  };
 
   const fetchTiendas = useCallback(async () => {
     setLoading(true);
@@ -149,10 +181,16 @@ export default function TiendasPage() {
                     <h3 className="font-semibold text-slate-900 text-sm">{t.nombre}</h3>
                   </div>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => abrirEditar(t)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setHorariosTienda({ id: t.id, nombre: t.nombre })} title="Horarios de apertura">
+                      <Clock className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEmpleadosTienda({ id: t.id, nombre: t.nombre })} title="Asignar empleados">
+                      <Users className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => abrirEditar(t)} title="Editar sede">
                       <Edit2 className="h-3.5 w-3.5" />
                     </Button>
-                    <button onClick={() => handleToggleActiva(t)} className="text-slate-400 hover:text-slate-600">
+                    <button onClick={() => handleToggleActiva(t)} className="text-slate-400 hover:text-slate-600" title={t.activa ? "Desactivar" : "Activar"}>
                       {t.activa
                         ? <ToggleRight className="h-5 w-5 text-emerald-500" />
                         : <ToggleLeft className="h-5 w-5" />
@@ -225,6 +263,15 @@ export default function TiendasPage() {
                 <Label>Email</Label>
                 <Input className="mt-1" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="sede@empresa.es" />
               </div>
+              <div className="col-span-2 flex items-center justify-between rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
+                <span className="text-xs text-slate-500">
+                  Las coordenadas se calculan solas al guardar. Pulsa para previsualizarlas y afinar.
+                </span>
+                <Button type="button" variant="outline" size="sm" onClick={ubicar} disabled={geocoding}>
+                  <LocateFixed className="h-3.5 w-3.5 mr-1.5" />
+                  {geocoding ? "Ubicando…" : "Ubicar automáticamente"}
+                </Button>
+              </div>
               <div>
                 <Label>Latitud (geofencing)</Label>
                 <Input className="mt-1" type="number" step="0.0001" value={form.latitud} onChange={(e) => setForm((f) => ({ ...f, latitud: e.target.value }))} placeholder="40.4168" />
@@ -261,6 +308,13 @@ export default function TiendasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SedeHorariosDialog tienda={horariosTienda} onClose={() => setHorariosTienda(null)} />
+      <SedeEmpleadosDialog
+        tienda={empleadosTienda}
+        onClose={() => setEmpleadosTienda(null)}
+        onSaved={fetchTiendas}
+      />
     </div>
   );
 }
