@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Plus, Search, Edit2, UserX, UserCheck, Trash2, Send, FileText } from "lucide-react";
+import { Plus, Search, Edit2, UserX, UserCheck, Trash2, Send, FileText, KeyRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -64,6 +64,8 @@ export default function EmpleadosPage() {
   const [editando, setEditando] = useState<Empleado | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(FORM_INICIAL);
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
+  const [accionMasiva, setAccionMasiva] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -195,6 +197,116 @@ export default function EmpleadosPage() {
     }
   };
 
+  // Envía el email de restablecimiento a un empleado que YA tiene
+  // contraseña. Para los que aún no la tienen (invitación pendiente)
+  // se usa handleReenviarInvitacion.
+  const enviarReset = async (emp: Empleado): Promise<boolean> => {
+    const url = emp.password
+      ? `/api/empleados/${emp.id}/restablecer-password`
+      : `/api/empleados/${emp.id}/reenviar-invitacion`;
+    const res = await fetch(url, { method: "POST" });
+    return res.ok;
+  };
+
+  const handleRestablecerPassword = async (emp: Empleado) => {
+    try {
+      const ok = await enviarReset(emp);
+      if (!ok) throw new Error();
+      toast({
+        title: "Email enviado",
+        description: `Se ha enviado un enlace para restablecer la contraseña a ${emp.email}`,
+      });
+    } catch {
+      toast({ title: "Error al enviar el email", variant: "destructive" });
+    }
+  };
+
+  // --- Selección múltiple + acciones masivas ---
+  const idsFiltrados = empleadosFiltrados.map((e) => e.id);
+  const todosSeleccionados = idsFiltrados.length > 0 && idsFiltrados.every((id) => seleccionados.has(id));
+
+  const toggleSeleccion = (id: string) => {
+    setSeleccionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSeleccionarTodos = () => {
+    setSeleccionados((prev) => {
+      if (idsFiltrados.every((id) => prev.has(id))) {
+        const next = new Set(prev);
+        idsFiltrados.forEach((id) => next.delete(id));
+        return next;
+      }
+      return new Set([...prev, ...idsFiltrados]);
+    });
+  };
+
+  const limpiarSeleccion = () => setSeleccionados(new Set());
+
+  const empleadosSeleccionados = empleados.filter((e) => seleccionados.has(e.id));
+
+  const bulkRestablecer = async () => {
+    setAccionMasiva(true);
+    try {
+      const results = await Promise.allSettled(empleadosSeleccionados.map((e) => enviarReset(e)));
+      const ok = results.filter((r) => r.status === "fulfilled" && r.value).length;
+      const fail = empleadosSeleccionados.length - ok;
+      toast({
+        title: `${ok} email${ok === 1 ? "" : "s"} enviado${ok === 1 ? "" : "s"}`,
+        description: fail > 0 ? `${fail} no se pudieron enviar` : undefined,
+        variant: fail > 0 ? "destructive" : undefined,
+      });
+      limpiarSeleccion();
+    } finally {
+      setAccionMasiva(false);
+    }
+  };
+
+  const bulkSetActivo = async (activo: boolean) => {
+    setAccionMasiva(true);
+    try {
+      await Promise.allSettled(
+        empleadosSeleccionados.map((e) =>
+          fetch(`/api/empleados/${e.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ activo }),
+          }),
+        ),
+      );
+      toast({ title: activo ? "Empleados activados" : "Empleados desactivados" });
+      limpiarSeleccion();
+      fetchData();
+    } finally {
+      setAccionMasiva(false);
+    }
+  };
+
+  const bulkEliminar = async () => {
+    if (!confirm(`¿Eliminar permanentemente ${empleadosSeleccionados.length} empleado(s)? Esta acción no se puede deshacer.`)) return;
+    setAccionMasiva(true);
+    try {
+      const results = await Promise.allSettled(
+        empleadosSeleccionados.map((e) => fetch(`/api/empleados/${e.id}`, { method: "DELETE" })),
+      );
+      const ok = results.filter((r) => r.status === "fulfilled" && r.value.ok).length;
+      const fail = empleadosSeleccionados.length - ok;
+      toast({
+        title: `${ok} empleado(s) eliminado(s)`,
+        description: fail > 0 ? `${fail} no se pudieron eliminar` : undefined,
+        variant: fail > 0 ? "destructive" : undefined,
+      });
+      limpiarSeleccion();
+      fetchData();
+    } finally {
+      setAccionMasiva(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -242,6 +354,31 @@ export default function EmpleadosPage() {
         </Select>
       </div>
 
+      {/* Barra de acciones masivas */}
+      {seleccionados.size > 0 && (
+        <div className="flex items-center gap-2 flex-wrap rounded-lg border border-[var(--primary)]/30 bg-[var(--primary)]/5 px-4 py-2.5">
+          <span className="text-sm font-medium text-slate-700">
+            {seleccionados.size} seleccionado{seleccionados.size === 1 ? "" : "s"}
+          </span>
+          <span className="h-4 w-px bg-slate-300 mx-1" />
+          <Button variant="outline" size="sm" disabled={accionMasiva} onClick={bulkRestablecer}>
+            <KeyRound className="h-3.5 w-3.5 mr-1.5" /> Restablecer contraseña
+          </Button>
+          <Button variant="outline" size="sm" disabled={accionMasiva} onClick={() => bulkSetActivo(true)}>
+            <UserCheck className="h-3.5 w-3.5 mr-1.5 text-emerald-500" /> Activar
+          </Button>
+          <Button variant="outline" size="sm" disabled={accionMasiva} onClick={() => bulkSetActivo(false)}>
+            <UserX className="h-3.5 w-3.5 mr-1.5 text-amber-500" /> Desactivar
+          </Button>
+          <Button variant="outline" size="sm" disabled={accionMasiva} onClick={bulkEliminar} className="hover:bg-red-50 hover:text-red-600">
+            <Trash2 className="h-3.5 w-3.5 mr-1.5 text-red-400" /> Eliminar
+          </Button>
+          <Button variant="ghost" size="sm" onClick={limpiarSeleccion} className="ml-auto">
+            <X className="h-3.5 w-3.5 mr-1.5" /> Limpiar
+          </Button>
+        </div>
+      )}
+
       {/* Tabla */}
       <Card>
         <CardContent className="p-0">
@@ -256,6 +393,15 @@ export default function EmpleadosPage() {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
+                    <th className="px-4 py-3 w-10">
+                      <input
+                        type="checkbox"
+                        aria-label="Seleccionar todos"
+                        className="h-4 w-4 rounded border-slate-300 accent-[var(--primary)] cursor-pointer align-middle"
+                        checked={todosSeleccionados}
+                        onChange={toggleSeleccionarTodos}
+                      />
+                    </th>
                     {["Empleado", "Email", "DNI", "Rol", "Sede", "Estado", "Acciones"].map((h) => (
                       <th key={h} className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3">{h}</th>
                     ))}
@@ -265,7 +411,16 @@ export default function EmpleadosPage() {
                   {empleadosFiltrados.map((emp) => {
                     const estado = getEstadoEmpleado(emp);
                     return (
-                      <tr key={emp.id} className={cn("hover:bg-slate-50 transition-colors", !emp.activo && "opacity-60")}>
+                      <tr key={emp.id} className={cn("hover:bg-slate-50 transition-colors", !emp.activo && "opacity-60", seleccionados.has(emp.id) && "bg-[var(--primary)]/5")}>
+                        <td className="px-4 py-3 w-10">
+                          <input
+                            type="checkbox"
+                            aria-label={`Seleccionar ${emp.nombre} ${emp.apellidos}`}
+                            className="h-4 w-4 rounded border-slate-300 accent-[var(--primary)] cursor-pointer align-middle"
+                            checked={seleccionados.has(emp.id)}
+                            onChange={() => toggleSeleccion(emp.id)}
+                          />
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <EmployeeAvatar nombre={emp.nombre} apellidos={emp.apellidos} seed={emp.id} />
@@ -302,6 +457,17 @@ export default function EmpleadosPage() {
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => abrirEditar(emp)} title="Editar">
                               <Edit2 className="h-3.5 w-3.5" />
                             </Button>
+                            {emp.password && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleRestablecerPassword(emp)}
+                                title="Enviar restablecimiento de contraseña"
+                              >
+                                <KeyRound className="h-3.5 w-3.5 text-amber-500" />
+                              </Button>
+                            )}
                             {!emp.password ? (
                               <Button
                                 variant="ghost"
