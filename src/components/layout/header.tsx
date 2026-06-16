@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
   Menu,
@@ -106,7 +107,6 @@ interface HeaderProps {
 
 export function Header({ user, onMenuToggle, notificationCount = 0 }: HeaderProps) {
   const pathname = usePathname();
-  const router = useRouter();
 
   const nombre = user.nombre;
   const apellidos = user.apellidos;
@@ -190,31 +190,32 @@ export function Header({ user, onMenuToggle, notificationCount = 0 }: HeaderProp
                 <p className="text-xs text-muted-foreground truncate">{email}</p>
               </div>
 
+              {/* Navegación con <Link> (ancla real): el patrón anterior
+                  con <button onClick={router.push}> no navegaba porque al
+                  seleccionar el item Radix cierra/desmonta el menú y cancela
+                  el push antes de que se complete. */}
               <DropdownMenu.Item asChild>
-                <button
-                  onClick={() => router.push("/perfil")}
+                <Link
+                  href="/perfil"
                   className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-accent focus:bg-accent focus:outline-none transition-colors"
                 >
                   <User className="h-4 w-4 text-muted-foreground" />
                   Mi perfil
-                </button>
+                </Link>
               </DropdownMenu.Item>
 
               <DropdownMenu.Item asChild>
-                <button
-                  onClick={() => {
-                    const rol = user.rol;
-                    if (rol === "OWNER" || rol === "MANAGER") {
-                      router.push("/admin/configuracion");
-                    } else {
-                      router.push("/empleado/preferencias");
-                    }
-                  }}
+                <Link
+                  href={
+                    user.rol === "OWNER" || user.rol === "MANAGER"
+                      ? "/admin/configuracion"
+                      : "/empleado/preferencias"
+                  }
                   className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground hover:bg-accent focus:bg-accent focus:outline-none transition-colors"
                 >
                   <Settings className="h-4 w-4 text-muted-foreground" />
                   Preferencias
-                </button>
+                </Link>
               </DropdownMenu.Item>
 
               <DropdownMenu.Separator className="my-1 h-px bg-border" />
