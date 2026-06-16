@@ -5,6 +5,41 @@ import bcrypt from "bcryptjs";
 import type { NextRequest } from "next/server";
 
 import { withTenant } from "@/lib/tenant/with-tenant";
+import { esPerfilCompleto } from "@/lib/empleados/perfil";
+
+// Campos de texto de la ficha ampliada que cualquiera (self o admin)
+// puede editar de su propio perfil. Vacío ("") se normaliza a null.
+const CAMPOS_TEXTO_FICHA = [
+  "tipoIdentificacion",
+  "tipoIdentificacionSecundaria",
+  "numeroIdentificacionSecundaria",
+  "nacionalidad",
+  "estadoCivil",
+  "genero",
+  "domicilio",
+  "codigoPostal",
+  "localidad",
+  "provincia",
+  "pais",
+  "emailEmpresa",
+  "emailPersonal",
+  "emailNotificaciones",
+  "telefonoEmpresa",
+  "telefonoEmergencia",
+  "contactoUrgencia",
+  "grupoCotizacion",
+  "categoriaProfesional",
+  "numeroSeguridadSocial",
+  "codigoContrato",
+  "titularCuenta",
+  "iban",
+  "bic",
+  "entidadBancaria",
+] as const;
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const norm = (v: unknown): string | null =>
+  typeof v === "string" && v.trim() !== "" ? v.trim() : null;
 const userSelect = {
   id: true,
   email: true,
@@ -21,6 +56,36 @@ const userSelect = {
   salarioBase: true,
   horasSemanalesContrato: true,
   perfilCompletado: true,
+  // Ficha ampliada.
+  tipoIdentificacion: true,
+  tipoIdentificacionSecundaria: true,
+  numeroIdentificacionSecundaria: true,
+  nacionalidad: true,
+  estadoCivil: true,
+  genero: true,
+  compartirCumpleanos: true,
+  domicilio: true,
+  codigoPostal: true,
+  localidad: true,
+  provincia: true,
+  pais: true,
+  emailEmpresa: true,
+  emailPersonal: true,
+  emailNotificaciones: true,
+  telefonoEmpresa: true,
+  telefonoEmergencia: true,
+  contactoUrgencia: true,
+  teletrabajo: true,
+  grupoCotizacion: true,
+  categoriaProfesional: true,
+  numeroSeguridadSocial: true,
+  codigoContrato: true,
+  numeroHijos: true,
+  porcentajeDiscapacidad: true,
+  titularCuenta: true,
+  iban: true,
+  bic: true,
+  entidadBancaria: true,
   password: true,
   resetToken: true,
   createdAt: true,
@@ -95,9 +160,20 @@ export const PUT = withTenant(async (request: NextRequest,
         id: true,
         email: true,
         rol: true,
+        // Campos obligatorios actuales (para recalcular perfilCompletado).
+        tipoIdentificacion: true,
         dni: true,
-        telefono: true,
+        nacionalidad: true,
+        estadoCivil: true,
+        genero: true,
         fechaNacimiento: true,
+        domicilio: true,
+        codigoPostal: true,
+        localidad: true,
+        provincia: true,
+        pais: true,
+        telefono: true,
+        emailPersonal: true,
       },
     });
     if (!empleado) {
@@ -160,26 +236,47 @@ export const PUT = withTenant(async (request: NextRequest,
     if (email !== undefined) updateData.email = email;
     if (nombre !== undefined) updateData.nombre = nombre;
     if (apellidos !== undefined) updateData.apellidos = apellidos;
-    if (dni !== undefined) updateData.dni = dni;
-    if (telefono !== undefined) updateData.telefono = telefono;
+    // dni es @unique: "" debe guardarse como null (dos vacíos colisionan).
+    if (dni !== undefined) updateData.dni = norm(dni);
+    if (telefono !== undefined) updateData.telefono = norm(telefono);
     if (fechaNacimiento !== undefined) {
       updateData.fechaNacimiento = fechaNacimiento ? new Date(fechaNacimiento) : null;
     }
     if (foto !== undefined) updateData.foto = foto;
 
-    // Recalcular perfilCompletado si se tocó alguno de los 3 datos
-    // personales obligatorios (DNI, teléfono, fecha de nacimiento).
-    if (
-      dni !== undefined ||
-      telefono !== undefined ||
-      fechaNacimiento !== undefined
-    ) {
-      const dniEf = dni !== undefined ? dni : empleado.dni;
-      const telEf = telefono !== undefined ? telefono : empleado.telefono;
-      const fnEf =
-        fechaNacimiento !== undefined ? fechaNacimiento : empleado.fechaNacimiento;
-      updateData.perfilCompletado = Boolean(dniEf && telEf && fnEf);
+    // ─── Ficha ampliada: campos de texto (self o admin) ───────────────
+    const b = body as Record<string, unknown>;
+    for (const campo of CAMPOS_TEXTO_FICHA) {
+      if (b[campo] !== undefined) updateData[campo] = norm(b[campo]);
     }
+    // Validación ligera de emails (si vienen con valor).
+    for (const campo of ["emailEmpresa", "emailPersonal", "emailNotificaciones"] as const) {
+      if (updateData[campo] && !EMAIL_RE.test(updateData[campo])) {
+        return Response.json({ error: `Email inválido en ${campo}` }, { status: 400 });
+      }
+    }
+    // Booleanos.
+    if (typeof b.compartirCumpleanos === "boolean") updateData.compartirCumpleanos = b.compartirCumpleanos;
+    if (typeof b.teletrabajo === "boolean") updateData.teletrabajo = b.teletrabajo;
+    // Numéricos con validación de rango.
+    if (b.numeroHijos !== undefined) {
+      const n = b.numeroHijos;
+      if (n === null || n === "") updateData.numeroHijos = null;
+      else if (typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= 30) updateData.numeroHijos = n;
+      else return Response.json({ error: "numeroHijos inválido (0–30)" }, { status: 400 });
+    }
+    if (b.porcentajeDiscapacidad !== undefined) {
+      const n = b.porcentajeDiscapacidad;
+      if (n === null || n === "") updateData.porcentajeDiscapacidad = null;
+      else if (typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= 100) updateData.porcentajeDiscapacidad = n;
+      else return Response.json({ error: "porcentajeDiscapacidad inválido (0–100)" }, { status: 400 });
+    }
+
+    // Recalcular perfilCompletado contra el set obligatorio centralizado
+    // (lib/empleados/perfil) usando los valores efectivos (merge de los
+    // actuales del empleado + los que vengan en este update).
+    const efectivo = { ...empleado, ...updateData };
+    updateData.perfilCompletado = esPerfilCompleto(efectivo);
     if (rol !== undefined && userRol === Rol.OWNER) updateData.rol = rol;
     if (tiendaId !== undefined && userRol === Rol.OWNER) updateData.tiendaId = tiendaId;
     if (managerId !== undefined && (userRol === Rol.OWNER || userRol === Rol.MANAGER)) {

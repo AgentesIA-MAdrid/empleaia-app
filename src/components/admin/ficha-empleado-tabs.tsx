@@ -27,6 +27,7 @@ import { EmployeeAvatar } from "@/components/ui/employee-avatar";
 import { Badge } from "@/components/ui/badge";
 import { StatusPill } from "@/components/ui/status-pill";
 import { cn, getColorRol, getLabelRol } from "@/lib/utils";
+import { EmpleadoDatosForm, type EmpleadoDatos } from "@/components/empleados/empleado-datos-form";
 
 type Rol = "OWNER" | "MANAGER" | "EMPLEADO";
 type TipoFichaje = "ENTRADA" | "PAUSA" | "VUELTA_PAUSA" | "SALIDA";
@@ -53,6 +54,7 @@ interface Props {
     salarioBase: number | null;
   };
   viewerRol?: Rol;
+  fichaDatos: EmpleadoDatos;
   metricas: {
     horas30d: number;
     diasTrabajados30d: number;
@@ -118,6 +120,7 @@ function estadoAusenciaTone(
 
 export function FichaEmpleadoTabs({
   empleado,
+  fichaDatos,
   metricas,
   fichajes,
   ausencias,
@@ -127,6 +130,7 @@ export function FichaEmpleadoTabs({
   const nombreCompleto = `${empleado.nombre} ${empleado.apellidos}`;
   const altaDate = new Date(empleado.createdAt);
   const puedeEditarSalario = viewerRol === "OWNER";
+  const puedeEditarFicha = viewerRol === "OWNER";
   const [salarioInput, setSalarioInput] = useState<string>(
     empleado.salarioBase != null ? String(empleado.salarioBase) : "",
   );
@@ -352,12 +356,30 @@ export function FichaEmpleadoTabs({
       </div>
 
       {/* ─── Tabs ───────────────────────────────────────────────────── */}
-      <Tabs defaultValue="fichajes">
+      <Tabs defaultValue={puedeEditarFicha ? "datos" : "fichajes"}>
         <TabsList>
+          {puedeEditarFicha && <TabsTrigger value="datos">Datos</TabsTrigger>}
           <TabsTrigger value="fichajes">Fichajes (30d)</TabsTrigger>
           <TabsTrigger value="ausencias">Ausencias (12m)</TabsTrigger>
           <TabsTrigger value="turnos">Próximos turnos</TabsTrigger>
         </TabsList>
+
+        {/* ── Datos (ficha editable, solo OWNER) ── */}
+        {puedeEditarFicha && (
+          <TabsContent value="datos">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <UserIcon className="h-4 w-4 text-[var(--primary)]" />
+                  Datos del empleado
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <EmpleadoDatosForm empleado={fichaDatos} modo="admin" />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         {/* ── Fichajes ── */}
         <TabsContent value="fichajes">

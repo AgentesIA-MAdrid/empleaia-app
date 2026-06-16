@@ -11,6 +11,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prismaApp as prisma } from "@/lib/prisma";
 import { withTenantPage } from "@/lib/tenant/with-tenant-page";
+import { FICHA_SELECT, toEmpleadoDatos } from "@/lib/empleados/ficha";
 import { CompletarPerfilForm } from "./completar-perfil-form";
 
 async function CompletarPerfilPage() {
@@ -24,13 +25,7 @@ async function CompletarPerfilPage() {
 
   const u = await prisma.user.findUnique({
     where: { id: su.id ?? "" },
-    select: {
-      nombre: true,
-      dni: true,
-      telefono: true,
-      fechaNacimiento: true,
-      perfilCompletado: true,
-    },
+    select: { ...FICHA_SELECT, perfilCompletado: true },
   });
   if (!u) redirect("/login");
 
@@ -39,16 +34,9 @@ async function CompletarPerfilPage() {
 
   return (
     <CompletarPerfilForm
-      userId={su.id ?? ""}
+      empleado={toEmpleadoDatos(u)}
       home={home}
       nombre={u.nombre}
-      initial={{
-        dni: u.dni ?? "",
-        telefono: u.telefono ?? "",
-        fechaNacimiento: u.fechaNacimiento
-          ? u.fechaNacimiento.toISOString().slice(0, 10)
-          : "",
-      }}
     />
   );
 }

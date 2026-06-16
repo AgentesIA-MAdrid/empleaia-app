@@ -15,6 +15,7 @@ import { ChevronLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { withTenantPage } from "@/lib/tenant/with-tenant-page";
 import { prismaApp } from "@/lib/prisma";
+import { FICHA_SELECT, toEmpleadoDatos } from "@/lib/empleados/ficha";
 import { FichaEmpleadoTabs } from "@/components/admin/ficha-empleado-tabs";
 
 export const dynamic = "force-dynamic";
@@ -52,14 +53,8 @@ async function FichaEmpleadoPage({
     prismaApp.user.findUnique({
       where: { id },
       select: {
-        id: true,
-        nombre: true,
-        apellidos: true,
-        email: true,
-        dni: true,
-        telefono: true,
+        ...FICHA_SELECT,
         foto: true,
-        fechaNacimiento: true,
         rol: true,
         activo: true,
         createdAt: true,
@@ -111,6 +106,8 @@ async function FichaEmpleadoPage({
   ]);
 
   if (!empleado) notFound();
+
+  const fichaDatos = toEmpleadoDatos(empleado);
 
   const ausenciasAprobadas = ausencias.filter((a) => a.estado === "APROBADA");
   const diasAusenciaUlt12m = ausenciasAprobadas.reduce((acc, a) => acc + a.dias, 0);
@@ -174,6 +171,7 @@ async function FichaEmpleadoPage({
           createdAt: empleado.createdAt.toISOString(),
           salarioBase: empleado.salarioBase != null ? Number(empleado.salarioBase) : null,
         }}
+        fichaDatos={fichaDatos}
         viewerRol={rol}
         metricas={{
           horas30d,

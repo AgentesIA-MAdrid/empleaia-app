@@ -3,6 +3,7 @@ import { User } from "lucide-react";
 import { withTenantPage } from "@/lib/tenant/with-tenant-page";
 import { auth } from "@/lib/auth";
 import { prismaApp } from "@/lib/prisma";
+import { FICHA_SELECT, toEmpleadoDatos } from "@/lib/empleados/ficha";
 import { PerfilForm } from "./perfil-form";
 
 async function PerfilPage() {
@@ -12,30 +13,14 @@ async function PerfilPage() {
 
   const user = await prismaApp.user.findUnique({
     where: { id: userId },
-    select: {
-      id: true,
-      nombre: true,
-      apellidos: true,
-      email: true,
-      dni: true,
-      telefono: true,
-      fechaNacimiento: true,
-      foto: true,
-      rol: true,
-      tienda: { select: { nombre: true } },
-    },
+    select: { ...FICHA_SELECT, rol: true, tienda: { select: { nombre: true } } },
   });
   if (!user) redirect("/login");
 
-  const userForm = {
-    ...user,
-    fechaNacimiento: user.fechaNacimiento
-      ? user.fechaNacimiento.toISOString().slice(0, 10)
-      : null,
-  };
+  const empleado = toEmpleadoDatos(user);
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-3xl">
       <header className="flex items-start gap-3">
         <div className="flex-shrink-0 h-12 w-12 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center">
           <User className="h-6 w-6 text-[var(--primary)]" />
@@ -52,7 +37,7 @@ async function PerfilPage() {
       </header>
 
       <div className="rounded-xl border border-[var(--color-border,#E2E8F0)] bg-white p-6">
-        <PerfilForm user={userForm} />
+        <PerfilForm empleado={empleado} />
       </div>
     </div>
   );
