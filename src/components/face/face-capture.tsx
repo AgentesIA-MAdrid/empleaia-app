@@ -8,8 +8,9 @@ import { Loader2, Camera, AlertCircle } from "lucide-react";
  *
  * Carga la librería + modelos al montar (~5MB), pide acceso a cámara,
  * detecta cara en cada frame y calcula un descriptor 128-D L2-normalizado.
- * Cuando el descriptor es estable durante varios frames seguidos, llama
- * a `onCapture(embedding)` con el array de 128 floats.
+ * Exige un parpadeo (liveness anti-foto) y que el descriptor sea estable
+ * durante varios frames seguidos; entonces llama a `onCapture(embedding)`
+ * con el array de 128 floats.
  *
  * El embedding NUNCA se sube como foto — solo el vector numérico
  * (irreversible) se manda al servidor para enroll/verify.
@@ -19,6 +20,22 @@ const FACE_API_URL = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-
 const MODELS_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model";
 // Capturas estables consecutivas necesarias para confirmar el embedding.
 const STABLE_FRAMES = 3;
+
+// Liveness anti-foto: exigimos un parpadeo antes de confirmar. Eye Aspect
+// Ratio (EAR) alto = ojo abierto, bajo = cerrado. Una foto estática no
+// cruza estos umbrales, así que no supera el challenge.
+const EAR_OPEN = 0.28;
+const EAR_CLOSED = 0.21;
+
+type Pt = { x: number; y: number };
+
+/** EAR de un ojo a partir de sus 6 landmarks (face-api.js getLeftEye/getRightEye). */
+function eyeAspectRatio(eye: Pt[]): number {
+  const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
+  const vertical = dist(eye[1]!, eye[5]!) + dist(eye[2]!, eye[4]!);
+  const horizontal = 2 * dist(eye[0]!, eye[3]!);
+  return horizontal === 0 ? 0 : vertical / horizontal;
+}
 
 declare global {
   interface Window {
@@ -112,9 +129,14 @@ export function FaceCapture({ onCapture, cta, pending, captureSnapshot }: Props)
 
   async function startCapture() {
     setPhase("capturing");
-    setHint("Detectando rostro…");
+    setHint("Mira a la cámara y mantente quieto");
     stableRef.current = 0;
     let lastDescriptor: Float32Array | null = null;
+    // Máquina de estados del parpadeo: vimos ojos abiertos → cerrados →
+    // abiertos de nuevo = parpadeo válido.
+    let sawOpen = false;
+    let sawClosed = false;
+    let blinked = false;
 
     const faceapi = window.faceapi;
     if (!faceapi || !videoRef.current) return;
@@ -132,6 +154,25 @@ export function FaceCapture({ onCapture, cta, pending, captureSnapshot }: Props)
           setHint("No detecto un rostro. Acércate o mejora la luz.");
           return;
         }
+
+        // Liveness: no confirmamos hasta detectar un parpadeo.
+        if (!blinked) {
+          const ear =
+            (eyeAspectRatio(detection.landmarks.getLeftEye()) +
+              eyeAspectRatio(detection.landmarks.getRightEye())) /
+            2;
+          if (ear > EAR_OPEN) {
+            if (sawClosed) blinked = true; // reabrió tras cerrar → parpadeo
+            sawOpen = true;
+          } else if (ear < EAR_CLOSED && sawOpen) {
+            sawClosed = true;
+          }
+          if (!blinked) {
+            setHint(sawClosed ? "Abre los ojos…" : "Parpadea una vez para confirmar que eres tú");
+            return;
+          }
+        }
+
         const desc = detection.descriptor as Float32Array;
         if (lastDescriptor) {
           // Cosine similarity entre frames consecutivos para verificar estabilidad.
@@ -181,7 +222,7 @@ export function FaceCapture({ onCapture, cta, pending, captureSnapshot }: Props)
       } catch (err) {
         console.error("[face-capture]", err);
       }
-    }, 500);
+    }, 250);
   }
 
   return (

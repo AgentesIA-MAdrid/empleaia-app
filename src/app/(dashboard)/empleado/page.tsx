@@ -403,7 +403,7 @@ export default function EmpleadoPage() {
         const data = await r.json();
         if (!r.ok) throw new Error(data?.error ?? `HTTP ${r.status}`);
         if (!data.match) {
-          throw new Error(`No coincide con tu rostro registrado (similitud ${(data.score ?? 0).toFixed(2)}).`);
+          throw new Error("El rostro no coincide con el registrado. Colócate de frente, con buena luz, y vuelve a intentarlo.");
         }
         const tipo = pendingFaceTipo;
         setPendingFaceTipo(null);

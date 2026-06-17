@@ -1,28 +1,30 @@
 /**
- * Similitud coseno entre dos embeddings faciales (Float32Array).
- * Devuelve un valor en [0, 1] (clamped). 1 = idéntico, 0 = ortogonal.
+ * Distancia euclidiana entre dos embeddings faciales (Float32Array de 128).
  *
- * Para face-api.js (Inception ResNet V1, embedding 128-D L2-normalizado),
- * un umbral típico de match seguro es >= 0.6. Por debajo, no match.
+ * Es la métrica NATIVA de face-api.js (FaceNet / Inception ResNet V1, que
+ * produce vectores 128-D L2-normalizados). Misma persona ≈ 0.2–0.45,
+ * personas distintas ≈ 0.55+. Match si `distancia <= FACE_MATCH_THRESHOLD`.
+ *
+ * IMPORTANTE: NO usar similitud coseno con estos embeddings. Apuntan en
+ * direcciones muy parecidas en el espacio, así que el coseno entre dos
+ * caras DISTINTAS suele dar 0.8–0.99 → con cualquier umbral razonable
+ * deja pasar a cualquiera (incl. familiares). Verificado en producción:
+ * una foto de otra persona daba coseno 0.82 y se aceptaba como match.
  */
 
-export const FACE_MATCH_THRESHOLD = 0.6;
+// Umbral estricto para fichaje (más seguro que el 0.6 por defecto de
+// face-api.js). Equivale a rechazar parecidos de familiares: una cara
+// distinta a ~0.6 de distancia queda fuera.
+export const FACE_MATCH_THRESHOLD = 0.5;
 
-export function cosineSimilarity(a: Float32Array, b: Float32Array): number {
+export function euclideanDistance(a: Float32Array, b: Float32Array): number {
   if (a.length !== b.length) {
     throw new Error(`Embeddings de dimensiones distintas: ${a.length} vs ${b.length}`);
   }
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
+  let sum = 0;
   for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
+    const d = a[i] - b[i];
+    sum += d * d;
   }
-  if (normA === 0 || normB === 0) return 0;
-  const sim = dot / (Math.sqrt(normA) * Math.sqrt(normB));
-  // Clamp a [0,1] (algunos embeddings pueden ser ligeramente negativos
-  // por ruido si no están perfectamente L2-normalizados).
-  return Math.max(0, Math.min(1, sim));
+  return Math.sqrt(sum);
 }

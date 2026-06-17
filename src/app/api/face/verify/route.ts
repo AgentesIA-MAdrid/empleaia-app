@@ -20,7 +20,7 @@ import { prismaApp } from "@/lib/prisma";
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
 import { decryptFloat32 } from "@/lib/crypto/aes-gcm";
-import { cosineSimilarity, FACE_MATCH_THRESHOLD } from "@/lib/face/similitud";
+import { euclideanDistance, FACE_MATCH_THRESHOLD } from "@/lib/face/similitud";
 import { issueFaceToken } from "@/lib/face/token";
 import { checkRate } from "@/lib/rate-limit";
 import { currentTenant } from "@/lib/tenant/context";
@@ -66,8 +66,11 @@ export const POST = withTenant(withFeature("face_id", async (req: NextRequest) =
 
   const candidate = new Float32Array(parsed.data.embedding);
   const stored = decryptFloat32(tpl.embeddingEnc);
-  const score = cosineSimilarity(stored, candidate);
-  const match = score >= FACE_MATCH_THRESHOLD;
+  // `score` es la distancia euclidiana: menor = más parecido. Match si
+  // está por debajo del umbral. (Antes se usaba coseno >= umbral, que
+  // dejaba pasar a cualquiera — ver lib/face/similitud.ts.)
+  const score = euclideanDistance(stored, candidate);
+  const match = score <= FACE_MATCH_THRESHOLD;
 
   const ua = req.headers.get("user-agent");
 
