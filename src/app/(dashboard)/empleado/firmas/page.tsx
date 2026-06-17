@@ -54,7 +54,7 @@ async function MisFirmasPage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 flex items-center gap-3">
           <Clock className="h-8 w-8 text-amber-700" />
           <div>

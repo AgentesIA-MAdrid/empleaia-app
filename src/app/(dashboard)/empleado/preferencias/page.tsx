@@ -158,7 +158,7 @@ export default function PreferenciasPage() {
   if (!prefs) return <div className="p-6 animate-pulse"><div className="h-40 bg-slate-100 rounded-xl" /></div>;
 
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Preferencias de notificaciones</h1>
         <p className="text-slate-500 text-sm mt-1">Elige cómo y cuándo quieres recibir notificaciones</p>
@@ -212,7 +212,7 @@ export default function PreferenciasPage() {
         </CardHeader>
         <CardContent className="p-0">
           {/* Header */}
-          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-6 py-2 border-b bg-slate-50 text-xs font-medium text-slate-500 uppercase tracking-wide">
+          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-2 sm:gap-4 px-4 sm:px-6 py-2 border-b bg-slate-50 text-xs font-medium text-slate-500 uppercase tracking-wide">
             <span>Evento</span>
             <span className="flex items-center gap-1 w-14 justify-center"><Bell className="h-3 w-3" />App</span>
             <span className="flex items-center gap-1 w-14 justify-center"><Mail className="h-3 w-3" />Email</span>
@@ -224,7 +224,7 @@ export default function PreferenciasPage() {
               const emailKey = `email${key}` as keyof Prefs;
               const pushKey = `push${key}` as keyof Prefs;
               return (
-                <div key={key} className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-6 py-3 items-center hover:bg-slate-50">
+                <div key={key} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 sm:gap-4 px-4 sm:px-6 py-3 items-center hover:bg-slate-50">
                   <div>
                     <p className="text-sm font-medium text-slate-900">{label}</p>
                     <p className="text-xs text-slate-400">{desc}</p>

@@ -367,7 +367,7 @@ export default function PrenominaPage() {
       </Card>
 
       {rows.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
           <Card>
             <CardContent className="pt-4 pb-4">
               <p className="text-xs uppercase tracking-wide text-slate-500 font-medium">Empleados</p>
@@ -433,7 +433,7 @@ export default function PrenominaPage() {
                   ].map((h) => (
                     <th
                       key={h}
-                      className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                      className={`text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500${(h === "DNI" || h === "Conceptos" || h === "Ausencias") ? " hidden lg:table-cell" : ""}`}
                     >
                       {h}
                     </th>
@@ -443,7 +443,7 @@ export default function PrenominaPage() {
               <tbody className="divide-y divide-slate-100">
                 {rows.map((r) => (
                   <tr key={r.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 text-slate-500 tabular-nums">{r.dni ?? "—"}</td>
+                    <td className="hidden lg:table-cell px-4 py-3 text-slate-500 tabular-nums">{r.dni ?? "—"}</td>
                     <td className="px-4 py-3 text-slate-900">
                       {r.apellidos}, {r.nombre}
                     </td>
@@ -459,10 +459,10 @@ export default function PrenominaPage() {
                         {r.horasExtras > 0 ? `+${r.horasExtras.toFixed(1)}h` : "—"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-slate-700">
+                    <td className="hidden lg:table-cell px-4 py-3 tabular-nums text-slate-700">
                       {r.diasAusenciaPagada + r.diasAusenciaNoPagada}
                     </td>
-                    <td className="px-4 py-3 tabular-nums">
+                    <td className="hidden lg:table-cell px-4 py-3 tabular-nums">
                       <span className={r.importeConceptos !== 0 ? "text-emerald-600" : "text-slate-400"}>
                         {r.conceptos.length === 0 ? "—" : `${r.conceptos.length} (${fmtMoney(r.importeConceptos, r.moneda)})`}
                       </span>
@@ -615,7 +615,7 @@ function DetalleDialog({
 
   return (
     <Dialog open={!!prenomina} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             Prenómina · {prenomina.nombre} {prenomina.apellidos}

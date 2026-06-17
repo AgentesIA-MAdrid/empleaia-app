@@ -185,7 +185,7 @@ export default function ManagerAusenciasPage() {
 
       {/* Dialog rechazar */}
       <Dialog open={!!rechazarId} onOpenChange={() => setRechazarId(null)}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="max-w-[95vw] sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Rechazar ausencia</DialogTitle>
           </DialogHeader>

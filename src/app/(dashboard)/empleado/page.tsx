@@ -667,7 +667,7 @@ export default function EmpleadoPage() {
             <div className="inline-flex items-center justify-center gap-2 mb-1">
               <Clock className="h-6 w-6 text-[var(--primary)]" />
             </div>
-            <p className="text-7xl font-mono font-bold tracking-tight text-slate-900 tabular-nums">
+            <p className="text-5xl sm:text-6xl lg:text-7xl font-mono font-bold tracking-tight text-slate-900 tabular-nums">
               {formatHora(now)}
             </p>
           </div>

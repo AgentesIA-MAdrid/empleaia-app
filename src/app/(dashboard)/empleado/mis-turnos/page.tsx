@@ -69,7 +69,7 @@ export default function MisTurnosPage() {
     .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Mis Turnos</h1>
@@ -118,13 +118,13 @@ export default function MisTurnosPage() {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
                 {Array.from({ length: 7 }).map((_, i) => (
                   <div key={i} className="h-32 bg-slate-100 rounded-xl animate-pulse" />
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
                 {diasSemana.map((dia, i) => {
                   const eHoy = isSameDay(dia, hoy);
                   const turnDia = turnosDia(dia);

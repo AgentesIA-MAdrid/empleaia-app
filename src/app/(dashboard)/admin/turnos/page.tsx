@@ -344,7 +344,7 @@ export default function AdminTurnosPage() {
 
       {/* Dialog turno */}
       <Dialog open={turnoDialog} onOpenChange={setTurnoDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-[95vw] sm:max-w-md">
           <DialogHeader><DialogTitle>{turnoForm.id ? "Editar turno" : "Nuevo turno"}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div>
@@ -396,7 +396,7 @@ export default function AdminTurnosPage() {
 
       {/* Dialog tipos de turno */}
       <Dialog open={tiposDialog} onOpenChange={setTiposDialog}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Tipos de turno</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1">

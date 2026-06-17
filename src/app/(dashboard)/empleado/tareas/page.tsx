@@ -36,7 +36,7 @@ export default function EmpleadoTareasPage() {
   const completadas = tareas.filter((t) => t.completada);
 
   return (
-    <div className="p-6 space-y-6 max-w-2xl mx-auto">
+    <div className="p-4 sm:p-6 space-y-6 max-w-2xl mx-auto">
       <div><h1 className="text-2xl font-bold text-slate-900">Mis Tareas</h1><p className="text-slate-500 text-sm mt-1">{pendientes.length} pendientes · {completadas.length} completadas</p></div>
       {loading ? (
         <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-20 bg-slate-100 rounded-xl animate-pulse" />)}</div>
