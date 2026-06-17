@@ -243,7 +243,7 @@ export default function AdminInformesPage() {
             <div>
               <Label>Sede</Label>
               <Select value={tiendaId} onValueChange={setTiendaId}>
-                <SelectTrigger className="mt-1 w-48"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-1 w-full sm:w-48"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todas">Todas las sedes</SelectItem>
                   {tiendas.map(t => <SelectItem key={t.id} value={t.id}>{t.nombre}</SelectItem>)}
@@ -253,7 +253,7 @@ export default function AdminInformesPage() {
             <div>
               <Label>Empleado</Label>
               <Select value={empleadoId} onValueChange={setEmpleadoId}>
-                <SelectTrigger className="mt-1 w-56"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-1 w-full sm:w-56"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos los empleados</SelectItem>
                   {empleadosFiltrados.map(e => (
@@ -300,7 +300,7 @@ export default function AdminInformesPage() {
       )}
 
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
           {[
             { label: "Total horas", value: `${stats.totalHoras.toFixed(0)}h`, color: "text-[var(--primary)]" },
             { label: "Media horas/día", value: `${stats.mediaHorasDia.toFixed(1)}h`, color: "text-slate-900" },
@@ -487,7 +487,7 @@ export default function AdminInformesPage() {
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
                       {["Fecha", "Hora", "Tipo", "Método", "Sede", "Localización", "Foto", "Nota"].map(h => (
-                        <th key={h} className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3">{h}</th>
+                        <th key={h} className={`text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3${(h === "Localización" || h === "Foto") ? " hidden md:table-cell" : ""}`}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -520,7 +520,7 @@ export default function AdminInformesPage() {
                           <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
                             {f.tienda?.nombre ?? "—"}
                           </td>
-                          <td className="px-4 py-3 text-sm">
+                          <td className="hidden md:table-cell px-4 py-3 text-sm">
                             {mapsUrl ? (
                               <a
                                 href={mapsUrl}
@@ -536,7 +536,7 @@ export default function AdminInformesPage() {
                               <span className="text-slate-400 text-xs">Sin ubicación</span>
                             )}
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="hidden md:table-cell px-4 py-3">
                             {f.tieneFoto ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <a href={`/api/fichajes/${f.id}/foto`} target="_blank" rel="noopener noreferrer" title="Ver foto del fichaje">

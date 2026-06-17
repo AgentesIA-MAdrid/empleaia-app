@@ -309,7 +309,7 @@ export default function EmpleadosPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Empleados</h1>
           <p className="text-slate-500 text-sm mt-1">{empleados.length} empleados registrados</p>
@@ -331,7 +331,7 @@ export default function EmpleadosPage() {
           />
         </div>
         <Select value={filtroTienda} onValueChange={setFiltroTienda}>
-          <SelectTrigger className="w-44">
+          <SelectTrigger className="w-full sm:w-44">
             <SelectValue placeholder="Todas las tiendas" />
           </SelectTrigger>
           <SelectContent>
@@ -342,7 +342,7 @@ export default function EmpleadosPage() {
           </SelectContent>
         </Select>
         <Select value={filtroRol} onValueChange={setFiltroRol}>
-          <SelectTrigger className="w-36">
+          <SelectTrigger className="w-full sm:w-36">
             <SelectValue placeholder="Todos los roles" />
           </SelectTrigger>
           <SelectContent>
@@ -356,7 +356,7 @@ export default function EmpleadosPage() {
 
       {/* Barra de acciones masivas */}
       {seleccionados.size > 0 && (
-        <div className="flex items-center gap-2 flex-wrap rounded-lg border border-[var(--primary)]/30 bg-[var(--primary)]/5 px-4 py-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-wrap rounded-lg border border-[var(--primary)]/30 bg-[var(--primary)]/5 px-4 py-2.5">
           <span className="text-sm font-medium text-slate-700">
             {seleccionados.size} seleccionado{seleccionados.size === 1 ? "" : "s"}
           </span>
@@ -403,7 +403,7 @@ export default function EmpleadosPage() {
                       />
                     </th>
                     {["Empleado", "Email", "DNI", "Rol", "Sede", "Estado", "Acciones"].map((h) => (
-                      <th key={h} className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3">{h}</th>
+                      <th key={h} className={cn("text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3", (h === "Email" || h === "DNI") && "hidden md:table-cell")}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -429,8 +429,8 @@ export default function EmpleadosPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-slate-600">{emp.email}</td>
-                        <td className="px-4 py-3 text-sm text-slate-600">{emp.dni || "—"}</td>
+                        <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-600">{emp.email}</td>
+                        <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-600">{emp.dni || "—"}</td>
                         <td className="px-4 py-3">
                           <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", getColorRol(emp.rol))}>
                             {getLabelRol(emp.rol)}
@@ -515,7 +515,7 @@ export default function EmpleadosPage() {
 
       {/* Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editando ? "Editar Empleado" : "Nuevo Empleado"}</DialogTitle>
           </DialogHeader>

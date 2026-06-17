@@ -148,7 +148,7 @@ export default function AdminComunicadosPage() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-w-[95vw] sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Nuevo comunicado</DialogTitle>
           </DialogHeader>

@@ -483,7 +483,7 @@ export default function AdminOnboardingPage() {
 
       {/* Dialog crear proceso */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-[95vw] sm:max-w-md">
           <DialogHeader><DialogTitle>Nuevo proceso</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div>
@@ -549,7 +549,7 @@ export default function AdminOnboardingPage() {
 
       {/* Dialog nueva plantilla */}
       <Dialog open={plantillaDialogOpen} onOpenChange={setPlantillaDialogOpen}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="max-w-[95vw] sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Nueva tarea de plantilla</DialogTitle>
           </DialogHeader>

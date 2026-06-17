@@ -126,7 +126,7 @@ export default function ManagerTareasPage() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-[95vw] sm:max-w-md">
           <DialogHeader><DialogTitle>Nueva tarea</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div><Label>Título *</Label><Input className="mt-1" value={form.titulo} onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))} /></div>

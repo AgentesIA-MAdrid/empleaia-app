@@ -117,7 +117,7 @@ export default function PresenciaPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Presencia</h1>
           <p className="text-slate-500 text-sm mt-1 capitalize">
@@ -144,7 +144,7 @@ export default function PresenciaPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         {[
           { label: "Total empleados", value: stats.total, color: "text-slate-900" },
           { label: "Trabajando", value: stats.trabajando, color: "text-emerald-600" },
@@ -209,7 +209,7 @@ export default function PresenciaPage() {
                     <th className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3">Estado</th>
                     <th className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3">Entrada</th>
                     <th className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3">Horas hoy</th>
-                    <th className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3">Fichajes</th>
+                    <th className="hidden md:table-cell text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3">Fichajes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -237,7 +237,7 @@ export default function PresenciaPage() {
                       <td className="px-4 py-3 text-sm font-medium text-slate-900">
                         {e.horasHoy > 0 ? `${e.horasHoy.toFixed(1)}h` : "—"}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="hidden md:table-cell px-4 py-3">
                         <div className="flex gap-1 flex-wrap">
                           {e.fichajes.map((f, i) => (
                             <span key={i} className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md">

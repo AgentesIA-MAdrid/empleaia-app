@@ -1153,7 +1153,7 @@ export default function ConfiguracionPage() {
 
       {/* Tipo ausencia dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="max-w-[95vw] sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>{editandoTipo ? "Editar Tipo" : "Nuevo Tipo de Ausencia"}</DialogTitle>
           </DialogHeader>

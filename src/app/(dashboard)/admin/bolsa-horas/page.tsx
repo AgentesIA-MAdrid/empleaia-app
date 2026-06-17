@@ -279,7 +279,7 @@ export default function BolsaHorasPage() {
 
       {/* Dialog nuevo movimiento */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-[95vw] sm:max-w-md">
           <DialogHeader><DialogTitle>Registrar movimiento</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div>

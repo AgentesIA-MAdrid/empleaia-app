@@ -137,7 +137,7 @@ async function LoginPage({ searchParams }: LoginPageProps) {
 
         {/* Card formulario */}
         <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
-          <div className="px-8 py-8">
+          <div className="px-6 py-6 sm:px-8 sm:py-8">
             <div className="mb-6 text-center">
               <h1 className="text-xl font-semibold text-slate-900">Iniciar sesión</h1>
               <p className="text-sm text-slate-500 mt-1">Accede a tu espacio de trabajo</p>
@@ -193,7 +193,7 @@ export default async function LoginRoute(props: { searchParams: Promise<{ error?
             <p className="text-sm text-slate-500">Acceso a tu empresa</p>
           </div>
           <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
-            <div className="px-8 py-8">
+            <div className="px-6 py-6 sm:px-8 sm:py-8">
               <div className="mb-6 text-center">
                 <h1 className="text-xl font-semibold text-slate-900">Iniciar sesión</h1>
                 <p className="text-sm text-slate-500 mt-1">
