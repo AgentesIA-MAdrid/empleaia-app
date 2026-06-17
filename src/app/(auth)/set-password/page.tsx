@@ -10,6 +10,23 @@ interface Branding {
   appNombre: string;
 }
 
+/**
+ * Entero uniforme en [0, max) con CSPRNG (Web Crypto). Usa rejection
+ * sampling para evitar el sesgo modular de `valor % max` cuando 2^32 no
+ * es múltiplo de `max`. NUNCA usar Math.random() para generar credenciales:
+ * es predecible y no criptográficamente seguro.
+ */
+function randomInt(max: number): number {
+  const limit = Math.floor(0x1_0000_0000 / max) * max;
+  const buf = new Uint32Array(1);
+  let x: number;
+  do {
+    crypto.getRandomValues(buf);
+    x = buf[0]!;
+  } while (x >= limit);
+  return x % max;
+}
+
 function generatePassword(): string {
   const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const lower = "abcdefghijklmnopqrstuvwxyz";
@@ -18,17 +35,17 @@ function generatePassword(): string {
   const all = upper + lower + digits + symbols;
 
   const required = [
-    upper[Math.floor(Math.random() * upper.length)],
-    lower[Math.floor(Math.random() * lower.length)],
-    digits[Math.floor(Math.random() * digits.length)],
-    symbols[Math.floor(Math.random() * symbols.length)],
+    upper[randomInt(upper.length)],
+    lower[randomInt(lower.length)],
+    digits[randomInt(digits.length)],
+    symbols[randomInt(symbols.length)],
   ];
 
-  const rest = Array.from({ length: 28 }, () => all[Math.floor(Math.random() * all.length)]);
+  const rest = Array.from({ length: 28 }, () => all[randomInt(all.length)]);
   const combined = [...required, ...rest];
 
   for (let i = combined.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = randomInt(i + 1);
     [combined[i], combined[j]] = [combined[j], combined[i]];
   }
 
