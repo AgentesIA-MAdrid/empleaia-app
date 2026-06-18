@@ -415,7 +415,7 @@ export default function PrenominaPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Detalle por empleado</CardTitle>
           </CardHeader>
-          <CardContent className="p-0 overflow-x-auto">
+          <CardContent className="hidden md:block p-0 overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
@@ -531,6 +531,92 @@ export default function PrenominaPage() {
                 ))}
               </tbody>
             </table>
+          </CardContent>
+
+          {/* Vista de tarjetas (móvil) */}
+          <CardContent className="md:hidden space-y-3 p-4">
+            {rows.map((r) => (
+              <div
+                key={r.id}
+                className="rounded-lg border border-slate-200 bg-white p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-slate-900 text-sm truncate">
+                      {r.apellidos}, {r.nombre}
+                    </p>
+                    {r.dni && (
+                      <p className="text-xs text-slate-500 tabular-nums">{r.dni}</p>
+                    )}
+                  </div>
+                  <StatusPill tone={estadoTone(r.estado)} label={r.estado.toLowerCase()} />
+                </div>
+
+                <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-slate-500 font-medium">Total bruto</p>
+                    <p className="text-lg font-bold tabular-nums text-[var(--primary)]">
+                      {fmtMoney(r.totalBruto, r.moneda)}
+                    </p>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setDetalle(r)}
+                      title="Ver detalle / conceptos"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    {r.estado === "BORRADOR" && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => cerrar(r.id)}
+                        title="Cerrar prenómina"
+                      >
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      </Button>
+                    )}
+                    {r.estado === "CERRADA" && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => enviar(r.id)}
+                          title="Marcar como enviada al gestor"
+                        >
+                          <Send className="h-4 w-4 text-blue-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => reabrir(r.id)}
+                          title="Reabrir (solo OWNER)"
+                        >
+                          <LockOpen className="h-4 w-4 text-amber-600" />
+                        </Button>
+                      </>
+                    )}
+                    {r.estado === "ENVIADA" && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => reabrir(r.id)}
+                        title="Reabrir (solo OWNER)"
+                      >
+                        <LockOpen className="h-4 w-4 text-amber-600" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}
