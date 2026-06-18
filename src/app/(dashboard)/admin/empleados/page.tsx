@@ -389,7 +389,8 @@ export default function EmpleadosPage() {
           ) : empleadosFiltrados.length === 0 ? (
             <div className="py-12 text-center text-slate-400">No se encontraron empleados</div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
@@ -509,6 +510,111 @@ export default function EmpleadosPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Vista de tarjetas (móvil) */}
+            <div className="md:hidden space-y-3 p-4">
+              {empleadosFiltrados.map((emp) => {
+                const estado = getEstadoEmpleado(emp);
+                return (
+                  <div
+                    key={emp.id}
+                    className={cn(
+                      "rounded-lg border border-slate-200 bg-white p-4",
+                      !emp.activo && "opacity-60",
+                      seleccionados.has(emp.id) && "border-[var(--primary)]/40 bg-[var(--primary)]/5",
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        aria-label={`Seleccionar ${emp.nombre} ${emp.apellidos}`}
+                        className="h-4 w-4 mt-1 rounded border-slate-300 accent-[var(--primary)] cursor-pointer shrink-0"
+                        checked={seleccionados.has(emp.id)}
+                        onChange={() => toggleSeleccion(emp.id)}
+                      />
+                      <EmployeeAvatar nombre={emp.nombre} apellidos={emp.apellidos} seed={emp.id} />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-slate-900 text-sm truncate">
+                          {emp.nombre} {emp.apellidos}
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">{emp.email}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", getColorRol(emp.rol))}>
+                        {getLabelRol(emp.rol)}
+                      </span>
+                      <StatusPill tone={estado.tone} label={estado.label} showDot={false} />
+                      {emp.tienda ? (
+                        <span className="flex items-center gap-1.5 text-xs text-slate-600">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: emp.tienda.color }} />
+                          <span className="truncate max-w-[120px]">{emp.tienda.nombre}</span>
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">Sin sede</span>
+                      )}
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-1 border-t border-slate-100 pt-3">
+                      <Link href={`/admin/empleados/${emp.id}`}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Ver ficha completa">
+                          <FileText className="h-4 w-4 text-slate-500" />
+                        </Button>
+                      </Link>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => abrirEditar(emp)} title="Editar">
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      {emp.password && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleRestablecerPassword(emp)}
+                          title="Enviar restablecimiento de contraseña"
+                        >
+                          <KeyRound className="h-4 w-4 text-amber-500" />
+                        </Button>
+                      )}
+                      {!emp.password ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleReenviarInvitacion(emp)}
+                          title="Reenviar invitación"
+                        >
+                          <Send className="h-4 w-4 text-[var(--primary)]" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleToggleActivo(emp)}
+                          title={emp.activo ? "Desactivar" : "Activar"}
+                        >
+                          {emp.activo
+                            ? <UserX className="h-4 w-4 text-amber-500" />
+                            : <UserCheck className="h-4 w-4 text-emerald-500" />
+                          }
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 hover:bg-red-50"
+                        onClick={() => handleEliminar(emp)}
+                        title="Eliminar empleado"
+                      >
+                        <Trash2 className="h-4 w-4 text-red-400" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            </>
           )}
         </CardContent>
       </Card>
