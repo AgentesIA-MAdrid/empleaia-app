@@ -38,6 +38,47 @@ function getEstadoEmpleado(emp: Empleado): { label: string; tone: "warning" | "n
   return { label: "Activo", tone: "success" };
 }
 
+const CHEVRON_BG =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\")";
+
+/**
+ * Selector de rol en línea (pill con su color + chevron). Definido a nivel
+ * de módulo a propósito: declararlo dentro del render dispararía la regla
+ * react-hooks/static-components.
+ */
+function RolSelectInline({
+  rol,
+  disabled,
+  onChange,
+}: {
+  rol: Empleado["rol"];
+  disabled: boolean;
+  onChange: (rol: Empleado["rol"]) => void;
+}) {
+  return (
+    <select
+      value={rol}
+      disabled={disabled}
+      aria-label="Cambiar rol"
+      onChange={(e) => onChange(e.target.value as Empleado["rol"])}
+      className={cn(
+        "appearance-none rounded-full border-0 cursor-pointer py-1 pl-2.5 pr-6 text-xs font-medium",
+        "focus:outline-none focus:ring-2 focus:ring-[var(--primary)] disabled:opacity-60 disabled:cursor-wait",
+        getColorRol(rol),
+      )}
+      style={{
+        backgroundImage: CHEVRON_BG,
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "right 0.4rem center",
+      }}
+    >
+      <option value="EMPLEADO">Empleado</option>
+      <option value="MANAGER">Manager</option>
+      <option value="OWNER">Administrador</option>
+    </select>
+  );
+}
+
 interface Tienda {
   id: string;
   nombre: string;
@@ -60,6 +101,7 @@ export default function EmpleadosPage() {
   const [busqueda, setBusqueda] = useState("");
   const [filtroTienda, setFiltroTienda] = useState("todas");
   const [filtroRol, setFiltroRol] = useState("todos");
+  const [rolGuardando, setRolGuardando] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editando, setEditando] = useState<Empleado | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -155,6 +197,31 @@ export default function EmpleadosPage() {
       toast({ title: e.message || "Error al guardar", variant: "destructive" });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleCambiarRol = async (emp: Empleado, nuevoRol: Empleado["rol"]) => {
+    if (emp.rol === nuevoRol) return;
+    const anterior = emp.rol;
+    setRolGuardando(emp.id);
+    // Optimista: refleja el cambio ya; revierte si falla.
+    setEmpleados((prev) => prev.map((e) => (e.id === emp.id ? { ...e, rol: nuevoRol } : e)));
+    try {
+      const res = await fetch(`/api/empleados/${emp.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rol: nuevoRol }),
+      });
+      if (!res.ok) throw new Error();
+      toast({
+        title: "Rol actualizado",
+        description: `${emp.nombre} ${emp.apellidos} → ${getLabelRol(nuevoRol)}`,
+      });
+    } catch {
+      setEmpleados((prev) => prev.map((e) => (e.id === emp.id ? { ...e, rol: anterior } : e)));
+      toast({ title: "No se pudo cambiar el rol", variant: "destructive" });
+    } finally {
+      setRolGuardando(null);
     }
   };
 
@@ -408,7 +475,7 @@ export default function EmpleadosPage() {
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 [&>tr>td]:align-middle">
                   {empleadosFiltrados.map((emp) => {
                     const estado = getEstadoEmpleado(emp);
                     return (
@@ -422,26 +489,28 @@ export default function EmpleadosPage() {
                             onChange={() => toggleSeleccion(emp.id)}
                           />
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 min-w-[200px]">
                           <div className="flex items-center gap-3">
                             <EmployeeAvatar nombre={emp.nombre} apellidos={emp.apellidos} seed={emp.id} />
-                            <span className="font-medium text-slate-900 text-sm">
+                            <span className="font-medium text-slate-900 text-sm leading-tight">
                               {emp.nombre} {emp.apellidos}
                             </span>
                           </div>
                         </td>
                         <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-600">{emp.email}</td>
                         <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-600">{emp.dni || "—"}</td>
-                        <td className="px-4 py-3">
-                          <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", getColorRol(emp.rol))}>
-                            {getLabelRol(emp.rol)}
-                          </span>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <RolSelectInline
+                            rol={emp.rol}
+                            disabled={rolGuardando === emp.id}
+                            onChange={(nuevoRol) => handleCambiarRol(emp, nuevoRol)}
+                          />
                         </td>
                         <td className="px-4 py-3 text-sm">
                           {emp.tienda ? (
                             <span className="flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: emp.tienda.color }} />
-                              <span className="text-slate-600 truncate max-w-[120px]">{emp.tienda.nombre}</span>
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: emp.tienda.color }} />
+                              <span className="text-slate-600 truncate max-w-[140px]">{emp.tienda.nombre}</span>
                             </span>
                           ) : <span className="text-slate-400">Sin sede</span>}
                         </td>
@@ -542,9 +611,11 @@ export default function EmpleadosPage() {
                     </div>
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", getColorRol(emp.rol))}>
-                        {getLabelRol(emp.rol)}
-                      </span>
+                      <RolSelectInline
+                        rol={emp.rol}
+                        disabled={rolGuardando === emp.id}
+                        onChange={(nuevoRol) => handleCambiarRol(emp, nuevoRol)}
+                      />
                       <StatusPill tone={estado.tone} label={estado.label} showDot={false} />
                       {emp.tienda ? (
                         <span className="flex items-center gap-1.5 text-xs text-slate-600">
