@@ -59,6 +59,13 @@ enum EstadoTurno {
   PUBLICADO
 }
 
+enum EstadoSolicitudFichaje {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+  CANCELADA
+}
+
 enum EstadoPrenomina {
   BORRADOR
   CERRADA
@@ -205,6 +212,10 @@ model User {
   // Custom requests: peticiones del empleado, gestionadas por OWNER/MANAGER.
   peticiones               Peticion[]                @relation("PeticionSolicitante")
   peticionesGestionadas    Peticion[]                @relation("PeticionGestor")
+  // Solicitudes de fichaje (olvido / corrección de hora) del empleado y
+  // las que resuelve como aprobador (coordinador / OWNER / MANAGER).
+  solicitudesFichaje         SolicitudFichaje[]       @relation("SolicitudFichajeSolicitante")
+  solicitudesFichajeResolver SolicitudFichaje[]       @relation("SolicitudFichajeAprobador")
   // Chat: participaciones + mensajes enviados.
   conversaciones           ParticipanteConversacion[]
   mensajesEnviados         Mensaje[]                 @relation("MensajeAutor")
@@ -397,6 +408,41 @@ model Notificacion {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+/// Solicitud del empleado para registrar un fichaje olvidado o corregir la
+/// hora de uno existente, sujeta a aprobación de su coordinador (managerId)
+/// o, en su defecto, de un OWNER/MANAGER de su tienda. Al aprobarse se crea
+/// o ajusta el `Fichaje` correspondiente como `MANUAL`.
+model SolicitudFichaje {
+  id            String                 @id @default(cuid())
+  solicitanteId String
+  solicitante   User                   @relation("SolicitudFichajeSolicitante", fields: [solicitanteId], references: [id])
+  /// Coordinador notificado (managerId del solicitante en el momento de crear).
+  /// Informativo: la resolución la puede hacer cualquier OWNER/MANAGER con scope.
+  aprobadorId   String?
+  aprobador     User?                  @relation("SolicitudFichajeAprobador", fields: [aprobadorId], references: [id])
+  /// "olvido" = registrar un fichaje que no existía;
+  /// "correccion" = corregir la hora de un fichaje existente (fichajeId).
+  clase         String                 @default("olvido")
+  tipo          TipoFichaje
+  /// Fichaje a corregir cuando clase = "correccion".
+  fichajeId     String?
+  /// Hora propuesta de entrada/salida/pausa.
+  fechaHora     DateTime
+  motivo        String
+  estado        EstadoSolicitudFichaje @default(PENDIENTE)
+  respuesta     String?
+  resueltaPorId String?
+  resueltaEn    DateTime?
+  /// Fichaje creado o editado al aprobar la solicitud.
+  fichajeResultanteId String?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  @@index([solicitanteId])
+  @@index([aprobadorId])
+  @@index([estado])
 }
 
 model ConfiguracionEmpresa {

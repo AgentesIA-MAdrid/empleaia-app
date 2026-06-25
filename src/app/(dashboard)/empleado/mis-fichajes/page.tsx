@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { FeatureGateClient } from "@/components/feature-gate-client";
+import { SolicitudesEmpleado } from "@/components/solicitudes-fichaje/solicitudes-empleado";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -331,6 +332,9 @@ export default function MisFichajesPage() {
           </Card>
         ))}
       </div>
+
+      {/* Solicitudes de fichaje (olvido / corrección) */}
+      <SolicitudesEmpleado />
 
       {/* Fichajes list */}
       <Card>

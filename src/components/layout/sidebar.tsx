@@ -9,7 +9,7 @@ import { Lock } from "lucide-react";
 import {
   LayoutDashboard, Store, Users, Calendar, FileText,
   Settings, LogOut, Clock, ClipboardList, CalendarCheck, BarChart3,
-  Bell, ChevronLeft, ChevronRight, UserCheck, CheckSquare, Megaphone,
+  Bell, ChevronLeft, ChevronRight, UserCheck, CheckSquare, Megaphone, ClipboardCheck,
   BookOpen, FolderOpen, Rocket, Timer, Search, Pen,
   ChevronDown, Sparkles, ShieldAlert, Network,
   Bot, ScanFace, Target, MessageSquare,
@@ -71,6 +71,7 @@ function getSidebarConfig(rol: string, pendingAusencias = 0): SidebarConfig {
           label: "GESTIÓN DEL TIEMPO",
           items: [
             { label: "Fichajes", href: "/admin/informes", icon: Clock },
+            { label: "Aprobaciones de fichaje", href: "/admin/solicitudes-fichaje", icon: ClipboardCheck },
             { label: "Ausencias", href: "/admin/ausencias", icon: ClipboardList, badge: pendingAusencias || undefined, feature: "ausencias_aprobacion" },
             { label: "Turnos", href: "/admin/turnos", icon: Calendar, feature: "turnos_publicacion" },
             { label: "Bolsa de horas", href: "/admin/bolsa-horas", icon: Timer, feature: "bolsa_horas" },
@@ -152,6 +153,7 @@ function getSidebarConfig(rol: string, pendingAusencias = 0): SidebarConfig {
           label: "GESTIÓN DEL TIEMPO",
           items: [
             { label: "Presencia", href: "/manager/presencia", icon: UserCheck },
+            { label: "Aprobaciones de fichaje", href: "/manager/solicitudes-fichaje", icon: ClipboardCheck },
             { label: "Ausencias", href: "/manager/ausencias", icon: ClipboardList, badge: pendingAusencias || undefined },
             { label: "Turnos", href: "/manager/turnos", icon: Calendar },
             { label: "Tareas", href: "/manager/tareas", icon: CheckSquare },
