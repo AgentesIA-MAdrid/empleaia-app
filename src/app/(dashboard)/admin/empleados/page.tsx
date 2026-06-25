@@ -29,6 +29,7 @@ interface Empleado {
   tiendaId?: string;
   managerId?: string;
   tienda?: { nombre: string; color: string };
+  sedes?: { tiendaId: string; principal: boolean; tienda: { id: string; nombre: string; color: string } }[];
   horasSemanalesContrato?: number | string | null;
 }
 
@@ -62,7 +63,7 @@ function RolSelectInline({
       aria-label="Cambiar rol"
       onChange={(e) => onChange(e.target.value as Empleado["rol"])}
       className={cn(
-        "appearance-none rounded-full border-0 cursor-pointer py-1 pl-2.5 pr-6 text-xs font-medium",
+        "appearance-none rounded-full border-0 cursor-pointer py-1 pl-3 pr-7 text-xs font-medium min-w-[8rem] max-w-full",
         "focus:outline-none focus:ring-2 focus:ring-[var(--primary)] disabled:opacity-60 disabled:cursor-wait",
         getColorRol(rol),
       )}
@@ -79,6 +80,37 @@ function RolSelectInline({
   );
 }
 
+/** Celda de sedes: muestra la principal + "+N" si el empleado está en varias. */
+function SedesCelda({ emp }: { emp: Empleado }) {
+  const sedes = emp.sedes ?? [];
+  if (sedes.length === 0) {
+    // Back-compat: si no hay UsuarioSede pero sí tiendaId/tienda.
+    if (emp.tienda) {
+      return (
+        <span className="flex items-center gap-1.5 min-w-0" title={emp.tienda.nombre}>
+          <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: emp.tienda.color }} />
+          <span className="text-slate-600 truncate">{emp.tienda.nombre}</span>
+        </span>
+      );
+    }
+    return <span className="text-slate-400">Sin sede</span>;
+  }
+  const principal = sedes.find((s) => s.principal) ?? sedes[0];
+  const extra = sedes.length - 1;
+  const todas = sedes.map((s) => s.tienda.nombre).join(", ");
+  return (
+    <span className="flex items-center gap-1.5 min-w-0" title={todas}>
+      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: principal.tienda.color }} />
+      <span className="text-slate-600 truncate">{principal.tienda.nombre}</span>
+      {extra > 0 && (
+        <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500">
+          +{extra}
+        </span>
+      )}
+    </span>
+  );
+}
+
 interface Tienda {
   id: string;
   nombre: string;
@@ -88,6 +120,8 @@ interface Tienda {
 const FORM_INICIAL = {
   nombre: "", apellidos: "", email: "", dni: "", telefono: "",
   password: "", rol: "EMPLEADO" as "OWNER" | "MANAGER" | "EMPLEADO", tiendaId: "",
+  // sedeIds = todas las sedes del empleado; tiendaId = la principal.
+  sedeIds: [] as string[],
   managerId: "", horasSemanalesContrato: "",
 };
 
@@ -147,6 +181,11 @@ export default function EmpleadosPage() {
       nombre: emp.nombre, apellidos: emp.apellidos, email: emp.email,
       dni: emp.dni || "", telefono: emp.telefono || "", password: "",
       rol: emp.rol, tiendaId: emp.tiendaId || "",
+      sedeIds: emp.sedes?.length
+        ? emp.sedes.map((s) => s.tiendaId)
+        : emp.tiendaId
+          ? [emp.tiendaId]
+          : [],
       managerId: (emp as { managerId?: string }).managerId || "",
       horasSemanalesContrato:
         emp.horasSemanalesContrato === null || emp.horasSemanalesContrato === undefined
@@ -167,7 +206,18 @@ export default function EmpleadosPage() {
       // When creating, don't send password — invite email is sent instead
       if (!editando) delete body.password;
       if (editando && !body.password) delete body.password;
-      if (!body.tiendaId) body.tiendaId = null;
+      // Multi-sede: la principal (tiendaId) debe estar entre las sedes
+      // elegidas; si no, se usa la primera. Vacío = sin sede.
+      const sedeIds: string[] = Array.isArray(body.sedeIds) ? body.sedeIds : [];
+      const principal = body.tiendaId && sedeIds.includes(body.tiendaId)
+        ? body.tiendaId
+        : (sedeIds[0] ?? null);
+      body.tiendaId = principal;
+      if (editando) {
+        body.sedeIds = sedeIds; // la API sincroniza UsuarioSede (solo en PUT)
+      } else {
+        delete body.sedeIds; // el alta (POST) solo asigna la sede principal
+      }
       // managerId vacío = quitar manager. "ninguno" del select también vacío.
       if (!body.managerId || body.managerId === "ninguno") body.managerId = null;
       // Horas de contrato: "" = null; resto número.
@@ -458,16 +508,16 @@ export default function EmpleadosPage() {
           ) : (
             <>
             <div className="hidden md:block overflow-x-auto">
-              <table className="w-full table-fixed min-w-[1100px]">
+              <table className="w-full table-fixed min-w-[1280px]">
                 <colgroup>
-                  <col className="w-[4%]" />
-                  <col className="w-[19%]" />
-                  <col className="w-[18%]" />
-                  <col className="w-[8%]" />
-                  <col className="w-[10%]" />
-                  <col className="w-[13%]" />
-                  <col className="w-[13%]" />
-                  <col className="w-[15%]" />
+                  <col style={{ width: 44 }} />
+                  <col style={{ width: 230 }} />
+                  <col style={{ width: 200 }} />
+                  <col style={{ width: 95 }} />
+                  <col style={{ width: 160 }} />
+                  <col style={{ width: 186 }} />
+                  <col style={{ width: 180 }} />
+                  <col style={{ width: 185 }} />
                 </colgroup>
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
@@ -509,7 +559,7 @@ export default function EmpleadosPage() {
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-600 truncate" title={emp.email}>{emp.email}</td>
                         <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{emp.dni || "—"}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-3 py-3 whitespace-nowrap">
                           <RolSelectInline
                             rol={emp.rol}
                             disabled={rolGuardando === emp.id}
@@ -517,12 +567,7 @@ export default function EmpleadosPage() {
                           />
                         </td>
                         <td className="px-4 py-3 text-sm">
-                          {emp.tienda ? (
-                            <span className="flex items-center gap-1.5 min-w-0" title={emp.tienda.nombre}>
-                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: emp.tienda.color }} />
-                              <span className="text-slate-600 truncate">{emp.tienda.nombre}</span>
-                            </span>
-                          ) : <span className="text-slate-400">Sin sede</span>}
+                          <SedesCelda emp={emp} />
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <StatusPill tone={estado.tone} label={estado.label} showDot={false} />
@@ -627,14 +672,9 @@ export default function EmpleadosPage() {
                         onChange={(nuevoRol) => handleCambiarRol(emp, nuevoRol)}
                       />
                       <StatusPill tone={estado.tone} label={estado.label} showDot={false} />
-                      {emp.tienda ? (
-                        <span className="flex items-center gap-1.5 text-xs text-slate-600">
-                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: emp.tienda.color }} />
-                          <span className="truncate max-w-[120px]">{emp.tienda.nombre}</span>
-                        </span>
-                      ) : (
-                        <span className="text-xs text-slate-400">Sin sede</span>
-                      )}
+                      <span className="text-xs max-w-[160px]">
+                        <SedesCelda emp={emp} />
+                      </span>
                     </div>
 
                     <div className="mt-3 flex flex-wrap gap-1 border-t border-slate-100 pt-3">
@@ -746,16 +786,61 @@ export default function EmpleadosPage() {
                 </Select>
               </div>
               <div className="col-span-2">
-                <Label>Sede asignada</Label>
-                <Select value={form.tiendaId || "ninguna"} onValueChange={(v) => setForm((f) => ({ ...f, tiendaId: v === "ninguna" ? "" : v }))}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Sin sede" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ninguna">Sin sede</SelectItem>
-                    {tiendas.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>{t.nombre}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Sedes asignadas</Label>
+                <div className="mt-1 max-h-44 overflow-y-auto rounded-md border border-input divide-y divide-slate-100">
+                  {tiendas.length === 0 ? (
+                    <p className="px-3 py-2 text-sm text-slate-400">No hay sedes creadas</p>
+                  ) : (
+                    tiendas.map((t) => {
+                      const checked = form.sedeIds.includes(t.id);
+                      const esPrincipal = form.tiendaId === t.id;
+                      return (
+                        <div key={t.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-slate-300 accent-[var(--primary)] cursor-pointer shrink-0"
+                            checked={checked}
+                            onChange={(e) =>
+                              setForm((f) => {
+                                const set = new Set(f.sedeIds);
+                                if (e.target.checked) set.add(t.id);
+                                else set.delete(t.id);
+                                const sedeIds = [...set];
+                                let tiendaId = f.tiendaId;
+                                if (!sedeIds.includes(tiendaId)) tiendaId = sedeIds[0] ?? "";
+                                if (e.target.checked && !tiendaId) tiendaId = t.id;
+                                return { ...f, sedeIds, tiendaId };
+                              })
+                            }
+                          />
+                          <span className="flex flex-1 items-center gap-1.5 min-w-0">
+                            <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
+                            <span className="truncate">{t.nombre}</span>
+                          </span>
+                          {checked && (
+                            <button
+                              type="button"
+                              onClick={() => setForm((f) => ({ ...f, tiendaId: t.id }))}
+                              className={cn(
+                                "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium transition-colors",
+                                esPrincipal
+                                  ? "bg-[var(--primary)] text-white"
+                                  : "text-slate-500 hover:bg-slate-100",
+                              )}
+                              title="Marcar como sede principal"
+                            >
+                              {esPrincipal ? "Principal" : "Hacer principal"}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-slate-400">
+                  Marca varias sedes; la principal es la que se usa por defecto al fichar.
+                  {!editando && " (Al crear se asigna solo la principal.)"}
+                </p>
               </div>
               <div className="col-span-2">
                 <Label>Horas semanales de contrato <span className="text-slate-400 font-normal">(opcional)</span></Label>

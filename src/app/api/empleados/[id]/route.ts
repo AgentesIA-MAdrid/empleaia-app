@@ -192,6 +192,7 @@ export const PUT = withTenant(async (request: NextRequest,
       foto,
       rol,
       tiendaId,
+      sedeIds,
       managerId,
       activo,
       salarioBase,
@@ -207,6 +208,7 @@ export const PUT = withTenant(async (request: NextRequest,
       foto?: string;
       rol?: Rol;
       tiendaId?: string;
+      sedeIds?: string[];
       managerId?: string | null;
       activo?: boolean;
       salarioBase?: number | null;
@@ -321,6 +323,34 @@ export const PUT = withTenant(async (request: NextRequest,
 
     if (password) {
       updateData.password = await bcrypt.hash(password, 12);
+    }
+
+    // ── Multi-sede: sincroniza UsuarioSede (N:N) si llega `sedeIds` (OWNER) ──
+    // La principal es `tiendaId` si está en la lista; si no, la primera.
+    // User.tiendaId queda alineado con la principal.
+    const syncSedes = Array.isArray(sedeIds) && userRol === Rol.OWNER;
+    if (syncSedes) {
+      const ids = [...new Set(sedeIds!.filter((s): s is string => typeof s === "string"))];
+      const principal = tiendaId && ids.includes(tiendaId) ? tiendaId : (ids[0] ?? null);
+      updateData.tiendaId = principal;
+
+      const updated = await prisma.$transaction(async (tx) => {
+        const u = await tx.user.update({ where: { id }, data: updateData, select: userSelect });
+        // Quitar las sedes que ya no están.
+        await tx.usuarioSede.deleteMany({
+          where: { userId: id, tiendaId: { notIn: ids.length ? ids : ["__none__"] } },
+        });
+        // Crear/actualizar cada sede con el flag principal correcto.
+        for (const sedeId of ids) {
+          await tx.usuarioSede.upsert({
+            where: { userId_tiendaId: { userId: id, tiendaId: sedeId } },
+            create: { userId: id, tiendaId: sedeId, principal: sedeId === principal },
+            update: { principal: sedeId === principal },
+          });
+        }
+        return u;
+      });
+      return Response.json(updated);
     }
 
     const updated = await prisma.user.update({

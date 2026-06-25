@@ -65,6 +65,14 @@ export const GET = withTenant(async (request: NextRequest) => {
         rol: true,
         tiendaId: true,
         tienda: { select: { id: true, nombre: true } },
+        // Multi-sede: todas las sedes del empleado (N:N), con la principal marcada.
+        sedes: {
+          select: {
+            tiendaId: true,
+            principal: true,
+            tienda: { select: { id: true, nombre: true, color: true } },
+          },
+        },
         horasSemanalesContrato: true,
         activo: true,
         password: true,
