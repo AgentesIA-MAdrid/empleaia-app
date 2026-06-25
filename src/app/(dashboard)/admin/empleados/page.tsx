@@ -458,7 +458,17 @@ export default function EmpleadosPage() {
           ) : (
             <>
             <div className="hidden md:block overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full table-fixed min-w-[1100px]">
+                <colgroup>
+                  <col className="w-[4%]" />
+                  <col className="w-[19%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[15%]" />
+                </colgroup>
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className="px-4 py-3 w-10">
@@ -489,16 +499,16 @@ export default function EmpleadosPage() {
                             onChange={() => toggleSeleccion(emp.id)}
                           />
                         </td>
-                        <td className="px-4 py-3 min-w-[200px]">
-                          <div className="flex items-center gap-3">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3 min-w-0">
                             <EmployeeAvatar nombre={emp.nombre} apellidos={emp.apellidos} seed={emp.id} />
                             <span className="font-medium text-slate-900 text-sm leading-tight">
                               {emp.nombre} {emp.apellidos}
                             </span>
                           </div>
                         </td>
-                        <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-600">{emp.email}</td>
-                        <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-600">{emp.dni || "—"}</td>
+                        <td className="px-4 py-3 text-sm text-slate-600 truncate" title={emp.email}>{emp.email}</td>
+                        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{emp.dni || "—"}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <RolSelectInline
                             rol={emp.rol}
@@ -508,17 +518,17 @@ export default function EmpleadosPage() {
                         </td>
                         <td className="px-4 py-3 text-sm">
                           {emp.tienda ? (
-                            <span className="flex items-center gap-1.5">
+                            <span className="flex items-center gap-1.5 min-w-0" title={emp.tienda.nombre}>
                               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: emp.tienda.color }} />
-                              <span className="text-slate-600 truncate max-w-[140px]">{emp.tienda.nombre}</span>
+                              <span className="text-slate-600 truncate">{emp.tienda.nombre}</span>
                             </span>
                           ) : <span className="text-slate-400">Sin sede</span>}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <StatusPill tone={estado.tone} label={estado.label} showDot={false} />
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex gap-1">
+                          <div className="flex gap-0.5">
                             <Link href={`/admin/empleados/${emp.id}`}>
                               <Button variant="ghost" size="icon" className="h-7 w-7" title="Ver ficha completa">
                                 <FileText className="h-3.5 w-3.5 text-slate-500" />
