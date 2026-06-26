@@ -29,28 +29,44 @@ const PRESETS: Record<string, { label: string; build: () => TramosPorDia }> = {
     },
   },
   calle_invierno: {
-    label: "Pie de calle · invierno — 10:00–14:00 y 17:00–20:00 (L–S)",
+    label: "Pie de calle · invierno — 10–14 y 17–20 (V mañana hasta 13:30, S solo mañana)",
     build: () => {
       const n = vacio();
-      for (let d = 0; d < 6; d++) {
+      // L–J: mañana 10–14 + tarde 17–20.
+      for (let d = 0; d < 4; d++) {
         n[d] = [
           { horaApertura: "10:00", horaCierre: "14:00" },
           { horaApertura: "17:00", horaCierre: "20:00" },
         ];
       }
+      // Viernes: mañana hasta 13:30 + tarde igual.
+      n[4] = [
+        { horaApertura: "10:00", horaCierre: "13:30" },
+        { horaApertura: "17:00", horaCierre: "20:00" },
+      ];
+      // Sábado: solo mañana hasta 13:30.
+      n[5] = [{ horaApertura: "10:00", horaCierre: "13:30" }];
       return n;
     },
   },
   calle_verano: {
-    label: "Pie de calle · verano — 10:00–14:00 y 17:30–20:30 (L–S)",
+    label: "Pie de calle · verano — 10–14 y 17:30–20:30 (V mañana hasta 13:30, S solo mañana)",
     build: () => {
       const n = vacio();
-      for (let d = 0; d < 6; d++) {
+      // L–J: mañana 10–14 + tarde 17:30–20:30.
+      for (let d = 0; d < 4; d++) {
         n[d] = [
           { horaApertura: "10:00", horaCierre: "14:00" },
           { horaApertura: "17:30", horaCierre: "20:30" },
         ];
       }
+      // Viernes: mañana hasta 13:30 + tarde igual.
+      n[4] = [
+        { horaApertura: "10:00", horaCierre: "13:30" },
+        { horaApertura: "17:30", horaCierre: "20:30" },
+      ];
+      // Sábado: solo mañana hasta 13:30.
+      n[5] = [{ horaApertura: "10:00", horaCierre: "13:30" }];
       return n;
     },
   },
