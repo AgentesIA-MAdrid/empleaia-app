@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Plus, Search, Edit2, UserX, UserCheck, Trash2, Send, FileText, KeyRound, X, AlertTriangle, Loader2 } from "lucide-react";
+import { Plus, Search, Edit2, UserX, UserCheck, Trash2, Send, FileText, KeyRound, X, AlertTriangle, Loader2, ChevronDown, ChevronUp, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -80,6 +80,98 @@ function RolSelectInline({
   );
 }
 
+/**
+ * Selector de manager con búsqueda y orden alfabético. A nivel de módulo
+ * (evita la regla react-hooks/static-components).
+ */
+function ManagerCombobox({
+  empleados,
+  value,
+  excludeId,
+  onChange,
+}: {
+  empleados: Empleado[];
+  value: string;
+  excludeId?: string;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const candidatos = empleados
+    .filter((e) => e.id !== excludeId && e.activo)
+    .sort((a, b) =>
+      `${a.nombre} ${a.apellidos}`.localeCompare(`${b.nombre} ${b.apellidos}`, "es"),
+    );
+  const filtrados = q
+    ? candidatos.filter((e) =>
+        `${e.nombre} ${e.apellidos}`.toLowerCase().includes(q.toLowerCase()),
+      )
+    : candidatos;
+  const sel = candidatos.find((e) => e.id === value);
+  return (
+    <div className="relative mt-1">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
+      >
+        <span className={cn("truncate", !sel && "text-slate-400")}>
+          {sel ? `${sel.nombre} ${sel.apellidos}` : "Sin manager"}
+        </span>
+        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background shadow-lg">
+            <div className="border-b border-slate-100 p-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  autoFocus
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Buscar manager…"
+                  className="w-full rounded-md border border-input bg-background py-1.5 pl-8 pr-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                />
+              </div>
+            </div>
+            <div className="max-h-56 overflow-y-auto py-1">
+              <button
+                type="button"
+                onClick={() => { onChange(""); setOpen(false); setQ(""); }}
+                className="flex w-full items-center px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-50"
+              >
+                Sin manager
+              </button>
+              {filtrados.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => { onChange(e.id); setOpen(false); setQ(""); }}
+                  className={cn(
+                    "flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm hover:bg-slate-50",
+                    e.id === value && "bg-slate-50",
+                  )}
+                >
+                  <span className="truncate">
+                    {e.nombre} {e.apellidos}{" "}
+                    <span className="text-xs text-slate-400">({e.rol})</span>
+                  </span>
+                  {e.id === value && <Check className="h-4 w-4 shrink-0 text-[var(--primary)]" />}
+                </button>
+              ))}
+              {filtrados.length === 0 && (
+                <p className="px-3 py-2 text-sm text-slate-400">Sin resultados</p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 /** Celda de sedes: muestra la principal + "+N" si el empleado está en varias. */
 function SedesCelda({ emp }: { emp: Empleado }) {
   const sedes = emp.sedes ?? [];
@@ -136,6 +228,8 @@ export default function EmpleadosPage() {
   const [filtroTienda, setFiltroTienda] = useState("todas");
   const [filtroRol, setFiltroRol] = useState("todos");
   const [rolGuardando, setRolGuardando] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<string>("Empleado");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [confirmar, setConfirmar] = useState<{
     titulo: string;
     mensaje: string;
@@ -174,6 +268,30 @@ export default function EmpleadosPage() {
     const matchRol = filtroRol === "todos" ? true : e.rol === filtroRol;
     return matchSearch && matchTienda && matchRol;
   });
+
+  // Orden por columna (cabeceras clicables).
+  const valorColumna = (e: Empleado, key: string): string => {
+    switch (key) {
+      case "Empleado": return `${e.nombre} ${e.apellidos}`.toLowerCase();
+      case "Email": return (e.email || "").toLowerCase();
+      case "DNI": return (e.dni || "").toLowerCase();
+      case "Rol": return e.rol;
+      case "Sede": {
+        const s = e.sedes?.find((x) => x.principal) ?? e.sedes?.[0];
+        return (s?.tienda.nombre ?? e.tienda?.nombre ?? "").toLowerCase();
+      }
+      case "Estado": return getEstadoEmpleado(e).label.toLowerCase();
+      default: return "";
+    }
+  };
+  const empleadosOrdenados = [...empleadosFiltrados].sort((a, b) => {
+    const cmp = valorColumna(a, sortBy).localeCompare(valorColumna(b, sortBy), "es");
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+  const toggleSort = (key: string) => {
+    if (sortBy === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortBy(key); setSortDir("asc"); }
+  };
 
   const abrirCrear = () => {
     setEditando(null);
@@ -550,13 +668,32 @@ export default function EmpleadosPage() {
                         onChange={toggleSeleccionarTodos}
                       />
                     </th>
-                    {["Empleado", "Email", "DNI", "Rol", "Sede", "Estado", "Acciones"].map((h) => (
-                      <th key={h} className={cn("text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3", (h === "Email" || h === "DNI") && "hidden md:table-cell")}>{h}</th>
-                    ))}
+                    {["Empleado", "Email", "DNI", "Rol", "Sede", "Estado", "Acciones"].map((h) => {
+                      const ordenable = h !== "Acciones";
+                      return (
+                        <th
+                          key={h}
+                          onClick={ordenable ? () => toggleSort(h) : undefined}
+                          className={cn(
+                            "text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3",
+                            ordenable && "cursor-pointer select-none hover:text-slate-700",
+                          )}
+                        >
+                          <span className="inline-flex items-center gap-1">
+                            {h}
+                            {sortBy === h && (
+                              sortDir === "asc"
+                                ? <ChevronUp className="h-3 w-3" />
+                                : <ChevronDown className="h-3 w-3" />
+                            )}
+                          </span>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 [&>tr>td]:align-middle">
-                  {empleadosFiltrados.map((emp) => {
+                  {empleadosOrdenados.map((emp) => {
                     const estado = getEstadoEmpleado(emp);
                     return (
                       <tr key={emp.id} className={cn("hover:bg-slate-50 transition-colors", !emp.activo && "opacity-60", seleccionados.has(emp.id) && "bg-[var(--primary)]/5")}>
@@ -657,7 +794,7 @@ export default function EmpleadosPage() {
 
             {/* Vista de tarjetas (móvil) */}
             <div className="md:hidden space-y-3 p-4">
-              {empleadosFiltrados.map((emp) => {
+              {empleadosOrdenados.map((emp) => {
                 const estado = getEstadoEmpleado(emp);
                 return (
                   <div
@@ -877,25 +1014,12 @@ export default function EmpleadosPage() {
               </div>
               <div className="col-span-2">
                 <Label>Manager (responsable directo)</Label>
-                <Select
-                  value={form.managerId || "ninguno"}
-                  onValueChange={(v) => setForm((f) => ({ ...f, managerId: v === "ninguno" ? "" : v }))}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Sin manager" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ninguno">Sin manager</SelectItem>
-                    {empleados
-                      .filter((e) => e.id !== editando?.id && e.activo)
-                      .map((e) => (
-                        <SelectItem key={e.id} value={e.id}>
-                          {e.nombre} {e.apellidos}{" "}
-                          <span className="text-xs text-slate-400">({e.rol})</span>
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                <ManagerCombobox
+                  empleados={empleados}
+                  value={form.managerId}
+                  excludeId={editando?.id}
+                  onChange={(id) => setForm((f) => ({ ...f, managerId: id }))}
+                />
               </div>
             </div>
           </div>
