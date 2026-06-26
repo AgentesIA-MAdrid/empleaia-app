@@ -131,17 +131,17 @@ export async function detectarOlvidosFichaje(
       const empleado = `${t.user.nombre} ${t.user.apellidos}`.trim();
       const tienda = t.tienda?.nombre ?? "su centro";
 
-      // Coordinador(es): managerId si existe; si no, OWNER/MANAGER de la sede.
+      // Supervisores a avisar SIEMPRE: el coordinador (managerId) si existe,
+      // + el/los MANAGER de la sede del empleado + los OWNER. Dedup por la query.
       const coordinadores = await prisma.user.findMany({
-        where: t.user.managerId
-          ? { id: t.user.managerId, activo: true }
-          : {
-              activo: true,
-              OR: [
-                { rol: "OWNER" },
-                ...(t.user.tiendaId ? [{ rol: "MANAGER" as const, tiendaId: t.user.tiendaId }] : []),
-              ],
-            },
+        where: {
+          activo: true,
+          OR: [
+            ...(t.user.managerId ? [{ id: t.user.managerId }] : []),
+            { rol: "OWNER" as const },
+            ...(t.user.tiendaId ? [{ rol: "MANAGER" as const, tiendaId: t.user.tiendaId }] : []),
+          ],
+        },
         select: { id: true, nombre: true, email: true },
       });
 
