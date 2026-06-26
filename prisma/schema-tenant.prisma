@@ -329,6 +329,9 @@ model Turno {
   horaFin     String
   nota        String?
   estado      EstadoTurno @default(BORRADOR)
+  // Marca de cuándo se envió el aviso de "olvido de fichaje" para este turno
+  // (null = aún no enviado). Evita avisar repetidamente en cada pasada del cron.
+  avisoFichajeEnviadoAt DateTime? @map("aviso_fichaje_enviado_at")
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
