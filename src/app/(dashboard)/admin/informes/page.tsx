@@ -86,6 +86,7 @@ export default function AdminInformesPage() {
   const [fichajes, setFichajes] = useState<FichajeDetalle[]>([]);
   const [loading, setLoading] = useState(false);
   const [exportando, setExportando] = useState(false);
+  const [horasCargando, setHorasCargando] = useState(false);
 
   // ── Carga inicial: sedes + empleados ────────────────────────────────────
   useEffect(() => {
@@ -208,6 +209,45 @@ export default function AdminInformesPage() {
     }
   };
 
+  // Informe de horas por empleado y centro: descarga un CSV.
+  const handleHorasPorCentro = async () => {
+    setHorasCargando(true);
+    try {
+      const params = new URLSearchParams({
+        fechaInicio: `${fechaInicio}T00:00:00Z`,
+        fechaFin: `${fechaFin}T23:59:59Z`,
+      });
+      if (tiendaId !== "todas") params.set("tiendaId", tiendaId);
+      const res = await fetch(`/api/informes/horas-por-centro?${params}`);
+      if (!res.ok) throw new Error();
+      const { filas } = (await res.json()) as {
+        filas: { empleado: string; centro: string; horas: number }[];
+      };
+      if (!filas.length) {
+        toast({ title: "Sin horas registradas en el periodo" });
+        return;
+      }
+      const esc = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
+      const csv = [
+        "Empleado,Centro,Horas",
+        ...filas.map((f) =>
+          [esc(f.empleado), esc(f.centro), String(f.horas).replace(".", ",")].join(","),
+        ),
+      ].join("\r\n");
+      const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `horas_por_centro_${fechaInicio}_${fechaFin}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "Error al generar el informe", variant: "destructive" });
+    } finally {
+      setHorasCargando(false);
+    }
+  };
+
   const maxHoras = Math.max(...datos.map((d) => d.horasTotales), 0);
 
   // Selecciona la fila del resumen correspondiente al empleado activo.
@@ -224,6 +264,9 @@ export default function AdminInformesPage() {
           <p className="text-slate-500 text-sm mt-1">Análisis de asistencia y detalle de fichajes</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" disabled={horasCargando} onClick={handleHorasPorCentro}>
+            <BarChart2 className="h-4 w-4 mr-2" /> {horasCargando ? "Generando…" : "Horas por centro"}
+          </Button>
           <FeatureGateClient feature="export_excel">
             <Button variant="outline" disabled={exportando} onClick={() => handleExport("xlsx")}>
               <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
