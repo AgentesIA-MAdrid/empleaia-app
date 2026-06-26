@@ -88,6 +88,7 @@ model Tenant {
   subscriptions    Subscription[]
   quotaUsage       TenantQuotaUsage[]
   apiTokens        ApiToken[]
+  feedbackTickets  FeedbackTicket[]
 
   @@index([status])
   @@map("tenants")
@@ -345,5 +346,175 @@ model StripeEvent {
   @@index([type])
   @@index([receivedAt])
   @@map("stripe_events")
+  @@schema("master")
+}
+
+// ─── Ticketing con resolución por Claude (portado de TuFacturaIA) ───────────────
+//
+// Vive en `master` con `tenantId` (FK a tenants) + `userId` denormalizado (los
+// User viven en cada schema tenant, sin FK cross-schema). El super-admin ve
+// todos los tickets (crossOrg). Capturas en BD como bytes (FeedbackAdjunto).
+// Ver scratchpad/paquete-ticketing-claude/docs/00-blueprint-arquitectura.md.
+
+enum FeedbackTipo {
+  bug
+  mejora
+  pregunta
+
+  @@schema("master")
+}
+
+enum FeedbackEstado {
+  nuevo
+  en_revision
+  resuelto
+  descartado
+
+  @@schema("master")
+}
+
+enum FeedbackAutor {
+  admin
+  user
+
+  @@schema("master")
+}
+
+enum FeedbackJobStatus {
+  encolado
+  ejecutando
+  pr_abierto
+  sin_cambios
+  fallido
+
+  @@schema("master")
+}
+
+enum FeedbackJobPhase {
+  preparando
+  analizando
+  verificando
+  subiendo
+  pr_abierto
+  sin_cambios
+  fallido
+
+  @@schema("master")
+}
+
+model FeedbackTicket {
+  id            String                  @id @default(uuid())
+  tenantId      String                  @map("tenant_id")
+  tenant        Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// Usuario del schema tenant que reportó (sin FK cross-schema) + denormalizado.
+  userId        String?                 @map("user_id")
+  userEmail     String?                 @map("user_email")
+  userNombre    String?                 @map("user_nombre")
+  tipo          FeedbackTipo
+  descripcion   String
+  pagina        String
+  estado        FeedbackEstado          @default(nuevo)
+  notasInternas String?                 @map("notas_internas")
+  vistoPorUser  Boolean                 @default(false) @map("visto_por_user")
+  createdAt     DateTime                @default(now()) @map("created_at")
+  updatedAt     DateTime                @default(now()) @updatedAt @map("updated_at")
+  mensajes      FeedbackTicketMessage[]
+  jobs          FeedbackAiJob[]
+  adjuntos      FeedbackAdjunto[]
+  actionTokens  FeedbackActionToken[]
+
+  @@index([tenantId])
+  @@index([estado])
+  @@index([createdAt])
+  @@map("feedback_tickets")
+  @@schema("master")
+}
+
+model FeedbackTicketMessage {
+  id        String           @id @default(uuid())
+  ticketId  String           @map("ticket_id")
+  ticket    FeedbackTicket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  autor     FeedbackAutor
+  userId    String?          @map("user_id")
+  cuerpo    String
+  /// true = visible solo para admin + runner Claude; nunca al cliente.
+  internal  Boolean          @default(false)
+  /// true = escrito por Claude (etiqueta su salida en relanzamientos).
+  isAi      Boolean          @default(false) @map("is_ai")
+  adjunto   FeedbackAdjunto? @relation("MensajeAdjunto")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  @@index([ticketId, createdAt])
+  @@map("feedback_ticket_messages")
+  @@schema("master")
+}
+
+model FeedbackAiJob {
+  id                 String               @id @default(uuid())
+  ticketId           String               @map("ticket_id")
+  ticket             FeedbackTicket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  status             FeedbackJobStatus    @default(encolado)
+  model              String?
+  prUrl              String?              @map("pr_url")
+  branch             String?
+  error              String?
+  /// Prompt editado por el admin; el claim del runner lo devuelve verbatim.
+  promptOverride     String?              @map("prompt_override")
+  /// Resumen para el cliente (borrador hasta publicar).
+  resumenCliente     String?              @map("resumen_cliente")
+  resumenAdjunto     FeedbackAdjunto?     @relation("JobResumenAdjunto")
+  resumenPublicadoAt DateTime?            @map("resumen_publicado_at")
+  createdBy          String?              @map("created_by")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @default(now()) @updatedAt @map("updated_at")
+  eventos            FeedbackAiJobEvent[]
+
+  @@index([status])
+  @@index([ticketId, createdAt])
+  @@map("feedback_ai_jobs")
+  @@schema("master")
+}
+
+model FeedbackAiJobEvent {
+  id        String           @id @default(uuid())
+  jobId     String           @map("job_id")
+  job       FeedbackAiJob    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  phase     FeedbackJobPhase
+  detail    String?
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  @@index([jobId, createdAt])
+  @@map("feedback_ai_job_events")
+  @@schema("master")
+}
+
+/// Tokens single-use de las acciones por email (anti-replay del botón del email).
+model FeedbackActionToken {
+  jti      String         @id
+  ticketId String         @map("ticket_id")
+  ticket   FeedbackTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  action   String
+  usedAt   DateTime       @default(now()) @map("used_at")
+
+  @@map("feedback_action_tokens")
+  @@schema("master")
+}
+
+/// Adjunto (captura) almacenado como bytes en BD. Pertenece a un ticket
+/// (captura "antes"), a un mensaje, o a un job (resumen "después").
+model FeedbackAdjunto {
+  id          String                 @id @default(uuid())
+  ticketId    String?                @map("ticket_id")
+  ticket      FeedbackTicket?        @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  messageId   String?                @unique @map("message_id")
+  message     FeedbackTicketMessage? @relation("MensajeAdjunto", fields: [messageId], references: [id], onDelete: Cascade)
+  jobId       String?                @unique @map("job_id")
+  job         FeedbackAiJob?         @relation("JobResumenAdjunto", fields: [jobId], references: [id], onDelete: Cascade)
+  data        Bytes
+  contentType String                 @map("content_type")
+  createdAt   DateTime               @default(now()) @map("created_at")
+
+  @@index([ticketId])
+  @@map("feedback_adjuntos")
   @@schema("master")
 }
