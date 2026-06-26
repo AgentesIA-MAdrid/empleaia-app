@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Plus, Search, Edit2, UserX, UserCheck, Trash2, Send, FileText, KeyRound, X } from "lucide-react";
+import { Plus, Search, Edit2, UserX, UserCheck, Trash2, Send, FileText, KeyRound, X, AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -136,6 +136,12 @@ export default function EmpleadosPage() {
   const [filtroTienda, setFiltroTienda] = useState("todas");
   const [filtroRol, setFiltroRol] = useState("todos");
   const [rolGuardando, setRolGuardando] = useState<string | null>(null);
+  const [confirmar, setConfirmar] = useState<{
+    titulo: string;
+    mensaje: string;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
+  const [confirmando, setConfirmando] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editando, setEditando] = useState<Empleado | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -299,8 +305,7 @@ export default function EmpleadosPage() {
     }
   };
 
-  const handleEliminar = async (emp: Empleado) => {
-    if (!confirm(`¿Eliminar permanentemente a ${emp.nombre} ${emp.apellidos}? Esta acción no se puede deshacer.`)) return;
+  const ejecutarEliminar = async (emp: Empleado) => {
     try {
       const res = await fetch(`/api/empleados/${emp.id}`, { method: "DELETE" });
       if (!res.ok) {
@@ -312,6 +317,14 @@ export default function EmpleadosPage() {
     } catch (e: any) {
       toast({ title: e.message || "Error al eliminar", variant: "destructive" });
     }
+  };
+
+  const handleEliminar = (emp: Empleado) => {
+    setConfirmar({
+      titulo: "Eliminar empleado",
+      mensaje: `¿Eliminar permanentemente a ${emp.nombre} ${emp.apellidos}? Esta acción no se puede deshacer.`,
+      onConfirm: () => ejecutarEliminar(emp),
+    });
   };
 
   // Envía el email de restablecimiento a un empleado que YA tiene
@@ -403,8 +416,7 @@ export default function EmpleadosPage() {
     }
   };
 
-  const bulkEliminar = async () => {
-    if (!confirm(`¿Eliminar permanentemente ${empleadosSeleccionados.length} empleado(s)? Esta acción no se puede deshacer.`)) return;
+  const ejecutarBulkEliminar = async () => {
     setAccionMasiva(true);
     try {
       const results = await Promise.allSettled(
@@ -422,6 +434,14 @@ export default function EmpleadosPage() {
     } finally {
       setAccionMasiva(false);
     }
+  };
+
+  const bulkEliminar = () => {
+    setConfirmar({
+      titulo: "Eliminar empleados",
+      mensaje: `¿Eliminar permanentemente ${empleadosSeleccionados.length} empleado(s)? Esta acción no se puede deshacer.`,
+      onConfirm: ejecutarBulkEliminar,
+    });
   };
 
   return (
@@ -883,6 +903,43 @@ export default function EmpleadosPage() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSubmit} disabled={submitting}>
               {submitting ? "Guardando..." : editando ? "Actualizar" : "Crear Empleado"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmación de borrado (reemplaza al confirm() nativo) */}
+      <Dialog open={confirmar !== null} onOpenChange={(o) => { if (!o && !confirmando) setConfirmar(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100 shrink-0">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </span>
+              {confirmar?.titulo}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-600">{confirmar?.mensaje}</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmar(null)} disabled={confirmando}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={confirmando}
+              onClick={async () => {
+                if (!confirmar) return;
+                setConfirmando(true);
+                try {
+                  await confirmar.onConfirm();
+                } finally {
+                  setConfirmando(false);
+                  setConfirmar(null);
+                }
+              }}
+            >
+              {confirmando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Eliminar
             </Button>
           </DialogFooter>
         </DialogContent>
