@@ -250,6 +250,12 @@ export async function getTicketById(id: string): Promise<FeedbackTicket | null> 
   return t ? toTicket(t) : null;
 }
 
+/** Nombre de la empresa (tenant) de un ticket — para el email de resultado. */
+export async function getTicketOrgName(tenantId: string): Promise<string> {
+  const t = await prismaMaster.tenant.findUnique({ where: { id: tenantId }, select: { name: true } });
+  return t?.name ?? "";
+}
+
 /** Email del usuario que abrió el ticket (denormalizado en el propio ticket). */
 export async function getTicketUserEmail(ticketId: string): Promise<string | null> {
   const t = await prismaMaster.feedbackTicket.findUnique({
