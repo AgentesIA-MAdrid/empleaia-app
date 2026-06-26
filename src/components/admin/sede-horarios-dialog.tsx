@@ -17,6 +17,45 @@ type TramosPorDia = Record<number, Tramo[]>;
 
 const vacio = (): TramosPorDia => ({ 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] });
 
+// Presets de horario. "auto": eliges uno y rellena los tramos; luego puedes
+// editarlos a mano. Días: 0=Lunes … 5=Sábado, 6=Domingo.
+const PRESETS: Record<string, { label: string; build: () => TramosPorDia }> = {
+  centro: {
+    label: "Centro comercial — 10:00 a 22:00 (todos los días)",
+    build: () => {
+      const n = vacio();
+      for (let d = 0; d < 7; d++) n[d] = [{ horaApertura: "10:00", horaCierre: "22:00" }];
+      return n;
+    },
+  },
+  calle_invierno: {
+    label: "Pie de calle · invierno — 10:00–14:00 y 17:00–20:00 (L–S)",
+    build: () => {
+      const n = vacio();
+      for (let d = 0; d < 6; d++) {
+        n[d] = [
+          { horaApertura: "10:00", horaCierre: "14:00" },
+          { horaApertura: "17:00", horaCierre: "20:00" },
+        ];
+      }
+      return n;
+    },
+  },
+  calle_verano: {
+    label: "Pie de calle · verano — 10:00–14:00 y 17:30–20:30 (L–S)",
+    build: () => {
+      const n = vacio();
+      for (let d = 0; d < 6; d++) {
+        n[d] = [
+          { horaApertura: "10:00", horaCierre: "14:00" },
+          { horaApertura: "17:30", horaCierre: "20:30" },
+        ];
+      }
+      return n;
+    },
+  },
+};
+
 export function SedeHorariosDialog({
   tienda,
   onClose,
@@ -120,6 +159,25 @@ export function SedeHorariosDialog({
           </div>
         ) : (
           <div className="space-y-3 py-1">
+            {/* Preset automático — rellena los tramos; luego se pueden editar. */}
+            <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-3">
+              <label className="text-xs font-medium text-slate-600">
+                Aplicar horario tipo <span className="font-normal text-slate-400">(puedes editarlo después)</span>
+              </label>
+              <select
+                value=""
+                onChange={(e) => {
+                  const p = PRESETS[e.target.value];
+                  if (p) setTramos(p.build());
+                }}
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+              >
+                <option value="">Selecciona un preset…</option>
+                {Object.entries(PRESETS).map(([k, p]) => (
+                  <option key={k} value={k}>{p.label}</option>
+                ))}
+              </select>
+            </div>
             {DIAS.map((nombre, dia) => (
               <div key={dia} className="rounded-lg border border-slate-100 p-3">
                 <div className="flex items-center justify-between mb-2">
