@@ -55,3 +55,6 @@ next-env.d.ts
 .swarm/
 .mcp.json
 ruvector.db
+
+# Ficheros de trabajo temporales (no forman parte del proyecto)
+scratchpad/
