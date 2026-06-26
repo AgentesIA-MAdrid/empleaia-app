@@ -6,6 +6,9 @@ import { sendSystemEmail } from "@/lib/email";
 import { signFeedbackActionToken } from "@/lib/feedback/action-token";
 
 const ADMIN_URL = process.env.ADMIN_BASE_URL ?? "https://admin.empleaia.es";
+// La página de confirmación del email vive en el subdominio app (sin sesión,
+// token); el panel vive en admin. Ver proxy.ts (admin solo sirve /admin*).
+const APP_URL = process.env.APP_BASE_URL ?? "https://app.empleaia.es";
 const FALLBACK_ALERT = process.env.SUPERADMIN_EMAIL ?? "soporte@empleaia.es";
 
 const TIPO_LABEL: Record<string, string> = { bug: "Bug", mejora: "Mejora", pregunta: "Pregunta" };
@@ -73,7 +76,7 @@ export async function sendNewTicketAlert(
   let resolveUrl: string | undefined;
   try {
     const token = signFeedbackActionToken({ ticket_id: ticket.id, action: "resolve" });
-    resolveUrl = `${ADMIN_URL}/resolver-con-claude?token=${encodeURIComponent(token)}`;
+    resolveUrl = `${APP_URL}/resolver-con-claude?token=${encodeURIComponent(token)}`;
   } catch (e) {
     console.error("[feedback/send-emails] firmar token de acción falló:", e);
   }
