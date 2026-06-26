@@ -396,6 +396,17 @@ model Ausencia {
   @@index([fechaInicio])
 }
 
+/// Catálogo de tipos/carpetas de documentos del tenant (gestionable por el
+/// OWNER). `Documento.tipo` guarda el `slug` de uno de estos (acoplamiento
+/// laxo por string para no romper documentos con tipos antiguos).
+model TipoDocumento {
+  id        String   @id @default(cuid())
+  nombre    String
+  slug      String   @unique
+  orden     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
 model Notificacion {
   id        String   @id @default(cuid())
   userId    String
