@@ -344,6 +344,11 @@ export function FeedbackModal({
                   </button>
                   {expandedId === t.id && (
                     <div className="border-t border-slate-100 p-3">
+                      {/* Mensaje original completo (en la fila va truncado) */}
+                      <div className="mb-3 rounded-lg bg-[var(--primary-light)] px-3 py-2 text-sm text-slate-700">
+                        <span className="mb-0.5 block text-xs font-medium text-slate-400">Tú</span>
+                        <span className="whitespace-pre-wrap break-words">{t.descripcion}</span>
+                      </div>
                       {loadingMessages ? (
                         <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-[var(--primary)]" /></div>
                       ) : (
