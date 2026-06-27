@@ -1,0 +1,303 @@
+// Runner de "Resolver con Claude" (ticketing). Portado de TuFacturaIA y
+// adaptado a empleaIA: secreto EMPLEAIA_SIGNING_SECRET, repo empleaia-app,
+// rama base configurable (BASE_BRANCH, default feature/saas-migration), y SIN
+// acceso a BD (Claude resuelve solo con el prompt + el código del repo).
+//
+// Loop: reclama el siguiente job encolado → worktree aislado desde la rama base
+// → Claude Code headless con el prompt → gate lint+typecheck → abre PR (draft si
+// el gate falla) o reporta sin_cambios → callback. NUNCA mergea.
+//
+// La frontera de seguridad es la infra: GH_TOKEN del bot sin bypass del ruleset
+// (require PR+approval; el bot no puede mergear ni con su PAT), worktree efímero,
+// non-root, deny-list de la sesión Claude. Este orquestador solo hace
+// `gh pr create`, jamás `gh pr merge`.
+
+import { createHmac, createHash } from "node:crypto";
+import { spawnSync, spawn } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync, readFileSync, cpSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+const APP_BASE_URL = required("APP_BASE_URL");
+const SIGNING_SECRET = required("EMPLEAIA_SIGNING_SECRET");
+const REPO_DIR = process.env.REPO_DIR || "/home/runner/repo";
+const REPO_SLUG = process.env.REPO_SLUG || "AgentesIA-MAdrid/empleaia-app";
+const BASE_BRANCH = process.env.BASE_BRANCH || "feature/saas-migration";
+const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "opus";
+const POLL_INTERVAL = Number(process.env.POLL_INTERVAL_MS || 15_000);
+const JOB_TIMEOUT = Number(process.env.JOB_TIMEOUT_MS || 30 * 60_000);
+const HEARTBEAT_MS = Number(process.env.HEARTBEAT_MS || 60_000);
+const STUB = process.env.CLAUDE_RUNNER_STUB === "1";
+
+function required(name) {
+  const v = process.env[name];
+  if (!v) {
+    console.error(`[runner] falta env ${name}`);
+    process.exit(1);
+  }
+  return v;
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ── HMAC service-auth (espejo de src/lib/internal/auth.ts, formato v2) ───────
+function signedHeaders(method, pathWithSearch, body) {
+  const t = Math.floor(Date.now() / 1000);
+  const bodyHash = createHash("sha256").update(body ?? "").digest("hex");
+  const payload = `${t}.${method}.${pathWithSearch}.${bodyHash}`;
+  const v1 = createHmac("sha256", SIGNING_SECRET).update(payload).digest("hex");
+  return { "content-type": "application/json", "x-service-signature": `t=${t},v1=${v1}` };
+}
+
+async function apiPost(pathWithSearch, bodyObj) {
+  const body = JSON.stringify(bodyObj ?? {});
+  const res = await fetch(`${APP_BASE_URL}${pathWithSearch}`, {
+    method: "POST",
+    headers: signedHeaders("POST", pathWithSearch, body),
+    body,
+  });
+  const json = await res.json().catch(() => null);
+  return { ok: res.ok, status: res.status, json };
+}
+
+function run(cmd, args, opts = {}) {
+  return spawnSync(cmd, args, { encoding: "utf8", ...opts });
+}
+
+async function heartbeat(jobId) {
+  try {
+    await callback(jobId, "ejecutando", {}, { retry: false });
+  } catch {
+    /* best-effort */
+  }
+}
+
+async function progress(jobId, phase, detail) {
+  try {
+    await apiPost(`/api/internal/feedback-ai-job/${jobId}/progress`, { phase, detail });
+  } catch {
+    /* best-effort */
+  }
+}
+
+function runClaudeHeartbeat(jobId, args, opts) {
+  return new Promise((resolve) => {
+    const child = spawn("claude", args, { ...opts });
+    let stdout = "";
+    let stderr = "";
+    if (child.stdout) child.stdout.on("data", (d) => { stdout += d.toString(); });
+    if (child.stderr) child.stderr.on("data", (d) => { stderr += d.toString(); });
+    let timedOut = false;
+    const hb = setInterval(() => { void heartbeat(jobId); }, HEARTBEAT_MS);
+    const killer = setTimeout(() => { timedOut = true; try { child.kill("SIGKILL"); } catch { /* ya muerto */ } }, JOB_TIMEOUT);
+    child.on("error", (err) => {
+      clearInterval(hb); clearTimeout(killer);
+      resolve({ code: null, stdout, stderr: `${stderr}\nspawn error: ${err.message}`, timedOut });
+    });
+    child.on("close", (code) => {
+      clearInterval(hb); clearTimeout(killer);
+      resolve({ code, stdout, stderr, timedOut });
+    });
+  });
+}
+
+function parseClaudeOutput(stdout) {
+  const text = (stdout || "").trim();
+  const reDiag = /\[DIAGN[ÓO]STICO\]/i;
+  const reRes = /\[RESUMEN\]/i;
+  const mRes = text.match(reRes);
+  if (!mRes) return { diagnostico: text, resumen: "" };
+  const resumen = text.slice(mRes.index + mRes[0].length).trim();
+  let diagnostico = text.slice(0, mRes.index);
+  const mDiag = diagnostico.match(reDiag);
+  if (mDiag) diagnostico = diagnostico.slice(mDiag.index + mDiag[0].length);
+  return { diagnostico: diagnostico.trim(), resumen: resumen.trim() };
+}
+
+async function uploadAfterScreenshot(jobId, wt) {
+  const localPath = join(wt, "feedback-after.png");
+  if (!existsSync(localPath)) return null;
+  try {
+    const buf = readFileSync(localPath);
+    if (buf.byteLength > 5 * 1024 * 1024) { console.error("[runner] feedback-after.png > 5MB, se omite"); return null; }
+    const r = await apiPost(`/api/internal/feedback-ai-job/${jobId}/screenshot`, {
+      image_base64: buf.toString("base64"),
+      content_type: "image/png",
+      ext: "png",
+    });
+    if (!r.ok) { console.error(`[runner] upload captura "después" HTTP ${r.status}`); return null; }
+    return r.json?.path ?? null;
+  } catch (e) {
+    console.error("[runner] upload captura \"después\" falló:", e?.message || e);
+    return null;
+  }
+}
+
+async function processJob({ job, prompt }) {
+  const id8 = job.id.slice(0, 8);
+  const branch = `fix/ticket-${id8}`;
+  const wt = mkdtempSync(join(tmpdir(), `ticket-${id8}-`));
+
+  try {
+    run("git", ["-C", REPO_DIR, "fetch", "origin", "--quiet"]);
+    run("git", ["-C", REPO_DIR, "worktree", "add", "-B", branch, wt, `origin/${BASE_BRANCH}`]);
+    if (existsSync(join(REPO_DIR, "node_modules"))) {
+      cpSync(join(REPO_DIR, "node_modules"), join(wt, "node_modules"), { recursive: true, verbatimSymlinks: true });
+    }
+    await progress(job.id, "preparando", `Worktree aislado listo desde origin/${BASE_BRANCH}`);
+
+    let diagnostico = "";
+    let resumen = "";
+
+    if (STUB) {
+      writeFileSync(join(wt, "ops/ticket-runner/.stub-touch"), `job ${job.id}\n`);
+      run("git", ["-C", wt, "add", "-A"]);
+      run("git", ["-C", wt, "commit", "-q", "-m", `chore: stub runner ${id8}`]);
+    } else {
+      await progress(job.id, "analizando", "Claude analizando el ticket…");
+      const settings = join(REPO_DIR, "..", "app", "runner-claude-settings.json");
+      const append =
+        `Resuelve este ticket de soporte siguiendo el prompt al pie de la letra. Reglas INVIOLABLES: ` +
+        `trabaja solo en este worktree; si hay fix, deja los cambios commiteados en la rama ${branch}; ` +
+        `NO abras PR tú (lo hace el runner); NUNCA hagas git push --force ni gh pr merge; ` +
+        `corre lint+typecheck antes de dar por bueno el cambio (NO corras build: revienta por OOM en el ` +
+        `contenedor y CI ya lo verifica); AUDITA tu propio diff antes de terminar (causa raíz, sin ` +
+        `regresiones, inviolables de CLAUDE.md y AGENTS.md: withTenant/withTenantPage, prismaApp vs ` +
+        `prismaMaster, no-legacy-prisma, NO fetch interno entre rutas); si el cambio es visible en la UI, ` +
+        `deja una captura del resultado en feedback-after.png en la raíz del worktree; si NO hay un fix de ` +
+        `código claro, NO inventes cambios: deja el worktree limpio. TERMINA SIEMPRE con los dos bloques ` +
+        `[DIAGNÓSTICO] (técnico, para el equipo) y [RESUMEN] (para el cliente, trato de tú, sin jerga): ` +
+        `es OBLIGATORIO, el sistema los separa por esos marcadores.`;
+      const cl = await runClaudeHeartbeat(job.id, [
+        "-p", prompt,
+        "--model", CLAUDE_MODEL,
+        "--dangerously-skip-permissions",
+        "--append-system-prompt", append,
+        ...(existsSync(settings) ? ["--settings", settings] : []),
+      ], { cwd: wt, env: { ...process.env } });
+      if (cl.timedOut) {
+        await callback(job.id, "fallido", { error: `timeout: claude excedió ${JOB_TIMEOUT}ms` });
+        return;
+      }
+      if (cl.code !== 0) {
+        await callback(job.id, "fallido", {
+          error: `claude salió con código ${cl.code}: ${(cl.stderr || cl.stdout || "").slice(0, 3000)}`,
+        });
+        return;
+      }
+      const parsed = parseClaudeOutput(cl.stdout);
+      diagnostico = parsed.diagnostico;
+      resumen = parsed.resumen;
+    }
+
+    await heartbeat(job.id);
+    const resumenAdjuntoPath = STUB ? null : await uploadAfterScreenshot(job.id, wt);
+
+    const outcome = {
+      ...(diagnostico ? { diagnostico: diagnostico.slice(0, 10000) } : {}),
+      ...(resumen ? { resumen: resumen.slice(0, 5000) } : {}),
+      ...(resumenAdjuntoPath ? { resumen_adjunto_path: resumenAdjuntoPath } : {}),
+    };
+
+    const porcelain = (run("git", ["-C", wt, "status", "--porcelain"]).stdout || "").trim();
+    const ahead = (run("git", ["-C", wt, "rev-list", "--count", `origin/${BASE_BRANCH}..HEAD`]).stdout || "").trim();
+    const hasChanges = porcelain.length > 0 || (ahead !== "" && ahead !== "0");
+
+    if (!hasChanges) {
+      await callback(job.id, "sin_cambios", outcome);
+      return;
+    }
+
+    await progress(job.id, "verificando", "Verificando el cambio: lint · typecheck");
+    let gateGreen = true;
+    let gateLog = "";
+    for (const step of ["lint", "typecheck"]) {
+      const r = run("npm", ["run", step], { cwd: wt });
+      if (r.status !== 0) {
+        gateGreen = false;
+        gateLog = `$ npm run ${step}  (exit ${r.status})\n${((r.stdout || "") + (r.stderr || "")).trim().slice(-2000)}`;
+        break;
+      }
+    }
+
+    await progress(job.id, "subiendo", gateGreen ? "Gate verde — subiendo la rama y abriendo PR…" : "Gate en rojo — PR en draft…");
+    const push = run("git", ["-C", wt, "push", "-u", "origin", branch, "--force-with-lease", "--no-verify"]);
+    if (push.status !== 0) {
+      await callback(job.id, "fallido", { branch, error: `git push falló (exit ${push.status}): ${(push.stderr || push.stdout || "").slice(0, 3500)}` });
+      return;
+    }
+
+    const prArgs = [
+      "pr", "create", "--repo", REPO_SLUG, "--base", BASE_BRANCH, "--head", branch,
+      "--title", `fix(ticket): ${id8}`,
+      "--body", `Resuelto por el runner "Resolver con Claude" (ticket ${job.ticket_id}).` +
+        (gateGreen ? "" : `\n\n⚠️ Gate lint/typecheck FALLÓ — PR en draft, revisar.\n\n\`\`\`\n${gateLog}\n\`\`\``),
+      ...(gateGreen ? [] : ["--draft"]),
+    ];
+    const pr = run("gh", prArgs, { cwd: wt });
+    const prUrl = (pr.stdout || "").trim().split("\n").pop();
+    if (pr.status !== 0 || !/^https?:\/\//.test(prUrl || "")) {
+      await callback(job.id, "fallido", { branch, error: `gh pr create falló (exit ${pr.status}): ${(pr.stderr || pr.stdout || "").slice(0, 3500)}` });
+      return;
+    }
+    await callback(job.id, "pr_abierto", { pr_url: prUrl, branch, ...outcome });
+  } catch (e) {
+    await callback(job.id, "fallido", { error: String(e?.message || e).slice(0, 4000) });
+  } finally {
+    run("git", ["-C", REPO_DIR, "worktree", "remove", "--force", wt]);
+    try { rmSync(wt, { recursive: true, force: true }); } catch { /* noop */ }
+  }
+}
+
+const RETRYABLE_STATUS = new Set([404, 408, 425, 429, 500, 502, 503, 504]);
+const CALLBACK_RETRY_DELAYS_MS = [1000, 2000, 5000, 10000];
+
+async function callback(jobId, event, extra, { retry = true } = {}) {
+  const path = `/api/internal/feedback-ai-job/${jobId}/callback`;
+  const maxRetries = retry ? CALLBACK_RETRY_DELAYS_MS.length : 0;
+  let lastInfo = "";
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const r = await apiPost(path, { event, ...extra });
+      if (r.ok) return;
+      lastInfo = `${r.status}`;
+      if (!RETRYABLE_STATUS.has(r.status)) {
+        console.error(`[runner] callback ${event} falló (no reintentable): ${r.status}`, r.json);
+        return;
+      }
+    } catch (e) {
+      lastInfo = String(e?.message || e);
+    }
+    if (attempt < maxRetries) {
+      const delay = CALLBACK_RETRY_DELAYS_MS[attempt];
+      console.error(`[runner] callback ${event} fallo transitorio (${lastInfo}); reintento ${attempt + 1}/${maxRetries} en ${delay}ms`);
+      await sleep(delay);
+    }
+  }
+  console.error(`[runner] callback ${event} ${retry ? "AGOTÓ reintentos" : "falló"}: ${lastInfo}`);
+}
+
+async function main() {
+  console.log(`[runner] arrancado (stub=${STUB}, model=${CLAUDE_MODEL}, base=${BASE_BRANCH}, poll=${POLL_INTERVAL}ms)`);
+  for (;;) {
+    try {
+      const claim = await apiPost("/api/internal/feedback-ai-job/claim", {});
+      const job = claim.ok ? claim.json?.job : null;
+      const jobId = job && typeof job.id === "string" && job.id ? job.id : null;
+      if (jobId && claim.json?.prompt) {
+        console.log(`[runner] job ${jobId} reclamado`);
+        await processJob(claim.json);
+        continue;
+      }
+      if (jobId && !claim.json?.prompt) {
+        await callback(jobId, "fallido", { error: "ticket no encontrado" });
+        continue;
+      }
+    } catch (e) {
+      console.error("[runner] error en el ciclo:", e?.message || e);
+    }
+    await sleep(POLL_INTERVAL);
+  }
+}
+
+main();

@@ -1,0 +1,42 @@
+# Servicio runner de "Resolver con Claude" para el Dokploy de empleaIA.
+# Pegar en panel Dokploy → nuevo servicio Compose. Las envs van en la pestaña
+# Environment del servicio (NUNCA aquí en claro). Build desde ops/ticket-runner.
+services:
+  ticket-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # URL pública del app (para claim/callback firmados).
+      APP_BASE_URL: ${APP_BASE_URL}
+      # HMAC service-auth: MISMO secreto que el app (EMPLEAIA_SIGNING_SECRET).
+      EMPLEAIA_SIGNING_SECRET: ${EMPLEAIA_SIGNING_SECRET}
+      # Auth de Claude Code: token OAuth de suscripción (`claude setup-token`).
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN}
+      # PAT fine-grained de la cuenta bot aiabot (Contents+PR, sin merge).
+      GH_TOKEN: ${GH_TOKEN}
+      # Identidad de los commits del bot.
+      GIT_AUTHOR_NAME: ${GIT_AUTHOR_NAME:-aiabot}
+      GIT_AUTHOR_EMAIL: ${GIT_AUTHOR_EMAIL:-aiabot@users.noreply.github.com}
+      # Config operativa.
+      REPO_SLUG: ${REPO_SLUG:-AgentesIA-MAdrid/empleaia-app}
+      # Rama base contra la que se hace worktree y se abren los PRs. Producción
+      # corre feature/saas-migration; main está desfasada. Cámbiala solo si pones
+      # main al día.
+      BASE_BRANCH: ${BASE_BRANCH:-feature/saas-migration}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-opus}
+      POLL_INTERVAL_MS: ${POLL_INTERVAL_MS:-15000}
+      JOB_TIMEOUT_MS: ${JOB_TIMEOUT_MS:-1800000}
+      HEARTBEAT_MS: ${HEARTBEAT_MS:-60000}
+      # 1 = modo plumbing (no invoca Claude; cambio trivial para probar el flujo
+      # claim→PR→callback). Quitar/0 para resolución real.
+      CLAUDE_RUNNER_STUB: ${CLAUDE_RUNNER_STUB:-0}
+    deploy:
+      # N réplicas drenan la cola en paralelo (claim = FOR UPDATE SKIP LOCKED, sin
+      # colisión). Cada réplica ~3 GB en pico + cuota OAuth. Default 1.
+      replicas: ${RUNNER_REPLICAS:-1}
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 3G
