@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 type Tipo = "bug" | "mejora" | "pregunta";
 type Estado = "nuevo" | "en_revision" | "resuelto" | "descartado";
-type JobStatus = "encolado" | "ejecutando" | "pr_abierto" | "sin_cambios" | "fallido";
+type JobStatus = "encolado" | "ejecutando" | "pr_abierto" | "desplegado" | "sin_cambios" | "fallido";
 
 interface AdminTicket {
   id: string;
@@ -54,6 +54,7 @@ const JOB_BADGE: Record<JobStatus, string> = {
   encolado: "bg-slate-100 text-slate-600",
   ejecutando: "bg-indigo-100 text-indigo-700",
   pr_abierto: "bg-emerald-100 text-emerald-700",
+  desplegado: "bg-teal-100 text-teal-700",
   sin_cambios: "bg-slate-100 text-slate-600",
   fallido: "bg-red-100 text-red-700",
 };

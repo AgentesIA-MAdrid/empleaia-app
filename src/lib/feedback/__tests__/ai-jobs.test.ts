@@ -38,6 +38,15 @@ describe("applyJobEvent", () => {
     expect(applyJobEvent("fallido", "fallido")).toEqual({ ok: true, next: "fallido" });
   });
 
+  it("pr_abierto → desplegado (webhook de GitHub al mergear)", () => {
+    expect(applyJobEvent("pr_abierto", "desplegado")).toEqual({ ok: true, next: "desplegado" });
+  });
+
+  it("desplegado es terminal e idempotente", () => {
+    expect(applyJobEvent("desplegado", "desplegado")).toEqual({ ok: true, next: "desplegado" });
+    expect(applyJobEvent("desplegado", "ejecutando").ok).toBe(false);
+  });
+
   it("rechaza transiciones inválidas", () => {
     expect(applyJobEvent("pr_abierto", "ejecutando").ok).toBe(false);
     expect(applyJobEvent("ejecutando", "encolado").ok).toBe(false);

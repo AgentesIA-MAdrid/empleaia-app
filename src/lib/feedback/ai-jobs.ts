@@ -7,6 +7,7 @@ export type JobStatus =
   | "encolado"
   | "ejecutando"
   | "pr_abierto"
+  | "desplegado"
   | "sin_cambios"
   | "fallido";
 
@@ -14,7 +15,7 @@ export type JobStatus =
 export const LIVE_STATES: readonly JobStatus[] = ["encolado", "ejecutando"];
 
 /** Estados terminales: el job acabó, se puede re-encolar el ticket. */
-export const TERMINAL_STATES: readonly JobStatus[] = ["pr_abierto", "sin_cambios", "fallido"];
+export const TERMINAL_STATES: readonly JobStatus[] = ["pr_abierto", "desplegado", "sin_cambios", "fallido"];
 
 /**
  * ¿Se puede encolar un job nuevo para un ticket dado su último job?
@@ -33,7 +34,9 @@ export type JobTransition =
 const ALLOWED: Record<JobStatus, readonly JobStatus[]> = {
   encolado: ["ejecutando", "fallido"],
   ejecutando: ["pr_abierto", "sin_cambios", "fallido"],
-  pr_abierto: [],
+  // pr_abierto → desplegado lo dispara el webhook de GitHub al mergear el PR.
+  pr_abierto: ["desplegado"],
+  desplegado: [],
   sin_cambios: [],
   fallido: [],
 };

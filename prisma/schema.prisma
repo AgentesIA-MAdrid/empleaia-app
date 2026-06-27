@@ -384,6 +384,7 @@ enum FeedbackJobStatus {
   encolado
   ejecutando
   pr_abierto
+  desplegado
   sin_cambios
   fallido
 

@@ -501,6 +501,31 @@ export async function setAiJobResumenDraft(jobId: string, resumen: string): Prom
   });
 }
 
+/** Localiza el job más reciente cuyo PR/rama coincide (webhook de merge). */
+export async function findAiJobByBranchOrUrl(
+  branch?: string | null,
+  prUrl?: string | null,
+): Promise<AiJob | null> {
+  const or: Array<{ branch: string } | { prUrl: string }> = [];
+  if (branch) or.push({ branch });
+  if (prUrl) or.push({ prUrl });
+  if (or.length === 0) return null;
+  const j = await prismaMaster.feedbackAiJob.findFirst({
+    where: { OR: or },
+    orderBy: { createdAt: "desc" },
+    include: JOB_INCLUDE,
+  });
+  return j ? toJob(j) : null;
+}
+
+/** Fija el estado del job (p. ej. pr_abierto → desplegado tras el merge). */
+export async function setAiJobStatus(jobId: string, status: JobStatus): Promise<void> {
+  await prismaMaster.feedbackAiJob.update({
+    where: { id: jobId },
+    data: { status },
+  });
+}
+
 /** Publica el resumen (borrador) al cliente: lo vuelca al hilo como mensaje
  *  público (is_ai), sella resumen_publicado_at y enciende el badge del usuario. */
 export async function publishResumenToClient(
