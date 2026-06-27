@@ -11,7 +11,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { LayoutDashboard, Users, FileText, LogOut, MessageSquare } from "lucide-react";
+import { LayoutDashboard, Users, FileText, LogOut, MessageSquare, KeyRound } from "lucide-react";
 import { EmpleaIASymbol } from "@/components/brand/empleaia-logo";
 import { NewTicketsBanner } from "@/components/admin/new-tickets-banner";
 
@@ -34,6 +34,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <NavLink href="/admin/tenants" icon={Users}>Tenants</NavLink>
               <NavLink href="/admin/audit-log" icon={FileText}>Audit log</NavLink>
               <NavLink href="/admin/feedback" icon={MessageSquare}>Feedback</NavLink>
+              <NavLink href="/admin/cuenta" icon={KeyRound}>Cuenta</NavLink>
             </nav>
           </div>
           <form action="/api/admin/logout" method="POST">
