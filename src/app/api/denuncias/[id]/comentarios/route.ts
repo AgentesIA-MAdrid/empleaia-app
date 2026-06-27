@@ -14,6 +14,7 @@ import { auth } from "@/lib/auth";
 import { Rol } from "@/generated/prisma-tenant/client";
 import { prismaApp } from "@/lib/prisma";
 import { withTenant } from "@/lib/tenant/with-tenant";
+import { withFeature } from "@/lib/feature-guard/with-feature";
 
 const schema = z.object({
   contenido: z.string().min(1).max(5000),
@@ -21,7 +22,7 @@ const schema = z.object({
 });
 
 export const POST = withTenant(
-  async (
+  withFeature("canal_denuncias", async (
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> },
   ) => {
@@ -78,5 +79,5 @@ export const POST = withTenant(
     });
 
     return NextResponse.json({ comentario }, { status: 201 });
-  },
+  }),
 );

@@ -127,16 +127,16 @@ export const FEATURE_COVERAGE: readonly CoverageEntry[] = [
   { endpointGlob: "whatsapp/**/route.ts", featureKey: "whatsapp_bot", guard: "withFeature" },
   { endpointGlob: "informes/route.ts", featureKey: "informes_avanzados", guard: "hasFeature" },
 
-  // ─── Módulos con endpoint implementado pero SIN gate de feature ──────────
-  // GATE PENDIENTE: estos endpoints existen pero NO envuelven withFeature(),
-  // así que hoy un tenant cuyo plan no incluye la feature puede invocarlos.
-  // Se marcan `deferred` (cobertura registrada, no fingida) hasta endurecer
-  // el gate de API. Ojo: ofertas tiene una ruta pública (ofertas/publica)
-  // que NO debe gatearse por feature del tenant. Ver docs/HANDOFF.md.
-  { endpointGlob: "organigrama/route.ts", featureKey: "organigrama", guard: "withFeature", deferred: true },
-  { endpointGlob: "ofertas/**/route.ts", featureKey: "reclutamiento", guard: "withFeature", deferred: true },
-  { endpointGlob: "denuncias/**/route.ts", featureKey: "canal_denuncias", guard: "withFeature", deferred: true },
-  { endpointGlob: "ia/**/route.ts", featureKey: "asistente_ia", guard: "withFeature", deferred: true },
+  // ─── Módulos con gate de API real (endurecido) ──────────────────────────
+  // Endpoints de gestión envueltos en withFeature(<key>). Las rutas
+  // públicas/por token quedan SIN gate a propósito: la postulación pública
+  // (ofertas/publica/**) y el seguimiento anónimo de denuncias
+  // (denuncias/anonima/[token]/**) los usa un externo sin feature del tenant;
+  // el control es la existencia de la oferta / la validez del token.
+  { endpointGlob: "organigrama/route.ts", featureKey: "organigrama", guard: "withFeature" },
+  { endpointGlob: "ofertas/route.ts", featureKey: "reclutamiento", guard: "withFeature" },
+  { endpointGlob: "denuncias/route.ts", featureKey: "canal_denuncias", guard: "withFeature" },
+  { endpointGlob: "ia/conversaciones/route.ts", featureKey: "asistente_ia", guard: "withFeature" },
 
   // ─── Limit sin enforcement directo (Fase 9 vista materializada) ──────────
   // max_storage_mb: declarativo. /api/documentos POST debería sumar

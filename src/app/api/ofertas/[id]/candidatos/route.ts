@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { Rol } from "@/generated/prisma-tenant/client";
 import { prismaApp } from "@/lib/prisma";
 import { withTenant } from "@/lib/tenant/with-tenant";
+import { withFeature } from "@/lib/feature-guard/with-feature";
 
 const schema = z.object({
   nombre: z.string().min(2).max(120),
@@ -15,7 +16,7 @@ const schema = z.object({
   notas: z.string().max(2000).optional(),
 });
 
-export const POST = withTenant(async (
+export const POST = withTenant(withFeature("reclutamiento", async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) => {
@@ -62,4 +63,4 @@ export const POST = withTenant(async (
     },
   });
   return NextResponse.json({ candidato }, { status: 201 });
-});
+}));

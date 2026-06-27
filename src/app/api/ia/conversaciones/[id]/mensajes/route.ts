@@ -14,6 +14,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prismaApp } from "@/lib/prisma";
 import { withTenant } from "@/lib/tenant/with-tenant";
+import { withFeature } from "@/lib/feature-guard/with-feature";
 import { decryptString } from "@/lib/crypto/aes-gcm";
 import { chat, type ChatMessage } from "@/lib/ia/llm-client";
 import { buildContextoTenant, defaultSystemPrompt } from "@/lib/ia/system-prompt";
@@ -22,7 +23,7 @@ const schema = z.object({
   contenido: z.string().min(1).max(20_000),
 });
 
-export const POST = withTenant(async (
+export const POST = withTenant(withFeature("asistente_ia", async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) => {
@@ -133,4 +134,4 @@ export const POST = withTenant(async (
     );
   }
   return NextResponse.json({ userMsg, assistantMsg });
-});
+}));

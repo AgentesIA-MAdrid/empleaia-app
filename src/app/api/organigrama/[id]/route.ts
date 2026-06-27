@@ -4,10 +4,11 @@ import { auth } from "@/lib/auth";
 import { Rol } from "@/generated/prisma-tenant/client";
 import { prismaApp } from "@/lib/prisma";
 import { withTenant } from "@/lib/tenant/with-tenant";
+import { withFeature } from "@/lib/feature-guard/with-feature";
 
 const schema = z.object({ managerId: z.string().nullable() });
 
-export const PATCH = withTenant(async (
+export const PATCH = withTenant(withFeature("organigrama", async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) => {
@@ -42,4 +43,4 @@ export const PATCH = withTenant(async (
     select: { id: true, managerId: true },
   });
   return NextResponse.json({ user: updated });
-});
+}));

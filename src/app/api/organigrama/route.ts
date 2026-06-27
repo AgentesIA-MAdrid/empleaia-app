@@ -6,9 +6,10 @@
 import { NextResponse } from "next/server";
 import { prismaApp } from "@/lib/prisma";
 import { withTenant } from "@/lib/tenant/with-tenant";
+import { withFeature } from "@/lib/feature-guard/with-feature";
 import { buildOrganigrama } from "@/lib/organigrama/build-tree";
 
-export const GET = withTenant(async () => {
+export const GET = withTenant(withFeature("organigrama", async () => {
   const empleados = await prismaApp.user.findMany({
     where: { activo: true },
     select: {
@@ -25,4 +26,4 @@ export const GET = withTenant(async () => {
   });
   const arbol = buildOrganigrama(empleados);
   return NextResponse.json({ arbol, total: empleados.length });
-});
+}));

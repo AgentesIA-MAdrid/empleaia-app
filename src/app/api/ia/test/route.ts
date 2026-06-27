@@ -9,10 +9,11 @@ import { auth } from "@/lib/auth";
 import { Rol } from "@/generated/prisma-tenant/client";
 import { prismaApp } from "@/lib/prisma";
 import { withTenant } from "@/lib/tenant/with-tenant";
+import { withFeature } from "@/lib/feature-guard/with-feature";
 import { decryptString } from "@/lib/crypto/aes-gcm";
 import { ping } from "@/lib/ia/llm-client";
 
-export const POST = withTenant(async () => {
+export const POST = withTenant(withFeature("asistente_ia", async () => {
   const session = await auth();
   const user = session?.user as { rol?: Rol | string } | undefined;
   if (user?.rol !== Rol.OWNER) {
@@ -47,4 +48,4 @@ export const POST = withTenant(async () => {
     );
   }
   return NextResponse.json({ ok: true, modelo: result.modelo });
-});
+}));

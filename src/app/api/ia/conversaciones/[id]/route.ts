@@ -11,12 +11,13 @@ import { auth } from "@/lib/auth";
 import { Rol } from "@/generated/prisma-tenant/client";
 import { prismaApp } from "@/lib/prisma";
 import { withTenant } from "@/lib/tenant/with-tenant";
+import { withFeature } from "@/lib/feature-guard/with-feature";
 
 const patchSchema = z.object({
   titulo: z.string().min(1).max(200),
 });
 
-export const GET = withTenant(async (
+export const GET = withTenant(withFeature("asistente_ia", async (
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) => {
@@ -35,9 +36,9 @@ export const GET = withTenant(async (
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
   return NextResponse.json({ conversacion: conv });
-});
+}));
 
-export const PATCH = withTenant(async (
+export const PATCH = withTenant(withFeature("asistente_ia", async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) => {
@@ -59,9 +60,9 @@ export const PATCH = withTenant(async (
     data: { titulo: parsed.data.titulo },
   });
   return NextResponse.json({ conversacion: updated });
-});
+}));
 
-export const DELETE = withTenant(async (
+export const DELETE = withTenant(withFeature("asistente_ia", async (
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) => {
@@ -74,4 +75,4 @@ export const DELETE = withTenant(async (
   if (conv.userId !== user.id) return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   await prismaApp.conversacionIA.delete({ where: { id } });
   return NextResponse.json({ ok: true });
-});
+}));

@@ -11,6 +11,7 @@ import { auth } from "@/lib/auth";
 import { Rol } from "@/generated/prisma-tenant/client";
 import { prismaApp } from "@/lib/prisma";
 import { withTenant } from "@/lib/tenant/with-tenant";
+import { withFeature } from "@/lib/feature-guard/with-feature";
 
 const ESTADOS = ["borrador", "abierta", "pausada", "cerrada"] as const;
 
@@ -26,7 +27,7 @@ const createSchema = z.object({
   fechaCierre: z.string().datetime().optional(),
 });
 
-export const POST = withTenant(async (req: NextRequest) => {
+export const POST = withTenant(withFeature("reclutamiento", async (req: NextRequest) => {
   const session = await auth();
   const user = session?.user as { id?: string; rol?: Rol | string } | undefined;
   if (!user?.id || (user.rol !== Rol.OWNER && user.rol !== Rol.MANAGER)) {
@@ -69,9 +70,9 @@ export const POST = withTenant(async (req: NextRequest) => {
     },
   });
   return NextResponse.json({ oferta }, { status: 201 });
-});
+}));
 
-export const GET = withTenant(async (req: NextRequest) => {
+export const GET = withTenant(withFeature("reclutamiento", async (req: NextRequest) => {
   const session = await auth();
   const user = session?.user as { rol?: Rol | string } | undefined;
   const isAdmin = user?.rol === Rol.OWNER || user?.rol === Rol.MANAGER;
@@ -92,4 +93,4 @@ export const GET = withTenant(async (req: NextRequest) => {
     },
   });
   return NextResponse.json({ items, total: items.length });
-});
+}));

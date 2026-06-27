@@ -16,6 +16,7 @@ import { auth } from "@/lib/auth";
 import { Rol } from "@/generated/prisma-tenant/client";
 import { prismaApp } from "@/lib/prisma";
 import { withTenant } from "@/lib/tenant/with-tenant";
+import { withFeature } from "@/lib/feature-guard/with-feature";
 import { encryptString } from "@/lib/crypto/aes-gcm";
 
 const PROVIDERS = ["anthropic", "openai", "google"] as const;
@@ -29,7 +30,7 @@ const putSchema = z.object({
   activa: z.boolean().default(true),
 });
 
-export const GET = withTenant(async () => {
+export const GET = withTenant(withFeature("asistente_ia", async () => {
   const session = await auth();
   const user = session?.user as { rol?: Rol | string } | undefined;
   if (user?.rol !== Rol.OWNER) {
@@ -49,9 +50,9 @@ export const GET = withTenant(async () => {
     },
   });
   return NextResponse.json({ config: cfg });
-});
+}));
 
-export const PUT = withTenant(async (req: NextRequest) => {
+export const PUT = withTenant(withFeature("asistente_ia", async (req: NextRequest) => {
   const session = await auth();
   const user = session?.user as { rol?: Rol | string } | undefined;
   if (user?.rol !== Rol.OWNER) {
@@ -130,9 +131,9 @@ export const PUT = withTenant(async (req: NextRequest) => {
   });
 
   return NextResponse.json({ config: cfg });
-});
+}));
 
-export const DELETE = withTenant(async () => {
+export const DELETE = withTenant(withFeature("asistente_ia", async () => {
   const session = await auth();
   const user = session?.user as { rol?: Rol | string } | undefined;
   if (user?.rol !== Rol.OWNER) {
@@ -140,4 +141,4 @@ export const DELETE = withTenant(async () => {
   }
   await prismaApp.iAConfiguracion.deleteMany({ where: { id: "default" } });
   return NextResponse.json({ ok: true });
-});
+}));

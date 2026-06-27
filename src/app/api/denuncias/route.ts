@@ -19,6 +19,7 @@ import { auth } from "@/lib/auth";
 import { Rol } from "@/generated/prisma-tenant/client";
 import { prismaApp } from "@/lib/prisma";
 import { withTenant } from "@/lib/tenant/with-tenant";
+import { withFeature } from "@/lib/feature-guard/with-feature";
 import { generateAccessToken } from "@/lib/denuncias/access-token";
 
 const CATEGORIAS = [
@@ -54,7 +55,7 @@ const createSchema = z
     },
   );
 
-export const POST = withTenant(async (req: NextRequest) => {
+export const POST = withTenant(withFeature("canal_denuncias", async (req: NextRequest) => {
   const session = await auth();
   const userId = (session?.user as { id?: string } | undefined)?.id ?? null;
 
@@ -110,9 +111,9 @@ export const POST = withTenant(async (req: NextRequest) => {
     },
     { status: 201 },
   );
-});
+}));
 
-export const GET = withTenant(async (req: NextRequest) => {
+export const GET = withTenant(withFeature("canal_denuncias", async (req: NextRequest) => {
   const session = await auth();
   const user = session?.user as
     | { id?: string; rol?: Rol | string }
@@ -154,4 +155,4 @@ export const GET = withTenant(async (req: NextRequest) => {
   });
 
   return NextResponse.json({ items, total: items.length });
-});
+}));

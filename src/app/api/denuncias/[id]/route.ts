@@ -11,6 +11,7 @@ import { auth } from "@/lib/auth";
 import { Rol } from "@/generated/prisma-tenant/client";
 import { prismaApp } from "@/lib/prisma";
 import { withTenant } from "@/lib/tenant/with-tenant";
+import { withFeature } from "@/lib/feature-guard/with-feature";
 import { sendSystemEmail } from "@/lib/email";
 import { denunciaEstadoTemplate } from "@/lib/email-templates/denuncia-estado";
 
@@ -29,7 +30,7 @@ const patchSchema = z.object({
 });
 
 export const GET = withTenant(
-  async (
+  withFeature("canal_denuncias", async (
     _req: NextRequest,
     { params }: { params: Promise<{ id: string }> },
   ) => {
@@ -73,11 +74,11 @@ export const GET = withTenant(
     return NextResponse.json({
       denuncia: { ...denuncia, comentarios, accessTokenHash: undefined },
     });
-  },
+  }),
 );
 
 export const PATCH = withTenant(
-  async (
+  withFeature("canal_denuncias", async (
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> },
   ) => {
@@ -163,5 +164,5 @@ export const PATCH = withTenant(
     }
 
     return NextResponse.json({ denuncia: { ...denuncia, accessTokenHash: undefined } });
-  },
+  }),
 );

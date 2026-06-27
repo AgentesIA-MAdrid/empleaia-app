@@ -9,12 +9,13 @@ import { auth } from "@/lib/auth";
 import { Rol } from "@/generated/prisma-tenant/client";
 import { prismaApp } from "@/lib/prisma";
 import { withTenant } from "@/lib/tenant/with-tenant";
+import { withFeature } from "@/lib/feature-guard/with-feature";
 
 function isAdminRole(rol: unknown): boolean {
   return rol === Rol.OWNER || rol === Rol.MANAGER;
 }
 
-export const GET = withTenant(async () => {
+export const GET = withTenant(withFeature("asistente_ia", async () => {
   const session = await auth();
   const user = session?.user as { id?: string; rol?: Rol | string } | undefined;
   if (!user?.id) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
@@ -34,9 +35,9 @@ export const GET = withTenant(async () => {
     },
   });
   return NextResponse.json({ items });
-});
+}));
 
-export const POST = withTenant(async () => {
+export const POST = withTenant(withFeature("asistente_ia", async () => {
   const session = await auth();
   const user = session?.user as { id?: string; rol?: Rol | string } | undefined;
   if (!user?.id) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
@@ -50,4 +51,4 @@ export const POST = withTenant(async () => {
     },
   });
   return NextResponse.json({ conversacion: conv }, { status: 201 });
-});
+}));
