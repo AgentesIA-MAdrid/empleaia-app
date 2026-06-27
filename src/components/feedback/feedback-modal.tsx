@@ -189,7 +189,8 @@ export function FeedbackModal({
         toast({ variant: "destructive", title: "No se pudo enviar" });
         return;
       }
-      setMessages((prev) => [...prev, await res.json()]);
+      const nuevo = await res.json();
+      setMessages((prev) => [...prev, nuevo]);
       setReply("");
     } finally {
       setSendingReply(false);

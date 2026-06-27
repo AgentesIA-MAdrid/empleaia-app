@@ -1,0 +1,407 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Loader2, Bot, Send, CheckCircle2, XCircle, RefreshCw, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+
+type Tipo = "bug" | "mejora" | "pregunta";
+type Estado = "nuevo" | "en_revision" | "resuelto" | "descartado";
+type JobStatus = "encolado" | "ejecutando" | "pr_abierto" | "sin_cambios" | "fallido";
+
+interface AdminTicket {
+  id: string;
+  tipo: Tipo;
+  descripcion: string;
+  pagina: string;
+  estado: Estado;
+  org_nombre: string;
+  user_email: string | null;
+  user_name: string | null;
+  screenshot_paths: string[] | null;
+  created_at: string;
+  ai_job_status: JobStatus | null;
+}
+interface Msg {
+  id: string;
+  autor: "admin" | "user";
+  cuerpo: string;
+  internal: boolean;
+  is_ai: boolean;
+  adjunto_path: string | null;
+  created_at: string;
+}
+interface AiJob {
+  id: string;
+  status: JobStatus;
+  pr_url: string | null;
+  error: string | null;
+  resumen_cliente: string | null;
+  resumen_publicado_at: string | null;
+}
+interface JobEvent { id: string; phase: string; detail: string | null; created_at: string }
+
+const TIPO_LABEL: Record<Tipo, string> = { bug: "Bug", mejora: "Mejora", pregunta: "Pregunta" };
+const ESTADO_BADGE: Record<Estado, string> = {
+  nuevo: "bg-amber-100 text-amber-700",
+  en_revision: "bg-sky-100 text-sky-700",
+  resuelto: "bg-emerald-100 text-emerald-700",
+  descartado: "bg-slate-100 text-slate-500",
+};
+const JOB_BADGE: Record<JobStatus, string> = {
+  encolado: "bg-slate-100 text-slate-600",
+  ejecutando: "bg-indigo-100 text-indigo-700",
+  pr_abierto: "bg-emerald-100 text-emerald-700",
+  sin_cambios: "bg-slate-100 text-slate-600",
+  fallido: "bg-red-100 text-red-700",
+};
+const LIVE: JobStatus[] = ["encolado", "ejecutando"];
+
+const fmt = (iso: string) =>
+  new Date(iso).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+export default function AdminFeedbackPage() {
+  const { toast } = useToast();
+  const [tickets, setTickets] = useState<AdminTicket[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fTipo, setFTipo] = useState("");
+  const [fEstado, setFEstado] = useState("");
+  const [sel, setSel] = useState<AdminTicket | null>(null);
+
+  const cargar = useCallback(async () => {
+    setLoading(true);
+    try {
+      const p = new URLSearchParams();
+      if (fTipo) p.set("tipo", fTipo);
+      if (fEstado) p.set("estado", fEstado);
+      const r = await fetch(`/api/admin/feedback?${p}`);
+      if (r.ok) setTickets(await r.json());
+    } finally {
+      setLoading(false);
+    }
+  }, [fTipo, fEstado]);
+
+  useEffect(() => {
+    cargar();
+  }, [cargar]);
+
+  return (
+    <div className="mx-auto max-w-7xl p-6">
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-900">Feedback / Soporte</h1>
+        <Button variant="outline" size="sm" onClick={cargar}><RefreshCw className="mr-2 h-4 w-4" /> Recargar</Button>
+      </div>
+
+      <div className="mb-4 flex gap-2">
+        <select value={fTipo} onChange={(e) => setFTipo(e.target.value)} className="rounded-md border border-slate-200 px-3 py-1.5 text-sm">
+          <option value="">Todos los tipos</option>
+          {(["bug", "mejora", "pregunta"] as Tipo[]).map((t) => <option key={t} value={t}>{TIPO_LABEL[t]}</option>)}
+        </select>
+        <select value={fEstado} onChange={(e) => setFEstado(e.target.value)} className="rounded-md border border-slate-200 px-3 py-1.5 text-sm">
+          <option value="">Todos los estados</option>
+          {(["nuevo", "en_revision", "resuelto", "descartado"] as Estado[]).map((e) => <option key={e} value={e}>{e}</option>)}
+        </select>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        {loading ? (
+          <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-[var(--primary)]" /></div>
+        ) : tickets.length === 0 ? (
+          <p className="py-16 text-center text-slate-400">No hay tickets.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-4 py-3 text-left">Empresa / Usuario</th>
+                <th className="px-4 py-3 text-left">Tipo</th>
+                <th className="px-4 py-3 text-left">Descripción</th>
+                <th className="px-4 py-3 text-left">Estado</th>
+                <th className="px-4 py-3 text-left">Claude</th>
+                <th className="px-4 py-3 text-left">Fecha</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {tickets.map((t) => (
+                <tr key={t.id} onClick={() => setSel(t)} className="cursor-pointer hover:bg-slate-50">
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-slate-800">{t.org_nombre || "—"}</div>
+                    <div className="text-xs text-slate-400">{t.user_name || t.user_email || "—"}</div>
+                  </td>
+                  <td className="px-4 py-3"><span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">{TIPO_LABEL[t.tipo]}</span></td>
+                  <td className="max-w-xs truncate px-4 py-3 text-slate-600">{t.descripcion}</td>
+                  <td className="px-4 py-3"><span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", ESTADO_BADGE[t.estado])}>{t.estado}</span></td>
+                  <td className="px-4 py-3">{t.ai_job_status && <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", JOB_BADGE[t.ai_job_status])}>{t.ai_job_status}</span>}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-400">{fmt(t.created_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {sel && <DetalleTicket ticket={sel} onClose={() => setSel(null)} onChanged={cargar} toast={toast} />}
+    </div>
+  );
+}
+
+function DetalleTicket({
+  ticket,
+  onClose,
+  onChanged,
+  toast,
+}: {
+  ticket: AdminTicket;
+  onClose: () => void;
+  onChanged: () => void;
+  toast: ReturnType<typeof useToast>["toast"];
+}) {
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [job, setJob] = useState<AiJob | null>(null);
+  const [events, setEvents] = useState<JobEvent[]>([]);
+  const [resumenAdjunto, setResumenAdjunto] = useState<string | null>(null);
+  const [composer, setComposer] = useState("");
+  const [modo, setModo] = useState<"interna" | "cliente" | "claude">("cliente");
+  const [busy, setBusy] = useState(false);
+  const [resumenEdit, setResumenEdit] = useState("");
+
+  const cargarHilo = useCallback(async () => {
+    const r = await fetch(`/api/admin/feedback/${ticket.id}/messages`);
+    if (r.ok) setMessages(await r.json());
+  }, [ticket.id]);
+
+  const cargarJob = useCallback(async () => {
+    const r = await fetch(`/api/admin/feedback/${ticket.id}/ai-job`);
+    if (r.ok) {
+      const d = await r.json();
+      setJob(d.job);
+      setEvents(d.events ?? []);
+      setResumenAdjunto(d.resumen_adjunto_path ?? null);
+      if (d.job?.resumen_cliente && !d.job.resumen_publicado_at) setResumenEdit(d.job.resumen_cliente);
+    }
+  }, [ticket.id]);
+
+  useEffect(() => {
+    cargarHilo();
+    cargarJob();
+  }, [cargarHilo, cargarJob]);
+
+  // Poll del job mientras esté vivo.
+  useEffect(() => {
+    if (!job || !LIVE.includes(job.status)) return;
+    const id = setInterval(() => { cargarJob(); cargarHilo(); }, 5000);
+    return () => clearInterval(id);
+  }, [job, cargarJob, cargarHilo]);
+
+  const enviar = async () => {
+    if (!composer.trim()) return;
+    setBusy(true);
+    try {
+      if (modo === "claude") {
+        const r = await fetch(`/api/admin/feedback/${ticket.id}/resolve-ia`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ comment: composer.trim() }),
+        });
+        if (!r.ok) {
+          toast({ variant: "destructive", title: r.status === 409 ? "Ya hay un job activo" : "No se pudo encolar" });
+          return;
+        }
+        toast({ variant: "success", title: "Job encolado — Claude está en ello" });
+        setComposer("");
+        await cargarJob();
+      } else {
+        const r = await fetch(`/api/admin/feedback/${ticket.id}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cuerpo: composer.trim(), internal: modo === "interna" }),
+        });
+        if (!r.ok) {
+          toast({ variant: "destructive", title: "No se pudo enviar" });
+          return;
+        }
+        toast({ variant: "success", title: modo === "interna" ? "Nota interna añadida" : "Respuesta enviada al cliente" });
+        setComposer("");
+        await cargarHilo();
+        onChanged();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const lanzarClaude = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/admin/feedback/${ticket.id}/resolve-ia`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      if (!r.ok) {
+        toast({ variant: "destructive", title: r.status === 409 ? "Ya hay un job activo" : "No se pudo encolar" });
+        return;
+      }
+      toast({ variant: "success", title: "Job encolado" });
+      await cargarJob();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const publicarResumen = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/admin/feedback/${ticket.id}/resumen/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resumen: resumenEdit.trim() || undefined }),
+      });
+      if (!r.ok) {
+        toast({ variant: "destructive", title: "No se pudo publicar" });
+        return;
+      }
+      toast({ variant: "success", title: "Resumen publicado al cliente" });
+      await Promise.all([cargarHilo(), cargarJob()]);
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cambiarEstado = async (estado: Estado) => {
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/admin/feedback/${ticket.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado }),
+      });
+      if (r.ok) {
+        toast({ variant: "success", title: `Marcado como ${estado}` });
+        onChanged();
+        onClose();
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const screenshots = ticket.screenshot_paths ?? [];
+  const jobLive = job && LIVE.includes(job.status);
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">{TIPO_LABEL[ticket.tipo]}</span>
+            {ticket.org_nombre || "—"}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Metadatos */}
+          <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-3 text-sm">
+            <p className="text-slate-700">{ticket.descripcion}</p>
+            <p className="mt-1 text-xs text-slate-400">{ticket.user_name || ticket.user_email || "—"} · {ticket.pagina} · {fmt(ticket.created_at)}</p>
+            {screenshots.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {screenshots.map((id) => (
+                  <a key={id} href={`/api/admin/feedback/${ticket.id}/screenshot?adjunto=${id}`} target="_blank" rel="noopener noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`/api/admin/feedback/${ticket.id}/screenshot?adjunto=${id}`} alt="" className="h-16 w-16 rounded border object-cover" />
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Panel Claude */}
+          <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-sm font-medium text-indigo-900"><Bot className="h-4 w-4" /> Resolver con Claude</span>
+              {job ? (
+                <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", JOB_BADGE[job.status])}>{job.status}</span>
+              ) : (
+                <Button size="sm" onClick={lanzarClaude} disabled={busy}>Lanzar</Button>
+              )}
+            </div>
+            {jobLive && events.length > 0 && (
+              <ul className="mt-2 space-y-0.5 text-xs text-indigo-700">
+                {events.map((e) => <li key={e.id}>· {e.phase}{e.detail ? ` — ${e.detail}` : ""}</li>)}
+              </ul>
+            )}
+            {job?.pr_url && (
+              <a href={job.pr_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-indigo-700 hover:underline">
+                Ver PR <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+            {job?.error && <p className="mt-2 text-xs text-red-600">{job.error}</p>}
+            {/* Resumen borrador → publicar */}
+            {job?.resumen_cliente && !job.resumen_publicado_at && (
+              <div className="mt-3 border-t border-indigo-100 pt-3">
+                <p className="mb-1 text-xs font-medium text-indigo-900">Resumen para el cliente (borrador):</p>
+                <textarea
+                  className="w-full rounded-md border border-indigo-200 bg-white px-3 py-2 text-sm"
+                  rows={3}
+                  value={resumenEdit}
+                  onChange={(e) => setResumenEdit(e.target.value)}
+                />
+                {resumenAdjunto && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={`/api/admin/feedback/${ticket.id}/screenshot?adjunto=${resumenAdjunto}`} alt="" className="mt-2 max-h-32 rounded border" />
+                )}
+                <Button size="sm" className="mt-2" onClick={publicarResumen} disabled={busy}>Publicar al cliente</Button>
+              </div>
+            )}
+            {job?.resumen_publicado_at && <p className="mt-2 text-xs text-emerald-600">Resumen publicado al cliente.</p>}
+          </div>
+
+          {/* Hilo */}
+          <div className="space-y-2">
+            {messages.map((m) => (
+              <div key={m.id} className={cn("rounded-lg px-3 py-2 text-sm", m.internal ? "bg-amber-50" : m.autor === "user" ? "bg-slate-50" : "bg-[var(--primary-light)]")}>
+                <span className="mb-0.5 block text-xs font-medium text-slate-400">
+                  {m.is_ai ? "Claude" : m.autor === "admin" ? "Equipo" : "Usuario"}
+                  {m.internal && <span className="ml-1 rounded bg-amber-200 px-1 text-[10px] text-amber-800">solo equipo</span>}
+                  {!m.internal && m.autor === "admin" && <span className="ml-1 rounded bg-emerald-200 px-1 text-[10px] text-emerald-800">enviado al cliente</span>}
+                </span>
+                <span className="whitespace-pre-wrap text-slate-700">{m.cuerpo}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Compositor */}
+          <div className="rounded-lg border border-slate-200 p-3">
+            <div className="mb-2 flex gap-1 rounded-md bg-muted p-1 text-sm">
+              {([["cliente", "Al cliente"], ["interna", "Nota interna"], ["claude", "A Claude"]] as const).map(([k, label]) => (
+                <button key={k} onClick={() => setModo(k)} className={cn("flex-1 rounded px-2 py-1 font-medium", modo === k ? "bg-white shadow-sm" : "text-slate-500")}>{label}</button>
+              ))}
+            </div>
+            <textarea
+              className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+              rows={3}
+              placeholder={modo === "claude" ? "Instrucciones para Claude (opcional) y lanzar…" : modo === "interna" ? "Nota visible solo para el equipo…" : "Respuesta que verá el cliente…"}
+              value={composer}
+              onChange={(e) => setComposer(e.target.value)}
+            />
+            <div className="mt-2 flex justify-end">
+              <Button size="sm" onClick={enviar} disabled={busy || !composer.trim()}>
+                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                {modo === "claude" ? "Lanzar con instrucciones" : "Enviar"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Acciones de estado */}
+          <div className="flex gap-2 border-t border-slate-100 pt-3">
+            <Button size="sm" variant="outline" className="text-emerald-600" onClick={() => cambiarEstado("resuelto")} disabled={busy}>
+              <CheckCircle2 className="mr-1.5 h-4 w-4" /> Resuelto
+            </Button>
+            <Button size="sm" variant="outline" className="text-slate-500" onClick={() => cambiarEstado("descartado")} disabled={busy}>
+              <XCircle className="mr-1.5 h-4 w-4" /> Descartar
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
