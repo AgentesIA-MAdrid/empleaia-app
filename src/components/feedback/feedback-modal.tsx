@@ -199,7 +199,7 @@ export function FeedbackModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="grid-cols-1 w-[calc(100vw-2rem)] max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Feedback</DialogTitle>
         </DialogHeader>
@@ -315,7 +315,7 @@ export function FeedbackModal({
                             <div
                               key={m.id}
                               className={cn(
-                                "rounded-lg px-3 py-2 text-sm",
+                                "rounded-lg px-3 py-2 text-sm whitespace-pre-wrap break-words",
                                 m.autor === "user" ? "bg-[var(--primary-light)] text-slate-700" : "bg-slate-50 text-slate-700",
                               )}
                             >
@@ -327,13 +327,13 @@ export function FeedbackModal({
                           ))}
                           <div className="flex gap-2 pt-1">
                             <input
-                              className={inputCls}
+                              className={cn(inputCls, "min-w-0 flex-1")}
                               placeholder="Responder…"
                               value={reply}
                               onChange={(e) => setReply(e.target.value)}
                               onKeyDown={(e) => { if (e.key === "Enter") sendReply(t.id); }}
                             />
-                            <Button size="icon" onClick={() => sendReply(t.id)} disabled={sendingReply}>
+                            <Button size="icon" className="shrink-0" onClick={() => sendReply(t.id)} disabled={sendingReply}>
                               <Send className="h-4 w-4" />
                             </Button>
                           </div>
