@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Plus, Search, Edit2, UserX, UserCheck, Trash2, Send, FileText, KeyRound, X, AlertTriangle, Loader2, ChevronDown, ChevronUp, Check } from "lucide-react";
+import { Plus, Search, Edit2, UserX, UserCheck, Trash2, Send, FileText, FileSpreadsheet, KeyRound, X, AlertTriangle, Loader2, ChevronDown, ChevronUp, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FeatureGateClient } from "@/components/feature-gate-client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -242,6 +243,7 @@ export default function EmpleadosPage() {
   const [form, setForm] = useState(FORM_INICIAL);
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
   const [accionMasiva, setAccionMasiva] = useState(false);
+  const [exportando, setExportando] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -291,6 +293,41 @@ export default function EmpleadosPage() {
   const toggleSort = (key: string) => {
     if (sortBy === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSortBy(key); setSortDir("asc"); }
+  };
+
+  // Exporta el directorio de empleados a Excel/PDF. Respeta los filtros
+  // estructurados (sede y rol); el buscador de texto libre es client-only.
+  const handleExport = async (formato: "xlsx" | "pdf") => {
+    setExportando(true);
+    try {
+      const params = new URLSearchParams({ formato });
+      if (filtroTienda !== "todas") params.set("tiendaId", filtroTienda);
+      if (filtroRol !== "todos") params.set("rol", filtroRol);
+      const res = await fetch(`/api/empleados/exportar?${params}`);
+      if (!res.ok) {
+        if (res.status === 402 || res.status === 429) {
+          const body = (await res.json()) as { error?: string; upgrade_url?: string };
+          toast({
+            title: body.error === "limit_reached" ? "Límite de exports alcanzado" : "Función no disponible en tu plan",
+            description: body.upgrade_url ? "Actualiza tu plan para usar exportación." : undefined,
+            variant: "destructive",
+          });
+          return;
+        }
+        throw new Error();
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `empleados_${new Date().toISOString().slice(0, 10)}.${formato}`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "Error al exportar", variant: "destructive" });
+    } finally {
+      setExportando(false);
+    }
   };
 
   const abrirCrear = () => {
@@ -569,9 +606,21 @@ export default function EmpleadosPage() {
           <h1 className="text-2xl font-bold text-slate-900">Empleados</h1>
           <p className="text-slate-500 text-sm mt-1">{empleados.length} empleados registrados</p>
         </div>
-        <Button onClick={abrirCrear}>
-          <Plus className="h-4 w-4 mr-2" /> Nuevo Empleado
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <FeatureGateClient feature="export_excel">
+            <Button variant="outline" disabled={exportando} onClick={() => handleExport("xlsx")}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
+            </Button>
+          </FeatureGateClient>
+          <FeatureGateClient feature="export_pdf">
+            <Button variant="outline" disabled={exportando} onClick={() => handleExport("pdf")}>
+              <FileText className="h-4 w-4 mr-2" /> PDF
+            </Button>
+          </FeatureGateClient>
+          <Button onClick={abrirCrear}>
+            <Plus className="h-4 w-4 mr-2" /> Nuevo Empleado
+          </Button>
+        </div>
       </div>
 
       {/* Filtros */}
