@@ -27,6 +27,7 @@ interface TicketMessage {
   autor: "admin" | "user";
   cuerpo: string;
   is_ai?: boolean;
+  adjunto_path?: string | null;
   created_at: string;
 }
 
@@ -70,7 +71,9 @@ export function FeedbackModal({
   const [messages, setMessages] = useState<TicketMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [reply, setReply] = useState("");
+  const [replyImage, setReplyImage] = useState<{ file: File; preview: string } | null>(null);
   const [sendingReply, setSendingReply] = useState(false);
+  const replyFileRef = useRef<HTMLInputElement>(null);
 
   const loadTickets = useCallback(async () => {
     setLoadingTickets(true);
@@ -162,11 +165,32 @@ export function FeedbackModal({
     }
   };
 
+  const clearReplyImage = () => {
+    setReplyImage((prev) => {
+      if (prev) URL.revokeObjectURL(prev.preview);
+      return null;
+    });
+    if (replyFileRef.current) replyFileRef.current.value = "";
+  };
+
+  const addReplyImage = (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ variant: "destructive", title: "Solo se aceptan imágenes" });
+      return;
+    }
+    setReplyImage((prev) => {
+      if (prev) URL.revokeObjectURL(prev.preview);
+      return { file, preview: URL.createObjectURL(file) };
+    });
+  };
+
   const toggleThread = async (ticketId: string) => {
     if (expandedId === ticketId) return setExpandedId(null);
     setExpandedId(ticketId);
     setMessages([]);
     setReply("");
+    clearReplyImage();
     setLoadingMessages(true);
     try {
       const res = await fetch(`/api/feedback/my-tickets/${ticketId}/messages`);
@@ -177,13 +201,26 @@ export function FeedbackModal({
   };
 
   const sendReply = async (ticketId: string) => {
-    if (!reply.trim()) return;
+    if (!reply.trim() && !replyImage) return;
     setSendingReply(true);
     try {
+      let adjunto_path: string | undefined;
+      if (replyImage) {
+        try {
+          const fd = new FormData();
+          fd.append("file", replyImage.file);
+          const r = await fetch("/api/feedback/upload", { method: "POST", body: fd });
+          if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error ?? "Error al subir imagen");
+          adjunto_path = ((await r.json()) as { path: string }).path;
+        } catch (e) {
+          toast({ variant: "destructive", title: e instanceof Error ? e.message : "Error al subir imagen" });
+          return;
+        }
+      }
       const res = await fetch(`/api/feedback/my-tickets/${ticketId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cuerpo: reply.trim() }),
+        body: JSON.stringify({ cuerpo: reply.trim(), ...(adjunto_path ? { adjunto_path } : {}) }),
       });
       if (!res.ok) {
         toast({ variant: "destructive", title: "No se pudo enviar" });
@@ -192,6 +229,7 @@ export function FeedbackModal({
       const nuevo = await res.json();
       setMessages((prev) => [...prev, nuevo]);
       setReply("");
+      clearReplyImage();
     } finally {
       setSendingReply(false);
     }
@@ -323,19 +361,74 @@ export function FeedbackModal({
                                 {m.autor === "user" ? "Tú" : "Soporte"}
                               </span>
                               {m.cuerpo}
+                              {m.adjunto_path && (
+                                <a
+                                  href={`/api/feedback/my-tickets/${t.id}/screenshot?adjunto=${m.adjunto_path}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className={cn("block", m.cuerpo && "mt-1.5")}
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={`/api/feedback/my-tickets/${t.id}/screenshot?adjunto=${m.adjunto_path}`}
+                                    alt="Adjunto"
+                                    className="max-h-44 max-w-full rounded-md border object-contain"
+                                  />
+                                </a>
+                              )}
                             </div>
                           ))}
-                          <div className="flex gap-2 pt-1">
-                            <input
-                              className={cn(inputCls, "min-w-0 flex-1")}
+                          <div className="space-y-2 pt-1">
+                            <textarea
+                              className={cn(inputCls, "min-h-[80px] resize-y")}
                               placeholder="Responder…"
+                              maxLength={5000}
                               value={reply}
                               onChange={(e) => setReply(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === "Enter") sendReply(t.id); }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                                  e.preventDefault();
+                                  sendReply(t.id);
+                                }
+                              }}
                             />
-                            <Button size="icon" className="shrink-0" onClick={() => sendReply(t.id)} disabled={sendingReply}>
-                              <Send className="h-4 w-4" />
-                            </Button>
+                            {replyImage && (
+                              <div className="relative inline-block">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={replyImage.preview} alt="" className="h-16 w-16 rounded-md border object-cover" />
+                                <button
+                                  onClick={clearReplyImage}
+                                  className="absolute -right-1.5 -top-1.5 rounded-full bg-slate-700 p-0.5 text-white"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between gap-2">
+                              <input
+                                ref={replyFileRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => { addReplyImage(e.target.files?.[0]); if (replyFileRef.current) replyFileRef.current.value = ""; }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => replyFileRef.current?.click()}
+                                className="inline-flex items-center gap-1.5 text-sm text-[var(--primary)] hover:underline"
+                              >
+                                <ImagePlus className="h-4 w-4" /> Adjuntar imagen
+                              </button>
+                              <Button
+                                size="sm"
+                                className="shrink-0"
+                                onClick={() => sendReply(t.id)}
+                                disabled={sendingReply || (!reply.trim() && !replyImage)}
+                              >
+                                {sendingReply ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}
+                                Enviar
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       )}

@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { currentTenant } from "@/lib/tenant/context";
 import { prismaApp } from "@/lib/prisma";
-import { getTicketById, listMessages, addMessage, getTicketOrgName } from "@/lib/feedback/repository";
+import { getTicketById, listMessages, addMessage, getTicketOrgName, adjuntoIsOrphan } from "@/lib/feedback/repository";
 import { sendUserReplyAlert } from "@/lib/feedback/send-emails";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -30,7 +30,14 @@ export const GET = withTenant(async (req: NextRequest) => {
   return NextResponse.json(await listMessages(id, { includeInternal: false }));
 });
 
-const postSchema = z.object({ cuerpo: z.string().min(1).max(5000) });
+const postSchema = z
+  .object({
+    cuerpo: z.string().max(5000).optional().default(""),
+    adjunto_path: z.string().regex(UUID_RE).optional(),
+  })
+  .refine((d) => d.cuerpo.trim().length > 0 || !!d.adjunto_path, {
+    message: "Escribe un mensaje o adjunta una imagen",
+  });
 
 // POST — el usuario responde en el hilo de su ticket.
 export const POST = withTenant(async (req: NextRequest) => {
@@ -48,7 +55,20 @@ export const POST = withTenant(async (req: NextRequest) => {
     return NextResponse.json({ error: "Ticket no encontrado" }, { status: 404 });
   }
 
-  const message = await addMessage({ ticket_id: id, autor: "user", user_id: userId, cuerpo: parsed.data.cuerpo });
+  // Si adjunta una imagen, debe ser un adjunto huérfano (subido por él vía
+  // /api/feedback/upload), no uno ya enlazado a otro ticket/mensaje.
+  if (parsed.data.adjunto_path && !(await adjuntoIsOrphan(parsed.data.adjunto_path))) {
+    return NextResponse.json({ error: "Adjunto inválido" }, { status: 400 });
+  }
+
+  const cuerpo = parsed.data.cuerpo.trim();
+  const message = await addMessage({
+    ticket_id: id,
+    autor: "user",
+    user_id: userId,
+    cuerpo,
+    adjunto_path: parsed.data.adjunto_path ?? null,
+  });
 
   // Aviso al super-admin — fire and forget.
   void (async () => {
@@ -59,7 +79,7 @@ export const POST = withTenant(async (req: NextRequest) => {
     const nombre = await getTicketOrgName(ticket.org_id || currentTenant().tenantId);
     await sendUserReplyAlert(
       { id: ticket.id, tipo: ticket.tipo, descripcion: ticket.descripcion, pagina: ticket.pagina },
-      parsed.data.cuerpo,
+      cuerpo || "[Imagen adjunta]",
       { id: ticket.org_id, nombre },
       { email: u?.email ?? "", full_name: u ? `${u.nombre} ${u.apellidos}`.trim() : null },
     );

@@ -242,6 +242,33 @@ export async function addMessage(input: {
   return toMessage(full);
 }
 
+/** True si el adjunto existe y está huérfano (sin ticket/mensaje/job). Lo usa
+ *  el route de respuesta del usuario antes de enlazarlo a su mensaje, para que
+ *  no pueda referenciar adjuntos ajenos ya asignados. */
+export async function adjuntoIsOrphan(id: string): Promise<boolean> {
+  const adj = await prismaMaster.feedbackAdjunto.findUnique({
+    where: { id },
+    select: { ticketId: true, messageId: true, jobId: true },
+  });
+  return !!adj && adj.ticketId === null && adj.messageId === null && adj.jobId === null;
+}
+
+/** True si el adjunto pertenece al ticket (captura del ticket, adjunto de un
+ *  mensaje del hilo, o adjunto del resumen de un job del ticket). Autoriza el
+ *  GET de bytes del lado usuario. */
+export async function adjuntoBelongsToTicket(adjuntoId: string, ticketId: string): Promise<boolean> {
+  const adj = await prismaMaster.feedbackAdjunto.findUnique({
+    where: { id: adjuntoId },
+    select: {
+      ticketId: true,
+      message: { select: { ticketId: true } },
+      job: { select: { ticketId: true } },
+    },
+  });
+  if (!adj) return false;
+  return adj.ticketId === ticketId || adj.message?.ticketId === ticketId || adj.job?.ticketId === ticketId;
+}
+
 export async function getTicketById(id: string): Promise<FeedbackTicket | null> {
   const t = await prismaMaster.feedbackTicket.findUnique({
     where: { id },
