@@ -4,6 +4,7 @@ import { prismaApp as prisma, prismaMaster } from "@/lib/prisma";
 import { currentTenant } from "@/lib/tenant/context";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { withTenantPage } from "@/lib/tenant/with-tenant-page";
+import { FeedbackButton } from "@/components/feedback/feedback-button";
 
 async function DashboardLayout({
   children,
@@ -78,6 +79,7 @@ async function DashboardLayout({
       trial={trial}
     >
       {children}
+      <FeedbackButton />
     </DashboardShell>
   );
 }
