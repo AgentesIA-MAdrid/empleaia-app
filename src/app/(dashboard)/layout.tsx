@@ -79,7 +79,7 @@ async function DashboardLayout({
       trial={trial}
     >
       {children}
-      <FeedbackButton />
+      {process.env.NEXT_PUBLIC_BETA_FEEDBACK === "true" && <FeedbackButton />}
     </DashboardShell>
   );
 }

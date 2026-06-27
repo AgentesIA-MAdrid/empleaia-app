@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { MessageSquarePlus } from "lucide-react";
 import { FeedbackModal } from "./feedback-modal";
 
-// Botón flotante de feedback. Gate por NEXT_PUBLIC_BETA_FEEDBACK ("true").
-// Badge rojo si hay tickets con respuesta sin ver (visto_por_user=false).
+// Botón flotante de feedback. El gate (NEXT_PUBLIC_BETA_FEEDBACK) lo decide el
+// layout en SERVIDOR (runtime), por eso este componente no lo re-comprueba: la
+// var es build-time y el Dockerfile no la inyecta al build, así que un check en
+// cliente daría siempre false. Badge rojo si hay respuesta sin ver.
 export function FeedbackButton() {
-  const enabled = process.env.NEXT_PUBLIC_BETA_FEEDBACK === "true";
   const [open, setOpen] = useState(false);
   const [hasBadge, setHasBadge] = useState(false);
 
@@ -23,13 +24,10 @@ export function FeedbackButton() {
   }, []);
 
   useEffect(() => {
-    // checkBadge hace setState DESPUÉS de un await (fetch), no de forma
-    // síncrona: no provoca el cascading render que la regla intenta evitar.
+    // checkBadge hace setState DESPUÉS de un await (fetch), no de forma síncrona.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (enabled) checkBadge();
-  }, [enabled, checkBadge]);
-
-  if (!enabled) return null;
+    checkBadge();
+  }, [checkBadge]);
 
   return (
     <>
