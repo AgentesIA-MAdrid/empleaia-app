@@ -6,6 +6,18 @@ import { getAdjuntoBytes } from "@/lib/feedback/screenshot-storage";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Defensa en profundidad: aunque /upload ya valida el MIME al subir, no servimos
+// el content-type almacenado a ciegas. Cualquier tipo fuera de esta allowlist se
+// degrada a octet-stream para que el navegador no lo interprete como HTML/JS.
+const SAFE_IMAGE_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+  "image/heic",
+  "image/heif",
+]);
+
 function ticketIdFromUrl(url: string): string | null {
   const segments = new URL(url).pathname.split("/").filter(Boolean);
   const id = segments[segments.indexOf("my-tickets") + 1];
@@ -38,7 +50,14 @@ export const GET = withTenant(async (req: NextRequest) => {
 
   const bytes = await getAdjuntoBytes(adjuntoId);
   if (!bytes) return NextResponse.json({ error: "Adjunto no encontrado" }, { status: 404 });
+  const safeType = SAFE_IMAGE_TYPES.has(bytes.contentType) ? bytes.contentType : "application/octet-stream";
   return new Response(new Uint8Array(bytes.data), {
-    headers: { "Content-Type": bytes.contentType, "Cache-Control": "private, max-age=3600" },
+    headers: {
+      "Content-Type": safeType,
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'; sandbox",
+      "Content-Disposition": "inline",
+      "Cache-Control": "private, max-age=3600",
+    },
   });
 });
