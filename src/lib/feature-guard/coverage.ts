@@ -106,6 +106,38 @@ export const FEATURE_COVERAGE: readonly CoverageEntry[] = [
   { endpointGlob: "__email__", featureKey: "notificaciones_email", guard: "hasFeature" },
   { endpointGlob: "__push__", featureKey: "notificaciones_push", guard: "hasFeature" },
 
+  // ─── Módulos RR.HH. / producto con gate de API real ──────────────────────
+  // Cada endpoint envuelve withFeature(<key>) (o hasFeature para los gates
+  // informativos). Verificado en src/app/api por grep de gates.
+  { endpointGlob: "empresas/**/route.ts", featureKey: "multi_empresa", guard: "withFeature" },
+  { endpointGlob: "tareas/**/route.ts", featureKey: "tareas", guard: "withFeature" },
+  { endpointGlob: "evaluaciones/**/route.ts", featureKey: "evaluaciones", guard: "withFeature" },
+  { endpointGlob: "encuestas/**/route.ts", featureKey: "encuestas_clima", guard: "withFeature" },
+  { endpointGlob: "objetivos/**/route.ts", featureKey: "objetivos", guard: "withFeature" },
+  { endpointGlob: "formacion/**/route.ts", featureKey: "formacion", guard: "withFeature" },
+  { endpointGlob: "prenomina/**/route.ts", featureKey: "prenomina", guard: "withFeature" },
+  { endpointGlob: "nominas/**/route.ts", featureKey: "envio_nominas", guard: "withFeature" },
+  { endpointGlob: "gastos/**/route.ts", featureKey: "control_gastos", guard: "withFeature" },
+  { endpointGlob: "retribucion/**/route.ts", featureKey: "retribucion_flex", guard: "withFeature" },
+  { endpointGlob: "chat/**/route.ts", featureKey: "chat", guard: "withFeature" },
+  { endpointGlob: "face/**/route.ts", featureKey: "face_id", guard: "withFeature" },
+  { endpointGlob: "marketplace/**/route.ts", featureKey: "marketplace", guard: "withFeature" },
+  { endpointGlob: "peticiones/**/route.ts", featureKey: "custom_requests", guard: "withFeature" },
+  { endpointGlob: "reservas/**/route.ts", featureKey: "reserva_espacios", guard: "withFeature" },
+  { endpointGlob: "whatsapp/**/route.ts", featureKey: "whatsapp_bot", guard: "withFeature" },
+  { endpointGlob: "informes/route.ts", featureKey: "informes_avanzados", guard: "hasFeature" },
+
+  // ─── Módulos con endpoint implementado pero SIN gate de feature ──────────
+  // GATE PENDIENTE: estos endpoints existen pero NO envuelven withFeature(),
+  // así que hoy un tenant cuyo plan no incluye la feature puede invocarlos.
+  // Se marcan `deferred` (cobertura registrada, no fingida) hasta endurecer
+  // el gate de API. Ojo: ofertas tiene una ruta pública (ofertas/publica)
+  // que NO debe gatearse por feature del tenant. Ver docs/HANDOFF.md.
+  { endpointGlob: "organigrama/route.ts", featureKey: "organigrama", guard: "withFeature", deferred: true },
+  { endpointGlob: "ofertas/**/route.ts", featureKey: "reclutamiento", guard: "withFeature", deferred: true },
+  { endpointGlob: "denuncias/**/route.ts", featureKey: "canal_denuncias", guard: "withFeature", deferred: true },
+  { endpointGlob: "ia/**/route.ts", featureKey: "asistente_ia", guard: "withFeature", deferred: true },
+
   // ─── Limit sin enforcement directo (Fase 9 vista materializada) ──────────
   // max_storage_mb: declarativo. /api/documentos POST debería sumar
   // tamaños y rechazar si excede; Fase 9 con vista materializada.
