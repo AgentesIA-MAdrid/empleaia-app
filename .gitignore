@@ -58,3 +58,6 @@ ruvector.db
 
 # Ficheros de trabajo temporales (no forman parte del proyecto)
 scratchpad/
+
+# Codex / claude-flow MCP (config local)
+.codex/
