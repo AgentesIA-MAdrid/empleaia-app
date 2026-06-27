@@ -150,7 +150,7 @@ async function processJob({ job, prompt }) {
     let resumen = "";
 
     if (STUB) {
-      writeFileSync(join(wt, "ops/ticket-runner/.stub-touch"), `job ${job.id}\n`);
+      writeFileSync(join(wt, ".stub-touch"), `job ${job.id}\n`);
       run("git", ["-C", wt, "add", "-A"]);
       run("git", ["-C", wt, "commit", "-q", "-m", `chore: stub runner ${id8}`]);
     } else {

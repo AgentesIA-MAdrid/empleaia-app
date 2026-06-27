@@ -13,14 +13,16 @@ git config --global user.email "${GIT_AUTHOR_EMAIL:-aiabot@users.noreply.github.
 git config --global credential.helper '!gh auth git-credential'
 
 if [ ! -d "$REPO_DIR/.git" ]; then
-  echo "[runner] clonando $REPO_SLUG en $REPO_DIR…"
-  gh repo clone "$REPO_SLUG" "$REPO_DIR" -- --depth 50
+  echo "[runner] clonando $REPO_SLUG (rama $BASE_BRANCH) en $REPO_DIR…"
+  # Clonamos la RAMA BASE directamente: con --depth sin --branch, gh solo trae
+  # la default (main) y `origin/$BASE_BRANCH` no existiría → worktree vacío.
+  gh repo clone "$REPO_SLUG" "$REPO_DIR" -- --depth 50 --branch "$BASE_BRANCH"
 fi
 
 # Dependencias del repo (una vez) — el worktree por job hardlinkea node_modules.
 cd "$REPO_DIR"
-git fetch origin --quiet
-git checkout -q "origin/${BASE_BRANCH}" 2>/dev/null || true
+git fetch origin "$BASE_BRANCH" --quiet
+git checkout -q "origin/${BASE_BRANCH}"
 npm ci --no-audit --no-fund
 
 cd /home/runner/app
