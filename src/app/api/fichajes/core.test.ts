@@ -31,6 +31,11 @@ vi.mock("@/lib/prisma", () => {
           };
         }),
       },
+      // Tenant Starter sin configuración de empresa (singleton ausente):
+      // el handler lee políticas con cfg?. → todos los toggles falsy.
+      configuracionEmpresa: { findUnique: vi.fn().mockResolvedValue(null) },
+      // Solo se consulta si el plan tiene face_id; en estos tests no.
+      faceTemplate: { findUnique: vi.fn().mockResolvedValue(null) },
     },
     prismaMaster: {},
     prismaRuntime: {},
@@ -68,7 +73,13 @@ beforeEach(async () => {
   ctxStarter.features.clear();
   // Catálogo de features conocidas — assertKnownFeature lo requiere.
   const { _setFeatureCatalogForTest } = await import("@/lib/tenant/features");
-  _setFeatureCatalogForTest(["geofencing", "historial_meses"]);
+  _setFeatureCatalogForTest([
+    "geofencing",
+    "historial_meses",
+    "fichaje_movil",
+    "fichaje_tablet",
+    "face_id",
+  ]);
 });
 
 describe("CORE — POST /api/fichajes con tenant sin features", () => {
