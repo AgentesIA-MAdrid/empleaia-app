@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Loader2, X, ImagePlus, Send, ChevronDown } from "lucide-react";
+import { Loader2, X, ImagePlus, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -31,11 +31,12 @@ interface TicketMessage {
   created_at: string;
 }
 
-const ESTADO_BADGE: Record<string, string> = {
-  nuevo: "bg-slate-100 text-slate-600",
-  en_revision: "bg-amber-100 text-amber-700",
-  resuelto: "bg-emerald-100 text-emerald-700",
-  descartado: "bg-slate-100 text-slate-400",
+// Estado como texto de color (sin pill), estilo maqueta.
+const ESTADO_TEXT: Record<string, string> = {
+  nuevo: "text-slate-700",
+  en_revision: "text-blue-600",
+  resuelto: "text-emerald-600",
+  descartado: "text-slate-400",
 };
 const ESTADO_LABEL: Record<string, string> = {
   nuevo: "Nuevo",
@@ -43,6 +44,12 @@ const ESTADO_LABEL: Record<string, string> = {
   resuelto: "Resuelto",
   descartado: "Descartado",
 };
+const TIPO_LABEL: Record<Tipo, string> = {
+  bug: "BUG",
+  mejora: "MEJORA",
+  pregunta: "PREGUNTA",
+};
+const fmtFecha = (iso: string) => new Date(iso).toLocaleDateString("es-ES");
 const MAX_FILES = 5;
 
 const inputCls =
@@ -332,23 +339,19 @@ export function FeedbackModal({
                 <div key={t.id} className="rounded-lg border border-slate-100">
                   <button
                     onClick={() => toggleThread(t.id)}
-                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
+                    className="w-full px-4 py-3 text-left transition-colors hover:bg-slate-50"
                   >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm text-slate-700">{t.descripcion}</span>
-                    </span>
-                    <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-medium", ESTADO_BADGE[t.estado])}>
-                      {ESTADO_LABEL[t.estado] ?? t.estado}
-                    </span>
-                    <ChevronDown className={cn("h-4 w-4 shrink-0 text-slate-400 transition-transform", expandedId === t.id && "rotate-180")} />
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-xs font-semibold tracking-wide text-slate-500">{TIPO_LABEL[t.tipo]}</span>
+                      <span className={cn("shrink-0 text-xs font-semibold", ESTADO_TEXT[t.estado])}>
+                        {ESTADO_LABEL[t.estado] ?? t.estado}
+                      </span>
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-900">{t.descripcion}</p>
+                    <p className="mt-1.5 text-xs text-slate-400">{fmtFecha(t.created_at)}</p>
                   </button>
                   {expandedId === t.id && (
                     <div className="border-t border-slate-100 p-3">
-                      {/* Mensaje original completo (en la fila va truncado) */}
-                      <div className="mb-3 rounded-lg bg-[var(--primary-light)] px-3 py-2 text-sm text-slate-700">
-                        <span className="mb-0.5 block text-xs font-medium text-slate-400">Tú</span>
-                        <span className="whitespace-pre-wrap break-words">{t.descripcion}</span>
-                      </div>
                       {loadingMessages ? (
                         <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-[var(--primary)]" /></div>
                       ) : (
