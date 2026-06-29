@@ -156,6 +156,12 @@ model User {
   tiendaId                 String?
   tienda                   Tienda?                   @relation(fields: [tiendaId], references: [id])
   activo                   Boolean                   @default(true)
+  // Anonimización (borrado RGPD-compatible): cuando se "elimina" un empleado
+  // no se hace hard-delete (rompería FKs y borraría registros legales como
+  // fichajes/nóminas que hay que conservar). Se ponen a null sus datos
+  // personales, activo=false y esta marca con la fecha. Los listados de
+  // empleados filtran `anonimizadoAt: null`.
+  anonimizadoAt            DateTime?                 @map("anonimizado_at")
   fichajes                 Fichaje[]
   turnos                   Turno[]
   ausencias                Ausencia[]                @relation("AusenciaEmpleado")

@@ -477,7 +477,7 @@ export default function EmpleadosPage() {
   const handleEliminar = (emp: Empleado) => {
     setConfirmar({
       titulo: "Eliminar empleado",
-      mensaje: `¿Eliminar permanentemente a ${emp.nombre} ${emp.apellidos}? Esta acción no se puede deshacer.`,
+      mensaje: `¿Eliminar a ${emp.nombre} ${emp.apellidos}? Se borrarán sus datos personales y dejará de aparecer en la lista. Sus fichajes y nóminas se conservan por obligación legal, ya anonimizados. Esta acción no se puede deshacer.`,
       onConfirm: () => ejecutarEliminar(emp),
     });
   };
@@ -594,7 +594,7 @@ export default function EmpleadosPage() {
   const bulkEliminar = () => {
     setConfirmar({
       titulo: "Eliminar empleados",
-      mensaje: `¿Eliminar permanentemente ${empleadosSeleccionados.length} empleado(s)? Esta acción no se puede deshacer.`,
+      mensaje: `¿Eliminar ${empleadosSeleccionados.length} empleado(s)? Se borrarán sus datos personales y dejarán de aparecer en la lista. Sus fichajes y nóminas se conservan por obligación legal, ya anonimizados. Esta acción no se puede deshacer.`,
       onConfirm: ejecutarBulkEliminar,
     });
   };

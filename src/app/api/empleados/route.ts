@@ -30,7 +30,7 @@ export const GET = withTenant(async (request: NextRequest) => {
     const activo = searchParams.get("activo");
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {};
+    const where: any = { anonimizadoAt: null }; // ocultar empleados anonimizados (eliminados)
 
     if (userRol === Rol.OWNER) {
       if (tiendaId) where.tiendaId = tiendaId;

@@ -385,28 +385,82 @@ export const DELETE = withTenant(async (_request: NextRequest,
       return Response.json({ error: "No puedes eliminar tu propia cuenta" }, { status: 400 });
     }
 
-    const empleado = await prisma.user.findUnique({ where: { id }, select: { id: true } });
+    const empleado = await prisma.user.findUnique({ where: { id }, select: { id: true, anonimizadoAt: true } });
     if (!empleado) {
       return Response.json({ error: "Empleado no encontrado" }, { status: 404 });
     }
+    if (empleado.anonimizadoAt) {
+      return Response.json({ error: "Este empleado ya fue eliminado" }, { status: 400 });
+    }
 
-    // Hard delete — remove related records first to satisfy FK constraints
+    // Borrado RGPD-compatible por ANONIMIZACIÓN (no hard delete).
+    //
+    // No se elimina la fila User: hacerlo rompería las claves foráneas de
+    // ~30 tablas (peticiones, firmas, nóminas, gastos, chat, etc.) y, sobre
+    // todo, borraría registros que la empresa está OBLIGADA a conservar
+    // (fichajes — RD 8/2019; nóminas — obligaciones fiscales/laborales).
+    //
+    // En su lugar: se borran los datos personales y biométricos (RGPD) y el
+    // empleado queda marcado como anonimizado (excluido de los listados y de
+    // la facturación, al pasar a activo=false). Los registros legales se
+    // conservan, ya desvinculados de la identidad de la persona.
     await prisma.$transaction(async (tx) => {
-      await tx.pushSubscripcion.deleteMany({ where: { userId: id } });
+      // Datos cuya conservación no tiene base legal y son identificativos.
+      await tx.faceTemplate.deleteMany({ where: { userId: id } });        // biométrico (RGPD art. 9)
+      await tx.pushSubscripcion.deleteMany({ where: { userId: id } });    // tokens de dispositivo
       await tx.preferenciasNotificacion.deleteMany({ where: { userId: id } });
-      await tx.notificacion.deleteMany({ where: { userId: id } });
-      await tx.fichaje.deleteMany({ where: { userId: id } });
-      await tx.turno.deleteMany({ where: { userId: id } });
-      await tx.ausencia.deleteMany({ where: { userId: id } });
-      await tx.ausencia.updateMany({ where: { aprobadoPorId: id }, data: { aprobadoPorId: null } });
-      await tx.tarea.deleteMany({ where: { asignadoAId: id, creadoPorId: { not: id } } });
-      await tx.tarea.deleteMany({ where: { creadoPorId: id } });
-      await tx.comunicado.deleteMany({ where: { autorId: id } });
-      await tx.articulo.deleteMany({ where: { autorId: id } });
-      await tx.documento.deleteMany({ where: { userId: id } });
-      await tx.documento.deleteMany({ where: { subidoPorId: id } });
-      await tx.procesoOnboarding.deleteMany({ where: { userId: id } });
-      await tx.user.delete({ where: { id } });
+
+      await tx.user.update({
+        where: { id },
+        data: {
+          anonimizadoAt: new Date(),
+          activo: false,
+          // Credenciales — impedir cualquier acceso.
+          email: `anonimizado+${id}@borrado.local`,
+          password: null,
+          resetToken: null,
+          resetTokenExpiry: null,
+          // Identidad.
+          nombre: "Empleado",
+          apellidos: "eliminado",
+          dni: null,
+          telefono: null,
+          foto: null,
+          fechaNacimiento: null,
+          managerId: null,
+          // Identificación secundaria.
+          tipoIdentificacion: null,
+          tipoIdentificacionSecundaria: null,
+          numeroIdentificacionSecundaria: null,
+          // Información personal.
+          nacionalidad: null,
+          estadoCivil: null,
+          genero: null,
+          // Dirección.
+          domicilio: null,
+          codigoPostal: null,
+          localidad: null,
+          provincia: null,
+          // Contacto.
+          emailEmpresa: null,
+          emailPersonal: null,
+          emailNotificaciones: null,
+          telefonoEmpresa: null,
+          telefonoEmergencia: null,
+          contactoUrgencia: null,
+          // Laboral / bancario sensible.
+          grupoCotizacion: null,
+          categoriaProfesional: null,
+          numeroSeguridadSocial: null,
+          codigoContrato: null,
+          numeroHijos: null,
+          porcentajeDiscapacidad: null,
+          titularCuenta: null,
+          iban: null,
+          bic: null,
+          entidadBancaria: null,
+        },
+      });
     });
 
     return Response.json({ success: true });
