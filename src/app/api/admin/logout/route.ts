@@ -1,5 +1,9 @@
 /**
- * POST /api/admin/logout — clear cookie + audit.
+ * POST /api/admin/logout — clear cookie + audit, then redirect to login.
+ *
+ * El botón "Salir" es un <form method="POST">, así que el navegador navega a
+ * la respuesta. Devolvemos un redirect 303 a /admin/login (en vez de JSON)
+ * para que el super-admin acabe en la pantalla de login, no viendo el JSON.
  */
 
 import { NextResponse } from "next/server";
@@ -19,7 +23,7 @@ export const POST = withSuperAdmin(async (req) => {
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
   });
-  const res = NextResponse.json({ success: true });
+  const res = NextResponse.redirect(new URL("/admin/login", req.url), { status: 303 });
   res.cookies.set(ADMIN_COOKIE_NAME, "", {
     httpOnly: true,
     path: "/",
