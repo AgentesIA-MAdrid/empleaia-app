@@ -17,6 +17,7 @@ import { withTenantPage } from "@/lib/tenant/with-tenant-page";
 import { prismaApp } from "@/lib/prisma";
 import { FICHA_SELECT, toEmpleadoDatos } from "@/lib/empleados/ficha";
 import { FichaEmpleadoTabs } from "@/components/admin/ficha-empleado-tabs";
+import { FichaEmpleadoNav } from "@/components/admin/ficha-empleado-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -157,12 +158,15 @@ async function FichaEmpleadoPage({
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <Link
-        href="/admin/empleados"
-        className="inline-flex items-center text-sm text-slate-500 hover:text-slate-900"
-      >
-        <ChevronLeft className="h-4 w-4 mr-1" /> Volver a empleados
-      </Link>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <Link
+          href="/admin/empleados"
+          className="inline-flex items-center text-sm text-slate-500 hover:text-slate-900"
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" /> Volver a empleados
+        </Link>
+        <FichaEmpleadoNav currentId={id} />
+      </div>
 
       <FichaEmpleadoTabs
         empleado={{
