@@ -275,6 +275,10 @@ model User {
   categoriaProfesional     String?                   @map("categoria_profesional")
   numeroSeguridadSocial    String?                   @map("numero_seguridad_social")
   codigoContrato           String?                   @map("codigo_contrato")
+  // Fecha de alta del contrato (antigüedad RR.HH.). Se fija a mano: NO es
+  // `createdAt` (alta del registro en la app). Solo la edita el OWNER; la
+  // ven empleado, manager y OWNER.
+  fechaAltaContrato        DateTime?                 @map("fecha_alta_contrato")
   // Datos para retenciones.
   numeroHijos              Int?                      @map("numero_hijos")
   porcentajeDiscapacidad   Int?                      @map("porcentaje_discapacidad")

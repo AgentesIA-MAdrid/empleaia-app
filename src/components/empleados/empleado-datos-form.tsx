@@ -49,6 +49,7 @@ export interface EmpleadoDatos {
   categoriaProfesional: string | null;
   numeroSeguridadSocial: string | null;
   codigoContrato: string | null;
+  fechaAltaContrato: string | null;
   numeroHijos: number | null;
   porcentajeDiscapacidad: number | null;
   titularCuenta: string | null;
@@ -82,6 +83,8 @@ function TextField({
   type = "text",
   placeholder,
   required,
+  disabled,
+  hint,
 }: {
   label: string;
   value: string;
@@ -89,6 +92,8 @@ function TextField({
   type?: string;
   placeholder?: string;
   required?: boolean;
+  disabled?: boolean;
+  hint?: string;
 }) {
   return (
     <label className="grid gap-1.5">
@@ -101,8 +106,10 @@ function TextField({
         type={type}
         value={value}
         placeholder={placeholder}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
       />
+      {hint && <span className="text-xs text-slate-400">{hint}</span>}
     </label>
   );
 }
@@ -170,6 +177,7 @@ function initialState(e: EmpleadoDatos): FormState {
     categoriaProfesional: s(e.categoriaProfesional),
     numeroSeguridadSocial: s(e.numeroSeguridadSocial),
     codigoContrato: s(e.codigoContrato),
+    fechaAltaContrato: s(e.fechaAltaContrato),
     numeroHijos: e.numeroHijos == null ? "" : String(e.numeroHijos),
     porcentajeDiscapacidad:
       e.porcentajeDiscapacidad == null ? "" : String(e.porcentajeDiscapacidad),
@@ -261,6 +269,7 @@ export function EmpleadoDatosForm({
       categoriaProfesional: form.categoriaProfesional,
       numeroSeguridadSocial: form.numeroSeguridadSocial,
       codigoContrato: form.codigoContrato,
+      fechaAltaContrato: form.fechaAltaContrato || null,
       numeroHijos: numOrNull(txt("numeroHijos")),
       porcentajeDiscapacidad: numOrNull(txt("porcentajeDiscapacidad")),
       titularCuenta: form.titularCuenta,
@@ -276,6 +285,7 @@ export function EmpleadoDatosForm({
         "categoriaProfesional",
         "numeroSeguridadSocial",
         "codigoContrato",
+        "fechaAltaContrato",
         "numeroHijos",
         "porcentajeDiscapacidad",
         "titularCuenta",
@@ -389,6 +399,14 @@ export function EmpleadoDatosForm({
               <TextField label="Categoría profesional" value={txt("categoriaProfesional")} onChange={(v) => set("categoriaProfesional", v)} />
               <TextField label="Número de Seguridad Social" value={txt("numeroSeguridadSocial")} onChange={(v) => set("numeroSeguridadSocial", v)} />
               <TextField label="Código de contrato" value={txt("codigoContrato")} onChange={(v) => set("codigoContrato", v)} />
+              <TextField
+                label="Fecha de alta del contrato"
+                type="date"
+                value={txt("fechaAltaContrato")}
+                onChange={(v) => set("fechaAltaContrato", v)}
+                disabled={modo !== "admin"}
+                hint={modo !== "admin" ? "Solo la pueden editar los administradores." : undefined}
+              />
             </div>
           </section>
 

@@ -39,6 +39,7 @@ export const FICHA_SELECT = {
   categoriaProfesional: true,
   numeroSeguridadSocial: true,
   codigoContrato: true,
+  fechaAltaContrato: true,
   numeroHijos: true,
   porcentajeDiscapacidad: true,
   titularCuenta: true,
@@ -48,8 +49,9 @@ export const FICHA_SELECT = {
 } as const;
 
 /** Fila tal cual la devuelve Prisma con FICHA_SELECT. */
-export type FichaRow = Omit<EmpleadoDatos, "fechaNacimiento"> & {
+export type FichaRow = Omit<EmpleadoDatos, "fechaNacimiento" | "fechaAltaContrato"> & {
   fechaNacimiento: Date | null;
+  fechaAltaContrato: Date | null;
 };
 
 /** Convierte la fila de Prisma al shape del formulario (fecha → "YYYY-MM-DD"). */
@@ -58,6 +60,9 @@ export function toEmpleadoDatos(u: FichaRow): EmpleadoDatos {
     ...u,
     fechaNacimiento: u.fechaNacimiento
       ? u.fechaNacimiento.toISOString().slice(0, 10)
+      : null,
+    fechaAltaContrato: u.fechaAltaContrato
+      ? u.fechaAltaContrato.toISOString().slice(0, 10)
       : null,
   };
 }
