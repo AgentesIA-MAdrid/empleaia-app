@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { SedeHorariosDialog } from "@/components/admin/sede-horarios-dialog";
@@ -49,6 +50,7 @@ export default function TiendasPage() {
   const [form, setForm] = useState(FORM_INICIAL);
   const [horariosTienda, setHorariosTienda] = useState<{ id: string; nombre: string } | null>(null);
   const [empleadosTienda, setEmpleadosTienda] = useState<{ id: string; nombre: string } | null>(null);
+  const [filtro, setFiltro] = useState<"activas" | "inactivas" | "todas">("activas");
 
   const ubicar = async () => {
     if (!form.direccion || !form.ciudad) {
@@ -152,6 +154,11 @@ export default function TiendasPage() {
     }
   };
 
+  const activas = tiendas.filter((t) => t.activa);
+  const inactivas = tiendas.filter((t) => !t.activa);
+  const tiendasFiltradas =
+    filtro === "activas" ? activas : filtro === "inactivas" ? inactivas : tiendas;
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -164,15 +171,31 @@ export default function TiendasPage() {
         </Button>
       </div>
 
+      <Tabs value={filtro} onValueChange={(v) => setFiltro(v as typeof filtro)}>
+        <TabsList>
+          <TabsTrigger value="activas">Activas ({activas.length})</TabsTrigger>
+          <TabsTrigger value="inactivas">Desactivadas ({inactivas.length})</TabsTrigger>
+          <TabsTrigger value="todas">Todas ({tiendas.length})</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="h-48 bg-slate-100 rounded-xl animate-pulse" />
           ))}
         </div>
+      ) : tiendasFiltradas.length === 0 ? (
+        <div className="text-center py-12 text-slate-400 text-sm">
+          {filtro === "activas"
+            ? "No hay sedes activas."
+            : filtro === "inactivas"
+              ? "No hay sedes desactivadas."
+              : "No hay sedes. Crea una sede para empezar."}
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {tiendas.map((t) => (
+          {tiendasFiltradas.map((t) => (
             <Card key={t.id} className={cn(!t.activa && "opacity-60")}>
               <CardContent className="pt-4 pb-4">
                 <div className="flex items-start justify-between mb-3">
