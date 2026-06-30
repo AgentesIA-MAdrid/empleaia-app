@@ -23,6 +23,7 @@ interface AdminTicket {
   screenshot_paths: string[] | null;
   created_at: string;
   ai_job_status: JobStatus | null;
+  respondido?: boolean;
 }
 interface Msg {
   id: string;
@@ -132,7 +133,12 @@ export default function AdminFeedbackPage() {
                   </td>
                   <td className="px-4 py-3"><span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">{TIPO_LABEL[t.tipo]}</span></td>
                   <td className="max-w-xs truncate px-4 py-3 text-slate-600">{t.descripcion}</td>
-                  <td className="px-4 py-3"><span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", ESTADO_BADGE[t.estado])}>{t.estado}</span></td>
+                  <td className="px-4 py-3">
+                    <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", ESTADO_BADGE[t.estado])}>{t.estado}</span>
+                    {t.respondido
+                      ? <span className="ml-1.5 text-xs font-medium text-emerald-600">✓ respondido</span>
+                      : (t.estado === "nuevo" || t.estado === "en_revision") && <span className="ml-1.5 text-xs text-slate-400">sin responder</span>}
+                  </td>
                   <td className="px-4 py-3">{t.ai_job_status && <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", JOB_BADGE[t.ai_job_status])}>{t.ai_job_status}</span>}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-400">{fmt(t.created_at)}</td>
                 </tr>

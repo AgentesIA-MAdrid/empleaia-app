@@ -126,6 +126,8 @@ export interface AdminTicket extends FeedbackTicket {
   org_nombre: string;
   user_email: string | null;
   user_name: string | null;
+  /** true si el equipo ya respondió (algún mensaje público de admin). */
+  respondido: boolean;
 }
 
 export async function listAll(filters?: {
@@ -143,13 +145,18 @@ export async function listAll(filters?: {
     where,
     orderBy: { createdAt: "desc" },
     take: 500,
-    include: { tenant: { select: { name: true } }, adjuntos: { select: { id: true } } },
+    include: {
+      tenant: { select: { name: true } },
+      adjuntos: { select: { id: true } },
+      _count: { select: { mensajes: { where: { autor: "admin", internal: false } } } },
+    },
   });
   return rows.map((t) => ({
     ...toTicket(t),
     org_nombre: t.tenant?.name ?? "",
     user_email: t.userEmail ?? null,
     user_name: t.userNombre ?? null,
+    respondido: t._count.mensajes > 0,
   }));
 }
 
