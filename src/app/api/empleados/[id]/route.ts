@@ -80,6 +80,7 @@ const userSelect = {
   categoriaProfesional: true,
   numeroSeguridadSocial: true,
   codigoContrato: true,
+  fechaAltaContrato: true,
   numeroHijos: true,
   porcentajeDiscapacidad: true,
   titularCuenta: true,
@@ -316,6 +317,21 @@ export const PUT = withTenant(async (request: NextRequest,
       } else {
         return Response.json(
           { error: "horasSemanalesContrato_invalid", reason: "número entre 0 y 168 h" },
+          { status: 400 },
+        );
+      }
+    }
+    // Fecha de alta del contrato (antigüedad RR.HH.): solo la edita el OWNER.
+    // "" / null → null. Distinta de `createdAt` (alta en la app).
+    if (b.fechaAltaContrato !== undefined && userRol === Rol.OWNER) {
+      const v = b.fechaAltaContrato;
+      if (v === null || v === "") {
+        updateData.fechaAltaContrato = null;
+      } else if (typeof v === "string" && !Number.isNaN(new Date(v).getTime())) {
+        updateData.fechaAltaContrato = new Date(v);
+      } else {
+        return Response.json(
+          { error: "fechaAltaContrato_invalid", reason: "fecha válida (YYYY-MM-DD)" },
           { status: 400 },
         );
       }
