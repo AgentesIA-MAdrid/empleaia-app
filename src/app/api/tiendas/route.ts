@@ -20,7 +20,11 @@ export const GET = withTenant(async () => {
       // Cuenta solo empleados no anonimizados: tras el borrado RGPD
       // (anonimizadoAt) el empleado conserva su fila pero sale de los
       // listados, así que tampoco debe contar para la sede.
-      include: { _count: { select: { empleados: { where: { anonimizadoAt: null } } } } },
+      include: {
+        _count: { select: { empleados: { where: { anonimizadoAt: null } } } },
+        // Responsable de la sede (dato informativo, ver schema).
+        manager: { select: { id: true, nombre: true, apellidos: true } },
+      },
     });
 
     return Response.json({ tiendas });
@@ -66,6 +70,7 @@ export const POST = withTenant(
       longitud,
       radio = 200,
       color = "#6366f1",
+      managerId,
     } = body as {
       nombre: string;
       direccion: string;
@@ -77,6 +82,7 @@ export const POST = withTenant(
       longitud?: number;
       radio?: number;
       color?: string;
+      managerId?: string | null;
     };
 
     if (!nombre || !direccion || !ciudad) {
@@ -129,6 +135,8 @@ export const POST = withTenant(
           longitud: lon,
           radio,
           color,
+          // Responsable informativo: cadena vacía → sin responsable.
+          managerId: managerId || null,
         },
       });
     });
