@@ -33,6 +33,11 @@ interface Turno {
   estado: "BORRADOR" | "PUBLICADO";
   tipoTurno?: TipoTurnoRef | null;
 }
+interface Ausencia {
+  id: string; userId: string;
+  fechaInicio: string; fechaFin: string;
+  tipoAusencia: { nombre: string; color: string };
+}
 
 const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const CUSTOM = "__custom__";
@@ -55,6 +60,7 @@ export default function AdminTurnosPage() {
   const [filtroTienda, setFiltroTienda] = useState<string>("todas");
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [turnos, setTurnos] = useState<Turno[]>([]);
+  const [ausencias, setAusencias] = useState<Ausencia[]>([]);
   const [tipos, setTipos] = useState<TipoTurno[]>([]);
   const [horasGlobal, setHorasGlobal] = useState(40);
   const [loading, setLoading] = useState(false);
@@ -81,13 +87,19 @@ export default function AdminTurnosPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [empRes, turnosRes] = await Promise.all([
+      const [empRes, turnosRes, ausRes] = await Promise.all([
         fetch("/api/empleados"),
         fetch(`/api/turnos?fechaInicio=${inicioSemana.toISOString()}&fechaFin=${finSemana.toISOString()}`),
+        // Ausencias aprobadas para pintar la franja en el cuadrante. Si la
+        // feature `ausencias_aprobacion` está OFF el endpoint responde 402:
+        // lo toleramos y el cuadrante sigue funcionando sin ausencias.
+        fetch("/api/ausencias?estado=APROBADA"),
       ]);
       const [empData, turnosData] = await Promise.all([empRes.json(), turnosRes.json()]);
       setEmpleados(empData.empleados || []);
       setTurnos(Array.isArray(turnosData) ? turnosData : (turnosData.turnos || []));
+      const ausData = ausRes.ok ? await ausRes.json() : [];
+      setAusencias(Array.isArray(ausData) ? ausData : (ausData?.ausencias ?? []));
     } finally {
       setLoading(false);
     }
@@ -111,6 +123,17 @@ export default function AdminTurnosPage() {
 
   const turnosDe = (userId: string, dia: Date) =>
     turnos.filter(t => t.userId === userId && isSameDay(new Date(t.fecha), dia));
+
+  // Ausencias aprobadas que solapan `dia` para ese empleado. Comparación
+  // por día natural (yyyy-MM-dd) para ignorar la hora del DateTime.
+  const ausenciasDe = (userId: string, dia: Date) => {
+    const diaStr = format(dia, "yyyy-MM-dd");
+    return ausencias.filter(a =>
+      a.userId === userId &&
+      format(new Date(a.fechaInicio), "yyyy-MM-dd") <= diaStr &&
+      format(new Date(a.fechaFin), "yyyy-MM-dd") >= diaStr
+    );
+  };
 
   const totalSemana = (userId: string) =>
     turnos
@@ -328,6 +351,7 @@ export default function AdminTurnosPage() {
                       dias={dias}
                       totalCols={totalCols}
                       turnosDe={turnosDe}
+                      ausenciasDe={ausenciasDe}
                       totalSemana={totalSemana}
                       contratoDe={contratoDe}
                       onAdd={abrirNuevoTurno}
@@ -451,13 +475,14 @@ export default function AdminTurnosPage() {
 }
 
 function GrupoSede({
-  grupo, emps, dias, totalCols, turnosDe, totalSemana, contratoDe, onAdd, onEdit, onDelete,
+  grupo, emps, dias, totalCols, turnosDe, ausenciasDe, totalSemana, contratoDe, onAdd, onEdit, onDelete,
 }: {
   grupo: { id: string | null; nombre: string; color: string };
   emps: Empleado[];
   dias: Date[];
   totalCols: number;
   turnosDe: (userId: string, dia: Date) => Turno[];
+  ausenciasDe: (userId: string, dia: Date) => Ausencia[];
   totalSemana: (userId: string) => number;
   contratoDe: (emp: Empleado) => number;
   onAdd: (emp: Empleado, dia: Date) => void;
@@ -488,9 +513,20 @@ function GrupoSede({
             </td>
             {dias.map((dia, i) => {
               const ts = turnosDe(emp.id, dia);
+              const ausDia = ausenciasDe(emp.id, dia);
               return (
                 <td key={i} className="px-1 py-1.5 text-center align-top">
                   <div className="space-y-1">
+                    {ausDia.map(a => (
+                      <div
+                        key={a.id}
+                        className="w-full rounded-md px-1 py-1 text-xs font-medium leading-tight text-white truncate"
+                        style={{ backgroundColor: a.tipoAusencia.color }}
+                        title={a.tipoAusencia.nombre}
+                      >
+                        {a.tipoAusencia.nombre}
+                      </div>
+                    ))}
                     {ts.map(t => (
                       <button
                         key={t.id}
