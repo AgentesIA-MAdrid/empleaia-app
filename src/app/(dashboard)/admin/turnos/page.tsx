@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { addDays, startOfWeek, endOfWeek, format, addWeeks, subWeeks, isSameDay } from "date-fns";
+import { addDays, startOfWeek, endOfWeek, format, addWeeks, subWeeks, isSameDay, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { horasDeTurno, etiquetaTurno } from "@/lib/turnos/horas";
 
@@ -32,6 +32,10 @@ interface Turno {
   horaInicio: string; horaFin: string; nota?: string;
   estado: "BORRADOR" | "PUBLICADO";
   tipoTurno?: TipoTurnoRef | null;
+}
+interface Ausencia {
+  id: string; userId: string; fechaInicio: string; fechaFin: string;
+  tipoAusencia: { nombre: string; color: string };
 }
 
 const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -55,6 +59,7 @@ export default function AdminTurnosPage() {
   const [filtroTienda, setFiltroTienda] = useState<string>("todas");
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [turnos, setTurnos] = useState<Turno[]>([]);
+  const [ausencias, setAusencias] = useState<Ausencia[]>([]);
   const [tipos, setTipos] = useState<TipoTurno[]>([]);
   const [horasGlobal, setHorasGlobal] = useState(40);
   const [loading, setLoading] = useState(false);
@@ -89,13 +94,22 @@ export default function AdminTurnosPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [empRes, turnosRes] = await Promise.all([
+      const [empRes, turnosRes, ausRes] = await Promise.all([
         fetch("/api/empleados"),
         fetch(`/api/turnos?fechaInicio=${inicioSemana.toISOString()}&fechaFin=${finSemana.toISOString()}`),
+        fetch("/api/ausencias?estado=APROBADA"),
       ]);
       const [empData, turnosData] = await Promise.all([empRes.json(), turnosRes.json()]);
       setEmpleados(empData.empleados || []);
       setTurnos(Array.isArray(turnosData) ? turnosData : (turnosData.turnos || []));
+      // Ausencias aprobadas: la feature "ausencias_aprobacion" puede estar OFF
+      // (402) o fallar la red → el cuadrante sigue funcionando sin pintarlas.
+      if (ausRes.ok) {
+        const ausData = await ausRes.json();
+        setAusencias(Array.isArray(ausData) ? ausData : (ausData?.ausencias ?? []));
+      } else {
+        setAusencias([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -129,6 +143,19 @@ export default function AdminTurnosPage() {
       t.userId === userId
       && (tiendaId === null || t.tiendaId === tiendaId)
       && isSameDay(new Date(t.fecha), dia));
+
+  // Ausencias APROBADAS que solapan ese día natural (independiente de la sede:
+  // la persona está ausente esté donde esté su turno). Pinta una franja con el
+  // color del tipo (baja=rojo, asuntos propios=naranja, vacaciones=el que tenga
+  // configurado el tipo). Reutiliza el color del tipo igual que el listado de
+  // Ausencias — sin name-matching frágil en multi-tenant.
+  const ausenciasDe = (userId: string, dia: Date) =>
+    ausencias.filter(a =>
+      a.userId === userId
+      && isWithinInterval(dia, {
+        start: startOfDay(new Date(a.fechaInicio)),
+        end: endOfDay(new Date(a.fechaFin)),
+      }));
 
   const totalSemana = (userId: string, tiendaId: string | null) =>
     turnos
@@ -379,6 +406,7 @@ export default function AdminTurnosPage() {
                     dias={dias}
                     totalCols={totalCols}
                     turnosDe={turnosDe}
+                    ausenciasDe={ausenciasDe}
                     totalSemana={totalSemana}
                     contratoDe={contratoDe}
                     onAdd={abrirNuevoTurno}
@@ -536,13 +564,14 @@ export default function AdminTurnosPage() {
 }
 
 function GrupoSede({
-  grupo, filas, dias, totalCols, turnosDe, totalSemana, contratoDe, onAdd, onEdit, onDelete, onAddPersona,
+  grupo, filas, dias, totalCols, turnosDe, ausenciasDe, totalSemana, contratoDe, onAdd, onEdit, onDelete, onAddPersona,
 }: {
   grupo: { id: string | null; nombre: string; color: string };
   filas: { emp: Empleado; visitante: boolean }[];
   dias: Date[];
   totalCols: number;
   turnosDe: (userId: string, dia: Date, tiendaId: string | null) => Turno[];
+  ausenciasDe: (userId: string, dia: Date) => Ausencia[];
   totalSemana: (userId: string, tiendaId: string | null) => number;
   contratoDe: (emp: Empleado) => number;
   onAdd: (emp: Empleado, dia: Date, tiendaId: string | null) => void;
@@ -585,9 +614,20 @@ function GrupoSede({
             </td>
             {dias.map((dia, i) => {
               const ts = turnosDe(emp.id, dia, grupo.id);
+              const aus = ausenciasDe(emp.id, dia);
               return (
                 <td key={i} className="px-1 py-1.5 text-center align-top">
                   <div className="space-y-1">
+                    {aus.map(a => (
+                      <div
+                        key={a.id}
+                        className="w-full rounded-md px-1 py-1 text-xs font-medium leading-tight text-white truncate"
+                        style={{ backgroundColor: a.tipoAusencia.color }}
+                        title={`${a.tipoAusencia.nombre} (ausencia aprobada)`}
+                      >
+                        {a.tipoAusencia.nombre}
+                      </div>
+                    ))}
                     {ts.map(t => (
                       <button
                         key={t.id}
