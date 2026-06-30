@@ -30,6 +30,8 @@ export interface ClaudePromptInput {
   ticket: ClaudePromptTicket;
   messages?: ClaudePromptMessage[];
   screenshotFilenames?: string[];
+  /** Instrucciones extra del administrador (se añaden; no reemplazan el contexto). */
+  instruccionesAdmin?: string;
 }
 
 /** Nombre de fichero local determinista para cada captura del usuario. En
@@ -134,7 +136,7 @@ function taskGuidance(tipo: ClaudePromptTicket["tipo"]): string[] {
 }
 
 export function buildClaudePrompt(input: ClaudePromptInput): string {
-  const { ticket: t, messages, screenshotFilenames } = input;
+  const { ticket: t, messages, screenshotFilenames, instruccionesAdmin } = input;
   const fecha = new Date(t.created_at).toLocaleDateString("es-ES");
   const lines = [
     `Ticket de soporte empleaIA — ${TIPO_LABEL[t.tipo]}`,
@@ -156,6 +158,15 @@ export function buildClaudePrompt(input: ClaudePromptInput): string {
       const quien = m.is_ai ? "Claude (intento previo)" : m.autor === "admin" ? "Equipo" : "Usuario";
       lines.push(`- ${quien}: ${m.cuerpo}`);
     }
+  }
+  if (instruccionesAdmin?.trim()) {
+    lines.push(
+      "",
+      "Instrucciones del administrador (PRIORITARIAS — tenlas en cuenta sobre el resto):",
+      '"""',
+      instruccionesAdmin.trim(),
+      '"""',
+    );
   }
 
   const routing = buildRouting(t);

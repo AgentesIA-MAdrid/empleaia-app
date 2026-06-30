@@ -135,11 +135,13 @@ export default function AdminFeedbackPage() {
                   <td className="max-w-xs truncate px-4 py-3 text-slate-600">{t.descripcion}</td>
                   <td className="px-4 py-3">
                     <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", ESTADO_BADGE[t.estado])}>{t.estado}</span>
-                    {t.ultimo_autor === "user"
-                      ? <span className="ml-1.5 text-xs font-semibold text-yellow-600">● cliente respondió</span>
-                      : t.ultimo_autor === "admin"
-                      ? <span className="ml-1.5 text-xs font-medium text-orange-500">✓ respondido</span>
-                      : (t.estado === "nuevo" || t.estado === "en_revision") && <span className="ml-1.5 text-xs text-slate-400">sin responder</span>}
+                    {(t.estado === "nuevo" || t.estado === "en_revision") && (
+                      t.ultimo_autor === "user"
+                        ? <span className="ml-1.5 text-xs font-semibold text-yellow-600">● cliente respondió</span>
+                        : t.ultimo_autor === "admin"
+                        ? <span className="ml-1.5 text-xs font-medium text-orange-500">✓ respondido</span>
+                        : <span className="ml-1.5 text-xs text-slate-400">sin responder</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">{t.ai_job_status && <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", JOB_BADGE[t.ai_job_status])}>{t.ai_job_status}</span>}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-400">{fmt(t.created_at)}</td>
@@ -204,14 +206,16 @@ function DetalleTicket({
   }, [job, cargarJob, cargarHilo]);
 
   const enviar = async () => {
-    if (!composer.trim()) return;
+    // En modo Claude se puede lanzar sin texto (Claude recibe toda la
+    // conversación igualmente). Para cliente/nota interna sí hace falta texto.
+    if (modo !== "claude" && !composer.trim()) return;
     setBusy(true);
     try {
       if (modo === "claude") {
         const r = await fetch(`/api/admin/feedback/${ticket.id}/resolve-ia`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ comment: composer.trim() }),
+          body: JSON.stringify({ comment: composer.trim() || undefined }),
         });
         if (!r.ok) {
           toast({ variant: "destructive", title: r.status === 409 ? "Ya hay un job activo" : "No se pudo encolar" });
@@ -388,14 +392,17 @@ function DetalleTicket({
             <textarea
               className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
               rows={3}
-              placeholder={modo === "claude" ? "Instrucciones para Claude (opcional) y lanzar…" : modo === "interna" ? "Nota visible solo para el equipo…" : "Respuesta que verá el cliente…"}
+              placeholder={modo === "claude" ? "Instrucciones extra (opcional). Claude leerá toda la conversación automáticamente." : modo === "interna" ? "Nota visible solo para el equipo…" : "Respuesta que verá el cliente…"}
               value={composer}
               onChange={(e) => setComposer(e.target.value)}
             />
+            {modo === "claude" && (
+              <p className="mt-1 text-xs text-slate-400">Claude recibe el ticket y todas las respuestas; las instrucciones son opcionales.</p>
+            )}
             <div className="mt-2 flex justify-end">
-              <Button size="sm" onClick={enviar} disabled={busy || !composer.trim()}>
+              <Button size="sm" onClick={enviar} disabled={busy || (modo !== "claude" && !composer.trim())}>
                 {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                {modo === "claude" ? "Lanzar con instrucciones" : "Enviar"}
+                {modo === "claude" ? (composer.trim() ? "Enviar a Claude con instrucciones" : "Enviar todo a Claude") : "Enviar"}
               </Button>
             </div>
           </div>

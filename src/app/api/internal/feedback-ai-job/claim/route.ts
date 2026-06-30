@@ -26,18 +26,20 @@ export async function POST(req: Request): Promise<Response> {
   if (!ticket) return NextResponse.json({ job, ticket: null });
 
   const messages = await listMessages(job.ticket_id);
-  const prompt =
-    job.prompt_override?.trim() ||
-    buildClaudePrompt({
-      ticket: {
-        id: ticket.id,
-        tipo: ticket.tipo,
-        descripcion: ticket.descripcion,
-        pagina: ticket.pagina,
-        created_at: ticket.created_at,
-      },
-      messages: messages.map((m) => ({ autor: m.autor, cuerpo: m.cuerpo, is_ai: m.is_ai })),
-    });
+  // Claude SIEMPRE recibe la conversación completa del ticket. Las instrucciones
+  // del admin (prompt_override) se añaden como sección prioritaria, no
+  // reemplazan el contexto — así no hay que copiar/pegar el hilo a mano.
+  const prompt = buildClaudePrompt({
+    ticket: {
+      id: ticket.id,
+      tipo: ticket.tipo,
+      descripcion: ticket.descripcion,
+      pagina: ticket.pagina,
+      created_at: ticket.created_at,
+    },
+    messages: messages.map((m) => ({ autor: m.autor, cuerpo: m.cuerpo, is_ai: m.is_ai })),
+    instruccionesAdmin: job.prompt_override ?? undefined,
+  });
 
   return NextResponse.json({
     job,
