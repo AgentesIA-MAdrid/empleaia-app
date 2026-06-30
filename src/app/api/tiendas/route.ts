@@ -17,7 +17,10 @@ export const GET = withTenant(async () => {
 
     const tiendas = await prisma.tienda.findMany({
       orderBy: { nombre: "asc" },
-      include: { _count: { select: { empleados: true } } },
+      // Cuenta solo empleados no anonimizados: tras el borrado RGPD
+      // (anonimizadoAt) el empleado conserva su fila pero sale de los
+      // listados, así que tampoco debe contar para la sede.
+      include: { _count: { select: { empleados: { where: { anonimizadoAt: null } } } } },
     });
 
     return Response.json({ tiendas });
