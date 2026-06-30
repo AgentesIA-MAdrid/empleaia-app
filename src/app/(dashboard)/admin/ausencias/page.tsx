@@ -1,13 +1,28 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { CheckCircle, XCircle, Calendar, AlertCircle } from "lucide-react";
+import { CheckCircle, XCircle, Calendar, AlertCircle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatFecha } from "@/lib/utils";
+import { differenceInCalendarDays, parseISO } from "date-fns";
+
+interface TipoAusencia {
+  id: string;
+  nombre: string;
+  color: string;
+}
+
+interface Empleado {
+  id: string;
+  nombre: string;
+  apellidos: string;
+}
 
 interface Ausencia {
   id: string;
@@ -40,6 +55,17 @@ export default function AdminAusenciasPage() {
   const [rechazarId, setRechazarId] = useState<string | null>(null);
   const [comentario, setComentario] = useState("");
   const [procesando, setProcesando] = useState<string | null>(null);
+  const [tipos, setTipos] = useState<TipoAusencia[]>([]);
+  const [empleados, setEmpleados] = useState<Empleado[]>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({
+    userId: "",
+    tipoAusenciaId: "",
+    fechaInicio: "",
+    fechaFin: "",
+    motivo: "",
+  });
 
   const fetchAusencias = useCallback(async () => {
     setLoading(true);
@@ -52,7 +78,51 @@ export default function AdminAusenciasPage() {
     }
   }, []);
 
+  const fetchFormData = useCallback(async () => {
+    const [tiposRes, empRes] = await Promise.all([
+      fetch("/api/ausencias/tipos"),
+      fetch("/api/empleados"),
+    ]);
+    const [tiposData, empData] = await Promise.all([tiposRes.json(), empRes.json()]);
+    setTipos(Array.isArray(tiposData) ? tiposData : (tiposData?.tipos ?? []));
+    setEmpleados(empData?.empleados ?? (Array.isArray(empData) ? empData : []));
+  }, []);
+
   useEffect(() => { fetchAusencias(); }, [fetchAusencias]);
+  useEffect(() => { fetchFormData(); }, [fetchFormData]);
+
+  const diasCalc =
+    form.fechaInicio && form.fechaFin
+      ? Math.max(0, differenceInCalendarDays(parseISO(form.fechaFin), parseISO(form.fechaInicio)) + 1)
+      : 0;
+
+  const handleCrear = async () => {
+    if (!form.userId || !form.tipoAusenciaId || !form.fechaInicio || !form.fechaFin) {
+      toast({ title: "Completa todos los campos", variant: "destructive" });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/ausencias", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Error al crear la ausencia");
+      }
+      toast({ title: "Ausencia creada", description: "Queda pendiente de aprobación" });
+      setDialogOpen(false);
+      setForm({ userId: "", tipoAusenciaId: "", fechaInicio: "", fechaFin: "", motivo: "" });
+      setTab("PENDIENTE");
+      fetchAusencias();
+    } catch (e) {
+      toast({ title: "Error", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const filtradas = ausencias.filter((a) =>
     tab === "TODAS" ? a.estado !== "CANCELADA" : a.estado === tab
@@ -85,9 +155,14 @@ export default function AdminAusenciasPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Ausencias — Todas las sedes</h1>
-        <p className="text-slate-500 text-sm mt-1">Gestiona las solicitudes de ausencia de todos los empleados</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Ausencias — Todas las sedes</h1>
+          <p className="text-slate-500 text-sm mt-1">Gestiona las solicitudes de ausencia de todos los empleados</p>
+        </div>
+        <Button onClick={() => setDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" /> Nueva ausencia
+        </Button>
       </div>
 
       <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit flex-wrap">
@@ -181,6 +256,91 @@ export default function AdminAusenciasPage() {
           ))}
         </div>
       )}
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nueva ausencia</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>Empleado</Label>
+              <Select value={form.userId} onValueChange={(v) => setForm((f) => ({ ...f, userId: v }))}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Selecciona empleado..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {empleados.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.nombre} {e.apellidos}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Tipo de ausencia</Label>
+              <Select value={form.tipoAusenciaId} onValueChange={(v) => setForm((f) => ({ ...f, tipoAusenciaId: v }))}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Selecciona tipo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {tipos.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: t.color }} />
+                        {t.nombre}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label>Fecha inicio</Label>
+                <Input
+                  type="date"
+                  className="mt-1"
+                  value={form.fechaInicio}
+                  onChange={(e) => setForm((f) => ({ ...f, fechaInicio: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Fecha fin</Label>
+                <Input
+                  type="date"
+                  className="mt-1"
+                  value={form.fechaFin}
+                  min={form.fechaInicio || undefined}
+                  onChange={(e) => setForm((f) => ({ ...f, fechaFin: e.target.value }))}
+                />
+              </div>
+            </div>
+            {diasCalc > 0 && (
+              <p className="text-sm text-[var(--primary)] font-medium">
+                Total: {diasCalc} {diasCalc === 1 ? "día" : "días"}
+              </p>
+            )}
+            <div>
+              <Label>Motivo (opcional)</Label>
+              <textarea
+                className="mt-1 w-full rounded-lg border border-slate-200 p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                rows={3}
+                placeholder="Describe el motivo de la ausencia..."
+                value={form.motivo}
+                onChange={(e) => setForm((f) => ({ ...f, motivo: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCrear} disabled={submitting}>
+              {submitting ? "Creando..." : "Crear ausencia"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!rechazarId} onOpenChange={() => setRechazarId(null)}>
         <DialogContent className="max-w-[95vw] sm:max-w-sm">
