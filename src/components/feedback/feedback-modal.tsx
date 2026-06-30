@@ -20,7 +20,7 @@ interface TicketSummary {
   descripcion: string;
   estado: string;
   visto_por_user: boolean;
-  respondido?: boolean;
+  ultimo_autor?: "admin" | "user" | null;
   created_at: string;
 }
 interface TicketMessage {
@@ -53,11 +53,12 @@ const TIPO_LABEL: Record<Tipo, string> = {
 // Etiqueta de estado que ve el usuario. Si el equipo ya respondió y el ticket
 // sigue abierto (nuevo/en revisión), muestra "Respondido" para distinguirlo de
 // los que están pendientes de respuesta.
-function estadoVista(t: { estado: string; respondido?: boolean }): { label: string; cls: string } {
+function estadoVista(t: { estado: string; ultimo_autor?: "admin" | "user" | null }): { label: string; cls: string } {
   if (t.estado === "resuelto" || t.estado === "descartado") {
     return { label: ESTADO_LABEL[t.estado] ?? t.estado, cls: ESTADO_TEXT[t.estado] ?? "text-slate-700" };
   }
-  if (t.respondido) {
+  // El equipo escribió lo último → el usuario tiene respuesta que leer.
+  if (t.ultimo_autor === "admin") {
     return { label: "Respondido", cls: "text-orange-500" };
   }
   return { label: ESTADO_LABEL[t.estado] ?? t.estado, cls: ESTADO_TEXT[t.estado] ?? "text-slate-700" };

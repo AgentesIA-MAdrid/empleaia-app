@@ -83,8 +83,8 @@ export interface TicketSummary {
   descripcion: string;
   estado: "nuevo" | "en_revision" | "resuelto" | "descartado";
   visto_por_user: boolean;
-  /** true si el equipo ya ha respondido (algún mensaje público de admin). */
-  respondido: boolean;
+  /** Autor del último mensaje público del hilo (null si no hay respuestas). */
+  ultimo_autor: "admin" | "user" | null;
   created_at: string;
 }
 
@@ -100,8 +100,13 @@ export async function listByUser(userId: string): Promise<TicketSummary[]> {
       estado: true,
       vistoPorUser: true,
       createdAt: true,
-      // Cuenta de respuestas públicas del equipo (no notas internas).
-      _count: { select: { mensajes: { where: { autor: "admin", internal: false } } } },
+      // Último mensaje público del hilo (para saber de quién es la última palabra).
+      mensajes: {
+        where: { internal: false },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { autor: true },
+      },
     },
   });
   return rows.map((r) => ({
@@ -110,7 +115,7 @@ export async function listByUser(userId: string): Promise<TicketSummary[]> {
     descripcion: r.descripcion,
     estado: r.estado,
     visto_por_user: r.vistoPorUser,
-    respondido: r._count.mensajes > 0,
+    ultimo_autor: r.mensajes[0]?.autor ?? null,
     created_at: ISO(r.createdAt),
   }));
 }
@@ -126,8 +131,8 @@ export interface AdminTicket extends FeedbackTicket {
   org_nombre: string;
   user_email: string | null;
   user_name: string | null;
-  /** true si el equipo ya respondió (algún mensaje público de admin). */
-  respondido: boolean;
+  /** Autor del último mensaje público del hilo (null si no hay respuestas). */
+  ultimo_autor: "admin" | "user" | null;
 }
 
 export async function listAll(filters?: {
@@ -148,7 +153,12 @@ export async function listAll(filters?: {
     include: {
       tenant: { select: { name: true } },
       adjuntos: { select: { id: true } },
-      _count: { select: { mensajes: { where: { autor: "admin", internal: false } } } },
+      mensajes: {
+        where: { internal: false },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { autor: true },
+      },
     },
   });
   return rows.map((t) => ({
@@ -156,7 +166,7 @@ export async function listAll(filters?: {
     org_nombre: t.tenant?.name ?? "",
     user_email: t.userEmail ?? null,
     user_name: t.userNombre ?? null,
-    respondido: t._count.mensajes > 0,
+    ultimo_autor: t.mensajes[0]?.autor ?? null,
   }));
 }
 

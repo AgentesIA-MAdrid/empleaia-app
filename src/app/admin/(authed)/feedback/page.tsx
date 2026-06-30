@@ -23,7 +23,7 @@ interface AdminTicket {
   screenshot_paths: string[] | null;
   created_at: string;
   ai_job_status: JobStatus | null;
-  respondido?: boolean;
+  ultimo_autor?: "admin" | "user" | null;
 }
 interface Msg {
   id: string;
@@ -135,7 +135,9 @@ export default function AdminFeedbackPage() {
                   <td className="max-w-xs truncate px-4 py-3 text-slate-600">{t.descripcion}</td>
                   <td className="px-4 py-3">
                     <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", ESTADO_BADGE[t.estado])}>{t.estado}</span>
-                    {t.respondido
+                    {t.ultimo_autor === "user"
+                      ? <span className="ml-1.5 text-xs font-semibold text-yellow-600">● cliente respondió</span>
+                      : t.ultimo_autor === "admin"
                       ? <span className="ml-1.5 text-xs font-medium text-orange-500">✓ respondido</span>
                       : (t.estado === "nuevo" || t.estado === "en_revision") && <span className="ml-1.5 text-xs text-slate-400">sin responder</span>}
                   </td>
