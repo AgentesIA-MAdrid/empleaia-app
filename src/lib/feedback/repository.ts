@@ -83,6 +83,8 @@ export interface TicketSummary {
   descripcion: string;
   estado: "nuevo" | "en_revision" | "resuelto" | "descartado";
   visto_por_user: boolean;
+  /** true si el equipo ya ha respondido (algún mensaje público de admin). */
+  respondido: boolean;
   created_at: string;
 }
 
@@ -91,7 +93,16 @@ export async function listByUser(userId: string): Promise<TicketSummary[]> {
     where: { userId },
     orderBy: { createdAt: "desc" },
     take: 50,
-    select: { id: true, tipo: true, descripcion: true, estado: true, vistoPorUser: true, createdAt: true },
+    select: {
+      id: true,
+      tipo: true,
+      descripcion: true,
+      estado: true,
+      vistoPorUser: true,
+      createdAt: true,
+      // Cuenta de respuestas públicas del equipo (no notas internas).
+      _count: { select: { mensajes: { where: { autor: "admin", internal: false } } } },
+    },
   });
   return rows.map((r) => ({
     id: r.id,
@@ -99,6 +110,7 @@ export async function listByUser(userId: string): Promise<TicketSummary[]> {
     descripcion: r.descripcion,
     estado: r.estado,
     visto_por_user: r.vistoPorUser,
+    respondido: r._count.mensajes > 0,
     created_at: ISO(r.createdAt),
   }));
 }

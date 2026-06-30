@@ -20,6 +20,7 @@ interface TicketSummary {
   descripcion: string;
   estado: string;
   visto_por_user: boolean;
+  respondido?: boolean;
   created_at: string;
 }
 interface TicketMessage {
@@ -49,6 +50,18 @@ const TIPO_LABEL: Record<Tipo, string> = {
   mejora: "MEJORA",
   pregunta: "PREGUNTA",
 };
+// Etiqueta de estado que ve el usuario. Si el equipo ya respondió y el ticket
+// sigue abierto (nuevo/en revisión), muestra "Respondido" para distinguirlo de
+// los que están pendientes de respuesta.
+function estadoVista(t: { estado: string; respondido?: boolean }): { label: string; cls: string } {
+  if (t.estado === "resuelto" || t.estado === "descartado") {
+    return { label: ESTADO_LABEL[t.estado] ?? t.estado, cls: ESTADO_TEXT[t.estado] ?? "text-slate-700" };
+  }
+  if (t.respondido) {
+    return { label: "Respondido", cls: "text-emerald-600" };
+  }
+  return { label: ESTADO_LABEL[t.estado] ?? t.estado, cls: ESTADO_TEXT[t.estado] ?? "text-slate-700" };
+}
 const fmtFecha = (iso: string) => new Date(iso).toLocaleDateString("es-ES");
 const MAX_FILES = 5;
 
@@ -343,9 +356,10 @@ export function FeedbackModal({
                   >
                     <div className="flex items-start justify-between gap-2">
                       <span className="text-xs font-semibold tracking-wide text-slate-500">{TIPO_LABEL[t.tipo]}</span>
-                      <span className={cn("shrink-0 text-xs font-semibold", ESTADO_TEXT[t.estado])}>
-                        {ESTADO_LABEL[t.estado] ?? t.estado}
-                      </span>
+                      {(() => {
+                        const v = estadoVista(t);
+                        return <span className={cn("shrink-0 text-xs font-semibold", v.cls)}>{v.label}</span>;
+                      })()}
                     </div>
                     <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-900">{t.descripcion}</p>
                     <p className="mt-1.5 text-xs text-slate-400">{fmtFecha(t.created_at)}</p>
