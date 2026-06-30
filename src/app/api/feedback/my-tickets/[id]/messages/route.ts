@@ -78,7 +78,7 @@ export const POST = withTenant(async (req: NextRequest) => {
     });
     const nombre = await getTicketOrgName(ticket.org_id || currentTenant().tenantId);
     await sendUserReplyAlert(
-      { id: ticket.id, tipo: ticket.tipo, descripcion: ticket.descripcion, pagina: ticket.pagina },
+      { id: ticket.id, numero: ticket.numero, tipo: ticket.tipo, descripcion: ticket.descripcion, pagina: ticket.pagina },
       cuerpo || "[Imagen adjunta]",
       { id: ticket.org_id, nombre },
       { email: u?.email ?? "", full_name: u ? `${u.nombre} ${u.apellidos}`.trim() : null },

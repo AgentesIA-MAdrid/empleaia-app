@@ -78,7 +78,7 @@ export async function POST(req: Request): Promise<Response> {
           const org_name = await getTicketOrgName(ticket.org_id);
           await sendJobResultAlert({
             resultado: body.event as "pr_abierto" | "sin_cambios" | "fallido",
-            ticket: { id: ticket.id, tipo: ticket.tipo, descripcion: ticket.descripcion, pagina: ticket.pagina },
+            ticket: { id: ticket.id, numero: ticket.numero, tipo: ticket.tipo, descripcion: ticket.descripcion, pagina: ticket.pagina },
             org_name,
             pr_url: job.pr_url,
             error: job.error,

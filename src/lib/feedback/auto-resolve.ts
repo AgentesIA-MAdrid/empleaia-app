@@ -72,7 +72,7 @@ export async function resolvePrMerged(opts: {
     const email = await getTicketUserEmail(job.ticket_id);
     if (email) {
       await sendAdminReplyEmail(
-        { id: ticket.id, tipo: ticket.tipo, descripcion: ticket.descripcion, pagina: ticket.pagina },
+        { id: ticket.id, numero: ticket.numero, tipo: ticket.tipo, descripcion: ticket.descripcion, pagina: ticket.pagina },
         cuerpoNotificado,
         email,
       ).catch((e) => console.error("[feedback/auto-resolve] email falló", e));

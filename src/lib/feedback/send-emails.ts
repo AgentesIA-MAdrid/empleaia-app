@@ -55,10 +55,14 @@ async function sendInternalAlert(subject: string, html: string): Promise<void> {
 
 interface TicketInfo {
   id: string;
+  numero: number;
   tipo: "bug" | "mejora" | "pregunta";
   descripcion: string;
   pagina: string;
 }
+
+/** Referencia legible del ticket para asuntos y cuerpos: #0001. */
+const ref = (n: number) => `#${String(n).padStart(4, "0")}`;
 interface OrgInfo {
   id: string;
   nombre: string;
@@ -82,7 +86,7 @@ export async function sendNewTicketAlert(
   }
   const adminUrl = `${ADMIN_URL}/admin/feedback`;
   const html = shell(
-    `Nuevo ticket — ${TIPO_LABEL[ticket.tipo] ?? ticket.tipo}`,
+    `Ticket ${ref(ticket.numero)} — ${TIPO_LABEL[ticket.tipo] ?? ticket.tipo}`,
     `<p><strong>${esc(org.nombre || "—")}</strong> · ${esc(user.full_name || user.email || "—")}</p>
      <p style="color:#555"><strong>Página:</strong> ${esc(ticket.pagina)}</p>
      <p>${esc(ticket.descripcion)}</p>
@@ -91,7 +95,7 @@ export async function sendNewTicketAlert(
        ${resolveUrl ? ` &nbsp;·&nbsp; <a href="${esc(resolveUrl)}" style="color:#6366f1">Resolver con Claude</a>` : ""}
      </p>`,
   );
-  await sendInternalAlert(`Nuevo ticket — ${org.nombre || "—"}`, html);
+  await sendInternalAlert(`Ticket ${ref(ticket.numero)} — Nuevo (${org.nombre || "—"})`, html);
 }
 
 export async function sendAdminReplyEmail(
@@ -100,11 +104,11 @@ export async function sendAdminReplyEmail(
   userEmail: string,
 ): Promise<void> {
   const html = shell(
-    "Respuesta a tu incidencia",
-    `<p>El equipo ha respondido a tu reporte (${esc(TIPO_LABEL[ticket.tipo] ?? ticket.tipo)}):</p>
+    `Respuesta a tu incidencia ${ref(ticket.numero)}`,
+    `<p>El equipo ha respondido a tu reporte ${ref(ticket.numero)} (${esc(TIPO_LABEL[ticket.tipo] ?? ticket.tipo)}):</p>
      <blockquote style="border-left:3px solid #6366f1;padding-left:12px;color:#333">${esc(respuesta)}</blockquote>`,
   );
-  await sendSystemEmail(userEmail, "Respuesta a tu incidencia — empleaIA", html);
+  await sendSystemEmail(userEmail, `Respuesta a tu incidencia ${ref(ticket.numero)} — empleaIA`, html);
 }
 
 export async function sendUserReplyAlert(
@@ -115,12 +119,12 @@ export async function sendUserReplyAlert(
 ): Promise<void> {
   const adminUrl = `${ADMIN_URL}/admin/feedback`;
   const html = shell(
-    "El usuario ha respondido",
+    `El usuario ha respondido — Ticket ${ref(ticket.numero)}`,
     `<p><strong>${esc(org.nombre || "—")}</strong> · ${esc(user.full_name || user.email || "—")}</p>
      <blockquote style="border-left:3px solid #6366f1;padding-left:12px;color:#333">${esc(respuesta)}</blockquote>
      <p><a href="${esc(adminUrl)}" style="color:#6366f1">Ver en el panel</a></p>`,
   );
-  await sendInternalAlert(`Respuesta de usuario — ${org.nombre || "—"}`, html);
+  await sendInternalAlert(`Ticket ${ref(ticket.numero)} — Respuesta de usuario (${org.nombre || "—"})`, html);
 }
 
 export async function sendJobResultAlert(input: {
@@ -133,20 +137,20 @@ export async function sendJobResultAlert(input: {
   const { resultado, ticket, org_name, pr_url, error } = input;
   const adminUrl = `${ADMIN_URL}/admin/feedback`;
   const html = shell(
-    `Claude terminó: ${RESULTADO_LABEL[resultado] ?? resultado}`,
+    `Claude terminó el ticket ${ref(ticket.numero)}: ${RESULTADO_LABEL[resultado] ?? resultado}`,
     `<p><strong>${esc(org_name || "—")}</strong> · ${esc(TIPO_LABEL[ticket.tipo] ?? ticket.tipo)}</p>
      <p style="color:#555">${esc(ticket.descripcion)}</p>
      ${pr_url ? `<p><a href="${esc(pr_url)}" style="color:#6366f1">Ver PR ↗</a></p>` : ""}
      ${error ? `<p style="color:#b91c1c"><strong>Error:</strong> ${esc(error)}</p>` : ""}
      <p><a href="${esc(adminUrl)}" style="color:#6366f1">Ver en el panel</a></p>`,
   );
-  await sendInternalAlert(`Claude — ${RESULTADO_LABEL[resultado] ?? resultado} (${org_name || "—"})`, html);
+  await sendInternalAlert(`Ticket ${ref(ticket.numero)} — Claude: ${RESULTADO_LABEL[resultado] ?? resultado} (${org_name || "—"})`, html);
 }
 
 export async function sendResolutionEmail(ticket: TicketInfo, userEmail: string): Promise<void> {
   const html = shell(
-    "Tu incidencia se ha resuelto",
-    `<p>Hemos marcado como resuelta tu incidencia (${esc(TIPO_LABEL[ticket.tipo] ?? ticket.tipo)}). Si sigues teniendo el problema, respóndenos desde la app.</p>`,
+    `Tu incidencia ${ref(ticket.numero)} se ha resuelto`,
+    `<p>Hemos marcado como resuelta tu incidencia ${ref(ticket.numero)} (${esc(TIPO_LABEL[ticket.tipo] ?? ticket.tipo)}). Si sigues teniendo el problema, respóndenos desde la app.</p>`,
   );
-  await sendSystemEmail(userEmail, "Tu incidencia se ha resuelto — empleaIA", html);
+  await sendSystemEmail(userEmail, `Tu incidencia ${ref(ticket.numero)} se ha resuelto — empleaIA`, html);
 }

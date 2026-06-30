@@ -30,7 +30,7 @@ export const PATCH = withSuperAdmin(async (req: NextRequest) => {
     void getTicketUserEmail(id).then((email) => {
       if (email) {
         return sendResolutionEmail(
-          { id: updated.id, tipo: updated.tipo, descripcion: updated.descripcion, pagina: updated.pagina },
+          { id: updated.id, numero: updated.numero, tipo: updated.tipo, descripcion: updated.descripcion, pagina: updated.pagina },
           email,
         );
       }

@@ -43,7 +43,7 @@ export const POST = withTenant(async (req: NextRequest) => {
   // Email al super-admin — fire and forget.
   void getTicketOrgName(tenantId).then((nombre) =>
     sendNewTicketAlert(
-      { id: ticket.id, tipo: parsed.data.tipo, descripcion: parsed.data.descripcion, pagina: parsed.data.pagina },
+      { id: ticket.id, numero: ticket.numero, tipo: parsed.data.tipo, descripcion: parsed.data.descripcion, pagina: parsed.data.pagina },
       { id: tenantId, nombre },
       { email: u?.email ?? "", full_name: userNombre },
     ),

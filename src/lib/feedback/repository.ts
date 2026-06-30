@@ -56,7 +56,7 @@ export interface CreateTicketInput {
 
 export async function createTicket(
   input: CreateTicketInput,
-): Promise<{ id: string; created_at: string }> {
+): Promise<{ id: string; numero: number; created_at: string }> {
   const ticket = await prismaMaster.feedbackTicket.create({
     data: {
       tenantId: input.org_id,
@@ -67,7 +67,7 @@ export async function createTicket(
       descripcion: input.descripcion,
       pagina: input.pagina,
     },
-    select: { id: true, createdAt: true },
+    select: { id: true, numero: true, createdAt: true },
   });
   // Enlaza las capturas ya subidas (FeedbackAdjunto huérfanos) a este ticket.
   if (input.screenshot_paths?.length) {
@@ -76,7 +76,7 @@ export async function createTicket(
       data: { ticketId: ticket.id },
     });
   }
-  return { id: ticket.id, created_at: ISO(ticket.createdAt) };
+  return { id: ticket.id, numero: ticket.numero, created_at: ISO(ticket.createdAt) };
 }
 
 export interface TicketSummary {

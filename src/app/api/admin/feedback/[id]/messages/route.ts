@@ -56,7 +56,7 @@ export const POST = withSuperAdmin(async (req: NextRequest) => {
     void getTicketUserEmail(id).then((email) => {
       if (email) {
         return sendAdminReplyEmail(
-          { id: ticket.id, tipo: ticket.tipo, descripcion: ticket.descripcion, pagina: ticket.pagina },
+          { id: ticket.id, numero: ticket.numero, tipo: ticket.tipo, descripcion: ticket.descripcion, pagina: ticket.pagina },
           parsed.data.cuerpo,
           email,
         );
