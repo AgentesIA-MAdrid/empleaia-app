@@ -248,6 +248,41 @@ export default function AdminTurnosPage() {
     }
   };
 
+  // Arrastrar un turno a otra celda de la misma semana lo COPIA (mismo tipo,
+  // horario, nota y estado) en el día/persona destino. Evita reintroducir a
+  // mano turnos que se repiten. La semana visible es el único alcance posible
+  // porque solo hay celdas-destino para sus 7 días.
+  const copiarTurno = async (turnoId: string, emp: Empleado, dia: Date, tiendaId: string | null) => {
+    const origen = turnos.find(t => t.id === turnoId);
+    if (!origen) return;
+    const destinoTienda = tiendaId ?? origen.tiendaId;
+    // Soltar sobre la misma celda de origen: no hacer nada.
+    if (origen.userId === emp.id && destinoTienda === origen.tiendaId && isSameDay(new Date(origen.fecha), dia)) {
+      return;
+    }
+    try {
+      const res = await fetch("/api/turnos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: emp.id,
+          tiendaId: destinoTienda,
+          tipoTurnoId: origen.tipoTurno?.id ?? null,
+          fecha: format(dia, "yyyy-MM-dd"),
+          horaInicio: origen.horaInicio,
+          horaFin: origen.horaFin,
+          nota: origen.nota,
+          estado: origen.estado,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      toast({ title: "Turno copiado" });
+      fetchData();
+    } catch {
+      toast({ title: "Error al copiar el turno", variant: "destructive" });
+    }
+  };
+
   const publicarTodos = async () => {
     const borradores = turnos.filter(t => t.estado === "BORRADOR");
     await Promise.all(borradores.map(t =>
@@ -384,6 +419,7 @@ export default function AdminTurnosPage() {
                     onAdd={abrirNuevoTurno}
                     onEdit={abrirEditarTurno}
                     onDelete={borrarTurno}
+                    onCopy={copiarTurno}
                     onAddPersona={grupo.id
                       ? () => { setAddSel(""); setAddDialog({ tiendaId: grupo.id as string, nombre: grupo.nombre }); }
                       : undefined}
@@ -536,7 +572,7 @@ export default function AdminTurnosPage() {
 }
 
 function GrupoSede({
-  grupo, filas, dias, totalCols, turnosDe, totalSemana, contratoDe, onAdd, onEdit, onDelete, onAddPersona,
+  grupo, filas, dias, totalCols, turnosDe, totalSemana, contratoDe, onAdd, onEdit, onDelete, onCopy, onAddPersona,
 }: {
   grupo: { id: string | null; nombre: string; color: string };
   filas: { emp: Empleado; visitante: boolean }[];
@@ -548,6 +584,7 @@ function GrupoSede({
   onAdd: (emp: Empleado, dia: Date, tiendaId: string | null) => void;
   onEdit: (t: Turno) => void;
   onDelete: (id: string) => void;
+  onCopy: (turnoId: string, emp: Empleado, dia: Date, tiendaId: string | null) => void;
   onAddPersona?: () => void;
 }) {
   return (
@@ -583,38 +620,19 @@ function GrupoSede({
                 <span className="mt-0.5 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Correturno</span>
               )}
             </td>
-            {dias.map((dia, i) => {
-              const ts = turnosDe(emp.id, dia, grupo.id);
-              return (
-                <td key={i} className="px-1 py-1.5 text-center align-top">
-                  <div className="space-y-1">
-                    {ts.map(t => (
-                      <button
-                        key={t.id}
-                        onClick={() => onEdit(t)}
-                        className={cn(
-                          "group relative w-full rounded-md px-1 py-1 text-xs font-medium leading-tight",
-                          t.estado === "PUBLICADO" ? "text-white" : "border border-dashed border-slate-300 text-slate-600",
-                        )}
-                        style={t.estado === "PUBLICADO" ? { backgroundColor: t.tipoTurno?.color || "var(--primary)" } : undefined}
-                        title={t.nota || ""}
-                      >
-                        <div>{etiquetaTurno(t)}</div>
-                        <div className="opacity-80">{horasDeTurno(t)}h</div>
-                        <span
-                          onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
-                          className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px]"
-                        >×</span>
-                      </button>
-                    ))}
-                    <button
-                      className="w-full rounded-md border border-dashed border-slate-200 text-slate-300 hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors py-0.5 text-xs"
-                      onClick={() => onAdd(emp, dia, grupo.id)}
-                    >+</button>
-                  </div>
-                </td>
-              );
-            })}
+            {dias.map((dia, i) => (
+              <CeldaDia
+                key={i}
+                emp={emp}
+                dia={dia}
+                tiendaId={grupo.id}
+                turnos={turnosDe(emp.id, dia, grupo.id)}
+                onAdd={onAdd}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onCopy={onCopy}
+              />
+            ))}
             <td className="px-2 py-2 text-center font-semibold text-slate-700">{Math.round(total * 100) / 100}h</td>
             {visitante ? (
               <>
@@ -633,5 +651,67 @@ function GrupoSede({
         );
       })}
     </>
+  );
+}
+
+// Celda de un día: muestra los turnos de la persona y permite arrastrarlos a
+// otra celda de la semana para copiarlos (drag & drop nativo, sin librerías).
+function CeldaDia({
+  emp, dia, tiendaId, turnos, onAdd, onEdit, onDelete, onCopy,
+}: {
+  emp: Empleado;
+  dia: Date;
+  tiendaId: string | null;
+  turnos: Turno[];
+  onAdd: (emp: Empleado, dia: Date, tiendaId: string | null) => void;
+  onEdit: (t: Turno) => void;
+  onDelete: (id: string) => void;
+  onCopy: (turnoId: string, emp: Empleado, dia: Date, tiendaId: string | null) => void;
+}) {
+  const [sobre, setSobre] = useState(false);
+
+  return (
+    <td
+      className={cn(
+        "px-1 py-1.5 text-center align-top transition-colors",
+        sobre && "rounded-md bg-slate-100 ring-2 ring-inset ring-[var(--primary)]",
+      )}
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setSobre(true); }}
+      onDragLeave={() => setSobre(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setSobre(false);
+        const id = e.dataTransfer.getData("text/plain");
+        if (id) onCopy(id, emp, dia, tiendaId);
+      }}
+    >
+      <div className="space-y-1">
+        {turnos.map(t => (
+          <button
+            key={t.id}
+            draggable
+            onDragStart={(e) => { e.dataTransfer.setData("text/plain", t.id); e.dataTransfer.effectAllowed = "copy"; }}
+            onClick={() => onEdit(t)}
+            className={cn(
+              "group relative w-full cursor-grab rounded-md px-1 py-1 text-xs font-medium leading-tight active:cursor-grabbing",
+              t.estado === "PUBLICADO" ? "text-white" : "border border-dashed border-slate-300 text-slate-600",
+            )}
+            style={t.estado === "PUBLICADO" ? { backgroundColor: t.tipoTurno?.color || "var(--primary)" } : undefined}
+            title={t.nota ? `${t.nota} · arrastra para copiar` : "Arrastra para copiar a otro día"}
+          >
+            <div>{etiquetaTurno(t)}</div>
+            <div className="opacity-80">{horasDeTurno(t)}h</div>
+            <span
+              onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
+              className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px]"
+            >×</span>
+          </button>
+        ))}
+        <button
+          className="w-full rounded-md border border-dashed border-slate-200 text-slate-300 hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors py-0.5 text-xs"
+          onClick={() => onAdd(emp, dia, tiendaId)}
+        >+</button>
+      </div>
+    </td>
   );
 }
