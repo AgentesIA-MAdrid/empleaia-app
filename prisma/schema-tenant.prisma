@@ -110,6 +110,8 @@ model Tienda {
   horarios     HorarioSede[]
   // Multi-sede: empleados asignados a esta sede (N:N vía UsuarioSede).
   miembros     UsuarioSede[]
+  // Festivos locales que aplican solo a esta sede.
+  festivos     Festivo[]
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -301,6 +303,8 @@ model User {
   // Multi-sede: pertenencia a varias sedes (N:N). `tiendaId` sigue
   // siendo la sede principal y la fuente para turnos/fichaje/informes.
   sedes                    UsuarioSede[]
+  // Festivos que se le han "quitado" (días que trabaja pese al festivo).
+  festivoExcepciones       FestivoExcepcion[]
 
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
@@ -700,8 +704,34 @@ model Festivo {
   id        String   @id @default(cuid())
   nombre    String
   fecha     DateTime
+  // Ámbito: "nacional" (aplica a toda la plantilla) o "local" (solo a la
+  // sede `tiendaId`). Los festivos locales requieren `tiendaId`.
   ambito    String   @default("nacional")
+  // Sede a la que aplica un festivo local. null para festivos nacionales.
+  // ON DELETE CASCADE: si se borra la sede, sus festivos locales se van con ella.
+  tiendaId  String?
+  tienda    Tienda?  @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+  // Excepciones por empleado: la presencia de una fila significa que ese
+  // empleado SÍ trabaja ese día (se le "quita" el festivo para asignar
+  // jornada / horas extra). Ausencia de fila = el festivo le aplica.
+  excepciones FestivoExcepcion[]
   createdAt DateTime @default(now())
+
+  @@index([tiendaId])
+}
+
+// Excepción de un festivo para un empleado concreto: lo "quita" para que
+// ese día sea laborable para esa persona (horas extra). Ver Festivo.excepciones.
+model FestivoExcepcion {
+  id        String   @id @default(cuid())
+  festivoId String
+  festivo   Festivo  @relation(fields: [festivoId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([festivoId, userId])
+  @@index([userId])
 }
 
 // Webhook outbound del tenant. Plan D.5.

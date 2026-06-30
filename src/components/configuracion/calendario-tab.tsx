@@ -17,9 +17,24 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
-type Festivo = { id: string; nombre: string; fecha: string; ambito: string };
+type Festivo = {
+  id: string;
+  nombre: string;
+  fecha: string;
+  ambito: string;
+  tiendaId?: string | null;
+  tienda?: { id: string; nombre: string } | null;
+};
+type Tienda = { id: string; nombre: string };
 
 const DAYS = [
   { idx: 1, label: "Lun" },
@@ -42,12 +57,11 @@ export function CalendarioTab({
 }) {
   const { toast } = useToast();
   const [festivos, setFestivos] = useState<Festivo[]>([]);
+  const [tiendas, setTiendas] = useState<Tienda[]>([]);
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [nuevaFecha, setNuevaFecha] = useState("");
-
-  useEffect(() => {
-    void cargarFestivos();
-  }, []);
+  const [nuevoAmbito, setNuevoAmbito] = useState<"nacional" | "local">("nacional");
+  const [nuevaTiendaId, setNuevaTiendaId] = useState("");
 
   async function cargarFestivos() {
     try {
@@ -60,16 +74,33 @@ export function CalendarioTab({
     }
   }
 
+  useEffect(() => {
+    // cargarFestivos() hace setState tras un await (fetch), no de forma síncrona.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void cargarFestivos();
+  }, []);
+
   async function agregarFestivo() {
     if (!nuevoNombre || !nuevaFecha) return;
+    if (nuevoAmbito === "local" && !nuevaTiendaId) {
+      toast({ title: "Elige la sede del festivo local", variant: "destructive" });
+      return;
+    }
     const r = await fetch("/api/festivos", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ nombre: nuevoNombre, fecha: nuevaFecha }),
+      body: JSON.stringify({
+        nombre: nuevoNombre,
+        fecha: nuevaFecha,
+        ambito: nuevoAmbito,
+        tiendaId: nuevoAmbito === "local" ? nuevaTiendaId : null,
+      }),
     });
     if (r.ok) {
       setNuevoNombre("");
       setNuevaFecha("");
+      setNuevoAmbito("nacional");
+      setNuevaTiendaId("");
       void cargarFestivos();
       toast({ title: "Festivo añadido" });
     } else {
@@ -176,6 +207,47 @@ export function CalendarioTab({
                 onChange={(e) => setNuevaFecha(e.target.value)}
               />
             </div>
+            <div className="min-w-[140px]">
+              <Label>Ámbito</Label>
+              <Select
+                value={nuevoAmbito}
+                onValueChange={(v) => {
+                  const ambito = v as "nacional" | "local";
+                  setNuevoAmbito(ambito);
+                  // Las sedes solo hacen falta para un festivo local; se cargan
+                  // bajo demanda (evita un fetch en el montaje del tab).
+                  if (ambito === "local" && tiendas.length === 0) {
+                    fetch("/api/tiendas")
+                      .then((r) => (r.ok ? r.json() : { tiendas: [] }))
+                      .then((data: { tiendas: Tienda[] }) => setTiendas(data.tiendas ?? []))
+                      .catch(() => undefined);
+                  }
+                }}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nacional">Nacional</SelectItem>
+                  <SelectItem value="local">Local (sede)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {nuevoAmbito === "local" && (
+              <div className="min-w-[160px]">
+                <Label>Sede</Label>
+                <Select value={nuevaTiendaId} onValueChange={setNuevaTiendaId}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Selecciona sede…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tiendas.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.nombre}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <Button onClick={agregarFestivo} disabled={!nuevoNombre || !nuevaFecha}>
               <Plus className="h-4 w-4 mr-1" /> Añadir
             </Button>
@@ -195,7 +267,10 @@ export function CalendarioTab({
                     {f.nombre}
                   </span>
                   <span className="text-xs text-gray-500 ml-2">
-                    {f.fecha.slice(0, 10)} · {f.ambito}
+                    {f.fecha.slice(0, 10)} ·{" "}
+                    {f.ambito === "local"
+                      ? `Local${f.tienda ? ` — ${f.tienda.nombre}` : ""}`
+                      : "Nacional"}
                   </span>
                 </div>
                 <Button
