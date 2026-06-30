@@ -587,6 +587,22 @@ export async function setAiJobStatus(jobId: string, status: JobStatus): Promise<
   });
 }
 
+/** PR cerrado SIN mergear (descartado por el equipo): si su job sigue en
+ *  `pr_abierto`, lo saca de ese estado a `fallido` con un motivo claro, para
+ *  que no quede colgado en el panel. Solo actúa sobre jobs en `pr_abierto`. */
+export async function discardJobForClosedPr(
+  branch?: string | null,
+  prUrl?: string | null,
+): Promise<{ matched: boolean }> {
+  const job = await findAiJobByBranchOrUrl(branch, prUrl);
+  if (!job || job.status !== "pr_abierto") return { matched: false };
+  await prismaMaster.feedbackAiJob.update({
+    where: { id: job.id },
+    data: { status: "fallido", error: "PR cerrado sin mergear (descartado)" },
+  });
+  return { matched: true };
+}
+
 /** Publica el resumen (borrador) al cliente: lo vuelca al hilo como mensaje
  *  público (is_ai), sella resumen_publicado_at y enciende el badge del usuario. */
 export async function publishResumenToClient(

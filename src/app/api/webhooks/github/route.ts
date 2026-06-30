@@ -14,6 +14,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { resolvePrMerged } from "@/lib/feedback/auto-resolve";
+import { discardJobForClosedPr } from "@/lib/feedback/repository";
 
 export const runtime = "nodejs";
 
@@ -53,18 +54,24 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const pr = payload.pull_request;
-  if (payload.action !== "closed" || !pr?.merged) {
-    return NextResponse.json({ ok: true, ignored: `${payload.action}/${pr?.merged}` });
+  if (payload.action !== "closed" || !pr) {
+    return NextResponse.json({ ok: true, ignored: payload.action });
   }
 
+  const branch = pr.head?.ref ?? null;
+  const prUrl = pr.html_url ?? null;
   try {
-    const result = await resolvePrMerged({
-      branch: pr.head?.ref ?? null,
-      prUrl: pr.html_url ?? null,
-    });
-    return NextResponse.json({ ok: true, result });
+    if (pr.merged) {
+      // PR mergeado → publicar al cliente + resolver + job desplegado.
+      const result = await resolvePrMerged({ branch, prUrl });
+      return NextResponse.json({ ok: true, result });
+    }
+    // PR cerrado SIN mergear (descartado) → sacar su job de pr_abierto para
+    // que no quede colgado en el panel.
+    const discarded = await discardJobForClosedPr(branch, prUrl);
+    return NextResponse.json({ ok: true, discarded });
   } catch (e) {
-    console.error("[webhooks/github] resolvePrMerged falló", e);
+    console.error("[webhooks/github] procesar PR cerrado falló", e);
     // 200 igualmente: un 5xx haría a GitHub reintentar en bucle.
     return NextResponse.json({ ok: false, error: "internal" });
   }
