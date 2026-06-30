@@ -23,7 +23,13 @@ export const POST = withSuperAdmin(async (req) => {
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
   });
-  const res = NextResponse.redirect(new URL("/admin/login", req.url), { status: 303 });
+  // Detrás del proxy (Traefik/Dokploy), req.url lleva el host interno del
+  // contenedor (0.0.0.0:3000) → un redirect con él rompe (ERR_SSL_PROTOCOL).
+  // Construimos la URL con el host/proto reenviados por el proxy.
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "";
+  const proto = req.headers.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
+  const loginUrl = host ? `${proto}://${host}/admin/login` : new URL("/admin/login", req.url).toString();
+  const res = NextResponse.redirect(loginUrl, { status: 303 });
   res.cookies.set(ADMIN_COOKIE_NAME, "", {
     httpOnly: true,
     path: "/",
