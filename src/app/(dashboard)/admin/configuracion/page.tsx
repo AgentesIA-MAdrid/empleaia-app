@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Save, Plus, Trash2, Settings, Calendar, AlertTriangle, Bell,
   Mail, Smartphone, RefreshCw, Eye, EyeOff, Check, X, Palette, Upload, Image,
@@ -115,11 +116,17 @@ function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: bool
 
 type Tab = "general" | "ausencias" | "notificaciones" | "branding" | "calendario" | "dominio" | "nomina";
 
+const TABS: Tab[] = ["general", "ausencias", "notificaciones", "branding", "calendario", "dominio", "nomina"];
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function ConfiguracionPage() {
+function ConfiguracionPageInner() {
   const { toast } = useToast();
-  const [tab, setTab] = useState<Tab>("general");
+  // Permite enlazar directamente a una pestaña concreta (p. ej. desde
+  // /admin/ausencias → ?tab=ausencias para gestionar los tipos de ausencia).
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab") as Tab | null;
+  const [tab, setTab] = useState<Tab>(tabParam && TABS.includes(tabParam) ? tabParam : "general");
   const [config, setConfig] = useState<Configuracion | null>(null);
   const [tipos, setTipos] = useState<TipoAusencia[]>([]);
   const [saving, setSaving] = useState(false);
@@ -397,7 +404,7 @@ export default function ConfiguracionPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-slate-200">
-        {(["general", "ausencias", "notificaciones", "branding", "calendario", "dominio", "nomina"] as Tab[]).map((t) => {
+        {TABS.map((t) => {
           const labels: Record<Tab, string> = {
             general: "General",
             ausencias: "Tipos de ausencia",
@@ -1197,5 +1204,15 @@ export default function ConfiguracionPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// `useSearchParams` exige un límite de Suspense en Next 16 (igual que en
+// /admin/aceptar-invitacion). Envolvemos el contenido para no romper el SSG.
+export default function ConfiguracionPage() {
+  return (
+    <Suspense fallback={<div className="p-6 animate-pulse"><div className="h-40 bg-slate-100 rounded-xl" /></div>}>
+      <ConfiguracionPageInner />
+    </Suspense>
   );
 }

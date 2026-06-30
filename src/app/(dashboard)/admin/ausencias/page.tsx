@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { CheckCircle, XCircle, Calendar, AlertCircle, Plus, ChevronDown, Search, Check } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle, XCircle, Calendar, AlertCircle, Plus, ChevronDown, Search, Check, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -242,9 +243,16 @@ export default function AdminAusenciasPage() {
           <h1 className="text-2xl font-bold text-slate-900">Ausencias — Todas las sedes</h1>
           <p className="text-slate-500 text-sm mt-1">Gestiona las solicitudes de ausencia de todos los empleados</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Nueva ausencia
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link href="/admin/configuracion?tab=ausencias">
+            <Button variant="outline">
+              <Settings className="h-4 w-4 mr-2" /> Tipos de ausencia
+            </Button>
+          </Link>
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Nueva ausencia
+          </Button>
+        </div>
       </div>
 
       <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit flex-wrap">
