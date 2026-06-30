@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Send, Download, Settings2, Trash2, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronRight, Send, Download, Settings2, Trash2, Pencil, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -62,6 +62,7 @@ export default function AdminTurnosPage() {
   const [turnoDialog, setTurnoDialog] = useState(false);
   const [turnoForm, setTurnoForm] = useState(TURNO_FORM_INICIAL);
   const [submitting, setSubmitting] = useState(false);
+  const [copiando, setCopiando] = useState<string | null>(null);
 
   const [tiposDialog, setTiposDialog] = useState(false);
   const [tipoForm, setTipoForm] = useState(TIPO_FORM_INICIAL);
@@ -192,6 +193,47 @@ export default function AdminTurnosPage() {
       fetchData();
     } catch {
       toast({ title: "Error al eliminar", variant: "destructive" });
+    }
+  };
+
+  // Copia los turnos de un día al resto de días de la MISMA semana, solo
+  // para ese empleado. Reemplaza lo que hubiera en los días destino para
+  // que la semana quede idéntica al día de origen (lo habitual: la semana
+  // se repite). Reutiliza POST/DELETE /api/turnos como `publicarTodos`.
+  const copiarDiaASemana = async (emp: Empleado, dia: Date) => {
+    const fuente = turnosDe(emp.id, dia);
+    if (fuente.length === 0) return;
+    const destinos = dias.filter(d => !isSameDay(d, dia));
+    if (!confirm("¿Copiar este día al resto de la semana? Se reemplazarán los turnos de los demás días de esta semana para este empleado.")) return;
+    const key = `${emp.id}-${format(dia, "yyyy-MM-dd")}`;
+    setCopiando(key);
+    try {
+      // 1) Borra los turnos existentes de los días destino (de este empleado).
+      const aBorrar = destinos.flatMap(d => turnosDe(emp.id, d));
+      await Promise.all(aBorrar.map(t => fetch(`/api/turnos/${t.id}`, { method: "DELETE" })));
+      // 2) Crea una copia de cada turno de origen en cada día destino.
+      await Promise.all(destinos.flatMap(d =>
+        fuente.map(t => fetch("/api/turnos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: emp.id,
+            tiendaId: t.tiendaId,
+            tipoTurnoId: t.tipoTurno?.id ?? null,
+            fecha: format(d, "yyyy-MM-dd"),
+            horaInicio: t.horaInicio,
+            horaFin: t.horaFin,
+            nota: t.nota,
+            estado: t.estado,
+          }),
+        }))
+      ));
+      toast({ title: "Día copiado al resto de la semana" });
+      fetchData();
+    } catch {
+      toast({ title: "Error al copiar el día", variant: "destructive" });
+    } finally {
+      setCopiando(null);
     }
   };
 
@@ -333,6 +375,8 @@ export default function AdminTurnosPage() {
                       onAdd={abrirNuevoTurno}
                       onEdit={abrirEditarTurno}
                       onDelete={borrarTurno}
+                      onCopySemana={copiarDiaASemana}
+                      copiando={copiando}
                     />
                   );
                 })
@@ -451,7 +495,7 @@ export default function AdminTurnosPage() {
 }
 
 function GrupoSede({
-  grupo, emps, dias, totalCols, turnosDe, totalSemana, contratoDe, onAdd, onEdit, onDelete,
+  grupo, emps, dias, totalCols, turnosDe, totalSemana, contratoDe, onAdd, onEdit, onDelete, onCopySemana, copiando,
 }: {
   grupo: { id: string | null; nombre: string; color: string };
   emps: Empleado[];
@@ -463,6 +507,8 @@ function GrupoSede({
   onAdd: (emp: Empleado, dia: Date) => void;
   onEdit: (t: Turno) => void;
   onDelete: (id: string) => void;
+  onCopySemana: (emp: Empleado, dia: Date) => void;
+  copiando: string | null;
 }) {
   return (
     <>
@@ -510,6 +556,16 @@ function GrupoSede({
                         >×</span>
                       </button>
                     ))}
+                    {ts.length > 0 && (
+                      <button
+                        className="w-full inline-flex items-center justify-center gap-1 rounded-md text-[10px] text-slate-400 hover:text-[var(--primary)] transition-colors py-0.5 disabled:opacity-50"
+                        onClick={() => onCopySemana(emp, dia)}
+                        disabled={copiando === `${emp.id}-${format(dia, "yyyy-MM-dd")}`}
+                        title="Copiar este día al resto de la semana"
+                      >
+                        <Copy className="h-3 w-3" /> Semana
+                      </button>
+                    )}
                     <button
                       className="w-full rounded-md border border-dashed border-slate-200 text-slate-300 hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors py-0.5 text-xs"
                       onClick={() => onAdd(emp, dia)}
