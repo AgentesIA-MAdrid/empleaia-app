@@ -38,6 +38,7 @@ export const PUT = withTenant(async (request: NextRequest,
       radio,
       color,
       activa,
+      managerId,
     } = body as {
       nombre?: string;
       direccion?: string;
@@ -50,6 +51,7 @@ export const PUT = withTenant(async (request: NextRequest,
       radio?: number;
       color?: string;
       activa?: boolean;
+      managerId?: string | null;
     };
 
     // Si cambia la dirección y NO se envían coordenadas explícitas,
@@ -84,6 +86,8 @@ export const PUT = withTenant(async (request: NextRequest,
         ...(radio !== undefined && { radio }),
         ...(color !== undefined && { color }),
         ...(activa !== undefined && { activa }),
+        // Responsable informativo: ausente → no se toca; "" → se borra.
+        ...(managerId !== undefined && { managerId: managerId || null }),
       },
     });
 

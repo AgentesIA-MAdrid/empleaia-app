@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Edit2, MapPin, Phone, Mail, Users, ToggleLeft, ToggleRight, LocateFixed, Clock } from "lucide-react";
+import { Plus, Edit2, MapPin, Phone, Mail, Users, ToggleLeft, ToggleRight, LocateFixed, Clock, UserCog, ChevronDown, Check, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,110 @@ interface Tienda {
   radio: number;
   activa: boolean;
   color: string;
+  // Responsable de la sede (dato informativo). Null si no se ha asignado.
+  managerId?: string | null;
+  manager?: { id: string; nombre: string; apellidos: string } | null;
   _count?: { empleados: number };
+}
+
+// Empleado en su forma reducida, para el selector de responsable de sede.
+interface EmpleadoLite {
+  id: string;
+  nombre: string;
+  apellidos: string;
+  rol: "OWNER" | "MANAGER" | "EMPLEADO";
+  activo: boolean;
+}
+
+/**
+ * Selector de responsable de la sede con búsqueda. Solo OWNER/MANAGER son
+ * candidatos (el responsable es informativo; no cambia aprobaciones). A
+ * nivel de módulo, imitando `ManagerCombobox` de admin/empleados.
+ */
+function SedeManagerCombobox({
+  empleados,
+  value,
+  onChange,
+}: {
+  empleados: EmpleadoLite[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const candidatos = empleados
+    .filter((e) => e.activo && (e.rol === "OWNER" || e.rol === "MANAGER"))
+    .sort((a, b) =>
+      `${a.nombre} ${a.apellidos}`.localeCompare(`${b.nombre} ${b.apellidos}`, "es"),
+    );
+  const filtrados = q
+    ? candidatos.filter((e) =>
+        `${e.nombre} ${e.apellidos}`.toLowerCase().includes(q.toLowerCase()),
+      )
+    : candidatos;
+  const sel = candidatos.find((e) => e.id === value);
+  return (
+    <div className="relative mt-1">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
+      >
+        <span className={cn("truncate", !sel && "text-slate-400")}>
+          {sel ? `${sel.nombre} ${sel.apellidos}` : "Sin responsable"}
+        </span>
+        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background shadow-lg">
+            <div className="border-b border-slate-100 p-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  autoFocus
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Buscar responsable…"
+                  className="w-full rounded-md border border-input bg-background py-1.5 pl-8 pr-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                />
+              </div>
+            </div>
+            <div className="max-h-56 overflow-y-auto py-1">
+              <button
+                type="button"
+                onClick={() => { onChange(""); setOpen(false); setQ(""); }}
+                className="flex w-full items-center px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-50"
+              >
+                Sin responsable
+              </button>
+              {filtrados.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => { onChange(e.id); setOpen(false); setQ(""); }}
+                  className={cn(
+                    "flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm hover:bg-slate-50",
+                    e.id === value && "bg-slate-50",
+                  )}
+                >
+                  <span className="truncate">
+                    {e.nombre} {e.apellidos}{" "}
+                    <span className="text-xs text-slate-400">({e.rol})</span>
+                  </span>
+                  {e.id === value && <Check className="h-4 w-4 shrink-0 text-[var(--primary)]" />}
+                </button>
+              ))}
+              {filtrados.length === 0 && (
+                <p className="px-3 py-2 text-sm text-slate-400">Sin resultados</p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 const COLORES = [
@@ -36,11 +139,13 @@ const COLORES = [
 const FORM_INICIAL = {
   nombre: "", direccion: "", ciudad: "", codigoPostal: "", telefono: "",
   email: "", latitud: "", longitud: "", radio: "200", color: "#6366f1",
+  managerId: "",
 };
 
 export default function TiendasPage() {
   const { toast } = useToast();
   const [tiendas, setTiendas] = useState<Tienda[]>([]);
+  const [empleados, setEmpleados] = useState<EmpleadoLite[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editando, setEditando] = useState<Tienda | null>(null);
@@ -90,6 +195,15 @@ export default function TiendasPage() {
 
   useEffect(() => { fetchTiendas(); }, [fetchTiendas]);
 
+  // Candidatos a responsable de sede (OWNER/MANAGER). El filtrado por rol lo
+  // hace el combobox; aquí solo cargamos la plantilla activa una vez.
+  useEffect(() => {
+    fetch("/api/empleados?activo=true")
+      .then((r) => r.json())
+      .then((d) => setEmpleados(d.empleados ?? []))
+      .catch(() => setEmpleados([]));
+  }, []);
+
   const abrirCrear = () => {
     setEditando(null);
     setForm(FORM_INICIAL);
@@ -103,7 +217,7 @@ export default function TiendasPage() {
       codigoPostal: t.codigoPostal || "", telefono: t.telefono || "",
       email: t.email || "", latitud: t.latitud?.toString() || "",
       longitud: t.longitud?.toString() || "", radio: t.radio.toString(),
-      color: t.color,
+      color: t.color, managerId: t.managerId || "",
     });
     setDialogOpen(true);
   };
@@ -216,6 +330,12 @@ export default function TiendasPage() {
                       <span className="truncate">{t.email}</span>
                     </div>
                   )}
+                  {t.manager && (
+                    <div className="flex items-center gap-1.5">
+                      <UserCog className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                      <span className="truncate">{t.manager.nombre} {t.manager.apellidos}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs text-slate-500">
@@ -262,6 +382,17 @@ export default function TiendasPage() {
               <div>
                 <Label>Email</Label>
                 <Input className="mt-1" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="sede@empresa.es" />
+              </div>
+              <div className="col-span-2">
+                <Label>Responsable de la sede</Label>
+                <SedeManagerCombobox
+                  empleados={empleados}
+                  value={form.managerId}
+                  onChange={(id) => setForm((f) => ({ ...f, managerId: id }))}
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  Solo informativo: quién está al frente de esta sede. No cambia quién aprueba fichajes.
+                </p>
               </div>
               <div className="col-span-2 flex items-center justify-between rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
                 <span className="text-xs text-slate-500">
