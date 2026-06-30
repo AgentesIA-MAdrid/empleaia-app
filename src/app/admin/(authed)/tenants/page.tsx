@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Search,
   Loader2,
@@ -259,9 +260,12 @@ export default function TenantsPage() {
                 {data.items.map((t) => (
                   <tr key={t.id} className="hover:bg-[var(--bg-subtle,#F8FAFC)] transition-colors">
                     <td className="px-4 py-3">
-                      <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-[var(--color-text-dark,#0F172A)] font-mono">
+                      <Link
+                        href={`/admin/tenants/${t.slug}`}
+                        className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-[var(--primary)] font-mono hover:underline"
+                      >
                         {t.slug}
-                      </code>
+                      </Link>
                     </td>
                     <td className="px-4 py-3 text-sm font-medium text-[var(--color-text-dark,#0F172A)]">
                       {t.name}
@@ -293,6 +297,12 @@ export default function TenantsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
+                        <Link
+                          href={`/admin/tenants/${t.slug}`}
+                          className="inline-flex items-center gap-1 text-xs text-[var(--primary)] hover:underline"
+                        >
+                          Ver
+                        </Link>
                         <a
                           href={`https://${t.slug}.${rootDomain}/admin`}
                           target="_blank"

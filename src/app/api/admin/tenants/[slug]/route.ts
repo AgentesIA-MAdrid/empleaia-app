@@ -38,6 +38,7 @@ export const GET = withSuperAdmin(async (
           currentPeriodStart: true,
           currentPeriodEnd: true,
           cancelAtPeriodEnd: true,
+          trialEnd: true,
         },
       },
       quotaUsage: {

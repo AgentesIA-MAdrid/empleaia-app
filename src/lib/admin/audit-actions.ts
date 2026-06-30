@@ -43,8 +43,16 @@ export const AUDIT_ACTIONS = {
     severity: "warning",
     description: "Provisión manual (sin Stripe)",
   },
+  "subscription:extend": {
+    severity: "warning",
+    description: "Extender periodo de suscripción a mano",
+  },
 
   // Irreversibles (severity='critical').
+  "subscription:cancel": {
+    severity: "critical",
+    description: "Cancelar suscripción (solo BD local)",
+  },
   "tenants:purge:pseudonymize": {
     severity: "critical",
     description: "Pseudonimización ADR-008",
