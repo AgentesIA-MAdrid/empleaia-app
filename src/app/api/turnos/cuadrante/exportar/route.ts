@@ -87,23 +87,29 @@ export const GET = withTenant(
         },
         select: {
           userId: true,
+          tiendaId: true,
           fecha: true,
           horaInicio: true,
           horaFin: true,
           tipoTurno: { select: { abreviatura: true, nombre: true, horas: true, esLibre: true } },
+          user: { select: { nombre: true, apellidos: true } },
         },
       }),
     ]);
 
     const horasGlobal = Number(config?.horasSemanales ?? 40);
 
-    // Índice turnos por userId+ymd.
+    // Dos índices: global (userId+ymd) para "Sin sede" y por sede
+    // (userId+tiendaId+ymd) para que cada correturno cuente solo en la
+    // tienda que cubre — igual que la pantalla del cuadrante.
     const porUserDia = new Map<string, typeof turnos>();
+    const porUserTiendaDia = new Map<string, typeof turnos>();
     for (const t of turnos) {
-      const key = `${t.userId}|${ymd(new Date(t.fecha))}`;
-      const arr = porUserDia.get(key);
-      if (arr) arr.push(t);
-      else porUserDia.set(key, [t]);
+      const yd = ymd(new Date(t.fecha));
+      const kGlobal = `${t.userId}|${yd}`;
+      const kSede = `${t.userId}|${t.tiendaId}|${yd}`;
+      (porUserDia.get(kGlobal) ?? porUserDia.set(kGlobal, []).get(kGlobal)!).push(t);
+      (porUserTiendaDia.get(kSede) ?? porUserTiendaDia.set(kSede, []).get(kSede)!).push(t);
     }
 
     const wb = new ExcelJS.Workbook();
@@ -129,31 +135,60 @@ export const GET = withTenant(
       grupos.push({ id: null, nombre: "Sin sede" });
     }
 
+    // Construye y añade una fila. `tiendaScope` null = totales globales
+    // (grupo "Sin sede"); con id = solo los turnos de esa tienda.
+    // `contrato` null = correturno (no se imprime contrato/diferencia).
+    const addEmpRow = (
+      sede: string,
+      empleado: string,
+      userId: string,
+      tiendaScope: string | null,
+      contrato: number | null,
+    ) => {
+      const row: Record<string, string | number> = { sede, empleado };
+      let total = 0;
+      dias.forEach((d, i) => {
+        const ts = tiendaScope
+          ? porUserTiendaDia.get(`${userId}|${tiendaScope}|${ymd(d)}`) ?? []
+          : porUserDia.get(`${userId}|${ymd(d)}`) ?? [];
+        if (ts.length === 0) {
+          row[`d${i}`] = "";
+          return;
+        }
+        total += ts.reduce((s, t) => s + horasDeTurno(t), 0);
+        row[`d${i}`] = ts.map((t) => etiquetaTurno(t)).join(" + ");
+      });
+      row.total = Math.round(total * 100) / 100;
+      row.contrato = contrato ?? "";
+      row.dif = contrato === null ? "" : Math.round((total - contrato) * 100) / 100;
+      ws.addRow(row);
+    };
+
+    const contratoDe = (e: { horasSemanalesContrato: unknown }) =>
+      e.horasSemanalesContrato != null ? Number(e.horasSemanalesContrato) : horasGlobal;
+
     for (const grupo of grupos) {
-      const empsGrupo = empleados.filter((e) => (e.tiendaId ?? null) === grupo.id);
-      for (const emp of empsGrupo) {
-        const row: Record<string, string | number> = {
-          sede: grupo.nombre,
-          empleado: `${emp.nombre} ${emp.apellidos}`,
-        };
-        let total = 0;
-        dias.forEach((d, i) => {
-          const ts = porUserDia.get(`${emp.id}|${ymd(d)}`) ?? [];
-          if (ts.length === 0) {
-            row[`d${i}`] = "";
-            return;
-          }
-          const horasDia = ts.reduce((s, t) => s + horasDeTurno(t), 0);
-          total += horasDia;
-          row[`d${i}`] = ts.map((t) => etiquetaTurno(t)).join(" + ");
-        });
-        const contrato = emp.horasSemanalesContrato != null
-          ? Number(emp.horasSemanalesContrato)
-          : horasGlobal;
-        row.total = Math.round(total * 100) / 100;
-        row.contrato = contrato;
-        row.dif = Math.round((total - contrato) * 100) / 100;
-        ws.addRow(row);
+      if (grupo.id === null) {
+        // "Sin sede": empleados sin tienda, con su carga global.
+        for (const emp of empleados.filter((e) => !e.tiendaId)) {
+          addEmpRow(grupo.nombre, `${emp.nombre} ${emp.apellidos}`, emp.id, null, contratoDe(emp));
+        }
+        continue;
+      }
+      // Sede: fijos (scoping a la sede) + correturnos que la cubren.
+      const fijos = empleados.filter((e) => e.tiendaId === grupo.id);
+      const fijosIds = new Set(fijos.map((e) => e.id));
+      for (const emp of fijos) {
+        addEmpRow(grupo.nombre, `${emp.nombre} ${emp.apellidos}`, emp.id, grupo.id, contratoDe(emp));
+      }
+      const visitantes = new Map<string, string>();
+      for (const t of turnos) {
+        if (t.tiendaId === grupo.id && !fijosIds.has(t.userId)) {
+          visitantes.set(t.userId, `${t.user?.nombre ?? ""} ${t.user?.apellidos ?? ""}`.trim());
+        }
+      }
+      for (const [userId, nombre] of visitantes) {
+        addEmpRow(grupo.nombre, `${nombre} (correturno)`, userId, grupo.id, null);
       }
     }
 
