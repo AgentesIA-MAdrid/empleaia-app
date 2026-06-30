@@ -160,6 +160,21 @@ export const POST = withTenant(
       return Response.json({ error: "Ya existe un usuario con ese email" }, { status: 409 });
     }
 
+    // El DNI también es único. Validarlo aquí para devolver un mensaje claro
+    // (si no, el INSERT viola la constraint y el error sale como "internal").
+    if (dni) {
+      const existingDni = await prisma.user.findFirst({
+        where: { dni },
+        select: { nombre: true, apellidos: true, email: true },
+      });
+      if (existingDni) {
+        return Response.json(
+          { error: `Ya existe un empleado con ese DNI: ${existingDni.nombre} ${existingDni.apellidos} (${existingDni.email})` },
+          { status: 409 },
+        );
+      }
+    }
+
     // Generate invite token (valid 7 days)
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);

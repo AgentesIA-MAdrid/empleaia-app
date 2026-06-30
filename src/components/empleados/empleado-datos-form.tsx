@@ -187,11 +187,14 @@ export function EmpleadoDatosForm({
   modo,
   redirectTo,
   onSaved,
+  soloLectura = false,
 }: {
   empleado: EmpleadoDatos;
   modo: "self" | "admin" | "onboarding";
   redirectTo?: string;
   onSaved?: () => void;
+  /** Vista de solo lectura (p. ej. MANAGER consulta la ficha sin editar). */
+  soloLectura?: boolean;
 }) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(() => initialState(empleado));
@@ -308,7 +311,9 @@ export function EmpleadoDatosForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-8">
+    <form onSubmit={onSubmit}>
+     {/* fieldset[disabled] deshabilita todos los campos de golpe en solo lectura */}
+     <fieldset disabled={soloLectura} className="m-0 min-w-0 space-y-8 border-0 p-0 disabled:opacity-100">
       {/* Información personal */}
       <section className="space-y-4">
         <h2 className={SECTION}>Información personal</h2>
@@ -410,14 +415,17 @@ export function EmpleadoDatosForm({
       {error && <p className="text-sm text-red-700">{error}</p>}
       {savedAt && <p className="text-sm text-emerald-700">Cambios guardados.</p>}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="inline-flex items-center gap-2 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-dark,#4f46e5)] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-      >
-        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-        {esOnboarding ? "Guardar y continuar" : "Guardar cambios"}
-      </button>
+      {!soloLectura && (
+        <button
+          type="submit"
+          disabled={pending}
+          className="inline-flex items-center gap-2 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-dark,#4f46e5)] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {esOnboarding ? "Guardar y continuar" : "Guardar cambios"}
+        </button>
+      )}
+     </fieldset>
     </form>
   );
 }

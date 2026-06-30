@@ -131,6 +131,8 @@ export function FichaEmpleadoTabs({
   const altaDate = new Date(empleado.createdAt);
   const puedeEditarSalario = viewerRol === "OWNER";
   const puedeEditarFicha = viewerRol === "OWNER";
+  // OWNER y MANAGER pueden VER la ficha completa; solo OWNER la edita.
+  const puedeVerFicha = viewerRol === "OWNER" || viewerRol === "MANAGER";
   const [salarioInput, setSalarioInput] = useState<string>(
     empleado.salarioBase != null ? String(empleado.salarioBase) : "",
   );
@@ -356,26 +358,29 @@ export function FichaEmpleadoTabs({
       </div>
 
       {/* ─── Tabs ───────────────────────────────────────────────────── */}
-      <Tabs defaultValue={puedeEditarFicha ? "datos" : "fichajes"}>
+      <Tabs defaultValue={puedeVerFicha ? "datos" : "fichajes"}>
         <TabsList>
-          {puedeEditarFicha && <TabsTrigger value="datos">Datos</TabsTrigger>}
+          {puedeVerFicha && <TabsTrigger value="datos">Datos</TabsTrigger>}
           <TabsTrigger value="fichajes">Fichajes (30d)</TabsTrigger>
           <TabsTrigger value="ausencias">Ausencias (12m)</TabsTrigger>
           <TabsTrigger value="turnos">Próximos turnos</TabsTrigger>
         </TabsList>
 
-        {/* ── Datos (ficha editable, solo OWNER) ── */}
-        {puedeEditarFicha && (
+        {/* ── Datos: OWNER y MANAGER ven la ficha; solo OWNER la edita ── */}
+        {puedeVerFicha && (
           <TabsContent value="datos">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <UserIcon className="h-4 w-4 text-[var(--primary)]" />
                   Datos del empleado
+                  {!puedeEditarFicha && (
+                    <span className="text-xs font-normal text-slate-400">(solo lectura)</span>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <EmpleadoDatosForm empleado={fichaDatos} modo="admin" />
+                <EmpleadoDatosForm empleado={fichaDatos} modo="admin" soloLectura={!puedeEditarFicha} />
               </CardContent>
             </Card>
           </TabsContent>
