@@ -198,16 +198,19 @@ export default function AdminFeedbackPage() {
                     })()}
                   </td>
                   <td className="px-4 py-3">
-                    {t.ai_job_status && <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", JOB_BADGE[t.ai_job_status])}>{t.ai_job_status}</span>}
-                    {t.ai_job_status === "fallido" && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); reintentar(t.id); }}
-                        title="Reintentar con Claude"
-                        className="ml-1.5 inline-flex items-center gap-1 rounded-md border border-slate-200 px-1.5 py-0.5 text-xs text-slate-600 hover:bg-slate-50"
-                      >
-                        <RefreshCw className="h-3 w-3" /> Reintentar
-                      </button>
-                    )}
+                    <div className="flex items-center gap-1.5 whitespace-nowrap">
+                      {t.ai_job_status && <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", JOB_BADGE[t.ai_job_status])}>{t.ai_job_status}</span>}
+                      {t.ai_job_status === "fallido" && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); reintentar(t.id); }}
+                          title="Reintentar con Claude"
+                          aria-label="Reintentar con Claude"
+                          className="inline-flex shrink-0 items-center justify-center rounded-md border border-slate-200 p-1 text-slate-500 hover:bg-slate-50 hover:text-[var(--primary)]"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-400">{fmt(t.created_at)}</td>
                 </tr>
