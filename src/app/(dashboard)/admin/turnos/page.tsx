@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Send, Download, Settings2, Trash2, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronRight, Send, Download, Settings2, Trash2, Pencil, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -66,9 +66,17 @@ export default function AdminTurnosPage() {
   const [tiposDialog, setTiposDialog] = useState(false);
   const [tipoForm, setTipoForm] = useState(TIPO_FORM_INICIAL);
 
+  // Correturnos: personas añadidas manualmente a una sede SOLO para la
+  // semana visible (tiendaId -> userIds). Se reinicia al cambiar de semana;
+  // la persistencia real surge de tener ≥1 turno en esa sede esa semana.
+  const [visitantesManual, setVisitantesManual] = useState<Record<string, string[]>>({});
+  const [addDialog, setAddDialog] = useState<{ tiendaId: string; nombre: string } | null>(null);
+  const [addSel, setAddSel] = useState("");
+
   const inicioSemana = startOfWeek(semana, { weekStartsOn: 1 });
   const finSemana = endOfWeek(semana, { weekStartsOn: 1 });
   const dias = Array.from({ length: 7 }, (_, i) => addDays(inicioSemana, i));
+  const semanaKey = inicioSemana.toISOString();
 
   useEffect(() => {
     fetch("/api/tiendas").then(r => r.json()).then(d => setTiendas(d.tiendas || []));
@@ -95,6 +103,10 @@ export default function AdminTurnosPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Los correturnos añadidos a mano son "de esta semana": al navegar a
+  // otra semana se limpian (los que tengan turnos reaparecen solos).
+  useEffect(() => { setVisitantesManual({}); }, [semanaKey]);
+
   const recargarTipos = () =>
     fetch("/api/turnos/tipos").then(r => r.json()).then(d => setTipos(Array.isArray(d) ? d : []));
 
@@ -109,13 +121,54 @@ export default function AdminTurnosPage() {
     grupos.push({ id: null, nombre: "Sin sede", color: "#94a3b8" });
   }
 
-  const turnosDe = (userId: string, dia: Date) =>
-    turnos.filter(t => t.userId === userId && isSameDay(new Date(t.fecha), dia));
+  // En las sedes (tiendaId !== null) se cuenta solo lo de ESA sede, para que
+  // un correturno aparezca con sus horas en la tienda que cubre. En "Sin
+  // sede" (null) no se filtra: muestra la carga global de la persona.
+  const turnosDe = (userId: string, dia: Date, tiendaId: string | null) =>
+    turnos.filter(t =>
+      t.userId === userId
+      && (tiendaId === null || t.tiendaId === tiendaId)
+      && isSameDay(new Date(t.fecha), dia));
 
-  const totalSemana = (userId: string) =>
+  const totalSemana = (userId: string, tiendaId: string | null) =>
     turnos
-      .filter(t => t.userId === userId)
+      .filter(t => t.userId === userId && (tiendaId === null || t.tiendaId === tiendaId))
       .reduce((s, t) => s + horasDeTurno(t), 0);
+
+  // Filas de un grupo: empleados fijos de la sede + correturnos (visitantes)
+  // que cubren esa semana (con turno en la sede o añadidos a mano).
+  const filasDeGrupo = (grupoId: string | null): { emp: Empleado; visitante: boolean }[] => {
+    if (grupoId === null) {
+      return empleados.filter(e => !e.tiendaId).map(emp => ({ emp, visitante: false }));
+    }
+    const fijos = empleados.filter(e => e.tiendaId === grupoId);
+    const fijosIds = new Set(fijos.map(e => e.id));
+    const visitanteIds = new Set<string>();
+    turnos.forEach(t => { if (t.tiendaId === grupoId && !fijosIds.has(t.userId)) visitanteIds.add(t.userId); });
+    (visitantesManual[grupoId] ?? []).forEach(id => { if (!fijosIds.has(id)) visitanteIds.add(id); });
+    const visitantes = empleados.filter(e => visitanteIds.has(e.id));
+    return [
+      ...fijos.map(emp => ({ emp, visitante: false })),
+      ...visitantes.map(emp => ({ emp, visitante: true })),
+    ];
+  };
+
+  const disponiblesParaAñadir = addDialog
+    ? (() => {
+        const yaEn = new Set(filasDeGrupo(addDialog.tiendaId).map(f => f.emp.id));
+        return empleados.filter(e => !yaEn.has(e.id));
+      })()
+    : [];
+
+  const confirmarAñadirPersona = () => {
+    if (!addDialog || !addSel) return;
+    setVisitantesManual(prev => ({
+      ...prev,
+      [addDialog.tiendaId]: [...(prev[addDialog.tiendaId] ?? []), addSel],
+    }));
+    setAddDialog(null);
+    setAddSel("");
+  };
 
   const contratoDe = (emp: Empleado) =>
     emp.horasSemanalesContrato != null && emp.horasSemanalesContrato !== ""
@@ -123,11 +176,11 @@ export default function AdminTurnosPage() {
       : horasGlobal;
 
   // ---- Turno: crear / editar / borrar ----
-  const abrirNuevoTurno = (emp: Empleado, dia: Date) => {
+  const abrirNuevoTurno = (emp: Empleado, dia: Date, tiendaId: string | null) => {
     setTurnoForm({
       ...TURNO_FORM_INICIAL,
       userId: emp.id,
-      tiendaId: emp.tiendaId || (tiendas[0]?.id ?? ""),
+      tiendaId: tiendaId || emp.tiendaId || (tiendas[0]?.id ?? ""),
       fecha: format(dia, "yyyy-MM-dd"),
       tipoTurnoId: tipos[0]?.id ?? CUSTOM,
     });
@@ -318,24 +371,24 @@ export default function AdminTurnosPage() {
               ) : grupos.length === 0 ? (
                 <tr><td colSpan={totalCols} className="text-center py-8 text-slate-400">No hay sedes. Crea una sede primero.</td></tr>
               ) : (
-                grupos.map(grupo => {
-                  const emps = empleados.filter(e => (e.tiendaId ?? null) === grupo.id);
-                  return (
-                    <GrupoSede
-                      key={grupo.id ?? "sin-sede"}
-                      grupo={grupo}
-                      emps={emps}
-                      dias={dias}
-                      totalCols={totalCols}
-                      turnosDe={turnosDe}
-                      totalSemana={totalSemana}
-                      contratoDe={contratoDe}
-                      onAdd={abrirNuevoTurno}
-                      onEdit={abrirEditarTurno}
-                      onDelete={borrarTurno}
-                    />
-                  );
-                })
+                grupos.map(grupo => (
+                  <GrupoSede
+                    key={grupo.id ?? "sin-sede"}
+                    grupo={grupo}
+                    filas={filasDeGrupo(grupo.id)}
+                    dias={dias}
+                    totalCols={totalCols}
+                    turnosDe={turnosDe}
+                    totalSemana={totalSemana}
+                    contratoDe={contratoDe}
+                    onAdd={abrirNuevoTurno}
+                    onEdit={abrirEditarTurno}
+                    onDelete={borrarTurno}
+                    onAddPersona={grupo.id
+                      ? () => { setAddSel(""); setAddDialog({ tiendaId: grupo.id as string, nombre: grupo.nombre }); }
+                      : undefined}
+                  />
+                ))
               )}
             </tbody>
           </table>
@@ -390,6 +443,38 @@ export default function AdminTurnosPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setTurnoDialog(false)}>Cancelar</Button>
             <Button onClick={guardarTurno} disabled={submitting}>{submitting ? "Guardando..." : "Guardar"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog añadir persona (correturno) a una sede esta semana */}
+      <Dialog open={!!addDialog} onOpenChange={o => { if (!o) { setAddDialog(null); setAddSel(""); } }}>
+        <DialogContent className="max-w-[95vw] sm:max-w-md">
+          <DialogHeader><DialogTitle>Añadir persona a {addDialog?.nombre}</DialogTitle></DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-slate-500">
+              Añade a alguien para cubrir esta semana en esta sede (por ejemplo un correturno).
+              Solo aparece en la semana actual; asígnale turnos con el botón “+”.
+            </p>
+            <div>
+              <Label>Persona</Label>
+              <Select value={addSel} onValueChange={setAddSel}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Selecciona empleado..." /></SelectTrigger>
+                <SelectContent>
+                  {disponiblesParaAñadir.length === 0 ? (
+                    <div className="px-2 py-1.5 text-sm text-slate-400">No hay más empleados disponibles</div>
+                  ) : disponiblesParaAñadir.map(e => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.nombre} {e.apellidos}{!e.tiendaId ? " · sin sede" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setAddDialog(null); setAddSel(""); }}>Cancelar</Button>
+            <Button onClick={confirmarAñadirPersona} disabled={!addSel}>Añadir</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -451,18 +536,19 @@ export default function AdminTurnosPage() {
 }
 
 function GrupoSede({
-  grupo, emps, dias, totalCols, turnosDe, totalSemana, contratoDe, onAdd, onEdit, onDelete,
+  grupo, filas, dias, totalCols, turnosDe, totalSemana, contratoDe, onAdd, onEdit, onDelete, onAddPersona,
 }: {
   grupo: { id: string | null; nombre: string; color: string };
-  emps: Empleado[];
+  filas: { emp: Empleado; visitante: boolean }[];
   dias: Date[];
   totalCols: number;
-  turnosDe: (userId: string, dia: Date) => Turno[];
-  totalSemana: (userId: string) => number;
+  turnosDe: (userId: string, dia: Date, tiendaId: string | null) => Turno[];
+  totalSemana: (userId: string, tiendaId: string | null) => number;
   contratoDe: (emp: Empleado) => number;
-  onAdd: (emp: Empleado, dia: Date) => void;
+  onAdd: (emp: Empleado, dia: Date, tiendaId: string | null) => void;
   onEdit: (t: Turno) => void;
   onDelete: (id: string) => void;
+  onAddPersona?: () => void;
 }) {
   return (
     <>
@@ -471,23 +557,34 @@ function GrupoSede({
           <span className="flex items-center gap-2 font-semibold text-slate-700">
             <span className="w-3 h-3 rounded-full" style={{ backgroundColor: grupo.color }} />
             {grupo.nombre}
-            <span className="text-xs font-normal text-slate-400">({emps.length})</span>
+            <span className="text-xs font-normal text-slate-400">({filas.length})</span>
+            {onAddPersona && (
+              <button
+                onClick={onAddPersona}
+                className="ml-auto inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors"
+              >
+                <UserPlus className="h-3.5 w-3.5" /> Añadir persona
+              </button>
+            )}
           </span>
         </td>
       </tr>
-      {emps.length === 0 ? (
+      {filas.length === 0 ? (
         <tr><td colSpan={totalCols} className="px-6 py-2 text-xs text-slate-400">Sin empleados en esta sede</td></tr>
-      ) : emps.map(emp => {
-        const total = totalSemana(emp.id);
+      ) : filas.map(({ emp, visitante }) => {
+        const total = totalSemana(emp.id, grupo.id);
         const contrato = contratoDe(emp);
         const dif = Math.round((total - contrato) * 100) / 100;
         return (
           <tr key={emp.id} className="border-b border-slate-50 hover:bg-slate-50/60">
             <td className="px-3 py-2">
               <span className="text-sm font-medium text-slate-800 truncate block max-w-[160px]">{emp.nombre} {emp.apellidos}</span>
+              {visitante && (
+                <span className="mt-0.5 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Correturno</span>
+              )}
             </td>
             {dias.map((dia, i) => {
-              const ts = turnosDe(emp.id, dia);
+              const ts = turnosDe(emp.id, dia, grupo.id);
               return (
                 <td key={i} className="px-1 py-1.5 text-center align-top">
                   <div className="space-y-1">
@@ -512,17 +609,26 @@ function GrupoSede({
                     ))}
                     <button
                       className="w-full rounded-md border border-dashed border-slate-200 text-slate-300 hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors py-0.5 text-xs"
-                      onClick={() => onAdd(emp, dia)}
+                      onClick={() => onAdd(emp, dia, grupo.id)}
                     >+</button>
                   </div>
                 </td>
               );
             })}
             <td className="px-2 py-2 text-center font-semibold text-slate-700">{Math.round(total * 100) / 100}h</td>
-            <td className="px-2 py-2 text-center text-slate-500">{contrato}h</td>
-            <td className={cn("px-2 py-2 text-center font-semibold", dif < 0 ? "text-red-600" : "text-emerald-600")}>
-              {dif > 0 ? "+" : ""}{dif}h
-            </td>
+            {visitante ? (
+              <>
+                <td className="px-2 py-2 text-center text-slate-300" title="No aplica: el contrato se controla en su sede">—</td>
+                <td className="px-2 py-2 text-center text-slate-300">—</td>
+              </>
+            ) : (
+              <>
+                <td className="px-2 py-2 text-center text-slate-500">{contrato}h</td>
+                <td className={cn("px-2 py-2 text-center font-semibold", dif < 0 ? "text-red-600" : "text-emerald-600")}>
+                  {dif > 0 ? "+" : ""}{dif}h
+                </td>
+              </>
+            )}
           </tr>
         );
       })}
