@@ -325,6 +325,23 @@ model AuditLog {
   @@schema("master")
 }
 
+// Invitaciones a nuevos super-admins. El token (en el enlace del email)
+// es la autorización para aceptar: quien lo tenga puede crear/activar la
+// cuenta. expiresAt limita la ventana (7 días). acceptedAt marca consumo.
+model AdminInvitation {
+  id          String      @id @default(cuid())
+  email       String
+  role        PlatformRol @default(SUPPORT)
+  token       String      @unique
+  invitedById String?     @map("invited_by_id")
+  expiresAt   DateTime    @map("expires_at")
+  acceptedAt  DateTime?   @map("accepted_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@map("admin_invitations")
+  @@schema("master")
+}
+
 // Idempotencia de webhooks Stripe. ADR-003 §2.2 + §2.4.
 // PK = event_id (de Stripe). El INSERT ON CONFLICT DO NOTHING
 // RETURNING blinda contra retries del propio Stripe.

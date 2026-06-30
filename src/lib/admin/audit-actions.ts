@@ -5,7 +5,8 @@
  * tiene una severity fija (no se decide en runtime).
  *
  * Convenciones de target_kind: 'tenant' | 'feature' | 'subscription'
- * | 'user' | 'session' | 'audit_log' (lecturas) | 'metrics'.
+ * | 'user' | 'session' | 'audit_log' (lecturas) | 'metrics'
+ * | 'super_admin' (gestión de cuentas del propio panel).
  */
 
 export type AuditSeverity = "info" | "warning" | "critical";
@@ -69,6 +70,24 @@ export const AUDIT_ACTIONS = {
     description: "Login fallido",
   },
   "super-admin:logout": { severity: "info", description: "Logout super-admin" },
+
+  // Gestión de cuentas super-admin (target_kind='super_admin').
+  "super_admin:list": {
+    severity: "info",
+    description: "Listado de super-admins e invitaciones",
+  },
+  "super_admin:invite": {
+    severity: "warning",
+    description: "Invitar nuevo super-admin por email",
+  },
+  "super_admin:deactivate": {
+    severity: "warning",
+    description: "Desactivar cuenta super-admin",
+  },
+  "super_admin:accept-invite": {
+    severity: "warning",
+    description: "Aceptar invitación y crear cuenta super-admin",
+  },
 } as const satisfies Record<string, AuditActionDef>;
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;
