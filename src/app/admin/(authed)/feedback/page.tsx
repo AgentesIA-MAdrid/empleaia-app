@@ -482,6 +482,9 @@ function DetalleTicket({
                   {m.is_ai ? "Claude" : m.autor === "admin" ? "Equipo" : "Usuario"}
                   {m.internal && <span className="ml-1 rounded bg-amber-200 px-1 text-[10px] text-amber-800">solo equipo</span>}
                   {!m.internal && m.autor === "admin" && <span className="ml-1 rounded bg-emerald-200 px-1 text-[10px] text-emerald-800">enviado al cliente</span>}
+                  <span className="ml-1 font-normal text-slate-400">
+                    {new Date(m.created_at).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </span>
                 </span>
                 <span className="whitespace-pre-wrap text-slate-700">{m.cuerpo}</span>
               </div>
