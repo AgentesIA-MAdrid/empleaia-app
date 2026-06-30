@@ -15,7 +15,7 @@ export interface FeedbackTicket {
   descripcion: string;
   pagina: string;
   screenshot_paths: string[] | null; // ids de FeedbackAdjunto
-  estado: "nuevo" | "en_revision" | "resuelto" | "descartado";
+  estado: "nuevo" | "en_revision" | "en_desarrollo" | "resuelto" | "descartado";
   notas_internas: string | null;
   visto_por_user: boolean;
   created_at: string;
@@ -84,7 +84,7 @@ export interface TicketSummary {
   numero: number;
   tipo: "bug" | "mejora" | "pregunta";
   descripcion: string;
-  estado: "nuevo" | "en_revision" | "resuelto" | "descartado";
+  estado: "nuevo" | "en_revision" | "en_desarrollo" | "resuelto" | "descartado";
   visto_por_user: boolean;
   /** Autor del último mensaje público del hilo (null si no hay respuestas). */
   ultimo_autor: "admin" | "user" | null;

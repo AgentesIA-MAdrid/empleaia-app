@@ -384,6 +384,7 @@ enum FeedbackTipo {
 enum FeedbackEstado {
   nuevo
   en_revision
+  en_desarrollo
   resuelto
   descartado
 

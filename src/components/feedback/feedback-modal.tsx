@@ -37,12 +37,14 @@ interface TicketMessage {
 const ESTADO_TEXT: Record<string, string> = {
   nuevo: "text-slate-700",
   en_revision: "text-blue-600",
+  en_desarrollo: "text-indigo-600",
   resuelto: "text-emerald-600",
   descartado: "text-slate-400",
 };
 const ESTADO_LABEL: Record<string, string> = {
   nuevo: "Nuevo",
   en_revision: "En revisión",
+  en_desarrollo: "En desarrollo",
   resuelto: "Resuelto",
   descartado: "Descartado",
 };
@@ -57,6 +59,11 @@ const TIPO_LABEL: Record<Tipo, string> = {
 function estadoVista(t: { estado: string; ultimo_autor?: "admin" | "user" | null }): { label: string; cls: string } {
   if (t.estado === "resuelto" || t.estado === "descartado") {
     return { label: ESTADO_LABEL[t.estado] ?? t.estado, cls: ESTADO_TEXT[t.estado] ?? "text-slate-700" };
+  }
+  // En desarrollo: estado propio que siempre se muestra (el equipo lo está
+  // implementando), tenga o no respuesta del equipo en el hilo.
+  if (t.estado === "en_desarrollo") {
+    return { label: "En desarrollo", cls: "text-indigo-600" };
   }
   // El equipo escribió lo último → el usuario tiene respuesta que leer.
   if (t.ultimo_autor === "admin") {

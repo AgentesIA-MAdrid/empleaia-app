@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 type Tipo = "bug" | "mejora" | "pregunta";
-type Estado = "nuevo" | "en_revision" | "resuelto" | "descartado";
+type Estado = "nuevo" | "en_revision" | "en_desarrollo" | "resuelto" | "descartado";
 type JobStatus = "encolado" | "ejecutando" | "pr_abierto" | "desplegado" | "sin_cambios" | "fallido";
 
 interface AdminTicket {
@@ -49,6 +49,7 @@ const TIPO_LABEL: Record<Tipo, string> = { bug: "Bug", mejora: "Mejora", pregunt
 const ESTADO_BADGE: Record<Estado, string> = {
   nuevo: "bg-amber-100 text-amber-700",
   en_revision: "bg-sky-100 text-sky-700",
+  en_desarrollo: "bg-indigo-100 text-indigo-700",
   resuelto: "bg-emerald-100 text-emerald-700",
   descartado: "bg-slate-100 text-slate-500",
 };
@@ -143,7 +144,7 @@ export default function AdminFeedbackPage() {
         <select value={fEstado} onChange={(e) => setFEstado(e.target.value)} className="rounded-md border border-slate-200 px-3 py-1.5 text-sm">
           <option value="_activos">Pendientes (sin resueltos ni descartados)</option>
           <option value="_todos">Todos los estados</option>
-          {(["nuevo", "en_revision", "resuelto", "descartado"] as Estado[]).map((e) => <option key={e} value={e}>{e}</option>)}
+          {(["nuevo", "en_revision", "en_desarrollo", "resuelto", "descartado"] as Estado[]).map((e) => <option key={e} value={e}>{e}</option>)}
         </select>
         <select value={fJob} onChange={(e) => setFJob(e.target.value)} className="rounded-md border border-slate-200 px-3 py-1.5 text-sm">
           <option value="">Claude: todos</option>
@@ -480,6 +481,9 @@ function DetalleTicket({
 
           {/* Acciones de estado */}
           <div className="flex gap-2 border-t border-slate-100 pt-3">
+            <Button size="sm" variant="outline" className="border-indigo-200 text-indigo-600" onClick={() => cambiarEstado("en_desarrollo")} disabled={busy}>
+              <Bot className="mr-1.5 h-4 w-4" /> En desarrollo
+            </Button>
             <Button size="sm" variant="outline" className="text-emerald-600" onClick={() => cambiarEstado("resuelto")} disabled={busy}>
               <CheckCircle2 className="mr-1.5 h-4 w-4" /> Resuelto
             </Button>

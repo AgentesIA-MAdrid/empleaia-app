@@ -7,7 +7,7 @@ import { sendResolutionEmail } from "@/lib/feedback/send-emails";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const patchSchema = z.object({
-  estado: z.enum(["nuevo", "en_revision", "resuelto", "descartado"]).optional(),
+  estado: z.enum(["nuevo", "en_revision", "en_desarrollo", "resuelto", "descartado"]).optional(),
   notas_internas: z.string().max(5000).optional(),
 });
 
