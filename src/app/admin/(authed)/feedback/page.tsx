@@ -159,7 +159,7 @@ export default function AdminFeedbackPage() {
         )}
       </div>
 
-      {sel && <DetalleTicket ticket={sel} onClose={() => setSel(null)} onChanged={cargar} toast={toast} />}
+      {sel && <DetalleTicket ticket={sel} onClose={() => { setSel(null); cargar(); }} onChanged={cargar} toast={toast} />}
     </div>
   );
 }
@@ -231,6 +231,7 @@ function DetalleTicket({
         toast({ variant: "success", title: "Job encolado — Claude está en ello" });
         setComposer("");
         await cargarJob();
+        onChanged();
       } else {
         const r = await fetch(`/api/admin/feedback/${ticket.id}/messages`, {
           method: "POST",
@@ -261,6 +262,7 @@ function DetalleTicket({
       }
       toast({ variant: "success", title: "Job encolado" });
       await cargarJob();
+      onChanged();
     } finally {
       setBusy(false);
     }
