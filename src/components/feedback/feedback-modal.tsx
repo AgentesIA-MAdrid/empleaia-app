@@ -16,6 +16,7 @@ const TIPO_OPTIONS: { value: Tipo; label: string }[] = [
 
 interface TicketSummary {
   id: string;
+  numero?: number;
   tipo: Tipo;
   descripcion: string;
   estado: string;
@@ -363,7 +364,10 @@ export function FeedbackModal({
                       })()}
                     </div>
                     <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-900">{t.descripcion}</p>
-                    <p className="mt-1.5 text-xs text-slate-400">{fmtFecha(t.created_at)}</p>
+                    <p className="mt-1.5 text-xs text-slate-400">
+                      {t.numero != null && <span className="mr-1.5">#{String(t.numero).padStart(4, "0")}</span>}
+                      {fmtFecha(t.created_at)}
+                    </p>
                   </button>
                   {expandedId === t.id && (
                     <div className="border-t border-slate-100 p-3">

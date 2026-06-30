@@ -8,6 +8,7 @@ import { canEnqueue, applyJobEvent, type JobStatus } from "@/lib/feedback/ai-job
 
 export interface FeedbackTicket {
   id: string;
+  numero: number;
   org_id: string; // = tenantId
   user_id: string | null;
   tipo: "bug" | "mejora" | "pregunta";
@@ -27,6 +28,7 @@ const ISO = (d: Date): string => d.toISOString();
 function toTicket(t: any): FeedbackTicket {
   return {
     id: t.id,
+    numero: t.numero,
     org_id: t.tenantId,
     user_id: t.userId ?? null,
     tipo: t.tipo,
@@ -79,6 +81,7 @@ export async function createTicket(
 
 export interface TicketSummary {
   id: string;
+  numero: number;
   tipo: "bug" | "mejora" | "pregunta";
   descripcion: string;
   estado: "nuevo" | "en_revision" | "resuelto" | "descartado";
@@ -95,6 +98,7 @@ export async function listByUser(userId: string): Promise<TicketSummary[]> {
     take: 50,
     select: {
       id: true,
+      numero: true,
       tipo: true,
       descripcion: true,
       estado: true,
@@ -111,6 +115,7 @@ export async function listByUser(userId: string): Promise<TicketSummary[]> {
   });
   return rows.map((r) => ({
     id: r.id,
+    numero: r.numero,
     tipo: r.tipo,
     descripcion: r.descripcion,
     estado: r.estado,

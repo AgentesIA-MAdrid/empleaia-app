@@ -422,6 +422,7 @@ enum FeedbackJobPhase {
 
 model FeedbackTicket {
   id            String                  @id @default(uuid())
+  numero        Int                     @unique @default(autoincrement())
   tenantId      String                  @map("tenant_id")
   tenant        Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   /// Usuario del schema tenant que reportó (sin FK cross-schema) + denormalizado.

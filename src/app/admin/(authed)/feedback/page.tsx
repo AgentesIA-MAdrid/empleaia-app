@@ -13,6 +13,7 @@ type JobStatus = "encolado" | "ejecutando" | "pr_abierto" | "desplegado" | "sin_
 
 interface AdminTicket {
   id: string;
+  numero?: number;
   tipo: Tipo;
   descripcion: string;
   pagina: string;
@@ -116,6 +117,7 @@ export default function AdminFeedbackPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
+                <th className="px-4 py-3 text-left">#</th>
                 <th className="px-4 py-3 text-left">Empresa / Usuario</th>
                 <th className="px-4 py-3 text-left">Tipo</th>
                 <th className="px-4 py-3 text-left">Descripción</th>
@@ -127,6 +129,7 @@ export default function AdminFeedbackPage() {
             <tbody className="divide-y divide-slate-100">
               {tickets.map((t) => (
                 <tr key={t.id} onClick={() => setSel(t)} className="cursor-pointer hover:bg-slate-50">
+                  <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-400">{t.numero != null ? `#${String(t.numero).padStart(4, "0")}` : "—"}</td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-slate-800">{t.org_nombre || "—"}</div>
                     <div className="text-xs text-slate-400">{t.user_name || t.user_email || "—"}</div>
@@ -314,6 +317,7 @@ function DetalleTicket({
       <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
+            {ticket.numero != null && <span className="font-mono text-xs text-slate-400">#{String(ticket.numero).padStart(4, "0")}</span>}
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">{TIPO_LABEL[ticket.tipo]}</span>
             {ticket.org_nombre || "—"}
           </DialogTitle>
