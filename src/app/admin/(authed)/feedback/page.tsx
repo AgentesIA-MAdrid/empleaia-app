@@ -368,6 +368,40 @@ function DetalleTicket({
     }
   };
 
+  // "En desarrollo": marca el ticket como proceso del equipo Y lo manda a Claude
+  // con instrucción explícita de implementar (aunque sea grande), no solo
+  // diagnosticar. El cliente verá "En desarrollo" en su panel; sin email.
+  const marcarEnDesarrollo = async () => {
+    setBusy(true);
+    try {
+      await fetch(`/api/admin/feedback/${ticket.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado: "en_desarrollo" }),
+      });
+      const r = await fetch(`/api/admin/feedback/${ticket.id}/resolve-ia`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt_override:
+            "Implementa lo que pide el usuario en este ticket; revisa TODA la conversación, " +
+            "incluidas sus aclaraciones. Hazlo aunque sea una mejora grande o de varias piezas: " +
+            "NO te limites a diagnosticar ni te frenes por el tamaño — implementa la solución " +
+            "completa y abre un PR.",
+        }),
+      });
+      if (!r.ok && r.status !== 409) {
+        toast({ variant: "destructive", title: "Marcado en desarrollo, pero no se pudo lanzar a Claude" });
+      } else {
+        toast({ variant: "success", title: "En desarrollo — enviado a Claude para implementar" });
+      }
+      onChanged();
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const screenshots = ticket.screenshot_paths ?? [];
   const jobLive = job && LIVE.includes(job.status);
 
@@ -481,9 +515,18 @@ function DetalleTicket({
 
           {/* Acciones de estado */}
           <div className="flex gap-2 border-t border-slate-100 pt-3">
-            <Button size="sm" variant="outline" className="border-indigo-200 text-indigo-600" onClick={() => cambiarEstado("en_desarrollo")} disabled={busy}>
-              <Bot className="mr-1.5 h-4 w-4" /> En desarrollo
-            </Button>
+            {ticket.estado !== "resuelto" && ticket.estado !== "descartado" && ticket.estado !== "en_desarrollo" && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-indigo-200 text-indigo-600"
+                onClick={marcarEnDesarrollo}
+                disabled={busy}
+                title="Marca el ticket como proceso del equipo y lo manda a Claude para que lo implemente"
+              >
+                <Bot className="mr-1.5 h-4 w-4" /> En desarrollo → Claude
+              </Button>
+            )}
             <Button size="sm" variant="outline" className="text-emerald-600" onClick={() => cambiarEstado("resuelto")} disabled={busy}>
               <CheckCircle2 className="mr-1.5 h-4 w-4" /> Resuelto
             </Button>
