@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { CheckCircle, XCircle, Calendar, AlertCircle, Plus } from "lucide-react";
+import { CheckCircle, XCircle, Calendar, AlertCircle, Plus, ChevronDown, Search, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -46,6 +46,88 @@ const ESTADO = {
   RECHAZADA: { label: "Rechazada", color: "bg-red-100 text-red-700" },
   CANCELADA: { label: "Cancelada", color: "bg-slate-100 text-slate-600" },
 };
+
+/**
+ * Selector de empleado con búsqueda y orden alfabético. A nivel de módulo
+ * (evita la regla react-hooks/static-components).
+ */
+function EmpleadoCombobox({
+  empleados,
+  value,
+  onChange,
+}: {
+  empleados: Empleado[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const candidatos = empleados
+    .slice()
+    .sort((a, b) =>
+      `${a.nombre} ${a.apellidos}`.localeCompare(`${b.nombre} ${b.apellidos}`, "es"),
+    );
+  const filtrados = q
+    ? candidatos.filter((e) =>
+        `${e.nombre} ${e.apellidos}`.toLowerCase().includes(q.toLowerCase()),
+      )
+    : candidatos;
+  const sel = candidatos.find((e) => e.id === value);
+  return (
+    <div className="relative mt-1">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
+      >
+        <span className={cn("truncate", !sel && "text-slate-400")}>
+          {sel ? `${sel.nombre} ${sel.apellidos}` : "Selecciona empleado..."}
+        </span>
+        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background shadow-lg">
+            <div className="border-b border-slate-100 p-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  autoFocus
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Buscar empleado…"
+                  className="w-full rounded-md border border-input bg-background py-1.5 pl-8 pr-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                />
+              </div>
+            </div>
+            <div className="max-h-56 overflow-y-auto py-1">
+              {filtrados.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => { onChange(e.id); setOpen(false); setQ(""); }}
+                  className={cn(
+                    "flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm hover:bg-slate-50",
+                    e.id === value && "bg-slate-50",
+                  )}
+                >
+                  <span className="truncate">
+                    {e.nombre} {e.apellidos}
+                  </span>
+                  {e.id === value && <Check className="h-4 w-4 shrink-0 text-[var(--primary)]" />}
+                </button>
+              ))}
+              {filtrados.length === 0 && (
+                <p className="px-3 py-2 text-sm text-slate-400">Sin resultados</p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function AdminAusenciasPage() {
   const { toast } = useToast();
@@ -265,18 +347,11 @@ export default function AdminAusenciasPage() {
           <div className="space-y-4 py-2">
             <div>
               <Label>Empleado</Label>
-              <Select value={form.userId} onValueChange={(v) => setForm((f) => ({ ...f, userId: v }))}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Selecciona empleado..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {empleados.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {e.nombre} {e.apellidos}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <EmpleadoCombobox
+                empleados={empleados}
+                value={form.userId}
+                onChange={(v) => setForm((f) => ({ ...f, userId: v }))}
+              />
             </div>
             <div>
               <Label>Tipo de ausencia</Label>
