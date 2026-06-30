@@ -12,6 +12,7 @@ import { withSuperAdmin } from "@/lib/admin/with-super-admin";
 import { currentSuperAdmin } from "@/lib/admin/context";
 import { writeAuditEntry, extractRequestMeta } from "@/lib/admin/audit";
 import { sendSystemEmail } from "@/lib/email";
+import { getRootDomain } from "@/lib/tenant/urls";
 import {
   adminInvitationSubject,
   adminInvitationTemplate,
@@ -20,15 +21,17 @@ import {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
- * Origen del panel (admin.<root>). Construido desde las cabeceras del
- * proxy (x-forwarded-*) con fallback a Host. NO se usa req.url porque
- * detrás del proxy es el host interno (0.0.0.0:3000).
+ * Origen del panel (admin.<root>). Se FIJA desde TENANT_ROOT_DOMAIN, NO de
+ * las cabeceras de la request: este enlace viaja por email, así que un Host
+ * manipulado podría dirigir al invitado (con un token válido) a un dominio
+ * de phishing. El dominio del panel es de confianza del servidor.
  */
-function adminBaseUrl(headers: Headers): string {
-  const proto = headers.get("x-forwarded-proto") ?? "https";
-  const host =
-    headers.get("x-forwarded-host") ?? headers.get("host") ?? "empleaia.es";
-  return `${proto}://${host}`;
+function adminBaseUrl(): string {
+  const root = getRootDomain();
+  const isLocal = root === "localhost" || root.includes("localhost");
+  const proto = isLocal ? "http" : "https";
+  const port = isLocal ? ":3000" : "";
+  return `${proto}://admin.${root}${port}`;
 }
 
 export const POST = withSuperAdmin(async (req: NextRequest) => {
@@ -72,7 +75,7 @@ export const POST = withSuperAdmin(async (req: NextRequest) => {
     data: { email, role, token, invitedById: sa.id, expiresAt },
   });
 
-  const acceptUrl = `${adminBaseUrl(req.headers)}/admin/aceptar-invitacion?token=${token}`;
+  const acceptUrl = `${adminBaseUrl()}/admin/aceptar-invitacion?token=${token}`;
 
   try {
     await sendSystemEmail(
