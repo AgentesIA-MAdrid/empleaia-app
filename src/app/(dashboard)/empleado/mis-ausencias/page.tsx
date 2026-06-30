@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Calendar, X, CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
+import { Plus, Calendar, X, CheckCircle, XCircle, Clock, AlertCircle, List, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CalendarioAusencias, type FestivoCal } from "@/components/ausencias/calendario-ausencias";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -51,6 +52,8 @@ const TABS = ["Todas", "Pendiente", "Aprobada", "Rechazada"] as const;
 export default function MisAusenciasPage() {
   const { toast } = useToast();
   const [ausencias, setAusencias] = useState<Ausencia[]>([]);
+  const [festivos, setFestivos] = useState<FestivoCal[]>([]);
+  const [vista, setVista] = useState<"lista" | "calendario">("lista");
   const [tipos, setTipos] = useState<TipoAusencia[]>([]);
   const [loading, setLoading] = useState(true);
   const [tabActiva, setTabActiva] = useState<(typeof TABS)[number]>("Todas");
@@ -78,7 +81,18 @@ export default function MisAusenciasPage() {
     }
   }, []);
 
+  const fetchFestivos = useCallback(async () => {
+    try {
+      const res = await fetch("/api/festivos?scope=me");
+      const data = await res.json();
+      setFestivos(data?.festivos ?? []);
+    } catch {
+      // la lista sigue funcionando aunque falle el calendario
+    }
+  }, []);
+
   useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchFestivos(); }, [fetchFestivos]);
 
   const ausenciasFiltradas = ausencias.filter((a) =>
     tabActiva === "Todas" ? true : a.estado === tabActiva.toUpperCase()
@@ -146,31 +160,57 @@ export default function MisAusenciasPage() {
         </Button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
-        {TABS.map((tab) => (
+      {/* Tabs + toggle de vista */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        {vista === "lista" ? (
+          <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+            {TABS.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setTabActiva(tab)}
+                className={cn(
+                  "px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
+                  tabActiva === tab
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                {tab}
+                {tab !== "Todas" && (
+                  <span className="ml-1.5 text-xs">
+                    ({ausencias.filter((a) => a.estado === tab.toUpperCase()).length})
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        ) : <div />}
+        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
           <button
-            key={tab}
-            onClick={() => setTabActiva(tab)}
+            onClick={() => setVista("lista")}
             className={cn(
-              "px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
-              tabActiva === tab
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
+              "px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5",
+              vista === "lista" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
             )}
           >
-            {tab}
-            {tab !== "Todas" && (
-              <span className="ml-1.5 text-xs">
-                ({ausencias.filter((a) => a.estado === tab.toUpperCase()).length})
-              </span>
-            )}
+            <List className="h-4 w-4" /> Lista
           </button>
-        ))}
+          <button
+            onClick={() => setVista("calendario")}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5",
+              vista === "calendario" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            )}
+          >
+            <CalendarDays className="h-4 w-4" /> Calendario
+          </button>
+        </div>
       </div>
 
-      {/* Lista */}
-      {loading ? (
+      {/* Lista / Calendario */}
+      {vista === "calendario" ? (
+        <CalendarioAusencias ausencias={ausencias} festivos={festivos} />
+      ) : loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-24 bg-slate-100 rounded-xl animate-pulse" />

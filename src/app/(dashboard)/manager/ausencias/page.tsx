@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { CheckCircle, XCircle, Clock, Calendar, AlertCircle } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Calendar, AlertCircle, List, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CalendarioAusencias, type FestivoCal } from "@/components/ausencias/calendario-ausencias";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -35,6 +36,8 @@ const ESTADO = {
 export default function ManagerAusenciasPage() {
   const { toast } = useToast();
   const [ausencias, setAusencias] = useState<Ausencia[]>([]);
+  const [festivos, setFestivos] = useState<FestivoCal[]>([]);
+  const [vista, setVista] = useState<"lista" | "calendario">("lista");
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("PENDIENTE");
   const [rechazarId, setRechazarId] = useState<string | null>(null);
@@ -52,7 +55,18 @@ export default function ManagerAusenciasPage() {
     }
   }, []);
 
+  const fetchFestivos = useCallback(async () => {
+    try {
+      const res = await fetch("/api/festivos?scope=me");
+      const data = await res.json();
+      setFestivos(data?.festivos ?? []);
+    } catch {
+      // la lista sigue funcionando aunque falle el calendario
+    }
+  }, []);
+
   useEffect(() => { fetchAusencias(); }, [fetchAusencias]);
+  useEffect(() => { fetchFestivos(); }, [fetchFestivos]);
 
   const filtradas = ausencias.filter((a) =>
     tab === "TODAS" ? a.estado !== "CANCELADA" : a.estado === tab
@@ -90,28 +104,54 @@ export default function ManagerAusenciasPage() {
         <p className="text-slate-500 text-sm mt-1">Gestiona las solicitudes de ausencia de tu equipo</p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit flex-wrap">
-        {TABS.map((t) => (
+      {/* Tabs + toggle de vista */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        {vista === "lista" ? (
+          <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit flex-wrap">
+            {TABS.map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={cn(
+                  "px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5",
+                  tab === t ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                {t === "PENDIENTE" ? "Pendientes" : t === "APROBADA" ? "Aprobadas" : t === "RECHAZADA" ? "Rechazadas" : "Todas"}
+                {t === "PENDIENTE" && pendientesCount > 0 && (
+                  <span className="bg-amber-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {pendientesCount}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        ) : <div />}
+        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            onClick={() => setVista("lista")}
             className={cn(
-              "px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5",
-              tab === t ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              "px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5",
+              vista === "lista" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
             )}
           >
-            {t === "PENDIENTE" ? "Pendientes" : t === "APROBADA" ? "Aprobadas" : t === "RECHAZADA" ? "Rechazadas" : "Todas"}
-            {t === "PENDIENTE" && pendientesCount > 0 && (
-              <span className="bg-amber-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {pendientesCount}
-              </span>
-            )}
+            <List className="h-4 w-4" /> Lista
           </button>
-        ))}
+          <button
+            onClick={() => setVista("calendario")}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5",
+              vista === "calendario" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            )}
+          >
+            <CalendarDays className="h-4 w-4" /> Calendario
+          </button>
+        </div>
       </div>
 
-      {loading ? (
+      {vista === "calendario" ? (
+        <CalendarioAusencias ausencias={ausencias} festivos={festivos} />
+      ) : loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-28 bg-slate-100 rounded-xl animate-pulse" />
