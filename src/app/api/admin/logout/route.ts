@@ -23,13 +23,16 @@ export const POST = withSuperAdmin(async (req) => {
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
   });
-  // Detrás del proxy (Traefik/Dokploy), req.url lleva el host interno del
-  // contenedor (0.0.0.0:3000) → un redirect con él rompe (ERR_SSL_PROTOCOL).
-  // Construimos la URL con el host/proto reenviados por el proxy.
-  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "";
-  const proto = req.headers.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
-  const loginUrl = host ? `${proto}://${host}/admin/login` : new URL("/admin/login", req.url).toString();
-  const res = NextResponse.redirect(loginUrl, { status: 303 });
+  // Redirect con Location RELATIVO (RFC 7231 §7.1.2). El navegador lo resuelve
+  // contra el origen actual (admin.empleaia.es), así que:
+  //  - no depende de req.url (que detrás del proxy es el host interno
+  //    0.0.0.0:3000 → ERR_SSL_PROTOCOL_ERROR), y
+  //  - no confía en el header Host (evita open-redirect por host injection).
+  // No usamos NextResponse.redirect porque exige URL absoluta.
+  const res = new NextResponse(null, {
+    status: 303,
+    headers: { Location: "/admin/login" },
+  });
   res.cookies.set(ADMIN_COOKIE_NAME, "", {
     httpOnly: true,
     path: "/",
