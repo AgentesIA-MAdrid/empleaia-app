@@ -135,13 +135,20 @@ export default function AdminFeedbackPage() {
                   <td className="max-w-xs truncate px-4 py-3 text-slate-600">{t.descripcion}</td>
                   <td className="px-4 py-3">
                     <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", ESTADO_BADGE[t.estado])}>{t.estado}</span>
-                    {(t.estado === "nuevo" || t.estado === "en_revision") && (
-                      t.ultimo_autor === "user"
-                        ? <span className="ml-1.5 text-xs font-semibold text-yellow-600">● cliente respondió</span>
-                        : t.ultimo_autor === "admin"
-                        ? <span className="ml-1.5 text-xs font-medium text-orange-500">✓ respondido</span>
-                        : <span className="ml-1.5 text-xs text-slate-400">sin responder</span>
-                    )}
+                    {(t.estado === "nuevo" || t.estado === "en_revision") && (() => {
+                      // Si Claude está atendiéndolo (o ya abrió PR / desplegó), la
+                      // pelota la tiene Claude → no avisar "cliente respondió".
+                      const claudeActivo = t.ai_job_status
+                        ? ["encolado", "ejecutando", "pr_abierto", "desplegado"].includes(t.ai_job_status)
+                        : false;
+                      if (t.ultimo_autor === "user" && !claudeActivo)
+                        return <span className="ml-1.5 text-xs font-semibold text-yellow-600">● cliente respondió</span>;
+                      if (t.ultimo_autor === "admin")
+                        return <span className="ml-1.5 text-xs font-medium text-orange-500">✓ respondido</span>;
+                      if (t.ultimo_autor === null && !claudeActivo)
+                        return <span className="ml-1.5 text-xs text-slate-400">sin responder</span>;
+                      return null;
+                    })()}
                   </td>
                   <td className="px-4 py-3">{t.ai_job_status && <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", JOB_BADGE[t.ai_job_status])}>{t.ai_job_status}</span>}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-400">{fmt(t.created_at)}</td>
