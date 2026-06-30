@@ -69,26 +69,42 @@ export default function AdminFeedbackPage() {
   const { toast } = useToast();
   const [tickets, setTickets] = useState<AdminTicket[]>([]);
   const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
   const [fTipo, setFTipo] = useState("");
-  const [fEstado, setFEstado] = useState("");
+  const [fEstado, setFEstado] = useState("_activos"); // por defecto, sin resueltos
+  const [fJob, setFJob] = useState("");
   const [sel, setSel] = useState<AdminTicket | null>(null);
 
+  // Carga TODOS los tickets; el filtrado es en cliente (búsqueda + columnas).
   const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const p = new URLSearchParams();
-      if (fTipo) p.set("tipo", fTipo);
-      if (fEstado) p.set("estado", fEstado);
-      const r = await fetch(`/api/admin/feedback?${p}`);
+      const r = await fetch(`/api/admin/feedback`);
       if (r.ok) setTickets(await r.json());
     } finally {
       setLoading(false);
     }
-  }, [fTipo, fEstado]);
+  }, []);
 
   useEffect(() => {
     cargar();
   }, [cargar]);
+
+  const ql = q.trim().toLowerCase();
+  const filtrados = tickets.filter((t) => {
+    if (fTipo && t.tipo !== fTipo) return false;
+    if (fEstado === "_activos") { if (t.estado === "resuelto") return false; }
+    else if (fEstado !== "_todos" && fEstado && t.estado !== fEstado) return false;
+    if (fJob === "_sin") { if (t.ai_job_status) return false; }
+    else if (fJob && t.ai_job_status !== fJob) return false;
+    if (ql) {
+      const num = `#${String(t.numero ?? 0).padStart(4, "0")}`;
+      const hay = [num, String(t.numero ?? ""), t.org_nombre, t.user_name, t.user_email, t.descripcion]
+        .some((s) => (s ?? "").toLowerCase().includes(ql));
+      if (!hay) return false;
+    }
+    return true;
+  });
 
   return (
     <div className="mx-auto max-w-7xl p-6">
@@ -98,21 +114,33 @@ export default function AdminFeedbackPage() {
       </div>
 
       <div className="mb-4 flex gap-2">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Buscar (nº, empresa, usuario, texto)…"
+          className="min-w-[16rem] flex-1 rounded-md border border-slate-200 px-3 py-1.5 text-sm"
+        />
         <select value={fTipo} onChange={(e) => setFTipo(e.target.value)} className="rounded-md border border-slate-200 px-3 py-1.5 text-sm">
           <option value="">Todos los tipos</option>
           {(["bug", "mejora", "pregunta"] as Tipo[]).map((t) => <option key={t} value={t}>{TIPO_LABEL[t]}</option>)}
         </select>
         <select value={fEstado} onChange={(e) => setFEstado(e.target.value)} className="rounded-md border border-slate-200 px-3 py-1.5 text-sm">
-          <option value="">Todos los estados</option>
+          <option value="_activos">Sin resueltos</option>
+          <option value="_todos">Todos los estados</option>
           {(["nuevo", "en_revision", "resuelto", "descartado"] as Estado[]).map((e) => <option key={e} value={e}>{e}</option>)}
+        </select>
+        <select value={fJob} onChange={(e) => setFJob(e.target.value)} className="rounded-md border border-slate-200 px-3 py-1.5 text-sm">
+          <option value="">Claude: todos</option>
+          <option value="_sin">Sin job</option>
+          {(["encolado", "ejecutando", "pr_abierto", "desplegado", "sin_cambios", "fallido"] as JobStatus[]).map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-[var(--primary)]" /></div>
-        ) : tickets.length === 0 ? (
-          <p className="py-16 text-center text-slate-400">No hay tickets.</p>
+        ) : filtrados.length === 0 ? (
+          <p className="py-16 text-center text-slate-400">{tickets.length === 0 ? "No hay tickets." : "Ningún ticket coincide con los filtros."}</p>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
@@ -127,7 +155,7 @@ export default function AdminFeedbackPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {tickets.map((t) => (
+              {filtrados.map((t) => (
                 <tr key={t.id} onClick={() => setSel(t)} className="cursor-pointer hover:bg-slate-50">
                   <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-400">{t.numero != null ? `#${String(t.numero).padStart(4, "0")}` : "—"}</td>
                   <td className="px-4 py-3">
