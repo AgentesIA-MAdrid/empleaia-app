@@ -58,7 +58,7 @@ function estadoVista(t: { estado: string; respondido?: boolean }): { label: stri
     return { label: ESTADO_LABEL[t.estado] ?? t.estado, cls: ESTADO_TEXT[t.estado] ?? "text-slate-700" };
   }
   if (t.respondido) {
-    return { label: "Respondido", cls: "text-emerald-600" };
+    return { label: "Respondido", cls: "text-orange-500" };
   }
   return { label: ESTADO_LABEL[t.estado] ?? t.estado, cls: ESTADO_TEXT[t.estado] ?? "text-slate-700" };
 }

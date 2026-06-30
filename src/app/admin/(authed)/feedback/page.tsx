@@ -136,7 +136,7 @@ export default function AdminFeedbackPage() {
                   <td className="px-4 py-3">
                     <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", ESTADO_BADGE[t.estado])}>{t.estado}</span>
                     {t.respondido
-                      ? <span className="ml-1.5 text-xs font-medium text-emerald-600">✓ respondido</span>
+                      ? <span className="ml-1.5 text-xs font-medium text-orange-500">✓ respondido</span>
                       : (t.estado === "nuevo" || t.estado === "en_revision") && <span className="ml-1.5 text-xs text-slate-400">sin responder</span>}
                   </td>
                   <td className="px-4 py-3">{t.ai_job_status && <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", JOB_BADGE[t.ai_job_status])}>{t.ai_job_status}</span>}</td>
