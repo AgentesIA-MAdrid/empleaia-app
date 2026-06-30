@@ -90,6 +90,22 @@ export default function AdminFeedbackPage() {
     cargar();
   }, [cargar]);
 
+  // Reintentar un ticket cuyo job de Claude quedó fallido: reencola un job
+  // nuevo (resolve-ia hace dedupe; como el job está terminal, deja encolar).
+  const reintentar = async (ticketId: string) => {
+    const r = await fetch(`/api/admin/feedback/${ticketId}/resolve-ia`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    if (!r.ok) {
+      toast({ variant: "destructive", title: r.status === 409 ? "Ya hay un job activo" : "No se pudo reintentar" });
+      return;
+    }
+    toast({ variant: "success", title: "Reintentando con Claude…" });
+    cargar();
+  };
+
   const ql = q.trim().toLowerCase();
   const filtrados = tickets.filter((t) => {
     if (fTipo && t.tipo !== fTipo) return false;
@@ -181,7 +197,18 @@ export default function AdminFeedbackPage() {
                       return null;
                     })()}
                   </td>
-                  <td className="px-4 py-3">{t.ai_job_status && <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", JOB_BADGE[t.ai_job_status])}>{t.ai_job_status}</span>}</td>
+                  <td className="px-4 py-3">
+                    {t.ai_job_status && <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", JOB_BADGE[t.ai_job_status])}>{t.ai_job_status}</span>}
+                    {t.ai_job_status === "fallido" && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); reintentar(t.id); }}
+                        title="Reintentar con Claude"
+                        className="ml-1.5 inline-flex items-center gap-1 rounded-md border border-slate-200 px-1.5 py-0.5 text-xs text-slate-600 hover:bg-slate-50"
+                      >
+                        <RefreshCw className="h-3 w-3" /> Reintentar
+                      </button>
+                    )}
+                  </td>
                   <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-400">{fmt(t.created_at)}</td>
                 </tr>
               ))}
