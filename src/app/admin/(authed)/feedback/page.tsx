@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Bot, Send, CheckCircle2, XCircle, RefreshCw, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -240,6 +240,7 @@ function DetalleTicket({
   const [messages, setMessages] = useState<Msg[]>([]);
   const [job, setJob] = useState<AiJob | null>(null);
   const [events, setEvents] = useState<JobEvent[]>([]);
+  const eventsEndRef = useRef<HTMLLIElement>(null);
   const [resumenAdjunto, setResumenAdjunto] = useState<string | null>(null);
   const [composer, setComposer] = useState("");
   const [modo, setModo] = useState<"interna" | "cliente" | "claude">("cliente");
@@ -267,12 +268,18 @@ function DetalleTicket({
     cargarJob();
   }, [cargarHilo, cargarJob]);
 
-  // Poll del job mientras esté vivo.
+  // Poll del job mientras esté vivo. Más frecuente para que el detalle de
+  // actividad de Claude se vea casi en tiempo real.
   useEffect(() => {
     if (!job || !LIVE.includes(job.status)) return;
-    const id = setInterval(() => { cargarJob(); cargarHilo(); }, 5000);
+    const id = setInterval(() => { cargarJob(); cargarHilo(); }, 3000);
     return () => clearInterval(id);
   }, [job, cargarJob, cargarHilo]);
+
+  // Auto-scroll de la traza de actividad al último evento.
+  useEffect(() => {
+    eventsEndRef.current?.scrollIntoView({ block: "nearest" });
+  }, [events]);
 
   const enviar = async () => {
     // En modo Claude se puede lanzar sin texto (Claude recibe toda la
@@ -403,7 +410,6 @@ function DetalleTicket({
   };
 
   const screenshots = ticket.screenshot_paths ?? [];
-  const jobLive = job && LIVE.includes(job.status);
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -443,9 +449,17 @@ function DetalleTicket({
                 <Button size="sm" onClick={lanzarClaude} disabled={busy}>Lanzar</Button>
               )}
             </div>
-            {jobLive && events.length > 0 && (
-              <ul className="mt-2 space-y-0.5 text-xs text-indigo-700">
-                {events.map((e) => <li key={e.id}>· {e.phase}{e.detail ? ` — ${e.detail}` : ""}</li>)}
+            {events.length > 0 && (
+              <ul className="mt-2 max-h-44 space-y-0.5 overflow-y-auto text-xs text-indigo-700">
+                {events.slice(-50).map((e) => (
+                  <li key={e.id} className="flex gap-1.5">
+                    <span className="shrink-0 tabular-nums text-indigo-400">
+                      {new Date(e.created_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                    </span>
+                    <span className="break-all">{e.detail || e.phase}</span>
+                  </li>
+                ))}
+                <li ref={eventsEndRef} aria-hidden className="h-0" />
               </ul>
             )}
             {job?.pr_url && (

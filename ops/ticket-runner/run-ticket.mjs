@@ -80,24 +80,87 @@ async function progress(jobId, phase, detail) {
   }
 }
 
+// Traduce una llamada a herramienta de Claude a una línea legible para el panel.
+function describeTool(name, input = {}) {
+  const raw = input.file_path || input.path || input.notebook_path || "";
+  // Recorta a partir de la carpeta raíz conocida para que quepa y se lea bien.
+  const m = raw.match(/(?:^|\/)((?:src|ops|prisma|public|scripts|docs)\/.*)$/);
+  const f = m ? m[1] : raw;
+  switch (name) {
+    case "Read": return f ? `Leyendo ${f}` : "Leyendo un fichero";
+    case "Edit":
+    case "Write":
+    case "NotebookEdit": return f ? `Editando ${f}` : "Editando un fichero";
+    case "Bash": return `Ejecutando: ${(input.command || "").replace(/\s+/g, " ").slice(0, 90)}`;
+    case "Grep": return `Buscando "${(input.pattern || "").slice(0, 60)}"`;
+    case "Glob": return `Listando ${(input.pattern || "").slice(0, 60)}`;
+    case "Task": return `Subagente: ${(input.description || "").slice(0, 60)}`;
+    case "TodoWrite": return "Planificando los pasos…";
+    case "WebFetch":
+    case "WebSearch": return "Consultando documentación";
+    default: return name ? `Usando ${name}` : "";
+  }
+}
+
 function runClaudeHeartbeat(jobId, args, opts) {
   return new Promise((resolve) => {
     const child = spawn("claude", args, { ...opts });
     let stdout = "";
     let stderr = "";
-    if (child.stdout) child.stdout.on("data", (d) => { stdout += d.toString(); });
+    // Acumuladores del parseo NDJSON (--output-format stream-json):
+    let lineBuf = "";        // resto de línea incompleta entre chunks
+    let resultText = "";     // texto final (evento {type:"result"})
+    let assistantText = "";  // fallback: concatenación de bloques de texto
+    let lastProgressAt = 0;  // throttle suave del POST de progreso
+
+    function handleLine(line) {
+      const s = line.trim();
+      if (!s) return;
+      let ev;
+      try { ev = JSON.parse(s); } catch { return; } // líneas no-JSON: ignorar
+      if (ev.type === "assistant" && Array.isArray(ev.message?.content)) {
+        for (const block of ev.message.content) {
+          if (block.type === "text" && typeof block.text === "string") {
+            assistantText += block.text + "\n";
+          } else if (block.type === "tool_use") {
+            const detail = describeTool(block.name, block.input || {});
+            const now = Date.now();
+            if (detail && now - lastProgressAt > 800) {
+              lastProgressAt = now;
+              void progress(jobId, "analizando", detail);
+            }
+          }
+        }
+      } else if (ev.type === "result" && typeof ev.result === "string") {
+        resultText = ev.result;
+      }
+    }
+
+    if (child.stdout) child.stdout.on("data", (d) => {
+      const chunk = d.toString();
+      stdout += chunk;
+      lineBuf += chunk;
+      let idx;
+      while ((idx = lineBuf.indexOf("\n")) >= 0) {
+        const line = lineBuf.slice(0, idx);
+        lineBuf = lineBuf.slice(idx + 1);
+        handleLine(line);
+      }
+    });
     if (child.stderr) child.stderr.on("data", (d) => { stderr += d.toString(); });
     let timedOut = false;
     const hb = setInterval(() => { void heartbeat(jobId); }, HEARTBEAT_MS);
     const killer = setTimeout(() => { timedOut = true; try { child.kill("SIGKILL"); } catch { /* ya muerto */ } }, JOB_TIMEOUT);
-    child.on("error", (err) => {
+    const finish = (code, extraErr) => {
       clearInterval(hb); clearTimeout(killer);
-      resolve({ code: null, stdout, stderr: `${stderr}\nspawn error: ${err.message}`, timedOut });
-    });
-    child.on("close", (code) => {
-      clearInterval(hb); clearTimeout(killer);
-      resolve({ code, stdout, stderr, timedOut });
-    });
+      if (lineBuf.trim()) handleLine(lineBuf); // última línea sin \n
+      // Texto final para parseClaudeOutput: result event → fallback a textos
+      // del assistant → fallback al stdout crudo (modo print legacy).
+      const finalText = resultText || assistantText.trim() || stdout;
+      resolve({ code, stdout, stderr: extraErr ? `${stderr}\nspawn error: ${extraErr}` : stderr, timedOut, finalText });
+    };
+    child.on("error", (err) => finish(null, err.message));
+    child.on("close", (code) => finish(code));
   });
 }
 
@@ -172,6 +235,12 @@ async function processJob({ job, prompt }) {
         "-p", prompt,
         "--model", CLAUDE_MODEL,
         "--dangerously-skip-permissions",
+        // stream-json (+ --verbose, obligatorio en print mode) hace que Claude
+        // emita NDJSON por stdout: cada tool_use se traduce a un evento de
+        // progreso visible en el panel. El texto final se recupera del evento
+        // {type:"result"} (ver runClaudeHeartbeat → finalText).
+        "--output-format", "stream-json",
+        "--verbose",
         "--append-system-prompt", append,
         ...(existsSync(settings) ? ["--settings", settings] : []),
       ], { cwd: wt, env: { ...process.env } });
@@ -185,7 +254,7 @@ async function processJob({ job, prompt }) {
         });
         return;
       }
-      const parsed = parseClaudeOutput(cl.stdout);
+      const parsed = parseClaudeOutput(cl.finalText);
       diagnostico = parsed.diagnostico;
       resumen = parsed.resumen;
     }
