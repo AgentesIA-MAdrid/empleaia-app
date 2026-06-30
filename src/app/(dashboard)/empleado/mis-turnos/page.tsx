@@ -48,7 +48,7 @@ export default function MisTurnosPage() {
       });
       const res = await fetch(`/api/turnos?${params}`);
       const data = await res.json();
-      setTurnos(data.turnos || []);
+      setTurnos(Array.isArray(data) ? data : (data.turnos || []));
     } catch {
       setTurnos([]);
     } finally {
