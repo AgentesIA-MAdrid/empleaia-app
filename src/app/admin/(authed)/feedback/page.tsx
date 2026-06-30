@@ -532,16 +532,17 @@ function DetalleTicket({
 
           {/* Acciones de estado */}
           <div className="flex gap-2 border-t border-slate-100 pt-3">
-            {ticket.estado !== "resuelto" && ticket.estado !== "descartado" && ticket.estado !== "en_desarrollo" && (
+            {ticket.estado !== "resuelto" && ticket.estado !== "descartado" && (
               <Button
                 size="sm"
                 variant="outline"
                 className="border-indigo-200 text-indigo-600"
                 onClick={marcarEnDesarrollo}
                 disabled={busy}
-                title="Marca el ticket como proceso del equipo y lo manda a Claude para que lo implemente"
+                title="Marca el ticket como proceso del equipo y lo manda a Claude para que lo implemente (aunque sea grande)"
               >
-                <Bot className="mr-1.5 h-4 w-4" /> En desarrollo → Claude
+                <Bot className="mr-1.5 h-4 w-4" />
+                {ticket.estado === "en_desarrollo" ? "Reenviar a Claude (implementar)" : "En desarrollo → Claude"}
               </Button>
             )}
             <Button size="sm" variant="outline" className="text-emerald-600" onClick={() => cambiarEstado("resuelto")} disabled={busy}>
