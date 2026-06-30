@@ -109,7 +109,7 @@ export default function AdminFeedbackPage() {
   const ql = q.trim().toLowerCase();
   const filtrados = tickets.filter((t) => {
     if (fTipo && t.tipo !== fTipo) return false;
-    if (fEstado === "_activos") { if (t.estado === "resuelto") return false; }
+    if (fEstado === "_activos") { if (t.estado === "resuelto" || t.estado === "descartado") return false; }
     else if (fEstado !== "_todos" && fEstado && t.estado !== fEstado) return false;
     if (fJob === "_sin") { if (t.ai_job_status) return false; }
     else if (fJob && t.ai_job_status !== fJob) return false;
@@ -141,7 +141,7 @@ export default function AdminFeedbackPage() {
           {(["bug", "mejora", "pregunta"] as Tipo[]).map((t) => <option key={t} value={t}>{TIPO_LABEL[t]}</option>)}
         </select>
         <select value={fEstado} onChange={(e) => setFEstado(e.target.value)} className="rounded-md border border-slate-200 px-3 py-1.5 text-sm">
-          <option value="_activos">Sin resueltos</option>
+          <option value="_activos">Pendientes (sin resueltos ni descartados)</option>
           <option value="_todos">Todos los estados</option>
           {(["nuevo", "en_revision", "resuelto", "descartado"] as Estado[]).map((e) => <option key={e} value={e}>{e}</option>)}
         </select>
