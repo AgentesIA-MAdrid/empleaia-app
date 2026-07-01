@@ -16,12 +16,14 @@ import {
   findAiJobByBranchOrUrl,
   getTicketById,
   getTicketUserEmail,
+  getTicketOrgName,
   publishResumenToClient,
   setAiJobStatus,
   updateTicket,
   addMessage,
 } from "@/lib/feedback/repository";
 import { sendAdminReplyEmail } from "@/lib/feedback/send-emails";
+import { notifyPrDesplegado } from "@/lib/telegram/notify";
 
 const AVISO_GENERICO =
   "¡Hecho! Ya hemos implementado y desplegado lo que pedías. " +
@@ -66,6 +68,16 @@ export async function resolvePrMerged(opts: {
   // 2 + 3. Cerrar ticket y marcar job desplegado.
   await updateTicket(job.ticket_id, { estado: "resuelto", visto_por_user: false });
   await setAiJobStatus(job.id, "desplegado");
+
+  // Aviso a Telegram (best-effort) — el ticket queda resuelto y desplegado.
+  void getTicketOrgName(ticket.org_id)
+    .then((org) =>
+      notifyPrDesplegado(
+        { id: ticket.id, numero: ticket.numero, tipo: ticket.tipo, descripcion: ticket.descripcion, pagina: ticket.pagina },
+        org,
+      ),
+    )
+    .catch(() => {});
 
   // 4. Email al usuario (best-effort; no rompe el webhook si Resend falla).
   if (cuerpoNotificado) {

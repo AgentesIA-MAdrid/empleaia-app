@@ -538,3 +538,46 @@ model FeedbackAdjunto {
   @@map("feedback_adjuntos")
   @@schema("master")
 }
+
+// ─── Bot de Telegram para gestión de tickets ───────────────────────────────────
+//
+// Destinatarios/operadores del bot, configurables desde el panel super-admin.
+// Un destinatario se da de alta con un `pairingCode`; al enviarlo al bot se
+// enlaza su `chatId`. `canOperate=false` = solo recibe notificaciones (no puede
+// mutar tickets). El TOKEN del bot vive en env (TELEGRAM_BOT_TOKEN), no en BD.
+
+model TelegramRecipient {
+  id               String    @id @default(cuid())
+  label            String
+  /// chat.id de Telegram (numérico, guardado como texto). Null hasta vincular.
+  chatId           String?   @unique @map("chat_id")
+  /// Código de vinculación de un solo uso (se limpia al enlazar o caducar).
+  pairingCode      String?   @unique @map("pairing_code")
+  pairingExpiresAt DateTime? @map("pairing_expires_at")
+  active           Boolean   @default(true)
+  /// true = puede ejecutar acciones (responder, a Claudia, resolver…).
+  /// false = solo recibe avisos.
+  canOperate       Boolean   @default(true) @map("can_operate")
+  linkedAt         DateTime? @map("linked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@index([active])
+  @@map("telegram_recipients")
+  @@schema("master")
+}
+
+// Estado efímero para el flujo "responder al cliente" desde Telegram: al pulsar
+// "Responder", se guarda a qué ticket responde ese operador; el siguiente
+// mensaje de texto de ese chat/usuario se publica como respuesta y se limpia.
+model TelegramSession {
+  chatId    String   @map("chat_id")
+  tgUserId  String   @map("tg_user_id")
+  ticketId  String   @map("ticket_id")
+  action    String
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@id([chatId, tgUserId])
+  @@map("telegram_sessions")
+  @@schema("master")
+}

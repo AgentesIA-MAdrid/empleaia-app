@@ -6,6 +6,7 @@ import { currentTenant } from "@/lib/tenant/context";
 import { prismaApp } from "@/lib/prisma";
 import { getTicketById, listMessages, addMessage, getTicketOrgName, adjuntoIsOrphan } from "@/lib/feedback/repository";
 import { sendUserReplyAlert } from "@/lib/feedback/send-emails";
+import { notifyRespuestaCliente } from "@/lib/telegram/notify";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -77,12 +78,10 @@ export const POST = withTenant(async (req: NextRequest) => {
       select: { nombre: true, apellidos: true, email: true },
     });
     const nombre = await getTicketOrgName(ticket.org_id || currentTenant().tenantId);
-    await sendUserReplyAlert(
-      { id: ticket.id, numero: ticket.numero, tipo: ticket.tipo, descripcion: ticket.descripcion, pagina: ticket.pagina },
-      cuerpo || "[Imagen adjunta]",
-      { id: ticket.org_id, nombre },
-      { email: u?.email ?? "", full_name: u ? `${u.nombre} ${u.apellidos}`.trim() : null },
-    );
+    const t = { id: ticket.id, numero: ticket.numero, tipo: ticket.tipo, descripcion: ticket.descripcion, pagina: ticket.pagina };
+    const userLabel = u ? `${u.nombre} ${u.apellidos}`.trim() : "";
+    await sendUserReplyAlert(t, cuerpo || "[Imagen adjunta]", { id: ticket.org_id, nombre }, { email: u?.email ?? "", full_name: userLabel || null });
+    void notifyRespuestaCliente(t, cuerpo || "[Imagen adjunta]", nombre, userLabel || u?.email || "").catch(() => {});
   })().catch((e) => console.error("[feedback/messages] sendUserReplyAlert failed", e));
 
   return NextResponse.json(message, { status: 201 });

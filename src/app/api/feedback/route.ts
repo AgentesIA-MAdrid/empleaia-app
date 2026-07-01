@@ -7,6 +7,7 @@ import { feedbackSubmitSchema } from "@/lib/feedback/schema";
 import { checkFeedbackRateLimit } from "@/lib/feedback/rate-limit";
 import { createTicket, getTicketOrgName } from "@/lib/feedback/repository";
 import { sendNewTicketAlert } from "@/lib/feedback/send-emails";
+import { notifyNuevoTicket } from "@/lib/telegram/notify";
 
 // POST /api/feedback — el empleado/manager crea un ticket desde el widget.
 // withTenant da el tenant activo; la sesión, el usuario.
@@ -40,14 +41,12 @@ export const POST = withTenant(async (req: NextRequest) => {
     ...parsed.data,
   });
 
-  // Email al super-admin — fire and forget.
-  void getTicketOrgName(tenantId).then((nombre) =>
-    sendNewTicketAlert(
-      { id: ticket.id, numero: ticket.numero, tipo: parsed.data.tipo, descripcion: parsed.data.descripcion, pagina: parsed.data.pagina },
-      { id: tenantId, nombre },
-      { email: u?.email ?? "", full_name: userNombre },
-    ),
-  ).catch(() => {});
+  // Aviso al equipo (email + Telegram) — fire and forget.
+  void getTicketOrgName(tenantId).then((nombre) => {
+    const t = { id: ticket.id, numero: ticket.numero, tipo: parsed.data.tipo, descripcion: parsed.data.descripcion, pagina: parsed.data.pagina };
+    void sendNewTicketAlert(t, { id: tenantId, nombre }, { email: u?.email ?? "", full_name: userNombre }).catch(() => {});
+    void notifyNuevoTicket(t, nombre, userNombre ?? u?.email ?? "").catch(() => {});
+  }).catch(() => {});
 
   return NextResponse.json({ id: ticket.id, created_at: ticket.created_at }, { status: 201 });
 });

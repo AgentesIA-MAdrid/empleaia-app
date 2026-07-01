@@ -8,6 +8,7 @@ import {
   getTicketOrgName,
 } from "@/lib/feedback/repository";
 import { sendJobResultAlert } from "@/lib/feedback/send-emails";
+import { notifyResultadoClaudia } from "@/lib/telegram/notify";
 import { TERMINAL_STATES } from "@/lib/feedback/ai-jobs";
 
 export const dynamic = "force-dynamic";
@@ -76,13 +77,10 @@ export async function POST(req: Request): Promise<Response> {
         const ticket = await getTicketById(job.ticket_id);
         if (ticket) {
           const org_name = await getTicketOrgName(ticket.org_id);
-          await sendJobResultAlert({
-            resultado: body.event as "pr_abierto" | "sin_cambios" | "fallido",
-            ticket: { id: ticket.id, numero: ticket.numero, tipo: ticket.tipo, descripcion: ticket.descripcion, pagina: ticket.pagina },
-            org_name,
-            pr_url: job.pr_url,
-            error: job.error,
-          });
+          const t = { id: ticket.id, numero: ticket.numero, tipo: ticket.tipo, descripcion: ticket.descripcion, pagina: ticket.pagina };
+          const resultado = body.event as "pr_abierto" | "sin_cambios" | "fallido";
+          await sendJobResultAlert({ resultado, ticket: t, org_name, pr_url: job.pr_url, error: job.error });
+          void notifyResultadoClaudia({ resultado, ticket: t, orgNombre: org_name, prUrl: job.pr_url, error: job.error }).catch(() => {});
         }
       } catch (e) {
         console.error(`[feedback-ai-job] email de resultado falló (job ${jobId}):`, e);

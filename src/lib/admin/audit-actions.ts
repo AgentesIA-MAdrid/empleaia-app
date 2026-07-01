@@ -92,6 +92,12 @@ export const AUDIT_ACTIONS = {
     severity: "warning",
     description: "Aceptar invitación y crear cuenta super-admin",
   },
+
+  // Bot de Telegram (target_kind='telegram').
+  "telegram:add": { severity: "warning", description: "Alta de destinatario del bot de Telegram" },
+  "telegram:remove": { severity: "warning", description: "Baja de destinatario del bot de Telegram" },
+  "telegram:update": { severity: "info", description: "Cambiar activo/puede-operar de un destinatario" },
+  "telegram:connect": { severity: "warning", description: "Registrar el webhook del bot de Telegram" },
 } as const satisfies Record<string, AuditActionDef>;
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;
