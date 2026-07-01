@@ -83,18 +83,24 @@ const PRESETS: Record<string, { label: string; build: () => TramosPorDia }> = {
 
 export function SedeHorariosDialog({
   tienda,
+  otrasSedes = [],
   onClose,
 }: {
   tienda: { id: string; nombre: string } | null;
+  otrasSedes?: { id: string; nombre: string }[];
   onClose: () => void;
 }) {
   const { toast } = useToast();
   const [tramos, setTramos] = useState<TramosPorDia>(vacio);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  // "Aplicar a otras sedes": ids seleccionados para replicar el mismo horario.
+  const [replicarIds, setReplicarIds] = useState<Set<string>>(new Set());
+  const [replicando, setReplicando] = useState(false);
 
   useEffect(() => {
     if (!tienda) return;
+    setReplicarIds(new Set());
     setLoading(true);
     fetch(`/api/tiendas/${tienda.id}/horarios`)
       .then((r) => r.json())
@@ -132,42 +138,70 @@ export function SedeHorariosDialog({
       return next;
     });
 
-  const guardar = async () => {
-    if (!tienda) return;
-    // Validación cliente: apertura < cierre en cada tramo.
+  // Valida apertura < cierre en todos los tramos. Devuelve el día inválido o null.
+  const validar = (): number | null => {
     for (let d = 0; d < 7; d++) {
       for (const t of tramos[d]) {
-        if (t.horaApertura >= t.horaCierre) {
-          toast({
-            title: `${DIAS[d]}: la apertura debe ser anterior al cierre`,
-            variant: "destructive",
-          });
-          return;
-        }
+        if (t.horaApertura >= t.horaCierre) return d;
       }
     }
-    const payload = {
-      tramos: Object.entries(tramos).flatMap(([dia, lista]) =>
-        lista.map((t) => ({ diaSemana: Number(dia), ...t })),
-      ),
-    };
+    return null;
+  };
+
+  const buildPayload = () => ({
+    tramos: Object.entries(tramos).flatMap(([dia, lista]) =>
+      lista.map((t) => ({ diaSemana: Number(dia), ...t })),
+    ),
+  });
+
+  const putHorarios = async (sedeId: string, payload: ReturnType<typeof buildPayload>) => {
+    const res = await fetch(`/api/tiendas/${sedeId}/horarios`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.error || "Error");
+    }
+  };
+
+  const guardar = async () => {
+    if (!tienda) return;
+    const invalido = validar();
+    if (invalido !== null) {
+      toast({ title: `${DIAS[invalido]}: la apertura debe ser anterior al cierre`, variant: "destructive" });
+      return;
+    }
+    const payload = buildPayload();
     setSaving(true);
     try {
-      const res = await fetch(`/api/tiendas/${tienda.id}/horarios`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error(d.error || "Error");
+      await putHorarios(tienda.id, payload);
+      // Replicar el mismo horario a las sedes seleccionadas (best-effort:
+      // reporta cuántas fallaron sin abortar el guardado principal).
+      let fallidas = 0;
+      if (replicarIds.size > 0) {
+        setReplicando(true);
+        const resultados = await Promise.allSettled(
+          [...replicarIds].map((id) => putHorarios(id, payload)),
+        );
+        fallidas = resultados.filter((r) => r.status === "rejected").length;
       }
-      toast({ title: "Horarios guardados" });
+      if (replicarIds.size > 0) {
+        const ok = replicarIds.size - fallidas;
+        toast({
+          title: `Horarios guardados y aplicados a ${ok} sede${ok === 1 ? "" : "s"}${fallidas ? ` (${fallidas} con error)` : ""}`,
+          variant: fallidas ? "destructive" : undefined,
+        });
+      } else {
+        toast({ title: "Horarios guardados" });
+      }
       onClose();
     } catch (e) {
       toast({ title: e instanceof Error ? e.message : "Error al guardar", variant: "destructive" });
     } finally {
       setSaving(false);
+      setReplicando(false);
     }
   };
 
@@ -260,13 +294,73 @@ export function SedeHorariosDialog({
                 )}
               </div>
             ))}
+
+            {/* Aplicar el mismo horario a otras sedes de una vez. */}
+            {otrasSedes.length > 0 && (
+              <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-slate-600">
+                    Aplicar este horario también a otras sedes
+                  </label>
+                  {replicarIds.size < otrasSedes.length ? (
+                    <button
+                      type="button"
+                      onClick={() => setReplicarIds(new Set(otrasSedes.map((s) => s.id)))}
+                      className="text-xs text-[var(--primary)] hover:underline"
+                    >
+                      Seleccionar todas
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setReplicarIds(new Set())}
+                      className="text-xs text-slate-500 hover:underline"
+                    >
+                      Quitar todas
+                    </button>
+                  )}
+                </div>
+                <div className="mt-2 max-h-40 space-y-1 overflow-y-auto">
+                  {otrasSedes.map((s) => (
+                    <label key={s.id} className="flex items-center gap-2 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={replicarIds.has(s.id)}
+                        onChange={(e) =>
+                          setReplicarIds((prev) => {
+                            const next = new Set(prev);
+                            if (e.target.checked) next.add(s.id);
+                            else next.delete(s.id);
+                            return next;
+                          })
+                        }
+                        className="h-4 w-4 rounded border-slate-300 text-[var(--primary)] focus:ring-[var(--primary)]"
+                      />
+                      {s.nombre}
+                    </label>
+                  ))}
+                </div>
+                {replicarIds.size > 0 && (
+                  <p className="mt-1.5 text-xs text-slate-400">
+                    Al guardar, este horario se aplicará también a {replicarIds.size} sede
+                    {replicarIds.size === 1 ? "" : "s"} (reemplaza el suyo).
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
           <Button onClick={guardar} disabled={saving || loading}>
-            {saving ? "Guardando…" : "Guardar horarios"}
+            {saving
+              ? replicando
+                ? "Aplicando…"
+                : "Guardando…"
+              : replicarIds.size > 0
+                ? `Guardar y aplicar a ${replicarIds.size + 1} sedes`
+                : "Guardar horarios"}
           </Button>
         </DialogFooter>
       </DialogContent>

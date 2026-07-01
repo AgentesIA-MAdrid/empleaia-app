@@ -463,7 +463,13 @@ export default function TiendasPage() {
         </DialogContent>
       </Dialog>
 
-      <SedeHorariosDialog tienda={horariosTienda} onClose={() => setHorariosTienda(null)} />
+      <SedeHorariosDialog
+        tienda={horariosTienda}
+        otrasSedes={tiendas
+          .filter((t) => t.activa && t.id !== horariosTienda?.id)
+          .map((t) => ({ id: t.id, nombre: t.nombre }))}
+        onClose={() => setHorariosTienda(null)}
+      />
       <SedeEmpleadosDialog
         tienda={empleadosTienda}
         onClose={() => setEmpleadosTienda(null)}
