@@ -63,6 +63,11 @@ export default function AdminTurnosPage() {
   const [tipos, setTipos] = useState<TipoTurno[]>([]);
   const [horasGlobal, setHorasGlobal] = useState(40);
   const [loading, setLoading] = useState(false);
+  // Solo la primera carga muestra el esqueleto a pantalla completa. En las
+  // recargas posteriores (tras crear/editar/borrar un turno) mantenemos la
+  // tabla ya pintada para no colapsar su altura: si el <tbody> se reduce a una
+  // fila, el contenedor scrolleable encoge y el navegador salta al principio.
+  const [primeraCarga, setPrimeraCarga] = useState(true);
 
   const [turnoDialog, setTurnoDialog] = useState(false);
   const [turnoForm, setTurnoForm] = useState(TURNO_FORM_INICIAL);
@@ -113,6 +118,7 @@ export default function AdminTurnosPage() {
       }
     } finally {
       setLoading(false);
+      setPrimeraCarga(false);
     }
   }, [inicioSemana.toISOString(), finSemana.toISOString()]);
 
@@ -474,7 +480,7 @@ export default function AdminTurnosPage() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {loading && primeraCarga ? (
                 <tr><td colSpan={totalCols} className="px-4 py-3"><div className="h-10 bg-slate-100 rounded animate-pulse" /></td></tr>
               ) : grupos.length === 0 ? (
                 <tr><td colSpan={totalCols} className="text-center py-8 text-slate-400">No hay sedes. Crea una sede primero.</td></tr>
