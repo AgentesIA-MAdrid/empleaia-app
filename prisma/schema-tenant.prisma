@@ -305,6 +305,8 @@ model User {
   sedes                    UsuarioSede[]
   // Festivos que se le han "quitado" (días que trabaja pese al festivo).
   festivoExcepciones       FestivoExcepcion[]
+  // Campos personalizados: valores de cada campo definido por el tenant.
+  camposPersonalizados     ValorCampoEmpleado[]
 
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
@@ -1484,4 +1486,39 @@ model PrenominaConcepto {
   createdAt    DateTime               @default(now())
 
   @@index([prenominaId])
+}
+
+// ─── Campos personalizados de la ficha del empleado ──────────────────
+// El OWNER define campos extra ("Talla de uniforme", "Nº de taquilla"…)
+// desde la ficha de cualquier empleado. La definición es del tenant y
+// aplica a TODOS los empleados; el valor se guarda por empleado.
+model CampoPersonalizado {
+  id        String               @id @default(cuid())
+  // Clave estable (slug) generada desde la etiqueta. Única por tenant.
+  clave     String               @unique
+  etiqueta  String
+  // Tipo de dato para el render del input: "texto" | "numero" | "fecha".
+  tipo      String               @default("texto")
+  orden     Int                  @default(0)
+  activo    Boolean              @default(true)
+  valores   ValorCampoEmpleado[]
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  @@index([activo])
+}
+
+// Valor de un campo personalizado para un empleado concreto.
+model ValorCampoEmpleado {
+  id        String             @id @default(cuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campoId   String
+  campo     CampoPersonalizado @relation(fields: [campoId], references: [id], onDelete: Cascade)
+  valor     String
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@unique([userId, campoId])
+  @@index([campoId])
 }

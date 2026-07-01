@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Plus, Search, Edit2, UserX, UserCheck, Trash2, Send, FileText, FileSpreadsheet, KeyRound, X, AlertTriangle, Loader2, ChevronDown, ChevronUp, Check } from "lucide-react";
+import { Plus, Search, Edit2, UserX, UserCheck, Trash2, Send, FileText, FileSpreadsheet, KeyRound, X, AlertTriangle, Loader2, ChevronDown, ChevronUp, Check, Download, Upload } from "lucide-react";
+import type { ResultadoImportacion } from "@/lib/empleados/importar";
 import { Button } from "@/components/ui/button";
 import { FeatureGateClient } from "@/components/feature-gate-client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -244,6 +245,10 @@ export default function EmpleadosPage() {
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
   const [accionMasiva, setAccionMasiva] = useState(false);
   const [exportando, setExportando] = useState(false);
+  const [descargandoPlantilla, setDescargandoPlantilla] = useState(false);
+  const [importando, setImportando] = useState(false);
+  const [importResult, setImportResult] = useState<ResultadoImportacion | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -327,6 +332,53 @@ export default function EmpleadosPage() {
       toast({ title: "Error al exportar", variant: "destructive" });
     } finally {
       setExportando(false);
+    }
+  };
+
+  // Descarga la plantilla Excel (una fila por empleado con sus datos) para
+  // editarla y volver a subirla desde "Importar".
+  const handleDescargarPlantilla = async () => {
+    setDescargandoPlantilla(true);
+    try {
+      const res = await fetch("/api/empleados/plantilla");
+      if (!res.ok) {
+        toast({ title: "No se pudo generar la plantilla", variant: "destructive" });
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `plantilla_empleados_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "Error al descargar la plantilla", variant: "destructive" });
+    } finally {
+      setDescargandoPlantilla(false);
+    }
+  };
+
+  // Sube la plantilla editada. Solo actualiza empleados existentes (match
+  // por email); una celda vacía deja el campo sin cambios.
+  const handleImportar = async (file: File) => {
+    setImportando(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/empleados/importar", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: data.error || "Error al importar", variant: "destructive" });
+        return;
+      }
+      setImportResult(data as ResultadoImportacion);
+      fetchData();
+    } catch {
+      toast({ title: "Error al importar el archivo", variant: "destructive" });
+    } finally {
+      setImportando(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -617,6 +669,22 @@ export default function EmpleadosPage() {
               <FileText className="h-4 w-4 mr-2" /> PDF
             </Button>
           </FeatureGateClient>
+          <Button variant="outline" disabled={descargandoPlantilla} onClick={handleDescargarPlantilla} title="Descargar una plantilla Excel para editar los datos en bloque">
+            {descargandoPlantilla ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />} Plantilla
+          </Button>
+          <Button variant="outline" disabled={importando} onClick={() => fileInputRef.current?.click()} title="Subir la plantilla editada para actualizar empleados en bloque">
+            {importando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />} Importar
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleImportar(f);
+            }}
+          />
           <Button onClick={abrirCrear}>
             <Plus className="h-4 w-4 mr-2" /> Nuevo Empleado
           </Button>
@@ -1114,6 +1182,45 @@ export default function EmpleadosPage() {
               {confirmando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Eliminar
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resultado de la importación masiva */}
+      <Dialog open={importResult !== null} onOpenChange={(o) => { if (!o) setImportResult(null); }}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Resultado de la importación</DialogTitle>
+          </DialogHeader>
+          {importResult && (
+            <div className="space-y-3 text-sm">
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary">{importResult.actualizadas} actualizados</Badge>
+                <Badge variant="outline">{importResult.sinCambios} sin cambios</Badge>
+                {importResult.errores.length > 0 && (
+                  <Badge variant="destructive">{importResult.errores.length} con errores</Badge>
+                )}
+              </div>
+              <p className="text-slate-500">
+                Se procesaron {importResult.totalFilas} fila{importResult.totalFilas === 1 ? "" : "s"} de la plantilla.
+              </p>
+              {importResult.errores.length > 0 && (
+                <div className="rounded-md border border-red-100 bg-red-50/50 p-3">
+                  <p className="font-medium text-red-700 mb-1">Filas no aplicadas</p>
+                  <ul className="space-y-1 text-slate-600">
+                    {importResult.errores.slice(0, 50).map((e, i) => (
+                      <li key={i}>
+                        <span className="font-medium">Fila {e.fila}</span>
+                        {e.email ? ` (${e.email})` : ""}: {e.motivo}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setImportResult(null)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -425,6 +425,7 @@ export const DELETE = withTenant(async (_request: NextRequest,
       await tx.faceTemplate.deleteMany({ where: { userId: id } });        // biométrico (RGPD art. 9)
       await tx.pushSubscripcion.deleteMany({ where: { userId: id } });    // tokens de dispositivo
       await tx.preferenciasNotificacion.deleteMany({ where: { userId: id } });
+      await tx.valorCampoEmpleado.deleteMany({ where: { userId: id } });  // campos personalizados (pueden contener datos personales)
 
       await tx.user.update({
         where: { id },
