@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 const TIPO_LABEL: Record<string, string> = { bug: "Bug", mejora: "Mejora", pregunta: "Pregunta" };
 
 const RESULT_COPY: Record<string, { title: string; body: string; tone: "ok" | "warn" | "error" }> = {
-  ok: { title: "Job encolado", body: "Claude está resolviendo el ticket en un worktree aislado. Recibirás un email con el resultado al terminar.", tone: "ok" },
+  ok: { title: "Job encolado", body: "Claudia está resolviendo el ticket en un worktree aislado. Recibirás un email con el resultado al terminar.", tone: "ok" },
   active: { title: "Ya estaba en marcha", body: "Ya había un job en curso para este ticket. No hace falta relanzarlo.", tone: "ok" },
   used: { title: "Enlace ya utilizado", body: "Este enlace es de un solo uso y ya se usó. Relánzalo desde el panel de administración.", tone: "warn" },
   notfound: { title: "Ticket no encontrado", body: "El ticket ya no existe (puede haberse borrado).", tone: "warn" },
@@ -77,9 +77,9 @@ export default async function ResolverConClaudePage({ searchParams }: PageProps)
 
   return (
     <Card>
-      <h1 className="text-xl font-bold text-slate-900">Resolver con Claude</h1>
+      <h1 className="text-xl font-bold text-slate-900">Resolver con Claudia</h1>
       <p className="mt-2 text-sm text-slate-600">
-        Vas a encolar un job para que Claude analice este ticket en un worktree aislado y, si procede, abra un PR
+        Vas a encolar un job para que Claudia analice este ticket en un worktree aislado y, si procede, abra un PR
         (nunca lo mergea). Recibirás el resultado por email.
       </p>
 
@@ -100,7 +100,7 @@ export default async function ResolverConClaudePage({ searchParams }: PageProps)
           {messages.map((m) => (
             <div key={m.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
               <span className="mb-0.5 block text-xs font-medium text-slate-400">
-                {m.is_ai ? "Claude" : m.autor === "admin" ? "Equipo" : "Usuario"}
+                {m.is_ai ? "Claudia" : m.autor === "admin" ? "Equipo" : "Usuario"}
                 {m.internal && <span className="ml-1 rounded bg-slate-200 px-1 text-[10px]">interno</span>}
               </span>
               <span className="text-slate-700">{m.cuerpo.length > 300 ? `${m.cuerpo.slice(0, 300)}…` : m.cuerpo}</span>
@@ -112,7 +112,7 @@ export default async function ResolverConClaudePage({ searchParams }: PageProps)
       <form method="post" action="/api/feedback-action/resolve" className="mt-4 space-y-2">
         <input type="hidden" name="token" value={token} />
         <label htmlFor="comment" className="block text-sm font-medium text-slate-700">
-          Instrucciones para Claude <span className="font-normal text-slate-400">(opcional, internas)</span>
+          Instrucciones para Claudia <span className="font-normal text-slate-400">(opcional, internas)</span>
         </label>
         <textarea
           id="comment"
@@ -126,7 +126,7 @@ export default async function ResolverConClaudePage({ searchParams }: PageProps)
           type="submit"
           className="w-full rounded-lg bg-[var(--primary)] px-4 py-2.5 font-medium text-white hover:opacity-90"
         >
-          Encolar Resolver con Claude
+          Encolar Resolver con Claudia
         </button>
       </form>
     </Card>

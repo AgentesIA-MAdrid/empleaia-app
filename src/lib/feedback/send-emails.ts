@@ -92,7 +92,7 @@ export async function sendNewTicketAlert(
      <p>${esc(ticket.descripcion)}</p>
      <p style="margin-top:16px">
        <a href="${esc(adminUrl)}" style="color:#6366f1">Ver en el panel</a>
-       ${resolveUrl ? ` &nbsp;·&nbsp; <a href="${esc(resolveUrl)}" style="color:#6366f1">Resolver con Claude</a>` : ""}
+       ${resolveUrl ? ` &nbsp;·&nbsp; <a href="${esc(resolveUrl)}" style="color:#6366f1">Resolver con Claudia</a>` : ""}
      </p>`,
   );
   await sendInternalAlert(`Ticket ${ref(ticket.numero)} — Nuevo (${org.nombre || "—"})`, html);
@@ -137,14 +137,14 @@ export async function sendJobResultAlert(input: {
   const { resultado, ticket, org_name, pr_url, error } = input;
   const adminUrl = `${ADMIN_URL}/admin/feedback`;
   const html = shell(
-    `Claude terminó el ticket ${ref(ticket.numero)}: ${RESULTADO_LABEL[resultado] ?? resultado}`,
+    `Claudia terminó el ticket ${ref(ticket.numero)}: ${RESULTADO_LABEL[resultado] ?? resultado}`,
     `<p><strong>${esc(org_name || "—")}</strong> · ${esc(TIPO_LABEL[ticket.tipo] ?? ticket.tipo)}</p>
      <p style="color:#555">${esc(ticket.descripcion)}</p>
      ${pr_url ? `<p><a href="${esc(pr_url)}" style="color:#6366f1">Ver PR ↗</a></p>` : ""}
      ${error ? `<p style="color:#b91c1c"><strong>Error:</strong> ${esc(error)}</p>` : ""}
      <p><a href="${esc(adminUrl)}" style="color:#6366f1">Ver en el panel</a></p>`,
   );
-  await sendInternalAlert(`Ticket ${ref(ticket.numero)} — Claude: ${RESULTADO_LABEL[resultado] ?? resultado} (${org_name || "—"})`, html);
+  await sendInternalAlert(`Ticket ${ref(ticket.numero)} — Claudia: ${RESULTADO_LABEL[resultado] ?? resultado} (${org_name || "—"})`, html);
 }
 
 export async function sendResolutionEmail(ticket: TicketInfo, userEmail: string): Promise<void> {

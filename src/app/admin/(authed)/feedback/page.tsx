@@ -104,7 +104,7 @@ export default function AdminFeedbackPage() {
       toast({ variant: "destructive", title: r.status === 409 ? "Ya hay un job activo" : "No se pudo reintentar" });
       return;
     }
-    toast({ variant: "success", title: "Reintentando con Claude…" });
+    toast({ variant: "success", title: "Reintentando con Claudia…" });
     cargar();
   };
 
@@ -148,7 +148,7 @@ export default function AdminFeedbackPage() {
           {(["nuevo", "en_revision", "en_desarrollo", "resuelto", "descartado"] as Estado[]).map((e) => <option key={e} value={e}>{e}</option>)}
         </select>
         <select value={fJob} onChange={(e) => setFJob(e.target.value)} className="rounded-md border border-slate-200 px-3 py-1.5 text-sm">
-          <option value="">Claude: todos</option>
+          <option value="">Claudia: todos</option>
           <option value="_sin">Sin job</option>
           {(["encolado", "ejecutando", "pr_abierto", "desplegado", "sin_cambios", "fallido"] as JobStatus[]).map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
@@ -168,7 +168,7 @@ export default function AdminFeedbackPage() {
                 <th className="px-4 py-3 text-left">Tipo</th>
                 <th className="px-4 py-3 text-left">Descripción</th>
                 <th className="px-4 py-3 text-left">Estado</th>
-                <th className="px-4 py-3 text-left">Claude</th>
+                <th className="px-4 py-3 text-left">Claudia</th>
                 <th className="px-4 py-3 text-left">Fecha</th>
               </tr>
             </thead>
@@ -205,8 +205,8 @@ export default function AdminFeedbackPage() {
                       {t.ai_job_status === "fallido" && (
                         <button
                           onClick={(e) => { e.stopPropagation(); reintentar(t.id); }}
-                          title="Reintentar con Claude"
-                          aria-label="Reintentar con Claude"
+                          title="Reintentar con Claudia"
+                          aria-label="Reintentar con Claudia"
                           className="inline-flex shrink-0 items-center justify-center rounded-md border border-slate-200 p-1 text-slate-500 hover:bg-slate-50 hover:text-[var(--primary)]"
                         >
                           <RefreshCw className="h-3.5 w-3.5" />
@@ -298,7 +298,7 @@ function DetalleTicket({
           toast({ variant: "destructive", title: r.status === 409 ? "Ya hay un job activo" : "No se pudo encolar" });
           return;
         }
-        toast({ variant: "success", title: "Job encolado — Claude está en ello" });
+        toast({ variant: "success", title: "Job encolado — Claudia está en ello" });
         setComposer("");
         await cargarJob();
         onChanged();
@@ -399,9 +399,9 @@ function DetalleTicket({
         }),
       });
       if (!r.ok && r.status !== 409) {
-        toast({ variant: "destructive", title: "Marcado en desarrollo, pero no se pudo lanzar a Claude" });
+        toast({ variant: "destructive", title: "Marcado en desarrollo, pero no se pudo lanzar a Claudia" });
       } else {
-        toast({ variant: "success", title: "En desarrollo — enviado a Claude para implementar" });
+        toast({ variant: "success", title: "En desarrollo — enviado a Claudia para implementar" });
       }
       onChanged();
       onClose();
@@ -443,7 +443,7 @@ function DetalleTicket({
           {/* Panel Claude */}
           <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3">
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-sm font-medium text-indigo-900"><Bot className="h-4 w-4" /> Resolver con Claude</span>
+              <span className="flex items-center gap-1.5 text-sm font-medium text-indigo-900"><Bot className="h-4 w-4" /> Resolver con Claudia</span>
               {job ? (
                 <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", JOB_BADGE[job.status])}>{job.status}</span>
               ) : (
@@ -494,7 +494,7 @@ function DetalleTicket({
             {messages.map((m) => (
               <div key={m.id} className={cn("rounded-lg px-3 py-2 text-sm", m.internal ? "bg-amber-50" : m.autor === "user" ? "bg-slate-50" : "bg-[var(--primary-light)]")}>
                 <span className="mb-0.5 block text-xs font-medium text-slate-400">
-                  {m.is_ai ? "Claude" : m.autor === "admin" ? "Equipo" : "Usuario"}
+                  {m.is_ai ? "Claudia" : m.autor === "admin" ? "Equipo" : "Usuario"}
                   {m.internal && <span className="ml-1 rounded bg-amber-200 px-1 text-[10px] text-amber-800">solo equipo</span>}
                   {!m.internal && m.autor === "admin" && <span className="ml-1 rounded bg-emerald-200 px-1 text-[10px] text-emerald-800">enviado al cliente</span>}
                   <span className="ml-1 font-normal text-slate-400">
@@ -509,24 +509,24 @@ function DetalleTicket({
           {/* Compositor */}
           <div className="rounded-lg border border-slate-200 p-3">
             <div className="mb-2 flex gap-1 rounded-md bg-muted p-1 text-sm">
-              {([["cliente", "Al cliente"], ["interna", "Nota interna"], ["claude", "A Claude"]] as const).map(([k, label]) => (
+              {([["cliente", "Al cliente"], ["interna", "Nota interna"], ["claude", "A Claudia"]] as const).map(([k, label]) => (
                 <button key={k} onClick={() => setModo(k)} className={cn("flex-1 rounded px-2 py-1 font-medium", modo === k ? "bg-white shadow-sm" : "text-slate-500")}>{label}</button>
               ))}
             </div>
             <textarea
               className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
               rows={3}
-              placeholder={modo === "claude" ? "Instrucciones extra (opcional). Claude leerá toda la conversación automáticamente." : modo === "interna" ? "Nota visible solo para el equipo…" : "Respuesta que verá el cliente…"}
+              placeholder={modo === "claude" ? "Instrucciones extra (opcional). Claudia leerá toda la conversación automáticamente." : modo === "interna" ? "Nota visible solo para el equipo…" : "Respuesta que verá el cliente…"}
               value={composer}
               onChange={(e) => setComposer(e.target.value)}
             />
             {modo === "claude" && (
-              <p className="mt-1 text-xs text-slate-400">Claude recibe el ticket y todas las respuestas; las instrucciones son opcionales.</p>
+              <p className="mt-1 text-xs text-slate-400">Claudia recibe el ticket y todas las respuestas; las instrucciones son opcionales.</p>
             )}
             <div className="mt-2 flex justify-end">
               <Button size="sm" onClick={enviar} disabled={busy || (modo !== "claude" && !composer.trim())}>
                 {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                {modo === "claude" ? (composer.trim() ? "Enviar a Claude con instrucciones" : "Enviar todo a Claude") : "Enviar"}
+                {modo === "claude" ? (composer.trim() ? "Enviar a Claudia con instrucciones" : "Enviar todo a Claudia") : "Enviar"}
               </Button>
             </div>
           </div>
@@ -540,10 +540,10 @@ function DetalleTicket({
                 className="border-indigo-200 text-indigo-600"
                 onClick={marcarEnDesarrollo}
                 disabled={busy}
-                title="Marca el ticket como proceso del equipo y lo manda a Claude para que lo implemente (aunque sea grande)"
+                title="Marca el ticket como proceso del equipo y lo manda a Claudia para que lo implemente (aunque sea grande)"
               >
                 <Bot className="mr-1.5 h-4 w-4" />
-                {ticket.estado === "en_desarrollo" ? "Reenviar a Claude (implementar)" : "En desarrollo → Claude"}
+                {ticket.estado === "en_desarrollo" ? "Reenviar a Claudia (implementar)" : "En desarrollo → Claudia"}
               </Button>
             )}
             <Button size="sm" variant="outline" className="text-emerald-600" onClick={() => cambiarEstado("resuelto")} disabled={busy}>
