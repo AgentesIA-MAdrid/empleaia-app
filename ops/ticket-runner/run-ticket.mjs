@@ -280,12 +280,26 @@ async function processJob({ job, prompt }) {
     await progress(job.id, "verificando", "Verificando el cambio: lint · typecheck");
     let gateGreen = true;
     let gateLog = "";
-    for (const step of ["lint", "typecheck"]) {
-      const r = run("npm", ["run", step], { cwd: wt });
+    // Lint SOLO de los archivos que tocó Claudia (git diff vs la base), no el
+    // lint global: el repo arrastra deuda de lint preexistente en tests/utils
+    // que no debe teñir de rojo un PR correcto (si no, todos salían en draft).
+    const changed = (run("git", ["-C", wt, "diff", "--name-only", `origin/${BASE_BRANCH}...HEAD`]).stdout || "")
+      .split("\n")
+      .map((s) => s.trim())
+      .filter((f) => /\.(ts|tsx)$/.test(f) && existsSync(join(wt, f)));
+    if (changed.length > 0) {
+      const r = run("npx", ["eslint", ...changed], { cwd: wt });
       if (r.status !== 0) {
         gateGreen = false;
-        gateLog = `$ npm run ${step}  (exit ${r.status})\n${((r.stdout || "") + (r.stderr || "")).trim().slice(-2000)}`;
-        break;
+        gateLog = `$ eslint <archivos cambiados> (exit ${r.status})\n${((r.stdout || "") + (r.stderr || "")).trim().slice(-2000)}`;
+      }
+    }
+    // Typecheck sí es global (un error de tipos importa en cualquier sitio).
+    if (gateGreen) {
+      const r = run("npm", ["run", "typecheck"], { cwd: wt });
+      if (r.status !== 0) {
+        gateGreen = false;
+        gateLog = `$ npm run typecheck  (exit ${r.status})\n${((r.stdout || "") + (r.stderr || "")).trim().slice(-2000)}`;
       }
     }
 

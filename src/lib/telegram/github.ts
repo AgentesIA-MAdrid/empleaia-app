@@ -115,7 +115,7 @@ export async function mergePr(prUrl: string): Promise<{ ok: true } | { ok: false
   if (d.draft) {
     const nodeId = String(d.node_id ?? "");
     if (!nodeId || !(await markReadyForReview(nodeId))) {
-      return { ok: false, error: "no se pudo quitar el modo borrador del PR" };
+      return { ok: false, error: "el PR está en borrador y no pude quitarlo automáticamente; márcalo como 'Ready for review' en GitHub y reintenta" };
     }
   }
 
