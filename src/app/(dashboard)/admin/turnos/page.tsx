@@ -850,15 +850,25 @@ function CeldaDia({
 }) {
   const [sobre, setSobre] = useState(false);
 
+  // Persona ausente (baja, vacaciones…) ese día: no se le puede añadir ni
+  // copiar un turno encima. Se ocultan el botón "+" y se rechaza el drop.
+  const enAusencia = ausencias.length > 0;
+
   return (
     <td
       className={cn(
         "px-1 py-1.5 text-center align-top transition-colors",
         sobre && "rounded-md bg-slate-100 ring-2 ring-inset ring-[var(--primary)]",
       )}
-      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setSobre(true); }}
+      onDragOver={(e) => {
+        if (enAusencia) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "copy";
+        setSobre(true);
+      }}
       onDragLeave={() => setSobre(false)}
       onDrop={(e) => {
+        if (enAusencia) return;
         e.preventDefault();
         setSobre(false);
         const id = e.dataTransfer.getData("text/plain");
@@ -908,10 +918,12 @@ function CeldaDia({
             <Copy className="h-3 w-3" /> Semana
           </button>
         )}
-        <button
-          className="w-full rounded-md border border-dashed border-slate-200 text-slate-300 hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors py-0.5 text-xs"
-          onClick={() => onAdd(emp, dia, tiendaId)}
-        >+</button>
+        {!enAusencia && (
+          <button
+            className="w-full rounded-md border border-dashed border-slate-200 text-slate-300 hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors py-0.5 text-xs"
+            onClick={() => onAdd(emp, dia, tiendaId)}
+          >+</button>
+        )}
       </div>
     </td>
   );
