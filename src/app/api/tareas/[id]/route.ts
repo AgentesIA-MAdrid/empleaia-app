@@ -21,7 +21,9 @@ export const PUT = withTenant(withFeature("tareas", async (req: NextRequest, { p
     });
     if (!tarea) return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
 
-    const esAdmin = userRol === Rol.OWNER || userRol === Rol.MANAGER;
+    // Gestión = Administrador (OWNER). El Coordinador (MANAGER) actúa como
+    // empleado (creador o asignado que solo marca completada).
+    const esAdmin = userRol === Rol.OWNER;
     const esCreador = tarea.creadoPorId === userId;
     const esAsignado = tarea.asignadoAId === userId;
 
@@ -72,7 +74,7 @@ export const DELETE = withTenant(withFeature("tareas", async (req: NextRequest, 
     });
     if (!tarea) return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
 
-    const puedeBorrar = userRol === Rol.OWNER || userRol === Rol.MANAGER || tarea.creadoPorId === userId;
+    const puedeBorrar = userRol === Rol.OWNER || tarea.creadoPorId === userId;
     if (!puedeBorrar) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }

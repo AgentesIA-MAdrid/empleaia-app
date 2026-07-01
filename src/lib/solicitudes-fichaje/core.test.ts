@@ -8,20 +8,18 @@ import {
 } from "./core";
 
 describe("puedeResolverSolicitud", () => {
-  it("OWNER siempre puede", () => {
-    expect(puedeResolverSolicitud("OWNER", null, "t1")).toBe(true);
-    expect(puedeResolverSolicitud("OWNER", "t9", null)).toBe(true);
+  it("OWNER siempre puede por rol", () => {
+    expect(puedeResolverSolicitud("OWNER")).toBe(true);
   });
 
-  it("MANAGER solo en su misma tienda", () => {
-    expect(puedeResolverSolicitud("MANAGER", "t1", "t1")).toBe(true);
-    expect(puedeResolverSolicitud("MANAGER", "t1", "t2")).toBe(false);
-    expect(puedeResolverSolicitud("MANAGER", null, null)).toBe(false);
-    expect(puedeResolverSolicitud("MANAGER", "t1", null)).toBe(false);
+  it("MANAGER (Coordinador) ya no puede por rol", () => {
+    // El Coordinador tiene permisos de empleado en escritura; solo resuelve
+    // como aprobador designado (aprobadorId), que el handler comprueba aparte.
+    expect(puedeResolverSolicitud("MANAGER")).toBe(false);
   });
 
   it("EMPLEADO nunca por rol", () => {
-    expect(puedeResolverSolicitud("EMPLEADO", "t1", "t1")).toBe(false);
+    expect(puedeResolverSolicitud("EMPLEADO")).toBe(false);
   });
 });
 

@@ -89,9 +89,11 @@ export const PATCH = withTenant(
     if (!user || !user.id) {
       return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
-    if (user.rol !== Rol.OWNER && user.rol !== Rol.MANAGER) {
+    // Gestionar denuncias (estado, asignación, resolución) es gestión:
+    // solo el Administrador (OWNER). El Coordinador conserva la lectura.
+    if (user.rol !== Rol.OWNER) {
       return NextResponse.json(
-        { error: "Solo OWNER o MANAGER pueden gestionar denuncias" },
+        { error: "Solo el Administrador puede gestionar denuncias" },
         { status: 403 },
       );
     }

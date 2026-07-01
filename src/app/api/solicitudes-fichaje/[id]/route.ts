@@ -36,8 +36,6 @@ export const PATCH = withTenant(
       const userId = session.user.id!;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const userRol = (session.user as any).rol as Rol;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const userTiendaId = (session.user as any).tiendaId as string | null;
 
       const body = await request.json().catch(() => null);
       const estado = body?.estado as EstadoSolicitudFichaje | undefined;
@@ -77,7 +75,7 @@ export const PATCH = withTenant(
       }
 
       const autorizado =
-        puedeResolverSolicitud(userRol, userTiendaId, sol.solicitante.tiendaId) ||
+        puedeResolverSolicitud(userRol) ||
         sol.aprobadorId === userId;
       if (!autorizado) {
         return Response.json({ error: "No autorizado" }, { status: 403 });

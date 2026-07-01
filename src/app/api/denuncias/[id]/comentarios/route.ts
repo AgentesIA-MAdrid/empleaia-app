@@ -42,7 +42,9 @@ export const POST = withTenant(
       return NextResponse.json({ error: "No encontrada" }, { status: 404 });
     }
 
-    const isAdmin = user.rol === Rol.OWNER || user.rol === Rol.MANAGER;
+    // Gestión = Administrador (OWNER). El Coordinador (MANAGER) solo puede
+    // comentar si es el instructor asignado o el informante del caso.
+    const isAdmin = user.rol === Rol.OWNER;
     const isAsignado = denuncia.asignadoUserId === user.id;
     const isInformante = denuncia.informanteUserId === user.id;
     if (!isAdmin && !isAsignado && !isInformante) {

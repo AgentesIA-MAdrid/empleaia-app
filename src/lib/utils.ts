@@ -99,7 +99,7 @@ export function getLabelRol(rol: string) {
     case "OWNER":
       return "Administrador";
     case "MANAGER":
-      return "Manager";
+      return "Coordinador";
     default:
       return "Empleado";
   }

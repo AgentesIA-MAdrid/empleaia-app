@@ -25,7 +25,7 @@ export const POST = withTenant(withFeature("reserva_espacios", async (req: NextR
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const userRol = (session.user as { rol?: Rol }).rol;
-  if (userRol !== Rol.OWNER && userRol !== Rol.MANAGER) return NextResponse.json({ error: "Solo OWNER/MANAGER" }, { status: 403 });
+  if (userRol !== Rol.OWNER) return NextResponse.json({ error: "Solo el Administrador" }, { status: 403 });
   const body = await req.json().catch(() => null);
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });

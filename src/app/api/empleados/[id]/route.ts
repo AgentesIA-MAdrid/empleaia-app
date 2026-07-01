@@ -282,7 +282,7 @@ export const PUT = withTenant(async (request: NextRequest,
     updateData.perfilCompletado = esPerfilCompleto(efectivo);
     if (rol !== undefined && userRol === Rol.OWNER) updateData.rol = rol;
     if (tiendaId !== undefined && userRol === Rol.OWNER) updateData.tiendaId = tiendaId;
-    if (managerId !== undefined && (userRol === Rol.OWNER || userRol === Rol.MANAGER)) {
+    if (managerId !== undefined && userRol === Rol.OWNER) {
       // No permitir auto-asignación como manager.
       if (managerId === id) {
         return Response.json(

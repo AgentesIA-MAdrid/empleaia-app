@@ -12,8 +12,11 @@ export const PATCH = withTenant(async (request: NextRequest,
       return Response.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    // Edición administrativa de un fichaje: solo el Administrador (OWNER).
+    // El Coordinador (MANAGER) tiene permisos de empleado; para corregir
+    // sus propios fichajes usa el flujo de solicitudes de fichaje.
     const userRol = (session.user as any).rol as Rol;
-    if (userRol !== Rol.OWNER && userRol !== Rol.MANAGER) {
+    if (userRol !== Rol.OWNER) {
       return Response.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -22,14 +25,6 @@ export const PATCH = withTenant(async (request: NextRequest,
     const fichaje = await prisma.fichaje.findUnique({ where: { id } });
     if (!fichaje) {
       return Response.json({ error: "Fichaje no encontrado" }, { status: 404 });
-    }
-
-    // MANAGER can only edit fichajes from their tienda
-    if (userRol === Rol.MANAGER) {
-      const userTiendaId = (session.user as any).tiendaId as string | null;
-      if (fichaje.tiendaId !== userTiendaId) {
-        return Response.json({ error: "No autorizado" }, { status: 403 });
-      }
     }
 
     const body = await request.json();

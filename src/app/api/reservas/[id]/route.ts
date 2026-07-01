@@ -16,7 +16,9 @@ export const DELETE = withTenant(withFeature("reserva_espacios", async (
   const { id } = await params;
   const reserva = await prisma.reservaEspacio.findUnique({ where: { id }, select: { userId: true } });
   if (!reserva) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
-  const esAdmin = userRol === Rol.OWNER || userRol === Rol.MANAGER;
+  // Cancelar cualquier reserva = Administrador (OWNER). El Coordinador
+  // (MANAGER) actúa como empleado: solo la suya.
+  const esAdmin = userRol === Rol.OWNER;
   if (!esAdmin && reserva.userId !== userId) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   await prisma.reservaEspacio.delete({ where: { id } });
   return NextResponse.json({ success: true });

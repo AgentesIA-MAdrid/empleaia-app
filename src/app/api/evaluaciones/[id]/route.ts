@@ -50,7 +50,9 @@ export const PUT = withTenant(withFeature("evaluaciones", async (
   const { id } = await params;
   const ev = await prisma.evaluacion.findUnique({ where: { id }, select: { evaluadorId: true, estado: true } });
   if (!ev) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
-  const esAdmin = userRol === Rol.OWNER || userRol === Rol.MANAGER;
+  // Gestión = Administrador (OWNER). El Coordinador (MANAGER) actúa como
+  // empleado: solo puede rellenar la evaluación de la que es evaluador.
+  const esAdmin = userRol === Rol.OWNER;
   if (!esAdmin && ev.evaluadorId !== userId) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const body = await req.json().catch(() => null);
@@ -81,7 +83,7 @@ export const DELETE = withTenant(withFeature("evaluaciones", async (
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const userRol = (session.user as { rol?: Rol }).rol;
-  if (userRol !== Rol.OWNER && userRol !== Rol.MANAGER) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  if (userRol !== Rol.OWNER) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   const { id } = await params;
   await prisma.evaluacion.delete({ where: { id } });
   return NextResponse.json({ success: true });

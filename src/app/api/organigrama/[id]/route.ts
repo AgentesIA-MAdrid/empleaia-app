@@ -14,7 +14,8 @@ export const PATCH = withTenant(withFeature("organigrama", async (
 ) => {
   const session = await auth();
   const user = session?.user as { rol?: Rol | string } | undefined;
-  if (user?.rol !== Rol.OWNER && user?.rol !== Rol.MANAGER) {
+  // Reasignar manager en el organigrama es gestión: solo el Administrador.
+  if (user?.rol !== Rol.OWNER) {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
   const { id } = await params;

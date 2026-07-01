@@ -22,7 +22,8 @@ export const POST = withTenant(withFeature("reclutamiento", async (
 ) => {
   const session = await auth();
   const user = session?.user as { id?: string; rol?: Rol | string } | undefined;
-  if (!user?.id || (user.rol !== Rol.OWNER && user.rol !== Rol.MANAGER)) {
+  // Añadir candidatos es gestión: solo el Administrador (OWNER).
+  if (!user?.id || user.rol !== Rol.OWNER) {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
   const { id: ofertaId } = await params;

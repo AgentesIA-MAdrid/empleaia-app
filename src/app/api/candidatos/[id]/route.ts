@@ -31,7 +31,8 @@ export const PATCH = withTenant(withFeature("reclutamiento", async (
 ) => {
   const session = await auth();
   const user = session?.user as { rol?: Rol | string } | undefined;
-  if (user?.rol !== Rol.OWNER && user?.rol !== Rol.MANAGER) {
+  // Gestionar candidatos (cambiar estado/notas) es gestión: solo Administrador.
+  if (user?.rol !== Rol.OWNER) {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
   const { id } = await params;

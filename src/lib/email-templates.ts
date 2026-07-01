@@ -169,7 +169,7 @@ function hexToRgb(hex: string): string {
 function getRolLabel(rol: string): string {
   switch (rol) {
     case "OWNER": return "Administrador";
-    case "MANAGER": return "Manager";
+    case "MANAGER": return "Coordinador";
     default: return "Empleado";
   }
 }

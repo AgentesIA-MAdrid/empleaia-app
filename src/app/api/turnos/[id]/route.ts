@@ -12,8 +12,9 @@ export const PUT = withTenant(async (request: NextRequest,
       return Response.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    // Editar/borrar turnos es gestión: solo el Administrador (OWNER).
     const userRol = (session.user as any).rol as Rol;
-    if (userRol !== Rol.OWNER && userRol !== Rol.MANAGER) {
+    if (userRol !== Rol.OWNER) {
       return Response.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -22,14 +23,6 @@ export const PUT = withTenant(async (request: NextRequest,
     const turno = await prisma.turno.findUnique({ where: { id } });
     if (!turno) {
       return Response.json({ error: "Turno no encontrado" }, { status: 404 });
-    }
-
-    // MANAGER can only update turnos from their tienda
-    if (userRol === Rol.MANAGER) {
-      const userTiendaId = (session.user as any).tiendaId as string | null;
-      if (turno.tiendaId !== userTiendaId) {
-        return Response.json({ error: "No autorizado" }, { status: 403 });
-      }
     }
 
     const body = await request.json();
@@ -43,14 +36,6 @@ export const PUT = withTenant(async (request: NextRequest,
       nota?: string;
       estado?: EstadoTurno;
     };
-
-    // MANAGER cannot reassign to a different tienda
-    if (userRol === Rol.MANAGER && tiendaId) {
-      const userTiendaId = (session.user as any).tiendaId as string | null;
-      if (tiendaId !== userTiendaId) {
-        return Response.json({ error: "No autorizado para asignar a esta tienda" }, { status: 403 });
-      }
-    }
 
     const updated = await prisma.turno.update({
       where: { id },
@@ -99,8 +84,9 @@ export const DELETE = withTenant(async (_request: NextRequest,
       return Response.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    // Editar/borrar turnos es gestión: solo el Administrador (OWNER).
     const userRol = (session.user as any).rol as Rol;
-    if (userRol !== Rol.OWNER && userRol !== Rol.MANAGER) {
+    if (userRol !== Rol.OWNER) {
       return Response.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -109,14 +95,6 @@ export const DELETE = withTenant(async (_request: NextRequest,
     const turno = await prisma.turno.findUnique({ where: { id } });
     if (!turno) {
       return Response.json({ error: "Turno no encontrado" }, { status: 404 });
-    }
-
-    // MANAGER can only delete turnos from their tienda
-    if (userRol === Rol.MANAGER) {
-      const userTiendaId = (session.user as any).tiendaId as string | null;
-      if (turno.tiendaId !== userTiendaId) {
-        return Response.json({ error: "No autorizado" }, { status: 403 });
-      }
     }
 
     await prisma.turno.delete({ where: { id } });

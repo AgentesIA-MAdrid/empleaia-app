@@ -16,7 +16,9 @@ async function autorizar(id: string, session: { user?: { id?: string; rol?: Rol 
   });
   if (!recurso) return { ok: false as const, status: 404, error: "Comunicado no encontrado" };
 
-  const permitido = userRol === Rol.OWNER || userRol === Rol.MANAGER || recurso.autorId === userId;
+  // Gestión = Administrador (OWNER) o el propio autor. El Coordinador
+  // (MANAGER) no gestiona comunicados de terceros: solo los que él creó.
+  const permitido = userRol === Rol.OWNER || recurso.autorId === userId;
   if (!permitido) return { ok: false as const, status: 403, error: "No autorizado" };
   return { ok: true as const };
 }

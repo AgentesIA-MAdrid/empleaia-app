@@ -19,7 +19,7 @@ export const PUT = withTenant(withFeature("custom_requests", async (
   if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const userId = session.user.id!;
   const userRol = (session.user as { rol?: Rol }).rol;
-  if (userRol !== Rol.OWNER && userRol !== Rol.MANAGER) return NextResponse.json({ error: "Solo OWNER/MANAGER" }, { status: 403 });
+  if (userRol !== Rol.OWNER) return NextResponse.json({ error: "Solo el Administrador" }, { status: 403 });
   const { id } = await params;
   const body = await req.json().catch(() => null);
   const parsed = updateSchema.safeParse(body);
@@ -51,7 +51,9 @@ export const DELETE = withTenant(withFeature("custom_requests", async (
   const { id } = await params;
   const p = await prisma.peticion.findUnique({ where: { id }, select: { solicitanteId: true, estado: true } });
   if (!p) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
-  const esAdmin = userRol === Rol.OWNER || userRol === Rol.MANAGER;
+  // Gestión = Administrador (OWNER). El Coordinador (MANAGER) actúa como
+  // empleado: solo su propia petición pendiente.
+  const esAdmin = userRol === Rol.OWNER;
   const esDueñoPendiente = p.solicitanteId === userId && p.estado === "pendiente";
   if (!esAdmin && !esDueñoPendiente) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   await prisma.peticion.delete({ where: { id } });
