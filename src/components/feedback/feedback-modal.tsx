@@ -137,6 +137,17 @@ export function FeedbackModal({
     });
   };
 
+  // Pegar capturas desde el portapapeles (Cmd/Ctrl+V) en el textarea.
+  const onPasteImages = (e: React.ClipboardEvent) => {
+    const files = Array.from(e.clipboardData?.items ?? [])
+      .filter((it) => it.kind === "file" && it.type.startsWith("image/"))
+      .map((it) => it.getAsFile())
+      .filter((f): f is File => f !== null);
+    if (files.length === 0) return; // texto normal: no interferir
+    e.preventDefault();
+    addFiles(files);
+  };
+
   const clearForm = () => {
     screenshots.forEach((s) => URL.revokeObjectURL(s.preview));
     setScreenshots([]);
@@ -307,10 +318,11 @@ export function FeedbackModal({
             </div>
             <textarea
               className={cn(inputCls, "min-h-[110px] resize-y")}
-              placeholder="¿Qué ocurre? Cuéntanoslo con detalle."
+              placeholder="¿Qué ocurre? Cuéntanoslo con detalle. Puedes pegar una captura con Cmd/Ctrl+V."
               maxLength={2000}
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
+              onPaste={onPasteImages}
             />
             {/* Capturas */}
             <div>
@@ -420,6 +432,11 @@ export function FeedbackModal({
                               maxLength={5000}
                               value={reply}
                               onChange={(e) => setReply(e.target.value)}
+                              onPaste={(e) => {
+                                const img = Array.from(e.clipboardData?.items ?? [])
+                                  .find((it) => it.kind === "file" && it.type.startsWith("image/"))?.getAsFile();
+                                if (img) { e.preventDefault(); addReplyImage(img); }
+                              }}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                                   e.preventDefault();
