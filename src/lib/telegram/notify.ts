@@ -31,9 +31,14 @@ async function activeRecipients(): Promise<{ chatId: string; canOperate: boolean
   return rows.filter((r): r is { chatId: string; canOperate: boolean } => !!r.chatId);
 }
 
-/** Teclado inline de acciones sobre un ticket. Compartido con el webhook. */
-export function ticketKeyboard(ticketId: string, canOperate: boolean): InlineButton[][] {
-  if (!canOperate) return [[{ text: "👁 Ver conversación", callback_data: `t:${ticketId}:ver` }]];
+/**
+ * Teclado inline de acciones sobre un ticket. Compartido con el webhook.
+ * `soloVer` (o !canOperate) → únicamente el botón de ver: para avisos de
+ * tickets ya cerrados (desplegado/resuelto) donde el resto de acciones no
+ * aplican, o para destinatarios que solo reciben.
+ */
+export function ticketKeyboard(ticketId: string, canOperate: boolean, soloVer = false): InlineButton[][] {
+  if (soloVer || !canOperate) return [[{ text: "👁 Ver conversación", callback_data: `t:${ticketId}:ver` }]];
   return [
     [
       { text: "💬 Responder", callback_data: `t:${ticketId}:resp` },
@@ -54,11 +59,11 @@ function recorta(s: string, n = 400): string {
   return s.length > n ? `${s.slice(0, n)}…` : s;
 }
 
-async function broadcast(header: string, body: string, ticketId: string): Promise<void> {
+async function broadcast(header: string, body: string, ticketId: string, soloVer = false): Promise<void> {
   const recipients = await activeRecipients();
   await Promise.allSettled(
     recipients.map((r) =>
-      sendMessage(r.chatId, `${header}\n\n${body}`, { inlineKeyboard: ticketKeyboard(ticketId, r.canOperate) }),
+      sendMessage(r.chatId, `${header}\n\n${body}`, { inlineKeyboard: ticketKeyboard(ticketId, r.canOperate, soloVer) }),
     ),
   );
 }
@@ -96,5 +101,6 @@ export async function notifyResultadoClaudia(input: {
 export async function notifyPrDesplegado(ticket: TicketRef, orgNombre: string): Promise<void> {
   const header = `🚀 <b>Desplegado</b> · Ticket ${ref(ticket.numero)}`;
   const body = `<b>${escapeHtml(orgNombre || "—")}</b>\nEl PR se ha mergeado y el ticket queda resuelto.\n\n${escapeHtml(recorta(ticket.descripcion, 200))}`;
-  await broadcast(header, body, ticket.id);
+  // Ticket ya resuelto → solo "Ver": responder/resolver/etc. no aplican.
+  await broadcast(header, body, ticket.id, true);
 }

@@ -30,6 +30,13 @@ describe("ticketKeyboard", () => {
     }
   });
 
+  it("soloVer: solo el botón de ver aunque el destinatario pueda operar", () => {
+    const kb = ticketKeyboard(id, true, true);
+    expect(kb).toHaveLength(1);
+    expect(kb[0]).toHaveLength(1);
+    expect(kb[0][0].callback_data).toBe(`t:${id}:ver`);
+  });
+
   it("callback_data cabe en el límite de 64 bytes de Telegram", () => {
     const kb = ticketKeyboard(id, true);
     for (const b of kb.flat()) {
