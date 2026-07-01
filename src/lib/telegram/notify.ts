@@ -32,22 +32,32 @@ async function activeRecipients(): Promise<{ chatId: string; canOperate: boolean
 }
 
 /**
- * Teclado inline de acciones sobre un ticket. Compartido con el webhook.
- * `soloVer` (o !canOperate) → únicamente el botón de ver: para avisos de
- * tickets ya cerrados (desplegado/resuelto) donde el resto de acciones no
- * aplican, o para destinatarios que solo reciben.
+ * Fase del teclado según el momento del ticket:
+ * - "inicial": nuevo o con respuesta del cliente → se ofrece "A Claudia"
+ *   (analizar/diagnosticar). NO "En desarrollo": no se implementa a ciegas.
+ * - "diagnostico": Claudia ya dio su diagnóstico → se ofrece "En desarrollo"
+ *   (implementar) en lugar de "A Claudia".
+ * - "cerrado": ticket resuelto/desplegado → solo ver.
  */
-export function ticketKeyboard(ticketId: string, canOperate: boolean, soloVer = false): InlineButton[][] {
-  if (soloVer || !canOperate) return [[{ text: "👁 Ver conversación", callback_data: `t:${ticketId}:ver` }]];
+export type FaseTeclado = "inicial" | "diagnostico" | "cerrado";
+
+/** Teclado inline de acciones sobre un ticket. Compartido con el webhook. */
+export function ticketKeyboard(ticketId: string, canOperate: boolean, fase: FaseTeclado = "inicial"): InlineButton[][] {
+  if (fase === "cerrado" || !canOperate) {
+    return [[{ text: "👁 Ver conversación", callback_data: `t:${ticketId}:ver` }]];
+  }
+  // La acción de Claudia cambia según la fase: analizar primero, implementar
+  // solo tras ver el diagnóstico.
+  const accionClaudia: InlineButton =
+    fase === "diagnostico"
+      ? { text: "🛠 En desarrollo", callback_data: `t:${ticketId}:dev` }
+      : { text: "🤖 A Claudia", callback_data: `t:${ticketId}:claudia` };
   return [
     [
       { text: "💬 Responder", callback_data: `t:${ticketId}:resp` },
       { text: "👁 Ver", callback_data: `t:${ticketId}:ver` },
     ],
-    [
-      { text: "🤖 A Claudia", callback_data: `t:${ticketId}:claudia` },
-      { text: "🛠 En desarrollo", callback_data: `t:${ticketId}:dev` },
-    ],
+    [accionClaudia],
     [
       { text: "✅ Resolver", callback_data: `t:${ticketId}:ok` },
       { text: "✖ Descartar", callback_data: `t:${ticketId}:no` },
@@ -59,11 +69,11 @@ function recorta(s: string, n = 400): string {
   return s.length > n ? `${s.slice(0, n)}…` : s;
 }
 
-async function broadcast(header: string, body: string, ticketId: string, soloVer = false): Promise<void> {
+async function broadcast(header: string, body: string, ticketId: string, fase: FaseTeclado = "inicial"): Promise<void> {
   const recipients = await activeRecipients();
   await Promise.allSettled(
     recipients.map((r) =>
-      sendMessage(r.chatId, `${header}\n\n${body}`, { inlineKeyboard: ticketKeyboard(ticketId, r.canOperate, soloVer) }),
+      sendMessage(r.chatId, `${header}\n\n${body}`, { inlineKeyboard: ticketKeyboard(ticketId, r.canOperate, fase) }),
     ),
   );
 }
@@ -95,12 +105,15 @@ export async function notifyResultadoClaudia(input: {
   let body = `<b>${escapeHtml(orgNombre || "—")}</b>\n${escapeHtml(recorta(ticket.descripcion, 200))}`;
   if (prUrl) body += `\n\n🔗 ${escapeHtml(prUrl)}`;
   if (error) body += `\n\n⚠️ ${escapeHtml(recorta(error, 300))}`;
-  await broadcast(header, body, ticket.id);
+  // Con diagnóstico (pr_abierto/sin_cambios) ya se puede pasar a "En desarrollo".
+  // Si falló, se mantiene "A Claudia" para reintentar.
+  const fase = resultado === "fallido" ? "inicial" : "diagnostico";
+  await broadcast(header, body, ticket.id, fase);
 }
 
 export async function notifyPrDesplegado(ticket: TicketRef, orgNombre: string): Promise<void> {
   const header = `🚀 <b>Desplegado</b> · Ticket ${ref(ticket.numero)}`;
   const body = `<b>${escapeHtml(orgNombre || "—")}</b>\nEl PR se ha mergeado y el ticket queda resuelto.\n\n${escapeHtml(recorta(ticket.descripcion, 200))}`;
   // Ticket ya resuelto → solo "Ver": responder/resolver/etc. no aplican.
-  await broadcast(header, body, ticket.id, true);
+  await broadcast(header, body, ticket.id, "cerrado");
 }

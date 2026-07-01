@@ -22,16 +22,21 @@ describe("ticketKeyboard", () => {
     expect(kb[0][0].callback_data).toBe(`t:${id}:ver`);
   });
 
-  it("operador: incluye responder, claudia, dev, ok, no y ver", () => {
-    const kb = ticketKeyboard(id, true);
-    const datas = kb.flat().map((b) => b.callback_data);
-    for (const a of ["resp", "ver", "claudia", "dev", "ok", "no"]) {
-      expect(datas).toContain(`t:${id}:${a}`);
-    }
+  it("fase inicial: ofrece 'A Claudia' pero NO 'En desarrollo'", () => {
+    const datas = ticketKeyboard(id, true, "inicial").flat().map((b) => b.callback_data);
+    for (const a of ["resp", "ver", "claudia", "ok", "no"]) expect(datas).toContain(`t:${id}:${a}`);
+    expect(datas).not.toContain(`t:${id}:dev`);
   });
 
-  it("soloVer: solo el botón de ver aunque el destinatario pueda operar", () => {
-    const kb = ticketKeyboard(id, true, true);
+  it("fase diagnostico: ofrece 'En desarrollo' en lugar de 'A Claudia'", () => {
+    const datas = ticketKeyboard(id, true, "diagnostico").flat().map((b) => b.callback_data);
+    expect(datas).toContain(`t:${id}:dev`);
+    expect(datas).not.toContain(`t:${id}:claudia`);
+    for (const a of ["resp", "ver", "ok", "no"]) expect(datas).toContain(`t:${id}:${a}`);
+  });
+
+  it("fase cerrado: solo el botón de ver aunque el destinatario pueda operar", () => {
+    const kb = ticketKeyboard(id, true, "cerrado");
     expect(kb).toHaveLength(1);
     expect(kb[0]).toHaveLength(1);
     expect(kb[0][0].callback_data).toBe(`t:${id}:ver`);
