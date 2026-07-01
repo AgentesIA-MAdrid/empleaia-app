@@ -364,26 +364,30 @@ export default function AdminAusenciasPage() {
                       </p>
                     )}
                   </div>
-                  {a.estado === "PENDIENTE" && (
+                  {a.estado !== "CANCELADA" && (
                     <div className="flex gap-2 flex-shrink-0">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-green-300 text-emerald-600 hover:bg-emerald-50"
-                        disabled={procesando === a.id}
-                        onClick={() => handleAccion(a.id, "APROBADA")}
-                      >
-                        <CheckCircle className="h-4 w-4 mr-1" /> Aprobar
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-red-300 text-red-600 hover:bg-red-50"
-                        disabled={procesando === a.id}
-                        onClick={() => setRechazarId(a.id)}
-                      >
-                        <XCircle className="h-4 w-4 mr-1" /> Rechazar
-                      </Button>
+                      {a.estado !== "APROBADA" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-green-300 text-emerald-600 hover:bg-emerald-50"
+                          disabled={procesando === a.id}
+                          onClick={() => handleAccion(a.id, "APROBADA")}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" /> Aprobar
+                        </Button>
+                      )}
+                      {a.estado !== "RECHAZADA" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-red-300 text-red-600 hover:bg-red-50"
+                          disabled={procesando === a.id}
+                          onClick={() => setRechazarId(a.id)}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" /> Rechazar
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
