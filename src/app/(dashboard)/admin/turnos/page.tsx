@@ -14,7 +14,7 @@ import { addDays, startOfWeek, endOfWeek, format, addWeeks, subWeeks, isSameDay,
 import { es } from "date-fns/locale";
 import { horasDeTurno, etiquetaTurno } from "@/lib/turnos/horas";
 
-interface Tienda { id: string; nombre: string; color: string }
+interface Tienda { id: string; nombre: string; color: string; activa: boolean }
 interface Empleado {
   id: string; nombre: string; apellidos: string;
   tiendaId: string | null;
@@ -114,7 +114,12 @@ export default function AdminTurnosPage() {
   const semanaKey = inicioSemana.toISOString();
 
   useEffect(() => {
-    fetch("/api/tiendas").then(r => r.json()).then(d => setTiendas(d.tiendas || []));
+    // Las sedes desactivadas (activa=false) no deben aparecer en el cuadrante
+    // ni en sus selectores: alinea la vista interactiva con la exportación,
+    // que ya filtra por `activa: true`. El endpoint /api/tiendas devuelve todas
+    // (la gestión de sedes las necesita para reactivarlas), así que filtramos aquí.
+    fetch("/api/tiendas").then(r => r.json()).then(d =>
+      setTiendas((d.tiendas || []).filter((t: Tienda) => t.activa)));
     fetch("/api/turnos/tipos").then(r => r.json()).then(d => setTipos(Array.isArray(d) ? d : []));
     fetch("/api/configuracion").then(r => r.json()).then(d => {
       if (typeof d?.horasSemanales === "number") setHorasGlobal(d.horasSemanales);
