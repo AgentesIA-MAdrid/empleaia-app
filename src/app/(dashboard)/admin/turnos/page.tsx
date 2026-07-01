@@ -883,7 +883,7 @@ function CeldaDia({
             onDragStart={(e) => { e.dataTransfer.setData("text/plain", t.id); e.dataTransfer.effectAllowed = "copy"; }}
             onClick={() => onEdit(t)}
             className={cn(
-              "group relative w-full cursor-grab rounded-md px-1 py-1 text-xs font-medium leading-tight active:cursor-grabbing",
+              "group relative mx-auto block w-fit cursor-grab rounded-md px-1 py-1 text-xs font-medium leading-tight active:cursor-grabbing",
               t.estado === "PUBLICADO" ? "text-white" : "border border-dashed border-slate-300 text-slate-600",
             )}
             style={t.estado === "PUBLICADO" ? { backgroundColor: t.tipoTurno?.color || "var(--primary)" } : undefined}
