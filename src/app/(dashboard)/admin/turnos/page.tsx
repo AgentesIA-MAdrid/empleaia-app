@@ -38,8 +38,28 @@ interface Ausencia {
   tipoAusencia: { nombre: string; color: string };
 }
 
+interface Tramo { horaApertura: string; horaCierre: string }
+
 const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const CUSTOM = "__custom__";
+
+// Día de la semana en la convención de HorarioSede (0=Lun…6=Dom). JS
+// getDay() es 0=Dom, de ahí el +6 % 7. Se construye desde componentes
+// locales para no depender de la zona horaria del ISO.
+const diaSemanaSede = (fecha: Date): number => (fecha.getDay() + 6) % 7;
+const diaSemanaDeFecha = (f: string): number => {
+  const [y, m, d] = f.split("-").map(Number);
+  if (!y || !m || !d) return -1;
+  return diaSemanaSede(new Date(y, m - 1, d));
+};
+
+// Etiqueta orientativa de la franja según la hora de apertura.
+const franjaLabel = (horaApertura: string): string => {
+  const h = Number(horaApertura.split(":")[0]);
+  if (h < 14) return "Mañana";
+  if (h < 20) return "Tarde";
+  return "Noche";
+};
 
 const TURNO_FORM_INICIAL = {
   id: "", userId: "", tiendaId: "", fecha: "",
@@ -61,6 +81,10 @@ export default function AdminTurnosPage() {
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const [ausencias, setAusencias] = useState<Ausencia[]>([]);
   const [tipos, setTipos] = useState<TipoTurno[]>([]);
+  // Horarios de apertura por sede: tiendaId → diaSemana (0=Lun…6=Dom) → tramos.
+  // Sirven para prerellenar el turno con el horario real de la sede en vez de
+  // un rango fijo 09:00–17:00.
+  const [horariosSede, setHorariosSede] = useState<Record<string, Record<number, Tramo[]>>>({});
   const [horasGlobal, setHorasGlobal] = useState(40);
   const [loading, setLoading] = useState(false);
 
@@ -91,6 +115,32 @@ export default function AdminTurnosPage() {
       if (typeof d?.horasSemanales === "number") setHorasGlobal(d.horasSemanales);
     });
   }, []);
+
+  // Carga los horarios de apertura de cada sede para poder prerellenar los
+  // turnos con la mañana/tarde de la sede. Un fetch por sede (mismo endpoint
+  // que el diálogo de horarios); si una falla, esa sede queda sin tramos.
+  useEffect(() => {
+    if (tiendas.length === 0) return;
+    let cancelado = false;
+    Promise.all(tiendas.map(t =>
+      fetch(`/api/tiendas/${t.id}/horarios`)
+        .then(r => r.ok ? r.json() : { tramos: [] })
+        .then(d => ({ id: t.id, tramos: (d.tramos ?? []) as (Tramo & { diaSemana: number })[] }))
+        .catch(() => ({ id: t.id, tramos: [] as (Tramo & { diaSemana: number })[] })),
+    )).then(res => {
+      if (cancelado) return;
+      const map: Record<string, Record<number, Tramo[]>> = {};
+      for (const { id, tramos } of res) {
+        const porDia: Record<number, Tramo[]> = {};
+        for (const tr of tramos) {
+          (porDia[tr.diaSemana] ??= []).push({ horaApertura: tr.horaApertura, horaCierre: tr.horaCierre });
+        }
+        map[id] = porDia;
+      }
+      setHorariosSede(map);
+    });
+    return () => { cancelado = true; };
+  }, [tiendas]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -203,12 +253,19 @@ export default function AdminTurnosPage() {
 
   // ---- Turno: crear / editar / borrar ----
   const abrirNuevoTurno = (emp: Empleado, dia: Date, tiendaId: string | null) => {
+    const sedeId = tiendaId || emp.tiendaId || (tiendas[0]?.id ?? "");
+    // Si la sede tiene horario ese día, el turno nace con el primer tramo
+    // (normalmente la mañana) como rango personalizado en vez del 09:00–17:00
+    // fijo. Se puede cambiar de tramo o ajustar a mano en el diálogo.
+    const tramoSede = horariosSede[sedeId]?.[diaSemanaSede(dia)]?.[0];
     setTurnoForm({
       ...TURNO_FORM_INICIAL,
       userId: emp.id,
-      tiendaId: tiendaId || emp.tiendaId || (tiendas[0]?.id ?? ""),
+      tiendaId: sedeId,
       fecha: format(dia, "yyyy-MM-dd"),
-      tipoTurnoId: tipos[0]?.id ?? CUSTOM,
+      ...(tramoSede
+        ? { tipoTurnoId: CUSTOM, horaInicio: tramoSede.horaApertura, horaFin: tramoSede.horaCierre }
+        : { tipoTurnoId: tipos[0]?.id ?? CUSTOM }),
     });
     setTurnoDialog(true);
   };
@@ -533,6 +590,33 @@ export default function AdminTurnosPage() {
                 </SelectContent>
               </Select>
             </div>
+            {(horariosSede[turnoForm.tiendaId]?.[diaSemanaDeFecha(turnoForm.fecha)] ?? []).length > 0 && (
+              <div>
+                <Label>Horario de la sede</Label>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {(horariosSede[turnoForm.tiendaId]?.[diaSemanaDeFecha(turnoForm.fecha)] ?? []).map((tr, i) => {
+                    const activo = turnoForm.tipoTurnoId === CUSTOM
+                      && turnoForm.horaInicio === tr.horaApertura && turnoForm.horaFin === tr.horaCierre;
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setTurnoForm(f => ({ ...f, tipoTurnoId: CUSTOM, horaInicio: tr.horaApertura, horaFin: tr.horaCierre }))}
+                        className={cn(
+                          "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                          activo
+                            ? "border-[var(--primary)] bg-[var(--primary)] text-white"
+                            : "border-slate-200 text-slate-600 hover:border-[var(--primary)] hover:text-[var(--primary)]",
+                        )}
+                      >
+                        {franjaLabel(tr.horaApertura)} · {tr.horaApertura}–{tr.horaCierre}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-1 text-xs text-slate-400">Elige un tramo de la sede o ajústalo abajo en “Personalizado”.</p>
+              </div>
+            )}
             {turnoForm.tipoTurnoId === CUSTOM && (
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Hora inicio</Label><Input type="time" className="mt-1" value={turnoForm.horaInicio} onChange={e => setTurnoForm(f => ({ ...f, horaInicio: e.target.value }))} /></div>
