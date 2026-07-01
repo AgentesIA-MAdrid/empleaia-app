@@ -18,23 +18,19 @@ const TIPOS_VALIDOS: readonly TipoFichaje[] = [
 ] as const;
 
 /**
- * ¿Puede un usuario con este rol/tienda resolver (aprobar/rechazar) una
- * solicitud cuyo solicitante pertenece a `solicitanteTiendaId`?
+ * ¿Puede un usuario con este rol resolver (aprobar/rechazar) una solicitud
+ * de fichaje por su ROL?
  *
- * - OWNER: siempre.
- * - MANAGER: solo si comparte tienda con el solicitante.
- * - EMPLEADO u otros: nunca.
+ * - OWNER (Administrador): siempre.
+ * - Resto (Coordinador/MANAGER, Empleado): no por rol. El Coordinador tiene
+ *   permisos de empleado en escritura y ya no aprueba fichajes de su centro.
+ *
+ * Nota: independientemente del rol, el "coordinador designado" de una
+ * solicitud (su `aprobadorId`) sí puede resolverla; eso lo comprueba el
+ * handler por separado, no depende del rol.
  */
-export function puedeResolverSolicitud(
-  rol: string,
-  resolverTiendaId: string | null | undefined,
-  solicitanteTiendaId: string | null | undefined,
-): boolean {
-  if (rol === "OWNER") return true;
-  if (rol === "MANAGER") {
-    return !!resolverTiendaId && resolverTiendaId === solicitanteTiendaId;
-  }
-  return false;
+export function puedeResolverSolicitud(rol: string): boolean {
+  return rol === "OWNER";
 }
 
 export interface SolicitudNormalizada {

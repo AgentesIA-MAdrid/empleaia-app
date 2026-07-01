@@ -103,22 +103,14 @@ export const POST = withTenant(withFeature("ausencias_aprobacion", async (reques
     let ausenciaUserId = session.user.id;
 
     if (targetUserId && targetUserId !== session.user.id) {
-      if (userRol === Rol.EMPLEADO) {
+      // Solo el Administrador (OWNER) puede crear ausencias para terceros.
+      // El Coordinador (MANAGER) tiene permisos de empleado en escritura:
+      // únicamente puede solicitar las suyas.
+      if (userRol !== Rol.OWNER) {
         return Response.json(
           { error: "No puedes crear ausencias para otros empleados" },
           { status: 403 }
         );
-      }
-      // MANAGER can only create for their tienda's employees
-      if (userRol === Rol.MANAGER) {
-        const targetUser = await prisma.user.findUnique({
-          where: { id: targetUserId },
-          select: { tiendaId: true },
-        });
-        const userTiendaId = (session.user as any).tiendaId as string | null;
-        if (!targetUser || targetUser.tiendaId !== userTiendaId) {
-          return Response.json({ error: "No autorizado para este empleado" }, { status: 403 });
-        }
       }
       ausenciaUserId = targetUserId;
     }

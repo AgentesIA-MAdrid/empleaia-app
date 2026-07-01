@@ -220,7 +220,7 @@ function getSidebarConfig(rol: string, pendingAusencias = 0): SidebarConfig {
 function getRolLabel(rol: string) {
   switch (rol) {
     case "OWNER": return "Administrador";
-    case "MANAGER": return "Manager";
+    case "MANAGER": return "Coordinador";
     default: return "Empleado";
   }
 }

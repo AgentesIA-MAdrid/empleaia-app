@@ -73,8 +73,8 @@ export const POST = withTenant(withFeature("encuestas_clima", async (req: NextRe
     if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     const userId = session.user.id!;
     const userRol = (session.user as { rol?: Rol }).rol;
-    if (userRol !== Rol.OWNER && userRol !== Rol.MANAGER) {
-      return NextResponse.json({ error: "Solo OWNER o MANAGER puede crear encuestas" }, { status: 403 });
+    if (userRol !== Rol.OWNER) {
+      return NextResponse.json({ error: "Solo el Administrador puede crear encuestas" }, { status: 403 });
     }
 
     let body: unknown;

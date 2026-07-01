@@ -39,7 +39,7 @@ export const DELETE = withTenant(withFeature("envio_nominas", async (
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const userRol = (session.user as { rol?: Rol }).rol;
-  if (userRol !== Rol.OWNER && userRol !== Rol.MANAGER) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  if (userRol !== Rol.OWNER) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   const { id } = await params;
   await prisma.nominaArchivo.delete({ where: { id } });
   return NextResponse.json({ success: true });

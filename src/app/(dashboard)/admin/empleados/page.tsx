@@ -76,7 +76,7 @@ function RolSelectInline({
       }}
     >
       <option value="EMPLEADO">Empleado</option>
-      <option value="MANAGER">Manager</option>
+      <option value="MANAGER">Coordinador</option>
       <option value="OWNER">Administrador</option>
     </select>
   );
@@ -720,7 +720,7 @@ export default function EmpleadosPage() {
           <SelectContent>
             <SelectItem value="todos">Todos los roles</SelectItem>
             <SelectItem value="EMPLEADO">Empleado</SelectItem>
-            <SelectItem value="MANAGER">Manager</SelectItem>
+            <SelectItem value="MANAGER">Coordinador</SelectItem>
             <SelectItem value="OWNER">Administrador</SelectItem>
           </SelectContent>
         </Select>
@@ -1054,7 +1054,7 @@ export default function EmpleadosPage() {
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="EMPLEADO">Empleado</SelectItem>
-                    <SelectItem value="MANAGER">Manager</SelectItem>
+                    <SelectItem value="MANAGER">Coordinador</SelectItem>
                     <SelectItem value="OWNER">Administrador</SelectItem>
                   </SelectContent>
                 </Select>

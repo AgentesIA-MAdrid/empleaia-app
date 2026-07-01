@@ -92,7 +92,7 @@ export const PUT = withTenant(withFeature("encuestas_clima", async (
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     const userRol = (session.user as { rol?: Rol }).rol;
-    if (userRol !== Rol.OWNER && userRol !== Rol.MANAGER) {
+    if (userRol !== Rol.OWNER) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -139,7 +139,7 @@ export const DELETE = withTenant(withFeature("encuestas_clima", async (
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     const userRol = (session.user as { rol?: Rol }).rol;
-    if (userRol !== Rol.OWNER && userRol !== Rol.MANAGER) {
+    if (userRol !== Rol.OWNER) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
     const { id } = await params;

@@ -30,7 +30,8 @@ const createSchema = z.object({
 export const POST = withTenant(withFeature("reclutamiento", async (req: NextRequest) => {
   const session = await auth();
   const user = session?.user as { id?: string; rol?: Rol | string } | undefined;
-  if (!user?.id || (user.rol !== Rol.OWNER && user.rol !== Rol.MANAGER)) {
+  // Crear ofertas es gestión: solo el Administrador (OWNER).
+  if (!user?.id || user.rol !== Rol.OWNER) {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
 

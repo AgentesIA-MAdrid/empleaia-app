@@ -51,7 +51,9 @@ export const PUT = withTenant(withFeature("objetivos", async (
       return NextResponse.json({ error: "Datos inválidos", details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const esAdmin = userRol === Rol.OWNER || userRol === Rol.MANAGER;
+    // Gestión = Administrador (OWNER). El Coordinador (MANAGER) actúa como
+    // empleado: solo puede tocar `progreso` de objetivos asignados a sí mismo.
+    const esAdmin = userRol === Rol.OWNER;
     const esAsignado = obj.asignadoAId === userId;
 
     if (!esAdmin) {
@@ -98,8 +100,8 @@ export const DELETE = withTenant(withFeature("objetivos", async (
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     const userRol = (session.user as { rol?: Rol }).rol;
-    if (userRol !== Rol.OWNER && userRol !== Rol.MANAGER) {
-      return NextResponse.json({ error: "Solo OWNER o MANAGER puede borrar objetivos" }, { status: 403 });
+    if (userRol !== Rol.OWNER) {
+      return NextResponse.json({ error: "Solo el Administrador puede borrar objetivos" }, { status: 403 });
     }
 
     const { id } = await params;

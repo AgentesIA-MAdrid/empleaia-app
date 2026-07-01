@@ -14,22 +14,13 @@ import { withTenant } from "@/lib/tenant/with-tenant";
  * Solo OWNER (toda la plantilla) y MANAGER (empleados de su sede).
  */
 
-/** Comprueba que quien edita puede gestionar al empleado destino. */
-async function puedeGestionar(
-  sessionUser: { rol?: Rol; tiendaId?: string | null },
-  userId: string,
-): Promise<boolean> {
-  const rol = sessionUser.rol;
-  if (rol === Rol.OWNER) return true;
-  if (rol === Rol.MANAGER) {
-    const managerTiendaId = sessionUser.tiendaId ?? null;
-    const target = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { tiendaId: true },
-    });
-    return !!target && target.tiendaId === managerTiendaId;
-  }
-  return false;
+/**
+ * Quitar/restaurar festivos a un empleado es gestión (afecta a terceros):
+ * solo el Administrador (OWNER). El Coordinador (MANAGER) tiene permisos de
+ * empleado y ya no gestiona excepciones de festivo de la plantilla.
+ */
+function puedeGestionar(sessionUser: { rol?: Rol; tiendaId?: string | null }): boolean {
+  return sessionUser.rol === Rol.OWNER;
 }
 
 export const POST = withTenant(
@@ -42,7 +33,7 @@ export const POST = withTenant(
       const { userId } = (await req.json()) as { userId?: string };
       if (!userId) return NextResponse.json({ error: "userId requerido" }, { status: 400 });
 
-      if (!(await puedeGestionar(session.user as { rol?: Rol; tiendaId?: string | null }, userId))) {
+      if (!puedeGestionar(session.user as { rol?: Rol; tiendaId?: string | null })) {
         return NextResponse.json({ error: "No autorizado" }, { status: 403 });
       }
 
@@ -74,7 +65,7 @@ export const DELETE = withTenant(
       const userId = new URL(req.url).searchParams.get("userId");
       if (!userId) return NextResponse.json({ error: "userId requerido" }, { status: 400 });
 
-      if (!(await puedeGestionar(session.user as { rol?: Rol; tiendaId?: string | null }, userId))) {
+      if (!puedeGestionar(session.user as { rol?: Rol; tiendaId?: string | null })) {
         return NextResponse.json({ error: "No autorizado" }, { status: 403 });
       }
 

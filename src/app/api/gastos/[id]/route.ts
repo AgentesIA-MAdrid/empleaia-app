@@ -19,7 +19,7 @@ export const PUT = withTenant(withFeature("control_gastos", async (
   if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const userId = session.user.id!;
   const userRol = (session.user as { rol?: Rol }).rol;
-  if (userRol !== Rol.OWNER && userRol !== Rol.MANAGER) return NextResponse.json({ error: "Solo OWNER/MANAGER" }, { status: 403 });
+  if (userRol !== Rol.OWNER) return NextResponse.json({ error: "Solo el Administrador" }, { status: 403 });
   const { id } = await params;
   const body = await req.json().catch(() => null);
   const parsed = reviewSchema.safeParse(body);
@@ -51,7 +51,9 @@ export const DELETE = withTenant(withFeature("control_gastos", async (
   const { id } = await params;
   const gasto = await prisma.gasto.findUnique({ where: { id }, select: { userId: true, estado: true } });
   if (!gasto) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
-  const esAdmin = userRol === Rol.OWNER || userRol === Rol.MANAGER;
+  // Gestión (borrar cualquier gasto) = Administrador (OWNER). El Coordinador
+  // (MANAGER) actúa como empleado: solo su propio gasto pendiente.
+  const esAdmin = userRol === Rol.OWNER;
   const esPropietarioPendiente = gasto.userId === userId && gasto.estado === "pendiente";
   if (!esAdmin && !esPropietarioPendiente) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   await prisma.gasto.delete({ where: { id } });

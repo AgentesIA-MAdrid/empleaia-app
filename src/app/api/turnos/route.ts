@@ -88,8 +88,10 @@ export const POST = withTenant(withFeature("turnos_publicacion", async (request:
       return Response.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    // Crear turnos es gestión: solo el Administrador (OWNER). El Coordinador
+    // (MANAGER) conserva la lectura (GET) de los turnos de su centro.
     const userRol = (session.user as any).rol as Rol;
-    if (userRol !== Rol.OWNER && userRol !== Rol.MANAGER) {
+    if (userRol !== Rol.OWNER) {
       return Response.json({ error: "No autorizado" }, { status: 403 });
     }
 
@@ -141,14 +143,6 @@ export const POST = withTenant(withFeature("turnos_publicacion", async (request:
         { error: "Indica un tipo de turno o un rango horaInicio/horaFin" },
         { status: 400 }
       );
-    }
-
-    // MANAGER can only create turnos for their tienda
-    if (userRol === Rol.MANAGER) {
-      const userTiendaId = (session.user as any).tiendaId as string | null;
-      if (tiendaId !== userTiendaId) {
-        return Response.json({ error: "No autorizado para esta tienda" }, { status: 403 });
-      }
     }
 
     const turno = await prisma.turno.create({

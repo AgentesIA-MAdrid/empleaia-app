@@ -19,7 +19,9 @@ export const DELETE = withTenant(async (
   const { userId } = await params;
 
   const isSelf = userId === me.id;
-  const isAdmin = me.rol === Rol.OWNER || me.rol === Rol.MANAGER;
+  // Borrar la plantilla biométrica de un tercero es gestión: solo el
+  // Administrador (OWNER). Cualquiera puede borrar la suya (RGPD).
+  const isAdmin = me.rol === Rol.OWNER;
   if (!isSelf && !isAdmin) {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }

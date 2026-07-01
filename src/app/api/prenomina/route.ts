@@ -137,8 +137,11 @@ export const POST = withTenant(
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     const userRol = (session.user as { rol?: Rol }).rol;
-    const guard = assertOwnerOrManager(userRol);
-    if (guard) return guard;
+    // Recalcular/persistir prenóminas es gestión: solo el Administrador (OWNER).
+    // (La lectura GET sí la conserva el Coordinador vía assertOwnerOrManager.)
+    if (userRol !== Rol.OWNER) {
+      return NextResponse.json({ error: "Solo el Administrador" }, { status: 403 });
+    }
 
     const periodo = req.nextUrl.searchParams.get("periodo");
     const p = parsePeriodo(periodo);

@@ -35,8 +35,10 @@ export const PATCH = withTenant(async (request: NextRequest,
       return Response.json({ error: "Estado inválido" }, { status: 400 });
     }
 
-    if (userRol === Rol.EMPLEADO) {
-      // EMPLEADO can only cancel their own PENDIENTE ausencias
+    // Coordinador (MANAGER) y Empleado comparten permisos de escritura:
+    // solo pueden cancelar sus propias ausencias PENDIENTE. Aprobar/rechazar
+    // queda reservado al Administrador (OWNER).
+    if (userRol !== Rol.OWNER) {
       if (ausencia.userId !== session.user.id) {
         return Response.json({ error: "No autorizado" }, { status: 403 });
       }
@@ -64,18 +66,8 @@ export const PATCH = withTenant(async (request: NextRequest,
       return Response.json(updated);
     }
 
-    // MANAGER or OWNER
-    if (userRol !== Rol.OWNER && userRol !== Rol.MANAGER) {
-      return Response.json({ error: "No autorizado" }, { status: 403 });
-    }
-
-    // MANAGER can only manage ausencias from their tienda
-    if (userRol === Rol.MANAGER) {
-      const userTiendaId = (session.user as any).tiendaId as string | null;
-      if (ausencia.user.tiendaId !== userTiendaId) {
-        return Response.json({ error: "No autorizado" }, { status: 403 });
-      }
-    }
+    // A partir de aquí, userRol === OWNER (el resto retornó arriba).
+    // Aprobar / rechazar / cambiar estado de cualquier ausencia.
 
     const updated = await prisma.ausencia.update({
       where: { id },
