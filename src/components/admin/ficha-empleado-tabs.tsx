@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatusPill } from "@/components/ui/status-pill";
 import { cn, getColorRol, getLabelRol } from "@/lib/utils";
 import { EmpleadoDatosForm, type EmpleadoDatos } from "@/components/empleados/empleado-datos-form";
+import { CamposPersonalizadosFicha } from "@/components/admin/campos-personalizados-ficha";
 
 type Rol = "OWNER" | "MANAGER" | "EMPLEADO";
 type TipoFichaje = "ENTRADA" | "PAUSA" | "VUELTA_PAUSA" | "SALIDA";
@@ -383,6 +384,12 @@ export function FichaEmpleadoTabs({
                 <EmpleadoDatosForm empleado={fichaDatos} modo="admin" soloLectura={!puedeEditarFicha} />
               </CardContent>
             </Card>
+            <div className="mt-6">
+              <CamposPersonalizadosFicha
+                empleadoId={empleado.id}
+                puedeEditar={puedeEditarFicha}
+              />
+            </div>
           </TabsContent>
         )}
 
