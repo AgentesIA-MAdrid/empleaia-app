@@ -763,20 +763,28 @@ export default function EmpleadosPage() {
           ) : (
             <>
             <div className="hidden md:block overflow-x-auto">
-              <table className="w-full table-fixed min-w-[1280px]">
+              {/*
+                Anchos como proporciones (table-fixed + w-full): con la barra
+                lateral (256px en lg+) el área útil de un portátil ronda los
+                ~960-1136px, así que la tabla se dimensiona para caber ahí sin
+                scroll horizontal y crece proporcionalmente en pantallas
+                grandes. `min-w-[960px]` es solo el suelo antes de activar el
+                overflow. Suma = 960; celdas con `truncate` absorben el resto.
+              */}
+              <table className="w-full table-fixed min-w-[960px]">
                 <colgroup>
-                  <col style={{ width: 44 }} />
-                  <col style={{ width: 230 }} />
-                  <col style={{ width: 200 }} />
-                  <col style={{ width: 95 }} />
-                  <col style={{ width: 160 }} />
-                  <col style={{ width: 186 }} />
-                  <col style={{ width: 180 }} />
-                  <col style={{ width: 185 }} />
+                  <col style={{ width: 40 }} />
+                  <col style={{ width: 150 }} />
+                  <col style={{ width: 110 }} />
+                  <col style={{ width: 88 }} />
+                  <col style={{ width: 152 }} />
+                  <col style={{ width: 84 }} />
+                  <col style={{ width: 164 }} />
+                  <col style={{ width: 172 }} />
                 </colgroup>
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-3 w-10">
+                    <th className="px-3 py-3 w-10">
                       <input
                         type="checkbox"
                         aria-label="Seleccionar todos"
@@ -792,7 +800,7 @@ export default function EmpleadosPage() {
                           key={h}
                           onClick={ordenable ? () => toggleSort(h) : undefined}
                           className={cn(
-                            "text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3",
+                            "text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-3 py-3",
                             ordenable && "cursor-pointer select-none hover:text-slate-700",
                           )}
                         >
@@ -814,7 +822,7 @@ export default function EmpleadosPage() {
                     const estado = getEstadoEmpleado(emp);
                     return (
                       <tr key={emp.id} className={cn("hover:bg-slate-50 transition-colors", !emp.activo && "opacity-60", seleccionados.has(emp.id) && "bg-[var(--primary)]/5")}>
-                        <td className="px-4 py-3 w-10">
+                        <td className="px-3 py-3 w-10">
                           <input
                             type="checkbox"
                             aria-label={`Seleccionar ${emp.nombre} ${emp.apellidos}`}
@@ -823,16 +831,19 @@ export default function EmpleadosPage() {
                             onChange={() => toggleSeleccion(emp.id)}
                           />
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3">
                           <div className="flex items-center gap-3 min-w-0">
                             <EmployeeAvatar nombre={emp.nombre} apellidos={emp.apellidos} seed={emp.id} />
-                            <span className="font-medium text-slate-900 text-sm leading-tight">
+                            <span
+                              className="font-medium text-slate-900 text-sm leading-tight truncate"
+                              title={`${emp.nombre} ${emp.apellidos}`}
+                            >
                               {emp.nombre} {emp.apellidos}
                             </span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-slate-600 truncate" title={emp.email}>{emp.email}</td>
-                        <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{emp.dni || "—"}</td>
+                        <td className="px-3 py-3 text-sm text-slate-600 truncate" title={emp.email}>{emp.email}</td>
+                        <td className="px-3 py-3 text-sm text-slate-600 truncate" title={emp.dni || undefined}>{emp.dni || "—"}</td>
                         <td className="px-3 py-3 whitespace-nowrap">
                           <RolSelectInline
                             rol={emp.rol}
@@ -840,13 +851,13 @@ export default function EmpleadosPage() {
                             onChange={(nuevoRol) => handleCambiarRol(emp, nuevoRol)}
                           />
                         </td>
-                        <td className="px-4 py-3 text-sm">
+                        <td className="px-3 py-3 text-sm">
                           <SedesCelda emp={emp} />
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-3 py-3 whitespace-nowrap">
                           <StatusPill tone={estado.tone} label={estado.label} showDot={false} />
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3">
                           <div className="flex gap-0.5">
                             <Link href={`/admin/empleados/${emp.id}`}>
                               <Button variant="ghost" size="icon" className="h-7 w-7" title="Ver ficha completa">
