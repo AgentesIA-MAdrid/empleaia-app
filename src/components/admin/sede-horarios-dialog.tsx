@@ -21,10 +21,19 @@ const vacio = (): TramosPorDia => ({ 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6
 // editarlos a mano. Días: 0=Lunes … 5=Sábado, 6=Domingo.
 const PRESETS: Record<string, { label: string; build: () => TramosPorDia }> = {
   centro: {
-    label: "Centro comercial — 10:00 a 22:00 (todos los días)",
+    label: "Centro comercial — L–S 10–16 y 16–22 (turno partido), domingo 11–21",
     build: () => {
       const n = vacio();
-      for (let d = 0; d < 7; d++) n[d] = [{ horaApertura: "10:00", horaCierre: "22:00" }];
+      // Lunes a sábado (0–5): dos tramos para cubrir turno de mañana y de
+      // tarde con relevo (10–16 y 16–22).
+      for (let d = 0; d < 6; d++) {
+        n[d] = [
+          { horaApertura: "10:00", horaCierre: "16:00" },
+          { horaApertura: "16:00", horaCierre: "22:00" },
+        ];
+      }
+      // Domingo (6): horario reducido de un tramo.
+      n[6] = [{ horaApertura: "11:00", horaCierre: "21:00" }];
       return n;
     },
   },
