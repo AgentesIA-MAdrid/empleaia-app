@@ -23,6 +23,8 @@ import {
   resolver,
   descartar,
   verConversacion,
+  revisarPr,
+  mergearPr,
 } from "@/lib/telegram/actions";
 
 export const runtime = "nodejs";
@@ -115,10 +117,19 @@ async function handleCallback(cq: NonNullable<TgUpdate["callback_query"]>): Prom
     return ok();
   }
 
+  // Revisar PR es solo lectura (respuesta rápida, sin tocar botones).
+  if (accion === "revpr") {
+    const res = await revisarPr(ticketId);
+    await answerCallbackQuery(cq.id);
+    await sendMessage(chatId, trunc(res.text));
+    return ok();
+  }
+
   let res: { ok: boolean; text: string };
   switch (accion) {
     case "claudia": res = await enviarAClaudia(ticketId, operadorId); break;
     case "dev": res = await enDesarrolloClaudia(ticketId, operadorId); break;
+    case "merge": res = await mergearPr(ticketId); break;
     case "ok": res = await resolver(ticketId); break;
     case "no": res = await descartar(ticketId); break;
     default:
@@ -128,7 +139,7 @@ async function handleCallback(cq: NonNullable<TgUpdate["callback_query"]>): Prom
   await answerCallbackQuery(cq.id, res.ok ? "Hecho" : "No se pudo");
   await sendMessage(chatId, res.text);
   // Tras una acción terminal, quitamos los botones del mensaje original.
-  if (res.ok && messageId != null && (accion === "ok" || accion === "no")) {
+  if (res.ok && messageId != null && (accion === "ok" || accion === "no" || accion === "merge")) {
     await clearInlineKeyboard(chatId, messageId);
   }
   return ok();

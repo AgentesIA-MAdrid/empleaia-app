@@ -35,16 +35,34 @@ async function activeRecipients(): Promise<{ chatId: string; canOperate: boolean
  * Fase del teclado según el momento del ticket:
  * - "inicial": nuevo o con respuesta del cliente → se ofrece "A Claudia"
  *   (analizar/diagnosticar). NO "En desarrollo": no se implementa a ciegas.
- * - "diagnostico": Claudia ya dio su diagnóstico → se ofrece "En desarrollo"
- *   (implementar) en lugar de "A Claudia".
+ * - "diagnostico": Claudia diagnosticó sin abrir PR → se ofrece "En desarrollo".
+ * - "pr": Claudia abrió un PR → se ofrece Revisar PR y Mergear.
  * - "cerrado": ticket resuelto/desplegado → solo ver.
  */
-export type FaseTeclado = "inicial" | "diagnostico" | "cerrado";
+export type FaseTeclado = "inicial" | "diagnostico" | "pr" | "cerrado";
 
 /** Teclado inline de acciones sobre un ticket. Compartido con el webhook. */
 export function ticketKeyboard(ticketId: string, canOperate: boolean, fase: FaseTeclado = "inicial"): InlineButton[][] {
   if (fase === "cerrado" || !canOperate) {
     return [[{ text: "👁 Ver conversación", callback_data: `t:${ticketId}:ver` }]];
+  }
+  const responderVer: InlineButton[] = [
+    { text: "💬 Responder", callback_data: `t:${ticketId}:resp` },
+    { text: "👁 Ver", callback_data: `t:${ticketId}:ver` },
+  ];
+  // Fase con PR: revisar el diff y mergear desde Telegram.
+  if (fase === "pr") {
+    return [
+      responderVer,
+      [
+        { text: "🔍 Revisar PR", callback_data: `t:${ticketId}:revpr` },
+        { text: "🔀 Mergear", callback_data: `t:${ticketId}:merge` },
+      ],
+      [
+        { text: "🛠 En desarrollo", callback_data: `t:${ticketId}:dev` },
+        { text: "✖ Descartar", callback_data: `t:${ticketId}:no` },
+      ],
+    ];
   }
   // La acción de Claudia cambia según la fase: analizar primero, implementar
   // solo tras ver el diagnóstico.
@@ -53,10 +71,7 @@ export function ticketKeyboard(ticketId: string, canOperate: boolean, fase: Fase
       ? { text: "🛠 En desarrollo", callback_data: `t:${ticketId}:dev` }
       : { text: "🤖 A Claudia", callback_data: `t:${ticketId}:claudia` };
   return [
-    [
-      { text: "💬 Responder", callback_data: `t:${ticketId}:resp` },
-      { text: "👁 Ver", callback_data: `t:${ticketId}:ver` },
-    ],
+    responderVer,
     [accionClaudia],
     [
       { text: "✅ Resolver", callback_data: `t:${ticketId}:ok` },
@@ -105,9 +120,8 @@ export async function notifyResultadoClaudia(input: {
   let body = `<b>${escapeHtml(orgNombre || "—")}</b>\n${escapeHtml(recorta(ticket.descripcion, 200))}`;
   if (prUrl) body += `\n\n🔗 ${escapeHtml(prUrl)}`;
   if (error) body += `\n\n⚠️ ${escapeHtml(recorta(error, 300))}`;
-  // Con diagnóstico (pr_abierto/sin_cambios) ya se puede pasar a "En desarrollo".
-  // Si falló, se mantiene "A Claudia" para reintentar.
-  const fase = resultado === "fallido" ? "inicial" : "diagnostico";
+  // pr_abierto → revisar/mergear; sin_cambios → "En desarrollo"; fallido → reintentar.
+  const fase: FaseTeclado = resultado === "pr_abierto" ? "pr" : resultado === "fallido" ? "inicial" : "diagnostico";
   await broadcast(header, body, ticket.id, fase);
 }
 

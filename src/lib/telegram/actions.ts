@@ -16,9 +16,11 @@ import {
   enqueueAiJob,
   getTicketUserEmail,
   getTicketOrgName,
+  getLatestAiJob,
 } from "@/lib/feedback/repository";
 import { sendAdminReplyEmail, sendResolutionEmail } from "@/lib/feedback/send-emails";
 import { escapeHtml } from "./client";
+import { getPrInfo, mergePr } from "./github";
 
 const ref = (n: number) => `#${String(n).padStart(4, "0")}`;
 
@@ -91,6 +93,40 @@ export async function descartar(ticketId: string): Promise<Res> {
   if (!ticket) return { ok: false, text: "Ticket no encontrado." };
   await updateTicket(ticketId, { estado: "descartado" });
   return { ok: true, text: `✖ Ticket ${ref(ticket.numero)} descartado.` };
+}
+
+/** Revisar el PR del ticket: estado, líneas y archivos cambiados. */
+export async function revisarPr(ticketId: string): Promise<Res> {
+  const ticket = await getTicketById(ticketId);
+  if (!ticket) return { ok: false, text: "Ticket no encontrado." };
+  const job = await getLatestAiJob(ticketId);
+  if (!job?.pr_url) return { ok: false, text: "Este ticket no tiene un PR abierto." };
+  const r = await getPrInfo(job.pr_url);
+  if (!r.ok) return { ok: false, text: `No pude leer el PR: ${r.error}` };
+  const i = r.info;
+  const estado = i.merged ? "mergeado" : i.draft ? "borrador" : i.state === "open" ? "abierto" : i.state;
+  const mergeable = i.merged ? "" : i.mergeable === true ? " · ✅ mergeable" : i.mergeable === false ? " · ⚠️ con conflictos" : " · (calculando…)";
+  const cab =
+    `🔍 <b>PR del Ticket ${ref(ticket.numero)}</b> — ${escapeHtml(estado)}${mergeable}\n` +
+    `<b>${escapeHtml(i.title)}</b>\n` +
+    `${i.changedFiles} archivo(s) · <b>+${i.additions}</b> / <b>−${i.deletions}</b>\n${escapeHtml(job.pr_url)}`;
+  const lista = i.files
+    .slice(0, 30)
+    .map((f) => `• ${escapeHtml(f.filename)} <b>+${f.additions}</b>/<b>−${f.deletions}</b>`)
+    .join("\n");
+  const extra = i.files.length > 30 ? `\n…y ${i.files.length - 30} más` : "";
+  return { ok: true, text: `${cab}\n\n${lista}${extra}` };
+}
+
+/** Mergear el PR del ticket (squash). El webhook de GitHub resolverá el ticket. */
+export async function mergearPr(ticketId: string): Promise<Res> {
+  const ticket = await getTicketById(ticketId);
+  if (!ticket) return { ok: false, text: "Ticket no encontrado." };
+  const job = await getLatestAiJob(ticketId);
+  if (!job?.pr_url) return { ok: false, text: "Este ticket no tiene un PR abierto." };
+  const r = await mergePr(job.pr_url);
+  if (!r.ok) return { ok: false, text: `No se pudo mergear: ${r.error}` };
+  return { ok: true, text: `🔀 PR mergeado (Ticket ${ref(ticket.numero)}). El ticket se marcará como resuelto y el cliente recibirá el aviso en unos segundos.` };
 }
 
 const ESTADO_LABEL: Record<string, string> = {
