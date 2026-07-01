@@ -34,11 +34,20 @@ interface InvitationRow {
 interface ApiResponse {
   admins: AdminRow[];
   invitations: InvitationRow[];
+  me: string;
+  myRole: Role;
 }
 
 const ROLE_LABEL: Record<Role, string> = {
   SUPER_ADMIN: "Administrador completo",
   SUPPORT: "Soporte",
+};
+
+const ROLE_DESC: Record<Role, string> = {
+  SUPER_ADMIN:
+    "Acceso total: invitar y gestionar administradores, y gestionar tenants (suspender, extender/cancelar suscripción, borrar).",
+  SUPPORT:
+    "Solo lectura: puede ver tenants, tickets, métricas y el registro de actividad, pero no puede modificar nada.",
 };
 
 const ROLE_TONE: Record<Role, string> = {
@@ -90,6 +99,45 @@ export default function AdminsPage() {
   }, [reloadTick]);
 
   const refresh = useCallback(() => setReloadTick((n) => n + 1), []);
+
+  const changeRole = useCallback(
+    async (row: AdminRow, nextRole: Role) => {
+      if (nextRole === row.role) return;
+      const verbo =
+        nextRole === "SUPER_ADMIN"
+          ? `dar acceso completo a ${row.name}`
+          : `pasar a ${row.name} a solo lectura (Soporte)`;
+      if (!window.confirm(`¿Confirmas ${verbo} (${row.email})?`)) return;
+      setPendingId(row.id);
+      setActionError(null);
+      setActionInfo(null);
+      try {
+        const r = await fetch(`/api/admin/admins/${row.id}/role`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ role: nextRole }),
+        });
+        const payload = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+        if (!r.ok) {
+          const code = payload.error as string | undefined;
+          const msg =
+            code === "ultimo_super_admin"
+              ? "No puedes dejar el panel sin ningún administrador completo activo."
+              : code === "no_puedes_cambiar_tu_propio_rol"
+                ? "No puedes cambiar tu propio rol."
+                : (code ?? `HTTP ${r.status}`);
+          throw new Error(msg);
+        }
+        setActionInfo(`Rol de ${row.email} actualizado a ${ROLE_LABEL[nextRole]}`);
+        refresh();
+      } catch (e) {
+        setActionError(e instanceof Error ? e.message : "Error de red");
+      } finally {
+        setPendingId(null);
+      }
+    },
+    [refresh],
+  );
 
   const deactivate = useCallback(
     async (row: AdminRow) => {
@@ -144,6 +192,18 @@ export default function AdminsPage() {
           Invitar administrador
         </button>
       </header>
+
+      {/* Leyenda: qué puede hacer cada rol */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {(["SUPER_ADMIN", "SUPPORT"] as Role[]).map((r) => (
+          <div key={r} className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white p-3">
+            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${ROLE_TONE[r]}`}>
+              {ROLE_LABEL[r]}
+            </span>
+            <p className="mt-1.5 text-xs leading-relaxed text-[var(--color-text-body,#475569)]">{ROLE_DESC[r]}</p>
+          </div>
+        ))}
+      </div>
 
       {(actionError || actionInfo) && (
         <div
@@ -215,11 +275,25 @@ export default function AdminsPage() {
                       {a.name}
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${ROLE_TONE[a.role]}`}
-                      >
-                        {ROLE_LABEL[a.role]}
-                      </span>
+                      {data.myRole === "SUPER_ADMIN" && a.id !== data.me && a.active ? (
+                        <select
+                          value={a.role}
+                          disabled={pendingId === a.id}
+                          onChange={(e) => void changeRole(a, e.target.value as Role)}
+                          className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-2 py-1 text-xs focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 disabled:opacity-50"
+                          title="Cambiar rol"
+                        >
+                          <option value="SUPER_ADMIN">Administrador completo</option>
+                          <option value="SUPPORT">Soporte (solo lectura)</option>
+                        </select>
+                      ) : (
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${ROLE_TONE[a.role]}`}
+                        >
+                          {ROLE_LABEL[a.role]}
+                          {a.id === data.me && <span className="ml-1 opacity-60">· tú</span>}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {a.active ? (

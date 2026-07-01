@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { Markdown } from "@/components/ui/markdown";
 
 type Tipo = "bug" | "mejora" | "pregunta";
 const TIPO_OPTIONS: { value: Tipo; label: string }[] = [
@@ -387,14 +388,14 @@ export function FeedbackModal({
                             <div
                               key={m.id}
                               className={cn(
-                                "rounded-lg px-3 py-2 text-sm whitespace-pre-wrap break-words",
+                                "rounded-lg px-3 py-2 text-sm break-words",
                                 m.autor === "user" ? "bg-[var(--primary-light)] text-slate-700" : "bg-slate-50 text-slate-700",
                               )}
                             >
                               <span className="mb-0.5 block text-xs font-medium text-slate-400">
                                 {m.autor === "user" ? "Tú" : "Soporte"}
                               </span>
-                              {m.cuerpo}
+                              {m.cuerpo && <Markdown className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0">{m.cuerpo}</Markdown>}
                               {m.adjunto_path && (
                                 <a
                                   href={`/api/feedback/my-tickets/${t.id}/screenshot?adjunto=${m.adjunto_path}`}

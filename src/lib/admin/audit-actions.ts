@@ -84,6 +84,10 @@ export const AUDIT_ACTIONS = {
     severity: "warning",
     description: "Desactivar cuenta super-admin",
   },
+  "super_admin:change_role": {
+    severity: "warning",
+    description: "Cambiar rol de una cuenta super-admin (SUPER_ADMIN ↔ SUPPORT)",
+  },
   "super_admin:accept-invite": {
     severity: "warning",
     description: "Aceptar invitación y crear cuenta super-admin",

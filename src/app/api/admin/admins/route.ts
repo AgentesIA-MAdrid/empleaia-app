@@ -50,5 +50,5 @@ export const GET = withSuperAdmin(async (req) => {
     userAgent: meta.userAgent,
   });
 
-  return NextResponse.json({ admins, invitations });
+  return NextResponse.json({ admins, invitations, me: sa.id, myRole: sa.role });
 });

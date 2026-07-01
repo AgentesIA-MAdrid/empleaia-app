@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Markdown } from "@/components/ui/markdown";
 import { Loader2, Bot, Send, CheckCircle2, XCircle, RefreshCw, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -500,7 +501,7 @@ function DetalleTicket({
                     {new Date(m.created_at).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </span>
-                <span className="whitespace-pre-wrap text-slate-700">{m.cuerpo}</span>
+                <Markdown className="text-slate-700 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">{m.cuerpo}</Markdown>
               </div>
             ))}
           </div>
