@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { ChevronLeft, ChevronRight, Send, Download, Settings2, Trash2, Pencil, UserPlus, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -342,35 +342,67 @@ export default function AdminTurnosPage() {
     }
   };
 
-  // Arrastrar un turno a otra celda de la misma semana lo COPIA (mismo tipo,
-  // horario, nota y estado) en el día/persona destino. Evita reintroducir a
-  // mano turnos que se repiten. La semana visible es el único alcance posible
-  // porque solo hay celdas-destino para sus 7 días.
-  const copiarTurno = async (turnoId: string, emp: Empleado, dia: Date, tiendaId: string | null) => {
-    const origen = turnos.find(t => t.id === turnoId);
+  // Arrastrar un turno lo COPIA (mismo tipo, horario, nota y estado) en CADA
+  // celda por la que se pasa durante el arrastre, no solo en la de destino.
+  // Así se rellena una semana entera con un único gesto en vez de día a día.
+  // Los destinos se acumulan en un ref mientras dura el arrastre (sin tocar la
+  // BD) y se crean todos de golpe al soltar: recargar a mitad de arrastre
+  // desmontaría el turno origen y abortaría el drag. La semana visible es el
+  // único alcance posible porque solo hay celdas-destino para sus 7 días.
+  const arrastreRef = useRef<{
+    turnoId: string;
+    destinos: Map<string, { emp: Empleado; dia: Date; tiendaId: string | null }>;
+  } | null>(null);
+
+  const iniciarArrastre = (turnoId: string) => {
+    arrastreRef.current = { turnoId, destinos: new Map() };
+  };
+
+  // Cancelar (soltar fuera de una celda válida o ESC): descartar los destinos
+  // acumulados sin crear nada. `finalizarArrastre` ya limpia el ref al soltar
+  // sobre una celda, así que aquí solo actúa cuando NO hubo drop.
+  const cancelarArrastre = () => {
+    arrastreRef.current = null;
+  };
+
+  const registrarDestino = (emp: Empleado, dia: Date, tiendaId: string | null) => {
+    const arrastre = arrastreRef.current;
+    if (!arrastre) return;
+    const key = `${emp.id}|${tiendaId ?? ""}|${format(dia, "yyyy-MM-dd")}`;
+    if (!arrastre.destinos.has(key)) arrastre.destinos.set(key, { emp, dia, tiendaId });
+  };
+
+  const finalizarArrastre = async () => {
+    const arrastre = arrastreRef.current;
+    arrastreRef.current = null;
+    if (!arrastre) return;
+    const origen = turnos.find(t => t.id === arrastre.turnoId);
     if (!origen) return;
-    const destinoTienda = tiendaId ?? origen.tiendaId;
-    // Soltar sobre la misma celda de origen: no hacer nada.
-    if (origen.userId === emp.id && destinoTienda === origen.tiendaId && isSameDay(new Date(origen.fecha), dia)) {
-      return;
-    }
+    // Descarta la propia celda de origen (soltar donde empezó no crea copia).
+    const destinos = [...arrastre.destinos.values()].filter(({ emp, dia, tiendaId }) => {
+      const destinoTienda = tiendaId ?? origen.tiendaId;
+      return !(origen.userId === emp.id && destinoTienda === origen.tiendaId && isSameDay(new Date(origen.fecha), dia));
+    });
+    if (destinos.length === 0) return;
     try {
-      const res = await fetch("/api/turnos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: emp.id,
-          tiendaId: destinoTienda,
-          tipoTurnoId: origen.tipoTurno?.id ?? null,
-          fecha: format(dia, "yyyy-MM-dd"),
-          horaInicio: origen.horaInicio,
-          horaFin: origen.horaFin,
-          nota: origen.nota,
-          estado: origen.estado,
+      const resultados = await Promise.all(destinos.map(({ emp, dia, tiendaId }) =>
+        fetch("/api/turnos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: emp.id,
+            tiendaId: tiendaId ?? origen.tiendaId,
+            tipoTurnoId: origen.tipoTurno?.id ?? null,
+            fecha: format(dia, "yyyy-MM-dd"),
+            horaInicio: origen.horaInicio,
+            horaFin: origen.horaFin,
+            nota: origen.nota,
+            estado: origen.estado,
+          }),
         }),
-      });
-      if (!res.ok) throw new Error();
-      toast({ title: "Turno copiado" });
+      ));
+      if (resultados.some(r => !r.ok)) throw new Error();
+      toast({ title: destinos.length === 1 ? "Turno copiado" : `Turno copiado a ${destinos.length} días` });
       fetchData();
     } catch {
       toast({ title: "Error al copiar el turno", variant: "destructive" });
@@ -561,7 +593,10 @@ export default function AdminTurnosPage() {
                     onAdd={abrirNuevoTurno}
                     onEdit={abrirEditarTurno}
                     onDelete={borrarTurno}
-                    onCopy={copiarTurno}
+                    onPaintStart={iniciarArrastre}
+                    onRegistrarDestino={registrarDestino}
+                    onPaintEnd={finalizarArrastre}
+                    onPaintCancel={cancelarArrastre}
                     onCopiarSemana={copiarDiaASemana}
                     copiandoSemana={copiandoSemana}
                     onAddPersona={grupo.id
@@ -743,7 +778,7 @@ export default function AdminTurnosPage() {
 }
 
 function GrupoSede({
-  grupo, filas, dias, totalCols, turnosDe, ausenciasDe, totalSemana, contratoDe, onAdd, onEdit, onDelete, onCopy, onCopiarSemana, copiandoSemana, onAddPersona,
+  grupo, filas, dias, totalCols, turnosDe, ausenciasDe, totalSemana, contratoDe, onAdd, onEdit, onDelete, onPaintStart, onRegistrarDestino, onPaintEnd, onPaintCancel, onCopiarSemana, copiandoSemana, onAddPersona,
 }: {
   grupo: { id: string | null; nombre: string; color: string };
   filas: { emp: Empleado; visitante: boolean }[];
@@ -756,7 +791,10 @@ function GrupoSede({
   onAdd: (emp: Empleado, dia: Date, tiendaId: string | null) => void;
   onEdit: (t: Turno) => void;
   onDelete: (id: string) => void;
-  onCopy: (turnoId: string, emp: Empleado, dia: Date, tiendaId: string | null) => void;
+  onPaintStart: (turnoId: string) => void;
+  onRegistrarDestino: (emp: Empleado, dia: Date, tiendaId: string | null) => void;
+  onPaintEnd: () => void;
+  onPaintCancel: () => void;
   onCopiarSemana: (emp: Empleado, dia: Date, tiendaId: string | null) => void;
   copiandoSemana: boolean;
   onAddPersona?: () => void;
@@ -805,7 +843,10 @@ function GrupoSede({
                 onAdd={onAdd}
                 onEdit={onEdit}
                 onDelete={onDelete}
-                onCopy={onCopy}
+                onPaintStart={onPaintStart}
+                onRegistrarDestino={onRegistrarDestino}
+                onPaintEnd={onPaintEnd}
+                onPaintCancel={onPaintCancel}
                 onCopiarSemana={onCopiarSemana}
                 copiandoSemana={copiandoSemana}
               />
@@ -831,10 +872,12 @@ function GrupoSede({
   );
 }
 
-// Celda de un día: muestra los turnos de la persona y permite arrastrarlos a
-// otra celda de la semana para copiarlos (drag & drop nativo, sin librerías).
+// Celda de un día: muestra los turnos de la persona y permite arrastrarlos por
+// la semana para copiarlos (drag & drop nativo, sin librerías). Cada celda por
+// la que pasa el arrastre se registra como destino; las copias se crean al
+// soltar (ver `finalizarArrastre`).
 function CeldaDia({
-  emp, dia, tiendaId, turnos, ausencias, onAdd, onEdit, onDelete, onCopy, onCopiarSemana, copiandoSemana,
+  emp, dia, tiendaId, turnos, ausencias, onAdd, onEdit, onDelete, onPaintStart, onRegistrarDestino, onPaintEnd, onPaintCancel, onCopiarSemana, copiandoSemana,
 }: {
   emp: Empleado;
   dia: Date;
@@ -844,7 +887,10 @@ function CeldaDia({
   onAdd: (emp: Empleado, dia: Date, tiendaId: string | null) => void;
   onEdit: (t: Turno) => void;
   onDelete: (id: string) => void;
-  onCopy: (turnoId: string, emp: Empleado, dia: Date, tiendaId: string | null) => void;
+  onPaintStart: (turnoId: string) => void;
+  onRegistrarDestino: (emp: Empleado, dia: Date, tiendaId: string | null) => void;
+  onPaintEnd: () => void;
+  onPaintCancel: () => void;
   onCopiarSemana: (emp: Empleado, dia: Date, tiendaId: string | null) => void;
   copiandoSemana: boolean;
 }) {
@@ -865,14 +911,16 @@ function CeldaDia({
         e.preventDefault();
         e.dataTransfer.dropEffect = "copy";
         setSobre(true);
+        // Cada celda visitada durante el arrastre se acumula como destino.
+        onRegistrarDestino(emp, dia, tiendaId);
       }}
       onDragLeave={() => setSobre(false)}
       onDrop={(e) => {
-        if (enAusencia) return;
         e.preventDefault();
         setSobre(false);
-        const id = e.dataTransfer.getData("text/plain");
-        if (id) onCopy(id, emp, dia, tiendaId);
+        // Soltar sobre una celda válida confirma el arrastre: se crean las
+        // copias en todas las celdas acumuladas (no solo esta).
+        onPaintEnd();
       }}
     >
       <div className="space-y-1">
@@ -890,14 +938,15 @@ function CeldaDia({
           <button
             key={t.id}
             draggable
-            onDragStart={(e) => { e.dataTransfer.setData("text/plain", t.id); e.dataTransfer.effectAllowed = "copy"; }}
+            onDragStart={(e) => { e.dataTransfer.setData("text/plain", t.id); e.dataTransfer.effectAllowed = "copy"; onPaintStart(t.id); }}
+            onDragEnd={onPaintCancel}
             onClick={() => onEdit(t)}
             className={cn(
               "group relative mx-auto block w-fit cursor-grab rounded-md px-1 py-1 text-xs font-medium leading-tight active:cursor-grabbing",
               t.estado === "PUBLICADO" ? "text-white" : "border border-dashed border-slate-300 text-slate-600",
             )}
             style={t.estado === "PUBLICADO" ? { backgroundColor: t.tipoTurno?.color || "var(--primary)" } : undefined}
-            title={t.nota ? `${t.nota} · arrastra para copiar` : "Arrastra para copiar a otro día"}
+            title={t.nota ? `${t.nota} · arrastra sobre los días para copiar` : "Arrastra sobre los días para copiarlo en todos"}
           >
             <div>{etiquetaTurno(t)}</div>
             <div className="opacity-80">{horasDeTurno(t)}h</div>
