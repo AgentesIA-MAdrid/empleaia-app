@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Send, Download, Settings2, Trash2, Pencil, UserPlus, Copy, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Send, Download, Settings2, Trash2, Pencil, UserPlus, Copy, Search, Coffee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -202,10 +202,16 @@ export default function AdminTurnosPage() {
   // un correturno aparezca con sus horas en la tienda que cubre. En "Sin
   // sede" (null) no se filtra: muestra la carga global de la persona.
   const turnosDe = (userId: string, dia: Date, tiendaId: string | null) =>
-    turnos.filter(t =>
-      t.userId === userId
-      && (tiendaId === null || t.tiendaId === tiendaId)
-      && isSameDay(new Date(t.fecha), dia));
+    turnos
+      .filter(t =>
+        t.userId === userId
+        && (tiendaId === null || t.tiendaId === tiendaId)
+        && isSameDay(new Date(t.fecha), dia))
+      // El API solo ordena por fecha, así que varios turnos del mismo día
+      // salían en orden de creación. Ordenamos por hora de inicio para que
+      // la mañana quede siempre arriba y la tarde debajo. "HH:MM" con cero a
+      // la izquierda ordena cronológicamente como texto.
+      .sort((a, b) => (a.horaInicio || "").localeCompare(b.horaInicio || ""));
 
   // Ausencias APROBADAS que solapan ese día natural (independiente de la sede:
   // la persona está ausente esté donde esté su turno). Franja con el color del
@@ -289,6 +295,44 @@ export default function AdminTurnosPage() {
         : { tipoTurnoId: tipos[0]?.id ?? CUSTOM }),
     });
     setTurnoDialog(true);
+  };
+
+  // Primer tipo de turno marcado como "día libre" (esLibre). Sirve para el
+  // atajo de la celda; los tipos ya vienen ordenados por `orden`/`nombre`.
+  const tipoLibre = tipos.find(t => t.esLibre);
+
+  // Atajo del cuadrante: marca un día como libre creando un turno con el tipo
+  // "día libre" (0h) sin abrir el diálogo. Reutiliza el mismo POST /api/turnos
+  // que el alta manual. Si el cliente no ha definido ningún tipo libre, guía a
+  // crearlo desde "Tipos de turno" en vez de crear un turno sin sentido.
+  const marcarDiaLibre = async (emp: Empleado, dia: Date, tiendaId: string | null) => {
+    if (!tipoLibre) {
+      toast({ title: "Crea antes un tipo de turno marcado como “día libre” en Tipos de turno", variant: "destructive" });
+      return;
+    }
+    const sedeId = tiendaId || emp.tiendaId || (tiendas[0]?.id ?? "");
+    if (!sedeId) {
+      toast({ title: "No hay sede a la que asignar el día libre", variant: "destructive" });
+      return;
+    }
+    try {
+      const res = await fetch("/api/turnos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: emp.id,
+          tiendaId: sedeId,
+          tipoTurnoId: tipoLibre.id,
+          fecha: format(dia, "yyyy-MM-dd"),
+          estado: "BORRADOR",
+        }),
+      });
+      if (!res.ok) throw new Error();
+      toast({ title: "Día libre asignado" });
+      fetchData();
+    } catch {
+      toast({ title: "Error al asignar el día libre", variant: "destructive" });
+    }
   };
 
   const abrirEditarTurno = (t: Turno) => {
@@ -573,6 +617,7 @@ export default function AdminTurnosPage() {
                     onDelete={borrarTurno}
                     onCopy={copiarTurno}
                     onCopiarSemana={copiarDiaASemana}
+                    onMarcarLibre={marcarDiaLibre}
                     copiandoSemana={copiandoSemana}
                     onAddPersona={grupo.id
                       ? () => { setAddSel(""); setAddDialog({ tiendaId: grupo.id as string, nombre: grupo.nombre }); }
@@ -770,7 +815,7 @@ export default function AdminTurnosPage() {
 }
 
 function GrupoSede({
-  grupo, filas, dias, totalCols, turnosDe, ausenciasDe, totalSemana, contratoDe, onAdd, onEdit, onDelete, onCopy, onCopiarSemana, copiandoSemana, onAddPersona,
+  grupo, filas, dias, totalCols, turnosDe, ausenciasDe, totalSemana, contratoDe, onAdd, onEdit, onDelete, onCopy, onCopiarSemana, onMarcarLibre, copiandoSemana, onAddPersona,
 }: {
   grupo: { id: string | null; nombre: string; color: string };
   filas: { emp: Empleado; visitante: boolean }[];
@@ -785,6 +830,7 @@ function GrupoSede({
   onDelete: (id: string) => void;
   onCopy: (turnoId: string, emp: Empleado, dia: Date, tiendaId: string | null) => void;
   onCopiarSemana: (emp: Empleado, dia: Date, tiendaId: string | null) => void;
+  onMarcarLibre: (emp: Empleado, dia: Date, tiendaId: string | null) => void;
   copiandoSemana: boolean;
   onAddPersona?: () => void;
 }) {
@@ -812,7 +858,15 @@ function GrupoSede({
       ) : filas.map(({ emp, visitante }) => {
         const total = totalSemana(emp.id, grupo.id);
         const contrato = contratoDe(emp);
-        const dif = Math.round((total - contrato) * 100) / 100;
+        // El contrato es semanal y global (de la persona), no por sede. La
+        // diferencia debe medirse contra las horas del empleado en TODAS las
+        // sedes, no solo en esta: si no, quien reparte su jornada entre varias
+        // tiendas aparece como deficitario en cada una (se le pediría el
+        // contrato completo en cada sede). En "Sin sede" (null) `total` ya es
+        // global. Los correturnos (visitante) no muestran contrato/diferencia.
+        const totalGlobal = grupo.id === null ? total : totalSemana(emp.id, null);
+        const horasOtrasSedes = Math.round((totalGlobal - total) * 100) / 100;
+        const dif = Math.round((totalGlobal - contrato) * 100) / 100;
         return (
           <tr key={emp.id} className="border-b border-slate-50 hover:bg-slate-50/60">
             <td className="px-3 py-2">
@@ -834,10 +888,18 @@ function GrupoSede({
                 onDelete={onDelete}
                 onCopy={onCopy}
                 onCopiarSemana={onCopiarSemana}
+                onMarcarLibre={onMarcarLibre}
                 copiandoSemana={copiandoSemana}
               />
             ))}
-            <td className="px-2 py-2 text-center font-semibold text-slate-700">{Math.round(total * 100) / 100}h</td>
+            <td className="px-2 py-2 text-center font-semibold text-slate-700">
+              {Math.round(total * 100) / 100}h
+              {!visitante && horasOtrasSedes > 0 && (
+                <div className="text-[10px] font-normal text-slate-400" title="Horas de esta persona en otras sedes esta semana (cuentan para su contrato)">
+                  +{horasOtrasSedes}h otras sedes
+                </div>
+              )}
+            </td>
             {visitante ? (
               <>
                 <td className="px-2 py-2 text-center text-slate-300" title="No aplica: el contrato se controla en su sede">—</td>
@@ -861,7 +923,7 @@ function GrupoSede({
 // Celda de un día: muestra los turnos de la persona y permite arrastrarlos a
 // otra celda de la semana para copiarlos (drag & drop nativo, sin librerías).
 function CeldaDia({
-  emp, dia, tiendaId, turnos, ausencias, onAdd, onEdit, onDelete, onCopy, onCopiarSemana, copiandoSemana,
+  emp, dia, tiendaId, turnos, ausencias, onAdd, onEdit, onDelete, onCopy, onCopiarSemana, onMarcarLibre, copiandoSemana,
 }: {
   emp: Empleado;
   dia: Date;
@@ -873,6 +935,7 @@ function CeldaDia({
   onDelete: (id: string) => void;
   onCopy: (turnoId: string, emp: Empleado, dia: Date, tiendaId: string | null) => void;
   onCopiarSemana: (emp: Empleado, dia: Date, tiendaId: string | null) => void;
+  onMarcarLibre: (emp: Empleado, dia: Date, tiendaId: string | null) => void;
   copiandoSemana: boolean;
 }) {
   const [sobre, setSobre] = useState(false);
@@ -950,6 +1013,17 @@ function CeldaDia({
             className="w-full rounded-md border border-dashed border-slate-200 text-slate-300 hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors py-0.5 text-xs"
             onClick={() => onAdd(emp, dia, tiendaId)}
           >+</button>
+        )}
+        {/* Atajo día libre: solo en días sin turnos (un día libre = sin trabajo). */}
+        {!enAusencia && turnos.length === 0 && (
+          <button
+            type="button"
+            onClick={() => onMarcarLibre(emp, dia, tiendaId)}
+            className="w-full inline-flex items-center justify-center gap-1 rounded-md py-0.5 text-[10px] text-slate-400 hover:text-[var(--primary)] transition-colors"
+            title="Marcar este día como libre"
+          >
+            <Coffee className="h-3 w-3" /> Libre
+          </button>
         )}
       </div>
     </td>

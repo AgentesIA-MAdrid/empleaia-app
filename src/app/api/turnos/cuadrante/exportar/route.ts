@@ -160,7 +160,26 @@ export const GET = withTenant(
       });
       row.total = Math.round(total * 100) / 100;
       row.contrato = contrato ?? "";
-      row.dif = contrato === null ? "" : Math.round((total - contrato) * 100) / 100;
+      // La diferencia contra el contrato (semanal y global de la persona) se
+      // mide sobre las horas del empleado en TODAS las sedes (índice global
+      // `porUserDia`), no solo en esta: si no, a quien reparte su jornada entre
+      // varias tiendas se le exigiría el contrato completo en cada una. Cuando
+      // hay filtro de sede, `turnos` ya viene acotado, así que el total global
+      // coincide con el de la sede (degrada sin regresión). Igual que la UI.
+      if (contrato === null) {
+        row.dif = "";
+      } else {
+        const totalGlobal = dias.reduce(
+          (s, d) =>
+            s +
+            (porUserDia.get(`${userId}|${ymd(d)}`) ?? []).reduce(
+              (a, t) => a + horasDeTurno(t),
+              0,
+            ),
+          0,
+        );
+        row.dif = Math.round((totalGlobal - contrato) * 100) / 100;
+      }
       ws.addRow(row);
     };
 
