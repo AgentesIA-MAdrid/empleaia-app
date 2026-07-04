@@ -201,10 +201,16 @@ export default function AdminTurnosPage() {
   // un correturno aparezca con sus horas en la tienda que cubre. En "Sin
   // sede" (null) no se filtra: muestra la carga global de la persona.
   const turnosDe = (userId: string, dia: Date, tiendaId: string | null) =>
-    turnos.filter(t =>
-      t.userId === userId
-      && (tiendaId === null || t.tiendaId === tiendaId)
-      && isSameDay(new Date(t.fecha), dia));
+    turnos
+      .filter(t =>
+        t.userId === userId
+        && (tiendaId === null || t.tiendaId === tiendaId)
+        && isSameDay(new Date(t.fecha), dia))
+      // El API solo ordena por fecha, así que varios turnos del mismo día
+      // salían en orden de creación. Ordenamos por hora de inicio para que
+      // la mañana quede siempre arriba y la tarde debajo. "HH:MM" con cero a
+      // la izquierda ordena cronológicamente como texto.
+      .sort((a, b) => (a.horaInicio || "").localeCompare(b.horaInicio || ""));
 
   // Ausencias APROBADAS que solapan ese día natural (independiente de la sede:
   // la persona está ausente esté donde esté su turno). Franja con el color del
