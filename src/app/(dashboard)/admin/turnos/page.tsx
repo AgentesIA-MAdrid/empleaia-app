@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Send, Download, Settings2, Trash2, Pencil, UserPlus, Copy, Coffee } from "lucide-react";
+import { ChevronLeft, ChevronRight, Send, Download, Settings2, Trash2, Pencil, UserPlus, Copy, Search, Coffee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -107,6 +107,7 @@ export default function AdminTurnosPage() {
   const [visitantesManual, setVisitantesManual] = useState<Record<string, string[]>>({});
   const [addDialog, setAddDialog] = useState<{ tiendaId: string; nombre: string } | null>(null);
   const [addSel, setAddSel] = useState("");
+  const [addBusqueda, setAddBusqueda] = useState("");
 
   const inicioSemana = startOfWeek(semana, { weekStartsOn: 1 });
   const finSemana = endOfWeek(semana, { weekStartsOn: 1 });
@@ -253,6 +254,14 @@ export default function AdminTurnosPage() {
       })()
     : [];
 
+  const disponiblesFiltrados = (() => {
+    const q = addBusqueda.trim().toLowerCase();
+    if (!q) return disponiblesParaAñadir;
+    return disponiblesParaAñadir.filter(e =>
+      `${e.nombre} ${e.apellidos}`.toLowerCase().includes(q),
+    );
+  })();
+
   const confirmarAñadirPersona = () => {
     if (!addDialog || !addSel) return;
     setVisitantesManual(prev => ({
@@ -261,6 +270,7 @@ export default function AdminTurnosPage() {
     }));
     setAddDialog(null);
     setAddSel("");
+    setAddBusqueda("");
   };
 
   const contratoDe = (emp: Empleado) =>
@@ -700,7 +710,7 @@ export default function AdminTurnosPage() {
       </Dialog>
 
       {/* Dialog añadir persona (correturno) a una sede esta semana */}
-      <Dialog open={!!addDialog} onOpenChange={o => { if (!o) { setAddDialog(null); setAddSel(""); } }}>
+      <Dialog open={!!addDialog} onOpenChange={o => { if (!o) { setAddDialog(null); setAddSel(""); setAddBusqueda(""); } }}>
         <DialogContent className="max-w-[95vw] sm:max-w-md">
           <DialogHeader><DialogTitle>Añadir persona a {addDialog?.nombre}</DialogTitle></DialogHeader>
           <div className="space-y-3 py-2">
@@ -710,22 +720,39 @@ export default function AdminTurnosPage() {
             </p>
             <div>
               <Label>Persona</Label>
-              <Select value={addSel} onValueChange={setAddSel}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Selecciona empleado..." /></SelectTrigger>
-                <SelectContent>
-                  {disponiblesParaAñadir.length === 0 ? (
-                    <div className="px-2 py-1.5 text-sm text-slate-400">No hay más empleados disponibles</div>
-                  ) : disponiblesParaAñadir.map(e => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {e.nombre} {e.apellidos}{!e.tiendaId ? " · sin sede" : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="relative mt-1">
+                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Input
+                  placeholder="Buscar por nombre…"
+                  className="pl-9"
+                  value={addBusqueda}
+                  onChange={e => setAddBusqueda(e.target.value)}
+                />
+              </div>
+              <div className="mt-2 max-h-[50vh] overflow-y-auto divide-y divide-slate-100 rounded-lg border border-slate-100">
+                {disponiblesFiltrados.length === 0 ? (
+                  <p className="px-3 py-6 text-center text-sm text-slate-400">
+                    {disponiblesParaAñadir.length === 0 ? "No hay más empleados disponibles" : "Sin resultados"}
+                  </p>
+                ) : disponiblesFiltrados.map(e => (
+                  <label key={e.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="add-persona"
+                      className="h-4 w-4 border-slate-300 accent-[var(--primary)]"
+                      checked={addSel === e.id}
+                      onChange={() => setAddSel(e.id)}
+                    />
+                    <span className="text-sm font-medium text-slate-900 truncate">
+                      {e.nombre} {e.apellidos}{!e.tiendaId ? <span className="font-normal text-slate-400"> · sin sede</span> : ""}
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setAddDialog(null); setAddSel(""); }}>Cancelar</Button>
+            <Button variant="outline" onClick={() => { setAddDialog(null); setAddSel(""); setAddBusqueda(""); }}>Cancelar</Button>
             <Button onClick={confirmarAñadirPersona} disabled={!addSel}>Añadir</Button>
           </DialogFooter>
         </DialogContent>
