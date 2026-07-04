@@ -231,19 +231,23 @@ export default function AdminTurnosPage() {
 
   // Filas de un grupo: empleados fijos de la sede + correturnos (visitantes)
   // que cubren esa semana (con turno en la sede o añadidos a mano).
-  const filasDeGrupo = (grupoId: string | null): { emp: Empleado; visitante: boolean }[] => {
+  // `removible` marca a los correturnos que se añadieron a mano y aún no tienen
+  // turnos en la sede esa semana: solo esos se pueden quitar de la lista con la
+  // × del nombre (si tienen turnos, primero se borran con la × de cada turno).
+  const filasDeGrupo = (grupoId: string | null): { emp: Empleado; visitante: boolean; removible: boolean }[] => {
     if (grupoId === null) {
-      return empleados.filter(e => !e.tiendaId).map(emp => ({ emp, visitante: false }));
+      return empleados.filter(e => !e.tiendaId).map(emp => ({ emp, visitante: false, removible: false }));
     }
     const fijos = empleados.filter(e => e.tiendaId === grupoId);
     const fijosIds = new Set(fijos.map(e => e.id));
-    const visitanteIds = new Set<string>();
-    turnos.forEach(t => { if (t.tiendaId === grupoId && !fijosIds.has(t.userId)) visitanteIds.add(t.userId); });
-    (visitantesManual[grupoId] ?? []).forEach(id => { if (!fijosIds.has(id)) visitanteIds.add(id); });
+    const conTurno = new Set<string>();
+    turnos.forEach(t => { if (t.tiendaId === grupoId && !fijosIds.has(t.userId)) conTurno.add(t.userId); });
+    const manualIds = new Set((visitantesManual[grupoId] ?? []).filter(id => !fijosIds.has(id)));
+    const visitanteIds = new Set<string>([...conTurno, ...manualIds]);
     const visitantes = empleados.filter(e => visitanteIds.has(e.id));
     return [
-      ...fijos.map(emp => ({ emp, visitante: false })),
-      ...visitantes.map(emp => ({ emp, visitante: true })),
+      ...fijos.map(emp => ({ emp, visitante: false, removible: false })),
+      ...visitantes.map(emp => ({ emp, visitante: true, removible: manualIds.has(emp.id) && !conTurno.has(emp.id) })),
     ];
   };
 
@@ -271,6 +275,15 @@ export default function AdminTurnosPage() {
     setAddDialog(null);
     setAddSel("");
     setAddBusqueda("");
+  };
+
+  // Quita de la semana un correturno añadido a mano (solo estado local, no BD).
+  // Se puede volver a añadir con "Añadir persona".
+  const quitarCorreturno = (tiendaId: string, userId: string) => {
+    setVisitantesManual(prev => ({
+      ...prev,
+      [tiendaId]: (prev[tiendaId] ?? []).filter(id => id !== userId),
+    }));
   };
 
   const contratoDe = (emp: Empleado) =>
@@ -622,6 +635,7 @@ export default function AdminTurnosPage() {
                     onAddPersona={grupo.id
                       ? () => { setAddSel(""); setAddDialog({ tiendaId: grupo.id as string, nombre: grupo.nombre }); }
                       : undefined}
+                    onQuitarCorreturno={quitarCorreturno}
                   />
                 ))
               )}
@@ -815,10 +829,10 @@ export default function AdminTurnosPage() {
 }
 
 function GrupoSede({
-  grupo, filas, dias, totalCols, turnosDe, ausenciasDe, totalSemana, contratoDe, onAdd, onEdit, onDelete, onCopy, onCopiarSemana, onMarcarLibre, copiandoSemana, onAddPersona,
+  grupo, filas, dias, totalCols, turnosDe, ausenciasDe, totalSemana, contratoDe, onAdd, onEdit, onDelete, onCopy, onCopiarSemana, onMarcarLibre, copiandoSemana, onAddPersona, onQuitarCorreturno,
 }: {
   grupo: { id: string | null; nombre: string; color: string };
-  filas: { emp: Empleado; visitante: boolean }[];
+  filas: { emp: Empleado; visitante: boolean; removible: boolean }[];
   dias: Date[];
   totalCols: number;
   turnosDe: (userId: string, dia: Date, tiendaId: string | null) => Turno[];
@@ -833,6 +847,7 @@ function GrupoSede({
   onMarcarLibre: (emp: Empleado, dia: Date, tiendaId: string | null) => void;
   copiandoSemana: boolean;
   onAddPersona?: () => void;
+  onQuitarCorreturno: (tiendaId: string, userId: string) => void;
 }) {
   return (
     <>
@@ -855,7 +870,7 @@ function GrupoSede({
       </tr>
       {filas.length === 0 ? (
         <tr><td colSpan={totalCols} className="px-6 py-2 text-xs text-slate-400">Sin empleados en esta sede</td></tr>
-      ) : filas.map(({ emp, visitante }) => {
+      ) : filas.map(({ emp, visitante, removible }) => {
         const total = totalSemana(emp.id, grupo.id);
         const contrato = contratoDe(emp);
         // El contrato es semanal y global (de la persona), no por sede. La
@@ -872,7 +887,18 @@ function GrupoSede({
             <td className="px-3 py-2">
               <span className="text-sm font-medium text-slate-800 truncate block max-w-[160px]">{emp.nombre} {emp.apellidos}</span>
               {visitante && (
-                <span className="mt-0.5 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Correturno</span>
+                <span className="mt-0.5 inline-flex items-center gap-1">
+                  <span className="inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Correturno</span>
+                  {removible && grupo.id && (
+                    <button
+                      type="button"
+                      onClick={() => onQuitarCorreturno(grupo.id as string, emp.id)}
+                      title="Quitar correturno de esta sede"
+                      aria-label={`Quitar a ${emp.nombre} ${emp.apellidos} de esta sede`}
+                      className="inline-flex h-4 w-4 items-center justify-center rounded-full text-amber-600 hover:bg-amber-200 transition-colors text-[11px] leading-none"
+                    >×</button>
+                  )}
+                </span>
               )}
             </td>
             {dias.map((dia, i) => (
