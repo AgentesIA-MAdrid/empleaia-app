@@ -641,10 +641,15 @@ export default function AdminTurnosPage() {
       </div>
 
       <Card>
-        <CardContent className="p-0 overflow-x-auto">
+        {/* Altura acotada + scroll propio en ambos ejes: así el scroll vertical
+            ocurre DENTRO de la tabla (no en el <main>) y la cabecera puede
+            quedarse fija con `sticky` mientras solo se desplazan las sedes. */}
+        <CardContent className="p-0 overflow-auto max-h-[calc(100vh-16rem)]">
           <table className="w-full min-w-[900px] text-sm">
-            <thead className="bg-slate-50 border-b">
-              <tr>
+            {/* `sticky top-0` fija la fila de días al hacer scroll vertical; el
+                fondo opaco (thead + tr) ocluye las filas que pasan por debajo. */}
+            <thead className="sticky top-0 z-10 bg-slate-50 border-b">
+              <tr className="bg-slate-50">
                 <th className="text-left text-xs font-semibold text-slate-500 px-3 py-3 w-44">Empleado</th>
                 {dias.map((d, i) => {
                   const hoy = isSameDay(d, new Date());
