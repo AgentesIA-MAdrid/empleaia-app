@@ -389,12 +389,15 @@ export default function AdminTurnosPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Error al guardar el turno");
+      }
       toast({ title: turnoForm.id ? "Turno actualizado" : "Turno creado" });
       setTurnoDialog(false);
       fetchData();
-    } catch {
-      toast({ title: "Error al guardar el turno", variant: "destructive" });
+    } catch (e) {
+      toast({ title: e instanceof Error ? e.message : "Error al guardar el turno", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
