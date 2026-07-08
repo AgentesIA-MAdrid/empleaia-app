@@ -223,14 +223,20 @@ async function processJob({ job, prompt }) {
         `Resuelve este ticket de soporte siguiendo el prompt al pie de la letra. Reglas INVIOLABLES: ` +
         `trabaja solo en este worktree; si hay fix, deja los cambios commiteados en la rama ${branch}; ` +
         `NO abras PR tú (lo hace el runner); NUNCA hagas git push --force ni gh pr merge; ` +
-        `corre lint+typecheck antes de dar por bueno el cambio (NO corras build: revienta por OOM en el ` +
-        `contenedor y CI ya lo verifica); AUDITA tu propio diff antes de terminar (causa raíz, sin ` +
-        `regresiones, inviolables de CLAUDE.md y AGENTS.md: withTenant/withTenantPage, prismaApp vs ` +
-        `prismaMaster, no-legacy-prisma, NO fetch interno entre rutas); si el cambio es visible en la UI, ` +
-        `deja una captura del resultado en feedback-after.png en la raíz del worktree; si NO hay un fix de ` +
-        `código claro, NO inventes cambios: deja el worktree limpio. TERMINA SIEMPRE con los dos bloques ` +
-        `[DIAGNÓSTICO] (técnico, para el equipo) y [RESUMEN] (para el cliente, trato de tú, sin jerga): ` +
-        `es OBLIGATORIO, el sistema los separa por esos marcadores.`;
+        `corre \`npm run lint\` y \`npx tsc --noEmit\` antes de dar por bueno el cambio (NO corras build: ` +
+        `revienta por OOM en el contenedor y CI ya lo verifica); AUDITA tu propio diff antes de terminar ` +
+        `(causa raíz, sin regresiones, inviolables de CLAUDE.md y AGENTS.md: withTenant/withTenantPage, ` +
+        `prismaApp vs prismaMaster, no-legacy-prisma, NO fetch interno entre rutas); si el cambio es ` +
+        `visible en la UI, deja una captura del resultado en feedback-after.png en la raíz del worktree. ` +
+        `MUY IMPORTANTE — alcance: distingue si el ticket es un BUG puntual o una MEJORA / funcionalidad ` +
+        `nueva. Si pide una mejora o funcionalidad, IMPLÉMENTALA COMPLETA aunque sea grande, toque varios ` +
+        `archivos o requiera modelo/migración/API/UI nuevos; NO la reduzcas a un arreglo menor de un ` +
+        `síntoma, NO te limites a diagnosticar y NO cierres en falso. Si el ticket pide varias cosas, ` +
+        `cúbrelas TODAS; si algo queda fuera, dilo explícitamente en el [RESUMEN]. La regla de "no ` +
+        `inventes cambios / deja el worktree limpio" aplica SOLO si el ticket no es accionable, no se ` +
+        `entiende, o ya está implementado — NUNCA como excusa para no hacer lo que se pide. ` +
+        `TERMINA SIEMPRE con los dos bloques [DIAGNÓSTICO] (técnico, para el equipo) y [RESUMEN] (para el ` +
+        `cliente, trato de tú, sin jerga): es OBLIGATORIO, el sistema los separa por esos marcadores.`;
       const cl = await runClaudeHeartbeat(job.id, [
         "-p", prompt,
         "--model", CLAUDE_MODEL,
@@ -294,12 +300,15 @@ async function processJob({ job, prompt }) {
         gateLog = `$ eslint <archivos cambiados> (exit ${r.status})\n${((r.stdout || "") + (r.stderr || "")).trim().slice(-2000)}`;
       }
     }
-    // Typecheck sí es global (un error de tipos importa en cualquier sitio).
+    // Typecheck global con tsc (NO `npm run typecheck`: ese script no existe).
+    // Regeneramos antes ambos clientes Prisma por si el PR tocó el schema.
     if (gateGreen) {
-      const r = run("npm", ["run", "typecheck"], { cwd: wt });
+      run("npx", ["prisma", "generate", "--schema", "prisma/schema.prisma"], { cwd: wt });
+      run("npx", ["prisma", "generate", "--schema", "prisma/schema-tenant.prisma"], { cwd: wt });
+      const r = run("npx", ["tsc", "--noEmit"], { cwd: wt });
       if (r.status !== 0) {
         gateGreen = false;
-        gateLog = `$ npm run typecheck  (exit ${r.status})\n${((r.stdout || "") + (r.stderr || "")).trim().slice(-2000)}`;
+        gateLog = `$ npx tsc --noEmit  (exit ${r.status})\n${((r.stdout || "") + (r.stderr || "")).trim().slice(-2000)}`;
       }
     }
 
