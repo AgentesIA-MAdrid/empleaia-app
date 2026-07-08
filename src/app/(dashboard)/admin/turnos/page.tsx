@@ -157,7 +157,10 @@ export default function AdminTurnosPage() {
     setLoading(true);
     try {
       const [empRes, turnosRes, ausRes] = await Promise.all([
-        fetch("/api/empleados"),
+        // Solo empleados activos: los desactivados no se planifican en el
+        // cuadrante (aparecían en "Sin sede" y en sus sedes). Alinea la vista
+        // interactiva con la exportación, que ya filtra por `activo: true`.
+        fetch("/api/empleados?activo=true"),
         fetch(`/api/turnos?fechaInicio=${inicioSemana.toISOString()}&fechaFin=${finSemana.toISOString()}`),
         fetch("/api/ausencias?estado=APROBADA"),
       ]);
