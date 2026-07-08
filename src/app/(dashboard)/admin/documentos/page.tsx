@@ -26,6 +26,10 @@ interface Documento {
 interface Empleado { id: string; nombre: string; apellidos: string; }
 interface TipoDoc { id: string; nombre: string; slug: string; orden: number; }
 
+// Radix Select prohíbe SelectItem con value="" (lanza en runtime). Usamos un
+// centinela para la opción "Documento general" y lo traducimos a "" (→ null).
+const GENERAL = "__general__";
+
 export default function AdminDocumentosPage() {
   const { toast } = useToast();
   const [documentos, setDocumentos] = useState<Documento[]>([]);
@@ -262,10 +266,10 @@ export default function AdminDocumentosPage() {
             </div>
             <div>
               <Label>Empleado (opcional)</Label>
-              <Select value={form.userId} onValueChange={(v) => setForm((f) => ({ ...f, userId: v }))}>
+              <Select value={form.userId || GENERAL} onValueChange={(v) => setForm((f) => ({ ...f, userId: v === GENERAL ? "" : v }))}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Documento general" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Documento general</SelectItem>
+                  <SelectItem value={GENERAL}>Documento general</SelectItem>
                   {empleados.map((e) => (
                     <SelectItem key={e.id} value={e.id}>{e.nombre} {e.apellidos}</SelectItem>
                   ))}
