@@ -644,10 +644,14 @@ export default function AdminTurnosPage() {
       </div>
 
       <Card>
-        <CardContent className="p-0 overflow-x-auto">
+        {/* Altura acotada para que el scroll vertical ocurra DENTRO de la tarjeta
+            (no en <main>): así el <thead> sticky ancla a este contenedor de
+            scroll y la cabecera de días queda fija mientras se desplazan las
+            sedes. overflow-auto conserva además el scroll horizontal (min-w). */}
+        <CardContent className="p-0 overflow-auto max-h-[calc(100vh-16rem)]">
           <table className="w-full min-w-[900px] text-sm">
-            <thead className="bg-slate-50 border-b">
-              <tr>
+            <thead className="sticky top-0 z-10 bg-slate-50 border-b">
+              <tr className="bg-slate-50">
                 <th className="text-left text-xs font-semibold text-slate-500 px-3 py-3 w-44">Empleado</th>
                 {dias.map((d, i) => {
                   const hoy = isSameDay(d, new Date());
