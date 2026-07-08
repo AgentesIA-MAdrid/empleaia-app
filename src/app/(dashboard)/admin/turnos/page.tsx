@@ -641,10 +641,13 @@ export default function AdminTurnosPage() {
       </div>
 
       <Card>
-        <CardContent className="p-0 overflow-x-auto">
+        {/* La cabecera de días se congela (sticky) dentro de un área con altura
+            acotada: al desplazar el cuadrante solo se mueven las filas de sedes,
+            manteniendo visible qué día corresponde a cada columna. */}
+        <CardContent className="p-0 overflow-auto max-h-[calc(100vh-16rem)]">
           <table className="w-full min-w-[900px] text-sm">
-            <thead className="bg-slate-50 border-b">
-              <tr>
+            <thead className="sticky top-0 z-10 bg-slate-50 border-b">
+              <tr className="bg-slate-50">
                 <th className="text-left text-xs font-semibold text-slate-500 px-3 py-3 w-44">Empleado</th>
                 {dias.map((d, i) => {
                   const hoy = isSameDay(d, new Date());
