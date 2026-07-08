@@ -29,6 +29,7 @@ import { StatusPill } from "@/components/ui/status-pill";
 import { cn, getColorRol, getLabelRol } from "@/lib/utils";
 import { EmpleadoDatosForm, type EmpleadoDatos } from "@/components/empleados/empleado-datos-form";
 import { CamposPersonalizadosFicha } from "@/components/admin/campos-personalizados-ficha";
+import { DocumentosEmpleadoTab } from "@/components/admin/documentos-empleado-tab";
 
 type Rol = "OWNER" | "MANAGER" | "EMPLEADO";
 type TipoFichaje = "ENTRADA" | "PAUSA" | "VUELTA_PAUSA" | "SALIDA";
@@ -365,7 +366,23 @@ export function FichaEmpleadoTabs({
           <TabsTrigger value="fichajes">Fichajes (30d)</TabsTrigger>
           <TabsTrigger value="ausencias">Ausencias (12m)</TabsTrigger>
           <TabsTrigger value="turnos">Próximos turnos</TabsTrigger>
+          {puedeVerFicha && <TabsTrigger value="documentos">Documentos</TabsTrigger>}
         </TabsList>
+
+        {/* ── Documentos del empleado: enviar, solicitar firma, adjuntos ── */}
+        {puedeVerFicha && (
+          <TabsContent value="documentos">
+            <Card>
+              <CardContent className="pt-6">
+                <DocumentosEmpleadoTab
+                  empleadoId={empleado.id}
+                  empleadoNombre={nombreCompleto}
+                  viewerRol={viewerRol ?? ""}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         {/* ── Datos: OWNER y MANAGER ven la ficha; solo OWNER la edita ── */}
         {puedeVerFicha && (
