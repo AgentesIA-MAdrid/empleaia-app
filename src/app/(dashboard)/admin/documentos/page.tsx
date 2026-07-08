@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Plus, FolderOpen, Folder, Trash2, FileText, Download, ArrowLeft, Settings2, Pencil, X } from "lucide-react";
+import { isSafeDocUrl } from "@/lib/documentos/url";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -230,8 +231,8 @@ export default function AdminDocumentosPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    {doc.url && (
-                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="p-2 text-slate-400 hover:text-[var(--primary)] transition-colors">
+                    {isSafeDocUrl(doc.url) && (
+                      <a href={doc.url!} target="_blank" rel="noopener noreferrer" className="p-2 text-slate-400 hover:text-[var(--primary)] transition-colors">
                         <Download className="h-4 w-4" />
                       </a>
                     )}

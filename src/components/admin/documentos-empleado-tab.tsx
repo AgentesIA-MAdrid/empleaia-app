@@ -12,6 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { isSafeDocUrl } from "@/lib/documentos/url";
 
 interface DocRow {
   id: string;
@@ -176,12 +177,12 @@ export function DocumentosEmpleadoTab({
                     {ef && <span className={`ml-1 ${ef.cls}`}>· {ef.txt}</span>}
                   </div>
                 </div>
-                {d.url && (
-                  <a href={d.url} download={d.nombre} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-[var(--primary)]" title="Descargar">
+                {isSafeDocUrl(d.url) && (
+                  <a href={d.url!} download={d.nombre} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-[var(--primary)]" title="Descargar">
                     <Download className="h-4 w-4" />
                   </a>
                 )}
-                {puedeFirmarYBorrar && d.url && !ef && (
+                {puedeFirmarYBorrar && isSafeDocUrl(d.url) && !ef && (
                   <button type="button" onClick={() => void solicitarFirma(d)} disabled={firmandoId === d.id} className="text-slate-400 hover:text-[var(--primary)] disabled:opacity-50" title="Solicitar firma">
                     {firmandoId === d.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}
                   </button>

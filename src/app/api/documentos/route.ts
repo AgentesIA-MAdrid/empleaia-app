@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
+import { isSafeDocUrl } from "@/lib/documentos/url";
 
 // Límite del fichero cuando se sube como data URL (se guarda en `url`, texto en
 // BD). ~7MB de cadena base64 ≈ ~5MB de fichero. Suficiente para nóminas/PDF.
@@ -55,6 +56,11 @@ export const POST = withTenant(withFeature("documentos", async (req: NextRequest
     if (!nombre) return NextResponse.json({ error: "El nombre es obligatorio" }, { status: 400 });
     if (typeof url === "string" && url.length > MAX_URL_LEN) {
       return NextResponse.json({ error: "El archivo es demasiado grande (máx ~5 MB)." }, { status: 400 });
+    }
+    // Blindaje XSS: solo https, ruta same-origin, o data URL de PDF/imagen
+    // rasterizada. Rechaza javascript:, data:text/html, data:image/svg+xml…
+    if (url && !isSafeDocUrl(url)) {
+      return NextResponse.json({ error: "Tipo de archivo/URL no permitido." }, { status: 400 });
     }
 
     // EMPLEADO: solo puede adjuntar documentos PARA SÍ MISMO (userId forzado a
