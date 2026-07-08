@@ -145,6 +145,31 @@ export const POST = withTenant(withFeature("turnos_publicacion", async (request:
       );
     }
 
+    // Evita duplicar a una persona: un turno idéntico (misma sede, mismo día,
+    // mismo tipo y mismo horario) ya asignado se rechaza para que no se repita
+    // por error. El cuadrante ya deduplica el arrastre en cliente; esto lo
+    // garantiza también para el alta manual y cualquier otra vía.
+    const diaInicio = new Date(fecha);
+    const diaFin = new Date(diaInicio);
+    diaFin.setHours(23, 59, 59, 999);
+    const duplicado = await prisma.turno.findFirst({
+      where: {
+        userId,
+        tiendaId,
+        tipoTurnoId: tipoTurnoId ?? null,
+        horaInicio: inicio ?? "",
+        horaFin: fin ?? "",
+        fecha: { gte: diaInicio, lte: diaFin },
+      },
+      select: { id: true },
+    });
+    if (duplicado) {
+      return Response.json(
+        { error: "Esta persona ya tiene ese turno ese día" },
+        { status: 409 }
+      );
+    }
+
     const turno = await prisma.turno.create({
       data: {
         userId,
