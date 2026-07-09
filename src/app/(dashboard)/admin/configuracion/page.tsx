@@ -40,6 +40,7 @@ interface Configuracion {
   notifTareas: boolean;
   notifFichajes: boolean;
   notifComunicados: boolean;
+  notifDocumentos: boolean;
   // Email
   emailActivo: boolean;
   emailHost: string;
@@ -93,6 +94,7 @@ const EVENTOS_NOTIF = [
   { key: "Tareas", label: "Tareas", desc: "Asignación y actualizaciones de tareas" },
   { key: "Fichajes", label: "Fichajes", desc: "Alertas de fichaje (tardanzas, ausencias)" },
   { key: "Comunicados", label: "Comunicados", desc: "Publicación de nuevos comunicados" },
+  { key: "Documentos", label: "Documentos", desc: "Cuando se envía un documento a un empleado" },
 ] as const;
 
 // ── Toggle component ──────────────────────────────────────────────────────────
@@ -149,7 +151,7 @@ function ConfiguracionPageInner() {
     retencionFotosDias: 90,
     fichajeMovilActivo: true, fichajeTabletActivo: true,
     notifAusencias: true, notifTurnos: true, notifTareas: true,
-    notifFichajes: false, notifComunicados: true,
+    notifFichajes: false, notifComunicados: true, notifDocumentos: true,
     emailActivo: false, emailHost: "", emailPort: 587, emailSecure: true,
     emailUser: "", emailPassword: "", emailFrom: "",
     pushActivo: false, pushVapidPublicKey: null,
@@ -228,6 +230,7 @@ function ConfiguracionPageInner() {
           notifTareas: config.notifTareas,
           notifFichajes: config.notifFichajes,
           notifComunicados: config.notifComunicados,
+          notifDocumentos: config.notifDocumentos,
           emailActivo: config.emailActivo,
           emailHost: config.emailHost,
           emailPort: config.emailPort,

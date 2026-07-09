@@ -59,7 +59,7 @@ export const PUT = withTenant(async (request: NextRequest) => {
       "horasJornadaDiaria", "horasSemanales", "toleranciaFichaje",
       "geofencingActivo", "fichajeMovilActivo", "fichajeTabletActivo",
       "geoObligatoria", "faceIdObligatorio", "faceIdGuardarFoto", "retencionFotosDias",
-      "notifAusencias", "notifTurnos", "notifTareas", "notifFichajes", "notifComunicados",
+      "notifAusencias", "notifTurnos", "notifTareas", "notifFichajes", "notifComunicados", "notifDocumentos",
       "emailActivo", "emailHost", "emailPort", "emailSecure", "emailUser", "emailPassword", "emailFrom",
       "pushActivo", "pushVapidPublicKey",
       "colorPrimario", "colorSidebar",

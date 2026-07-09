@@ -5,6 +5,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
 import { isSafeDocUrl } from "@/lib/documentos/url";
+import { currentTenant } from "@/lib/tenant/context";
+import { sendSystemEmail } from "@/lib/email";
+import { documentoSubidoTemplate } from "@/lib/email-templates/documento-subido";
+import { tenantBaseUrl } from "@/lib/tenant/urls";
 
 // Límite del fichero cuando se sube como data URL (se guarda en `url`, texto en
 // BD). ~7MB de cadena base64 ≈ ~5MB de fichero. Suficiente para nóminas/PDF.
@@ -78,10 +82,42 @@ export const POST = withTenant(withFeature("documentos", async (req: NextRequest
         subidoPorId: meId,
       },
       include: {
-        user: { select: { nombre: true, apellidos: true } },
+        user: { select: { nombre: true, apellidos: true, email: true } },
         subidoPor: { select: { nombre: true, apellidos: true } },
       },
     });
+
+    // Aviso por email al empleado, si la empresa lo tiene activado
+    // (Configuración → Notificaciones → Documentos). Solo cuando el documento
+    // va dirigido a un empleado distinto de quien lo sube. Fire-and-forget:
+    // un fallo de email no rompe la subida.
+    if (destinatarioId && destinatarioId !== meId && documento.user?.email) {
+      try {
+        const config = await prisma.configuracionEmpresa.findFirst({
+          select: { notifDocumentos: true, nombre: true, appNombre: true },
+        });
+        if (config?.notifDocumentos !== false) {
+          const empresa = config?.nombre ?? config?.appNombre ?? "tu empresa";
+          const remitente = documento.subidoPor
+            ? `${documento.subidoPor.nombre} ${documento.subidoPor.apellidos}`.trim()
+            : "El equipo";
+          const html = documentoSubidoTemplate({
+            destinatarioNombre: documento.user.nombre,
+            remitenteNombre: remitente,
+            documentoNombre: documento.nombre,
+            empresa,
+            documentosUrl: `${tenantBaseUrl(currentTenant().slug)}/empleado/documentos`,
+          });
+          await sendSystemEmail(
+            documento.user.email,
+            `Tienes un nuevo documento: ${documento.nombre}`,
+            html,
+          );
+        }
+      } catch (err) {
+        console.error("[documentos POST] fallo email:", err);
+      }
+    }
 
     return NextResponse.json({ documento }, { status: 201 });
   } catch {
