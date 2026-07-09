@@ -5,6 +5,7 @@ import { withTenantPage } from "@/lib/tenant/with-tenant-page";
 import { auth } from "@/lib/auth";
 import { prismaApp } from "@/lib/prisma";
 import { FirmarButton } from "./firmar-button";
+import { AbrirDocumentoLink } from "./abrir-documento-link";
 
 interface Props extends Record<string, unknown> {
   params: Promise<{ id: string }>;
@@ -69,14 +70,7 @@ async function FirmaDetallePage({ params }: Props) {
           <p className="font-medium">Documento a firmar</p>
         </div>
         {solicitud.documento.url ? (
-          <a
-            href={solicitud.documento.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-[var(--primary)] hover:underline"
-          >
-            Abrir documento en nueva pestaña →
-          </a>
+          <AbrirDocumentoLink url={solicitud.documento.url} />
         ) : (
           <p className="text-sm text-slate-500">
             El documento no tiene URL adjunta. Pide a tu administrador que lo

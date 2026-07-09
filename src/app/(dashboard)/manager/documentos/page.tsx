@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { FolderOpen, FileText, Download } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { isSafeDocUrl, openDocInNewTab } from "@/lib/documentos/url";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -41,7 +42,7 @@ export default function ManagerDocumentosPage() {
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">{doc.user ? `${doc.user.nombre} ${doc.user.apellidos} · ` : "General · "}{format(new Date(doc.createdAt), "d MMM yyyy", { locale: es })}</p>
               </div>
-              {doc.url && <a href={doc.url} target="_blank" rel="noopener noreferrer" className="p-2 text-slate-400 hover:text-[var(--primary)]"><Download className="h-4 w-4" /></a>}
+              {isSafeDocUrl(doc.url) && <button type="button" onClick={() => openDocInNewTab(doc.url)} title="Abrir documento" className="p-2 text-slate-400 hover:text-[var(--primary)]"><Download className="h-4 w-4" /></button>}
             </div>
           ))}
         </div>
