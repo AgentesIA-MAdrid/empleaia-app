@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileText, Upload, Download, Trash2, PenLine, Loader2, CheckCircle2, Clock } from "lucide-react";
+import { FileText, Upload, Download, Trash2, PenLine, Loader2, CheckCircle2, Clock, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { isSafeDocUrl } from "@/lib/documentos/url";
+import { isSafeDocUrl, downloadDoc } from "@/lib/documentos/url";
+import { descargarCertificadoFirma } from "@/lib/documentos/certificado";
 
 interface DocRow {
   id: string;
@@ -51,6 +52,7 @@ export function DocumentosEmpleadoTab({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [firmandoId, setFirmandoId] = useState<string | null>(null);
+  const [certId, setCertId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<{ nombre: string; tipo: string; descripcion: string; dataUrl: string | null }>({
     nombre: "", tipo: "otro", descripcion: "", dataUrl: null,
@@ -140,6 +142,32 @@ export function DocumentosEmpleadoTab({
     else toast({ variant: "destructive", title: "No se pudo eliminar" });
   };
 
+  // Descarga el certificado/acta probatorio de la firma. Los datos (fecha,
+  // hash, IP, navegador) vienen de /api/firmas; el PDF se genera en cliente.
+  const descargarCertificado = async (doc: DocRow) => {
+    setCertId(doc.id);
+    try {
+      const r = await fetch(`/api/firmas?documentoId=${doc.id}`);
+      const firma = r.ok ? ((await r.json()).firmas ?? [])[0] : null;
+      if (!firma) {
+        toast({ variant: "destructive", title: "No se encontró la firma de este documento" });
+        return;
+      }
+      await descargarCertificadoFirma({
+        documentoNombre: doc.nombre,
+        firmanteNombre: `${firma.user?.nombre ?? ""} ${firma.user?.apellidos ?? ""}`.trim() || empleadoNombre,
+        firmadoEn: firma.firmadoEn,
+        documentHash: firma.documentHash,
+        ip: firma.ip,
+        userAgent: firma.userAgent,
+      });
+    } catch {
+      toast({ variant: "destructive", title: "No se pudo generar el certificado" });
+    } finally {
+      setCertId(null);
+    }
+  };
+
   const estadoFirma = (doc: DocRow) => {
     if (doc.firmas && doc.firmas.length > 0) return { txt: "Firmado", cls: "text-emerald-600", icon: CheckCircle2 };
     const sol = doc.solicitudesFirma?.find((s) => s.destinatarioId === empleadoId);
@@ -178,9 +206,14 @@ export function DocumentosEmpleadoTab({
                   </div>
                 </div>
                 {isSafeDocUrl(d.url) && (
-                  <a href={d.url!} download={d.nombre} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-[var(--primary)]" title="Descargar">
+                  <button type="button" onClick={() => downloadDoc(d.url, d.nombre)} className="text-slate-400 hover:text-[var(--primary)]" title="Descargar documento">
                     <Download className="h-4 w-4" />
-                  </a>
+                  </button>
+                )}
+                {ef?.txt === "Firmado" && (
+                  <button type="button" onClick={() => void descargarCertificado(d)} disabled={certId === d.id} className="text-slate-400 hover:text-[var(--primary)] disabled:opacity-50" title="Descargar certificado de firma">
+                    {certId === d.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Award className="h-4 w-4" />}
+                  </button>
                 )}
                 {puedeFirmarYBorrar && isSafeDocUrl(d.url) && !ef && (
                   <button type="button" onClick={() => void solicitarFirma(d)} disabled={firmandoId === d.id} className="text-slate-400 hover:text-[var(--primary)] disabled:opacity-50" title="Solicitar firma">

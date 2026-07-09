@@ -53,6 +53,33 @@ export function openDocInNewTab(url: unknown): void {
 }
 
 /**
+ * Descarga un documento de forma fiable (solo cliente).
+ *
+ * Igual problema que `openDocInNewTab`: un `<a href={dataUrl} download>` con un
+ * data URL grande no descarga en varios navegadores (lo bloquean). Convertimos
+ * el data URL a un Blob y descargamos su `blob:` object URL. Las https y rutas
+ * same-origin se descargan tal cual.
+ */
+export function downloadDoc(url: unknown, filename: string): void {
+  if (!isSafeDocUrl(url)) return;
+  let href = url;
+  let objectUrl: string | null = null;
+  if (url.startsWith("data:")) {
+    const blob = dataUrlToBlob(url);
+    if (!blob) return;
+    objectUrl = URL.createObjectURL(blob);
+    href = objectUrl;
+  }
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = filename || "documento";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  if (objectUrl) window.setTimeout(() => URL.revokeObjectURL(objectUrl!), 60_000);
+}
+
+/**
  * MIME types que se pueden convertir a Blob y abrir same-origin sin riesgo de
  * XSS: solo tipos NO ejecutables (nada de text/html ni image/svg+xml, que
  * pueden llevar script). Debe ir en línea con `SAFE_DOC_URL`; esta comprobación
