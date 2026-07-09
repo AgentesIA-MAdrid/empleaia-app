@@ -10,7 +10,11 @@ export const GET = withSuperAdmin(async (req: NextRequest) => {
   const orgId = url.searchParams.get("org_id") ?? undefined;
 
   const tickets = await listAll({ tipo, estado, orgId });
-  const jobStatus = await getLatestJobStatusByTickets(tickets.map((t) => t.id));
-  const withJob = tickets.map((t) => ({ ...t, ai_job_status: jobStatus[t.id] ?? null }));
+  const jobInfo = await getLatestJobStatusByTickets(tickets.map((t) => t.id));
+  const withJob = tickets.map((t) => ({
+    ...t,
+    ai_job_status: jobInfo[t.id]?.status ?? null,
+    ai_pr_url: jobInfo[t.id]?.pr_url ?? null,
+  }));
   return NextResponse.json(withJob);
 });
