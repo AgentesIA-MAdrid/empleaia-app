@@ -378,7 +378,7 @@ export function FeedbackModal({
             </Button>
           </div>
         ) : (
-          <div className="space-y-2 py-1">
+          <div className="min-w-0 space-y-2 py-1">
             {loadingTickets ? (
               <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-[var(--primary)]" /></div>
             ) : tickets.length === 0 ? (
@@ -397,7 +397,7 @@ export function FeedbackModal({
                         return <span className={cn("shrink-0 text-xs font-semibold", v.cls)}>{v.label}</span>;
                       })()}
                     </div>
-                    <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-900">{t.descripcion}</p>
+                    <p className="mt-1 whitespace-pre-wrap [overflow-wrap:anywhere] text-sm text-slate-900">{t.descripcion}</p>
                     <p className="mt-1.5 text-xs text-slate-400">
                       {t.numero != null && <span className="mr-1.5">#{String(t.numero).padStart(4, "0")}</span>}
                       {fmtFecha(t.created_at)}
@@ -414,7 +414,7 @@ export function FeedbackModal({
                             <div
                               key={m.id}
                               className={cn(
-                                "rounded-lg px-3 py-2 text-sm break-words",
+                                "rounded-lg px-3 py-2 text-sm [overflow-wrap:anywhere]",
                                 m.autor === "user" ? "bg-[var(--primary-light)] text-slate-700" : "bg-slate-50 text-slate-700",
                               )}
                             >
