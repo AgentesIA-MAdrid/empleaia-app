@@ -52,12 +52,30 @@ export function openDocInNewTab(url: unknown): void {
   if (objectUrl) window.setTimeout(() => URL.revokeObjectURL(objectUrl!), 60_000);
 }
 
-/** Convierte un data URL (base64 o percent-encoded) en un Blob, o null si falla. */
+/**
+ * MIME types que se pueden convertir a Blob y abrir same-origin sin riesgo de
+ * XSS: solo tipos NO ejecutables (nada de text/html ni image/svg+xml, que
+ * pueden llevar script). Debe ir en línea con `SAFE_DOC_URL`; esta comprobación
+ * local es defensa en profundidad para que `dataUrlToBlob` sea seguro por sí
+ * mismo aunque cambie el allowlist de la url o se llame desde otro sitio.
+ */
+const SAFE_BLOB_MIMES = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/gif",
+  "image/webp",
+]);
+
+/** Convierte un data URL (base64 o percent-encoded) en un Blob, o null si falla
+ *  o el MIME no está en el allowlist de tipos no ejecutables. */
 function dataUrlToBlob(dataUrl: string): Blob | null {
   const comma = dataUrl.indexOf(",");
   if (comma === -1) return null;
   const header = dataUrl.slice(5, comma); // sin el prefijo "data:"
-  const mime = header.split(";")[0] || "application/octet-stream";
+  const mime = (header.split(";")[0] || "").toLowerCase();
+  if (!SAFE_BLOB_MIMES.has(mime)) return null;
   const payload = dataUrl.slice(comma + 1);
   try {
     const bytes = /;base64/i.test(header)
