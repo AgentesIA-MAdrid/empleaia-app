@@ -269,6 +269,20 @@ export function FeedbackModal({
       }
       const nuevo = await res.json();
       setMessages((prev) => [...prev, nuevo]);
+      // Refleja en la lista que el usuario tiene la última palabra y, si el
+      // ticket estaba cerrado, que su respuesta lo reabre (el servidor lo
+      // mueve a 'en_revision'); así la etiqueta deja de decir "Resuelto".
+      setTickets((prev) =>
+        prev.map((t) =>
+          t.id === ticketId
+            ? {
+                ...t,
+                ultimo_autor: "user",
+                estado: t.estado === "resuelto" || t.estado === "descartado" ? "en_revision" : t.estado,
+              }
+            : t,
+        ),
+      );
       setReply("");
       clearReplyImage();
     } finally {

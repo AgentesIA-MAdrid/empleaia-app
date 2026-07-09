@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { currentTenant } from "@/lib/tenant/context";
 import { prismaApp } from "@/lib/prisma";
-import { getTicketById, listMessages, addMessage, getTicketOrgName, adjuntoIsOrphan } from "@/lib/feedback/repository";
+import { getTicketById, listMessages, addMessage, updateTicket, getTicketOrgName, adjuntoIsOrphan } from "@/lib/feedback/repository";
 import { sendUserReplyAlert } from "@/lib/feedback/send-emails";
 import { notifyRespuestaCliente } from "@/lib/telegram/notify";
 
@@ -70,6 +70,14 @@ export const POST = withTenant(async (req: NextRequest) => {
     cuerpo,
     adjunto_path: parsed.data.adjunto_path ?? null,
   });
+
+  // Si el ticket ya estaba cerrado (resuelto/descartado), la respuesta del
+  // usuario lo reabre: vuelve a 'en_revision' para que el equipo lo retome.
+  // Sin esto, un ticket auto-resuelto al mergear el PR seguía marcado como
+  // "resuelto" aunque el usuario respondiera que algo no funcionaba.
+  if (ticket.estado === "resuelto" || ticket.estado === "descartado") {
+    await updateTicket(id, { estado: "en_revision" });
+  }
 
   // Aviso al super-admin — fire and forget.
   void (async () => {
