@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Markdown } from "@/components/ui/markdown";
-import { Loader2, Bot, Send, CheckCircle2, XCircle, RefreshCw, ExternalLink } from "lucide-react";
+import { Loader2, Bot, Send, CheckCircle2, XCircle, RefreshCw, ExternalLink, GitMerge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +25,7 @@ interface AdminTicket {
   screenshot_paths: string[] | null;
   created_at: string;
   ai_job_status: JobStatus | null;
+  ai_pr_url: string | null;
   ultimo_autor?: "admin" | "user" | null;
 }
 interface Msg {
@@ -63,6 +64,13 @@ const JOB_BADGE: Record<JobStatus, string> = {
   fallido: "bg-red-100 text-red-700",
 };
 const LIVE: JobStatus[] = ["encolado", "ejecutando"];
+
+// Nº de PR a partir de la URL de GitHub (…/pull/48 → "48").
+const prNumero = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+  const m = /\/pull\/(\d+)/.exec(url);
+  return m ? m[1] : null;
+};
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -202,6 +210,18 @@ export default function AdminFeedbackPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 whitespace-nowrap">
                       {t.ai_job_status && <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", JOB_BADGE[t.ai_job_status])}>{t.ai_job_status}</span>}
+                      {t.ai_pr_url && prNumero(t.ai_pr_url) && (
+                        <a
+                          href={t.ai_pr_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          title="Abrir el PR en GitHub"
+                          className="inline-flex items-center gap-0.5 font-mono text-xs font-medium text-indigo-600 hover:underline"
+                        >
+                          PR #{prNumero(t.ai_pr_url)}
+                        </a>
+                      )}
                       {t.ai_job_status === "fallido" && (
                         <button
                           onClick={(e) => { e.stopPropagation(); reintentar(t.id); }}
@@ -338,6 +358,25 @@ function DetalleTicket({
     }
   };
 
+  // Mergear (squash) el PR del job. Reutiliza la misma lógica que Telegram: el
+  // webhook de GitHub marcará el ticket como resuelto y avisará al cliente.
+  const mergearPr = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/admin/feedback/${ticket.id}/merge-pr`, { method: "POST" });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        toast({ variant: "destructive", title: "No se pudo mergear el PR", description: d.error });
+        return;
+      }
+      toast({ variant: "success", title: "PR mergeado", description: "El ticket se marcará como resuelto en unos segundos." });
+      await cargarJob();
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const publicarResumen = async () => {
     setBusy(true);
     try {
@@ -464,9 +503,22 @@ function DetalleTicket({
               </ul>
             )}
             {job?.pr_url && (
-              <a href={job.pr_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-indigo-700 hover:underline">
-                Ver PR <ExternalLink className="h-3 w-3" />
-              </a>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <a href={job.pr_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-indigo-700 hover:underline">
+                  Ver PR{prNumero(job.pr_url) ? ` #${prNumero(job.pr_url)}` : ""} <ExternalLink className="h-3 w-3" />
+                </a>
+                {job.status === "pr_abierto" && (
+                  <Button
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                    onClick={mergearPr}
+                    disabled={busy}
+                    title="Mergear el PR (squash) y resolver el ticket"
+                  >
+                    <GitMerge className="mr-1.5 h-4 w-4" /> Mergear PR
+                  </Button>
+                )}
+              </div>
             )}
             {job?.error && <p className="mt-2 text-xs text-red-600">{job.error}</p>}
             {/* Resumen borrador → publicar */}

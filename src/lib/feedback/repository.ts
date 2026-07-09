@@ -369,15 +369,15 @@ const JOB_INCLUDE = { resumenAdjunto: { select: { id: true } } } as const;
 
 export async function getLatestJobStatusByTickets(
   ticketIds: string[],
-): Promise<Record<string, JobStatus>> {
+): Promise<Record<string, { status: JobStatus; pr_url: string | null }>> {
   if (ticketIds.length === 0) return {};
   const rows = await prismaMaster.feedbackAiJob.findMany({
     where: { ticketId: { in: ticketIds } },
     orderBy: { createdAt: "desc" },
-    select: { ticketId: true, status: true },
+    select: { ticketId: true, status: true, prUrl: true },
   });
-  const out: Record<string, JobStatus> = {};
-  for (const r of rows) if (!(r.ticketId in out)) out[r.ticketId] = r.status;
+  const out: Record<string, { status: JobStatus; pr_url: string | null }> = {};
+  for (const r of rows) if (!(r.ticketId in out)) out[r.ticketId] = { status: r.status, pr_url: r.prUrl ?? null };
   return out;
 }
 

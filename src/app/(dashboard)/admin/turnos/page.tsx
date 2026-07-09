@@ -644,10 +644,18 @@ export default function AdminTurnosPage() {
       </div>
 
       <Card>
-        <CardContent className="p-0 overflow-x-auto">
+        {/* Altura acotada para que el scroll VERTICAL ocurra dentro de la
+            tabla (y no en el <main> del shell): así la cabecera de días puede
+            quedar fija con `sticky` mientras solo se desplazan las sedes.
+            Conserva el scroll horizontal por el `min-w-[900px]` de la tabla.
+            Convención de altura calc(100vh-…) ya usada en chat-layout.tsx. */}
+        <CardContent className="p-0 overflow-auto max-h-[calc(100vh-16rem)]">
           <table className="w-full min-w-[900px] text-sm">
-            <thead className="bg-slate-50 border-b">
-              <tr>
+            {/* La cabecera queda fija al hacer scroll vertical: `sticky top-0`
+                se ancla al CardContent (contenedor de scroll). El fondo opaco
+                y el z-10 ocluyen las filas que pasan por debajo. */}
+            <thead className="sticky top-0 z-10 bg-slate-50 border-b">
+              <tr className="bg-slate-50">
                 <th className="text-left text-xs font-semibold text-slate-500 px-3 py-3 w-44">Empleado</th>
                 {dias.map((d, i) => {
                   const hoy = isSameDay(d, new Date());

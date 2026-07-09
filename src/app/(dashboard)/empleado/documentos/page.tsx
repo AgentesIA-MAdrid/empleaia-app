@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { isSafeDocUrl } from "@/lib/documentos/url";
+import { isSafeDocUrl, openDocInNewTab } from "@/lib/documentos/url";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -88,7 +88,7 @@ export default function EmpleadoDocumentosPage() {
                 {doc.descripcion && <p className="text-sm text-slate-500 truncate">{doc.descripcion}</p>}
                 <p className="text-xs text-slate-400 mt-0.5">{format(new Date(doc.createdAt), "d MMM yyyy", { locale: es })}</p>
               </div>
-              {isSafeDocUrl(doc.url) && <a href={doc.url!} target="_blank" rel="noopener noreferrer" className="p-2 text-slate-400 hover:text-[var(--primary)]"><Download className="h-4 w-4" /></a>}
+              {isSafeDocUrl(doc.url) && <button type="button" onClick={() => openDocInNewTab(doc.url)} title="Abrir documento" className="p-2 text-slate-400 hover:text-[var(--primary)]"><Download className="h-4 w-4" /></button>}
             </div>
           ))}
         </div>
