@@ -61,3 +61,6 @@ scratchpad/
 
 # Codex / claude-flow MCP (config local)
 .codex/
+
+# Artefacto de captura que deja el runner de Claudia en la raíz
+feedback-after.png
