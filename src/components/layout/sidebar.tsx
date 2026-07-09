@@ -155,6 +155,7 @@ function getSidebarConfig(rol: string, pendingAusencias = 0): SidebarConfig {
             { label: "Presencia", href: "/manager/presencia", icon: UserCheck },
             { label: "Aprobaciones de fichaje", href: "/manager/solicitudes-fichaje", icon: ClipboardCheck },
             { label: "Ausencias", href: "/manager/ausencias", icon: ClipboardList, badge: pendingAusencias || undefined },
+            { label: "Mis Ausencias", href: "/manager/mis-ausencias", icon: CalendarCheck },
             { label: "Turnos", href: "/manager/turnos", icon: Calendar },
             { label: "Tareas", href: "/manager/tareas", icon: CheckSquare },
           ],

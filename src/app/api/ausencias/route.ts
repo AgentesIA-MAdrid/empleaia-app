@@ -24,6 +24,7 @@ export const GET = withTenant(withFeature("ausencias_aprobacion", async (request
     const estado = searchParams.get("estado") as EstadoAusencia | null;
     const userId = searchParams.get("userId");
     const tiendaId = searchParams.get("tiendaId");
+    const scope = searchParams.get("scope");
 
     const userRol = (session.user as any).rol as Rol;
     const userTiendaId = (session.user as any).tiendaId as string | null;
@@ -31,7 +32,12 @@ export const GET = withTenant(withFeature("ausencias_aprobacion", async (request
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {};
 
-    if (userRol === Rol.OWNER) {
+    if (scope === "me") {
+      // Autoservicio "Mis Ausencias": solo las del propio usuario, sea cual sea
+      // su rol. Un MANAGER (Coordinador) usa esta vista para pedir las suyas,
+      // distinta de la gestión del equipo (que sí ve la tienda entera).
+      where.userId = session.user.id;
+    } else if (userRol === Rol.OWNER) {
       if (userId) where.userId = userId;
       if (tiendaId) {
         where.user = { tiendaId };
