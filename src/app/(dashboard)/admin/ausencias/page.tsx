@@ -436,7 +436,18 @@ export default function AdminAusenciasPage() {
                   type="date"
                   className="mt-1"
                   value={form.fechaInicio}
-                  onChange={(e) => setForm((f) => ({ ...f, fechaInicio: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      fechaInicio: e.target.value,
+                      // Por defecto una ausencia es de 1 día: al elegir el inicio,
+                      // igualamos el fin si está vacío o quedó antes del inicio.
+                      fechaFin:
+                        !f.fechaFin || f.fechaFin < e.target.value
+                          ? e.target.value
+                          : f.fechaFin,
+                    }))
+                  }
                 />
               </div>
               <div>
