@@ -59,6 +59,20 @@ export const GET = withTenant(
     if (user.rol === Rol.MANAGER) tiendaFiltro = user.tiendaId ?? null;
     else if (reqTiendaId && reqTiendaId !== "todas") tiendaFiltro = reqTiendaId;
 
+    // Alcance de los TURNOS que cargamos. Debe cubrir TODAS las sedes del
+    // empleado (no solo la filtrada) para que la Diferencia vs. contrato se
+    // mida sobre su jornada global — igual que la UI del cuadrante, que carga
+    // todos los turnos y compara contra el total global de la persona. Si aquí
+    // acotáramos por la sede filtrada, un correturno que reparte su semana
+    // entre varias tiendas saldría como deficitario al exportar una sede
+    // concreta (era el bug: la diferencia perdía sus horas en las otras sedes).
+    // Solo la restricción OBLIGATORIA del MANAGER (su sede) acota este alcance;
+    // el filtro OPCIONAL de sede del OWNER no. Las columnas por día y el Total
+    // por sede siguen siendo por-sede vía `porUserTiendaDia`, y solo se imprimen
+    // las sedes de `tiendas`/`empleados` (que sí respetan `tiendaFiltro`).
+    const tiendaScopeTurnos =
+      user.rol === Rol.MANAGER ? (user.tiendaId ?? null) : null;
+
     const [config, tiendas, empleados, turnos] = await Promise.all([
       prisma.configuracionEmpresa.findFirst({ select: { horasSemanales: true } }),
       prisma.tienda.findMany({
@@ -83,7 +97,7 @@ export const GET = withTenant(
       prisma.turno.findMany({
         where: {
           fecha: { gte: inicio, lte: fin },
-          ...(tiendaFiltro ? { tiendaId: tiendaFiltro } : {}),
+          ...(tiendaScopeTurnos ? { tiendaId: tiendaScopeTurnos } : {}),
         },
         select: {
           userId: true,
@@ -99,7 +113,8 @@ export const GET = withTenant(
 
     const horasGlobal = Number(config?.horasSemanales ?? 40);
 
-    // Dos índices: global (userId+ymd) para "Sin sede" y por sede
+    // Dos índices: global (userId+ymd) — cubre TODAS las sedes de la persona,
+    // sostiene "Sin sede" y la Diferencia vs. contrato — y por sede
     // (userId+tiendaId+ymd) para que cada correturno cuente solo en la
     // tienda que cubre — igual que la pantalla del cuadrante.
     const porUserDia = new Map<string, typeof turnos>();
@@ -163,9 +178,9 @@ export const GET = withTenant(
       // La diferencia contra el contrato (semanal y global de la persona) se
       // mide sobre las horas del empleado en TODAS las sedes (índice global
       // `porUserDia`), no solo en esta: si no, a quien reparte su jornada entre
-      // varias tiendas se le exigiría el contrato completo en cada una. Cuando
-      // hay filtro de sede, `turnos` ya viene acotado, así que el total global
-      // coincide con el de la sede (degrada sin regresión). Igual que la UI.
+      // varias tiendas se le exigiría el contrato completo en cada una. El
+      // índice global ya incluye todas las sedes aunque el OWNER exporte una
+      // sede concreta (ver `tiendaScopeTurnos`), así que coincide con la UI.
       if (contrato === null) {
         row.dif = "";
       } else {
