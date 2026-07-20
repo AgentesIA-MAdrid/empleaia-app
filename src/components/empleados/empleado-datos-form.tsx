@@ -50,6 +50,7 @@ export interface EmpleadoDatos {
   numeroSeguridadSocial: string | null;
   codigoContrato: string | null;
   fechaAltaContrato: string | null;
+  horasSemanalesContrato: number | null;
   numeroHijos: number | null;
   porcentajeDiscapacidad: number | null;
   titularCuenta: string | null;
@@ -178,6 +179,8 @@ function initialState(e: EmpleadoDatos): FormState {
     numeroSeguridadSocial: s(e.numeroSeguridadSocial),
     codigoContrato: s(e.codigoContrato),
     fechaAltaContrato: s(e.fechaAltaContrato),
+    horasSemanalesContrato:
+      e.horasSemanalesContrato == null ? "" : String(e.horasSemanalesContrato),
     numeroHijos: e.numeroHijos == null ? "" : String(e.numeroHijos),
     porcentajeDiscapacidad:
       e.porcentajeDiscapacidad == null ? "" : String(e.porcentajeDiscapacidad),
@@ -270,6 +273,7 @@ export function EmpleadoDatosForm({
       numeroSeguridadSocial: form.numeroSeguridadSocial,
       codigoContrato: form.codigoContrato,
       fechaAltaContrato: form.fechaAltaContrato || null,
+      horasSemanalesContrato: numOrNull(txt("horasSemanalesContrato")),
       numeroHijos: numOrNull(txt("numeroHijos")),
       porcentajeDiscapacidad: numOrNull(txt("porcentajeDiscapacidad")),
       titularCuenta: form.titularCuenta,
@@ -286,6 +290,7 @@ export function EmpleadoDatosForm({
         "numeroSeguridadSocial",
         "codigoContrato",
         "fechaAltaContrato",
+        "horasSemanalesContrato",
         "numeroHijos",
         "porcentajeDiscapacidad",
         "titularCuenta",
@@ -406,6 +411,19 @@ export function EmpleadoDatosForm({
                 onChange={(v) => set("fechaAltaContrato", v)}
                 disabled={modo !== "admin"}
                 hint={modo !== "admin" ? "Solo la pueden editar los administradores." : undefined}
+              />
+              <TextField
+                label="Horas semanales de contrato"
+                type="number"
+                value={txt("horasSemanalesContrato")}
+                onChange={(v) => set("horasSemanalesContrato", v)}
+                placeholder="Ej: 38"
+                disabled={modo !== "admin"}
+                hint={
+                  modo !== "admin"
+                    ? "Solo la pueden editar los administradores."
+                    : "Si lo dejas vacío, se usan las horas por defecto de la empresa (Configuración → General)."
+                }
               />
             </div>
           </section>

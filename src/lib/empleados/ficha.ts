@@ -40,6 +40,7 @@ export const FICHA_SELECT = {
   numeroSeguridadSocial: true,
   codigoContrato: true,
   fechaAltaContrato: true,
+  horasSemanalesContrato: true,
   numeroHijos: true,
   porcentajeDiscapacidad: true,
   titularCuenta: true,
@@ -48,13 +49,19 @@ export const FICHA_SELECT = {
   entidadBancaria: true,
 } as const;
 
-/** Fila tal cual la devuelve Prisma con FICHA_SELECT. */
-export type FichaRow = Omit<EmpleadoDatos, "fechaNacimiento" | "fechaAltaContrato"> & {
+/** Fila tal cual la devuelve Prisma con FICHA_SELECT. `horasSemanalesContrato`
+ *  es Decimal en Prisma (objeto con toString), lo convertimos a número. */
+export type FichaRow = Omit<
+  EmpleadoDatos,
+  "fechaNacimiento" | "fechaAltaContrato" | "horasSemanalesContrato"
+> & {
   fechaNacimiento: Date | null;
   fechaAltaContrato: Date | null;
+  horasSemanalesContrato: { toString(): string } | number | null;
 };
 
-/** Convierte la fila de Prisma al shape del formulario (fecha → "YYYY-MM-DD"). */
+/** Convierte la fila de Prisma al shape del formulario (fecha → "YYYY-MM-DD",
+ *  Decimal → number). */
 export function toEmpleadoDatos(u: FichaRow): EmpleadoDatos {
   return {
     ...u,
@@ -64,5 +71,7 @@ export function toEmpleadoDatos(u: FichaRow): EmpleadoDatos {
     fechaAltaContrato: u.fechaAltaContrato
       ? u.fechaAltaContrato.toISOString().slice(0, 10)
       : null,
+    horasSemanalesContrato:
+      u.horasSemanalesContrato == null ? null : Number(u.horasSemanalesContrato),
   };
 }
