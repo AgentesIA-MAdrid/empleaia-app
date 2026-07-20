@@ -12,6 +12,7 @@ import { getLimit } from "@/lib/tenant/features";
 import { HttpError, wrapHttpErrors } from "@/lib/feature-guard/http-error";
 import { buildSetPasswordUrl } from "@/lib/tenant/urls";
 import { resolveEmpresaScope } from "@/lib/multi-empresa/scope";
+import { enviarPlantilla } from "@/lib/documentos/plantillas";
 export const GET = withTenant(async (request: NextRequest) => {
   try {
     const session = await auth();
@@ -135,6 +136,7 @@ export const POST = withTenant(
       tiendaId,
       managerId,
       horasSemanalesContrato,
+      plantillaIds,
     } = body as {
       email: string;
       nombre: string;
@@ -146,6 +148,8 @@ export const POST = withTenant(
       tiendaId?: string;
       managerId?: string | null;
       horasSemanalesContrato?: number | null;
+      // Plantillas de documentos a enviar al nuevo empleado como parte del alta.
+      plantillaIds?: string[];
     };
 
     if (!email || !nombre || !apellidos) {
@@ -275,6 +279,25 @@ export const POST = withTenant(
       // anulamos el create — el admin puede reenviarlo manualmente
       // desde la ficha del empleado.
       console.error("[/api/empleados] fallo enviando email de invitación:", err);
+    }
+
+    // Plantillas de documentos a enviar como parte del alta. Cada una se
+    // materializa como un Documento para el nuevo empleado (y solicita firma si
+    // procede). Best-effort: un fallo aquí no revierte el alta.
+    if (Array.isArray(plantillaIds) && plantillaIds.length > 0) {
+      try {
+        const ids = [...new Set(plantillaIds.filter((p) => typeof p === "string" && p))];
+        const plantillas = await prisma.plantillaDocumento.findMany({ where: { id: { in: ids } } });
+        for (const plantilla of plantillas) {
+          await enviarPlantilla({
+            plantilla,
+            destinatarioId: empleado.id,
+            solicitadaPorId: (session.user as { id?: string }).id ?? "",
+          });
+        }
+      } catch (err) {
+        console.error("[/api/empleados] fallo enviando plantillas del alta:", err);
+      }
     }
 
     return Response.json(empleado, { status: 201 });

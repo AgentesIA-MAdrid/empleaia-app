@@ -183,6 +183,7 @@ model User {
   articulos                Articulo[]
   documentos               Documento[]               @relation("DocumentoEmpleado")
   documentosSubidos        Documento[]               @relation("DocumentoSubido")
+  plantillasDocumento      PlantillaDocumento[]      @relation("PlantillaCreador")
   firmas                   Firma[]                   @relation("FirmaUsuario")
   onboardings              ProcesoOnboarding[]
   bolsaHoras               BolsaHoras[]
@@ -640,11 +641,46 @@ model Documento {
   subidoPorId String
   subidoPor   User     @relation("DocumentoSubido", fields: [subidoPorId], references: [id])
   createdAt   DateTime @default(now())
+  // Documentos creados a partir de una PlantillaDocumento (envío como alta o
+  // adjuntar plantilla): `campos` es la definición congelada de los campos que
+  // el empleado debe rellenar ([{ label, tipo }]); `camposRespuestas` son sus
+  // respuestas alineadas por índice (string[]). Ambos null en documentos
+  // normales que no vienen de plantilla.
+  campos           Json?
+  camposRespuestas Json?
   firmas             Firma[]
   solicitudesFirma   SolicitudFirma[] @relation("SolicitudFirmaDocumento")
 
   @@index([userId])
   @@index([subidoPorId])
+}
+
+// Plantilla de documento reutilizable (Plan RR.HH.): el OWNER/MANAGER sube un
+// documento contractual una vez, marca los campos que el empleado tendrá que
+// rellenar y luego lo envía a uno o varios empleados —como parte del alta o
+// adjuntándolo desde el envío de documentos—. Cada envío materializa un
+// `Documento` para el destinatario copiando nombre, archivo, carpeta y campos.
+model PlantillaDocumento {
+  id             String   @id @default(cuid())
+  nombre         String
+  descripcion    String?
+  // Archivo base de la plantilla (data URL o https same-origin, validado con
+  // isSafeDocUrl igual que Documento.url).
+  url            String?
+  // Carpeta destino (slug de TipoDocumento) donde caerá el documento enviado.
+  tipo           String   @default("otro")
+  // Campos que el empleado deberá rellenar: [{ label, tipo }].
+  campos         Json     @default("[]")
+  // Si true (o la carpeta es la de contratos), al enviar se crea una
+  // SolicitudFirma para que el empleado firme el documento.
+  solicitarFirma Boolean  @default(false)
+  orden          Int      @default(0)
+  createdById    String
+  createdBy      User     @relation("PlantillaCreador", fields: [createdById], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([createdById])
 }
 
 // Firma electrónica de documentos. Plan D.2 + Sprint 1 #2.
