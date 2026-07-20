@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { isSafeDocUrl, downloadDoc } from "@/lib/documentos/url";
+import { esCarpetaFirmaObligatoria } from "@/lib/documentos/categorias";
 import { descargarCertificadoFirma } from "@/lib/documentos/certificado";
 
 interface DocRow {
@@ -58,6 +59,7 @@ export function DocumentosEmpleadoTab({
   const [form, setForm] = useState<{ nombre: string; tipo: string; descripcion: string; dataUrl: string | null }>({
     nombre: "", tipo: "otro", descripcion: "", dataUrl: null,
   });
+  const [solicitarFirmaAlEnviar, setSolicitarFirmaAlEnviar] = useState(false);
 
   const puedeEnviar = viewerRol === "OWNER" || viewerRol === "MANAGER";
   const puedeFirmarYBorrar = viewerRol === "OWNER";
@@ -92,6 +94,18 @@ export function DocumentosEmpleadoTab({
 
   const enviar = async () => {
     if (!form.nombre.trim()) { toast({ variant: "destructive", title: "Pon un nombre al documento" }); return; }
+    // La carpeta de contratos exige firma obligatoria; en el resto es opcional.
+    const firmaOblig = esCarpetaFirmaObligatoria(form.tipo);
+    const pedirFirma = firmaOblig || solicitarFirmaAlEnviar;
+    if (pedirFirma && !isSafeDocUrl(form.dataUrl)) {
+      toast({
+        variant: "destructive",
+        title: firmaOblig
+          ? "Adjunta el archivo del contrato para que el empleado pueda firmarlo"
+          : "Adjunta el archivo del documento para poder solicitar su firma",
+      });
+      return;
+    }
     setEnviando(true);
     try {
       const r = await fetch("/api/documentos", {
@@ -103,12 +117,18 @@ export function DocumentosEmpleadoTab({
           tipo: form.tipo,
           url: form.dataUrl,
           userId: empleadoId,
+          solicitarFirma: pedirFirma,
         }),
       });
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Error");
-      toast({ variant: "success", title: "Documento enviado al empleado" });
+      const data = await r.json().catch(() => ({}));
+      toast({
+        variant: "success",
+        title: data.firmaSolicitada ? "Documento enviado y firma solicitada" : "Documento enviado al empleado",
+      });
       setDialogOpen(false);
       setForm({ nombre: "", tipo: "otro", descripcion: "", dataUrl: null });
+      setSolicitarFirmaAlEnviar(false);
       if (fileRef.current) fileRef.current.value = "";
       void cargar();
     } catch (e) {
@@ -204,7 +224,7 @@ export function DocumentosEmpleadoTab({
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-500">Documentos de {empleadoNombre} (nóminas, contratos, adjuntos…)</p>
         {puedeEnviar && (
-          <Button size="sm" onClick={() => setDialogOpen(true)}>
+          <Button size="sm" onClick={() => { setSolicitarFirmaAlEnviar(false); setDialogOpen(true); }}>
             <Upload className="mr-1.5 h-4 w-4" /> Enviar documento
           </Button>
         )}
@@ -287,6 +307,25 @@ export function DocumentosEmpleadoTab({
             <div>
               <Label htmlFor="doc-desc">Descripción (opcional)</Label>
               <Input id="doc-desc" className="mt-1" value={form.descripcion} onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))} />
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <label className="flex items-start gap-2.5 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[var(--primary)]"
+                  checked={esCarpetaFirmaObligatoria(form.tipo) || solicitarFirmaAlEnviar}
+                  disabled={esCarpetaFirmaObligatoria(form.tipo)}
+                  onChange={(e) => setSolicitarFirmaAlEnviar(e.target.checked)}
+                />
+                <span>
+                  <span className="font-medium text-slate-800">Solicitar firma al enviar</span>
+                  <span className="mt-0.5 block text-xs text-slate-500">
+                    {esCarpetaFirmaObligatoria(form.tipo)
+                      ? "Los documentos de «Contratos laborales y anexos» requieren firma obligatoria: se pedirá a la persona su nombre, DNI y firma manuscrita."
+                      : `${empleadoNombre} recibirá un aviso para leer y firmar el documento (nombre, DNI y firma manuscrita).`}
+                  </span>
+                </span>
+              </label>
             </div>
           </div>
           <DialogFooter>

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Plus, FolderOpen, Folder, Trash2, FileText, Download, ArrowLeft, Settings2, Pencil, X } from "lucide-react";
 import { isSafeDocUrl, openDocInNewTab } from "@/lib/documentos/url";
+import { esCarpetaFirmaObligatoria } from "@/lib/documentos/categorias";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,7 @@ export default function AdminDocumentosPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [gestionOpen, setGestionOpen] = useState(false);
   const [form, setForm] = useState({ nombre: "", descripcion: "", url: "", tipo: "", userId: "" });
+  const [solicitarFirma, setSolicitarFirma] = useState(false);
   const [saving, setSaving] = useState(false);
   const [nuevoTipo, setNuevoTipo] = useState("");
 
@@ -78,20 +80,41 @@ export default function AdminDocumentosPage() {
   const handleCreate = async () => {
     if (!form.nombre) { toast({ title: "El nombre es obligatorio", variant: "destructive" }); return; }
     const tipo = form.tipo || carpeta || tipos[0]?.slug || "otro";
+    // La carpeta de contratos exige firma obligatoria; en el resto es opcional.
+    const firmaOblig = esCarpetaFirmaObligatoria(tipo);
+    const pedirFirma = firmaOblig || solicitarFirma;
+    if (pedirFirma && !form.userId) {
+      toast({ title: "Elige el empleado que debe firmar el documento", variant: "destructive" });
+      return;
+    }
+    if (pedirFirma && !isSafeDocUrl(form.url)) {
+      toast({
+        title: firmaOblig
+          ? "Añade la URL del contrato para que el empleado pueda firmarlo"
+          : "Añade la URL del documento para poder solicitar su firma",
+        variant: "destructive",
+      });
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch("/api/documentos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, tipo, userId: form.userId || null }),
+        body: JSON.stringify({ ...form, tipo, userId: form.userId || null, solicitarFirma: pedirFirma }),
       });
-      if (!res.ok) throw new Error();
-      toast({ title: "Documento añadido", variant: "success" });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Error al guardar");
+      const data = await res.json().catch(() => ({}));
+      toast({
+        title: data.firmaSolicitada ? "Documento añadido y firma solicitada al empleado" : "Documento añadido",
+        variant: "success",
+      });
       setDialogOpen(false);
       setForm({ nombre: "", descripcion: "", url: "", tipo: "", userId: "" });
+      setSolicitarFirma(false);
       fetchData();
-    } catch {
-      toast({ title: "Error al guardar", variant: "destructive" });
+    } catch (e) {
+      toast({ title: e instanceof Error ? e.message : "Error al guardar", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -158,6 +181,11 @@ export default function AdminDocumentosPage() {
 
   const docsCarpeta = carpeta ? documentos.filter((d) => d.tipo === carpeta) : [];
 
+  // Carpeta seleccionada en el diálogo "Añadir documento": si es la de
+  // contratos, la firma es obligatoria (checkbox marcado y bloqueado).
+  const tipoDialogo = form.tipo || tipos[0]?.slug || "";
+  const firmaObligatoriaDialogo = esCarpetaFirmaObligatoria(tipoDialogo);
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -169,7 +197,7 @@ export default function AdminDocumentosPage() {
           <Button variant="outline" onClick={() => setGestionOpen(true)}>
             <Settings2 className="h-4 w-4 mr-2" /> Gestionar tipos
           </Button>
-          <Button onClick={() => { setForm((f) => ({ ...f, tipo: carpeta ?? "" })); setDialogOpen(true); }}>
+          <Button onClick={() => { setForm((f) => ({ ...f, tipo: carpeta ?? "" })); setSolicitarFirma(false); setDialogOpen(true); }}>
             <Plus className="h-4 w-4 mr-2" /> Añadir documento
           </Button>
         </div>
@@ -284,6 +312,25 @@ export default function AdminDocumentosPage() {
             <div>
               <Label>Descripción</Label>
               <Input className="mt-1" value={form.descripcion} onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))} placeholder="Descripción breve" />
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <label className="flex items-start gap-2.5 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[var(--primary)]"
+                  checked={firmaObligatoriaDialogo || solicitarFirma}
+                  disabled={firmaObligatoriaDialogo}
+                  onChange={(e) => setSolicitarFirma(e.target.checked)}
+                />
+                <span>
+                  <span className="font-medium text-slate-800">Solicitar firma al empleado</span>
+                  <span className="mt-0.5 block text-xs text-slate-500">
+                    {firmaObligatoriaDialogo
+                      ? "Los documentos de «Contratos laborales y anexos» requieren firma obligatoria. Elige el empleado y añade la URL del contrato."
+                      : "El empleado recibirá un aviso para firmar el documento (nombre, DNI y firma manuscrita) antes de darlo por recibido."}
+                  </span>
+                </span>
+              </label>
             </div>
           </div>
           <DialogFooter>
