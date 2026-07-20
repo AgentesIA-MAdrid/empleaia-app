@@ -13,6 +13,7 @@
 
 import { auth } from "@/lib/auth";
 import { prismaApp } from "@/lib/prisma";
+import { Rol } from "@/generated/prisma-tenant/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
@@ -21,16 +22,22 @@ import { createHash } from "node:crypto";
 export const GET = withTenant(
   withFeature("firma_electronica", async (req: NextRequest) => {
     const session = await auth();
-    if (!session?.user) {
+    const sUser = session?.user as { id?: string; rol?: Rol | string } | undefined;
+    if (!sUser?.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
     const { searchParams } = req.nextUrl;
     const documentoId = searchParams.get("documentoId");
     const userId = searchParams.get("userId");
+    // Las firmas incluyen datos personales (nombre, DNI, garabato manuscrito) y
+    // la copia sellada del documento. Solo gestión (OWNER/MANAGER) puede
+    // consultarlas de cualquiera; un EMPLEADO solo ve las suyas.
+    const esGestion = sUser.rol === Rol.OWNER || sUser.rol === Rol.MANAGER;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {};
     if (documentoId) where.documentoId = documentoId;
     if (userId) where.userId = userId;
+    if (!esGestion) where.userId = sUser.id;
     const firmas = await prismaApp.firma.findMany({
       where,
       orderBy: { firmadoEn: "desc" },

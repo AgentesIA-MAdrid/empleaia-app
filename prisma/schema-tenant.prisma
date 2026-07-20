@@ -698,6 +698,14 @@ model Firma {
   ip              String?
   userAgent       String?         @map("user_agent")
   firmadoEn       DateTime        @default(now()) @map("firmado_en")
+  // Identidad manuscrita capturada al firmar (contratos laborales y anexos):
+  // nombre y DNI/NIE tecleados por el firmante + garabato manuscrito (PNG
+  // data URL). Se estampan en el margen izquierdo de cada hoja del documento.
+  firmanteNombre      String?     @map("firmante_nombre")
+  firmanteDni         String?     @map("firmante_dni")
+  firmaImagen         String?     @map("firma_imagen")
+  // Copia del documento con la firma estampada en cada página (PDF data URL).
+  documentoFirmadoUrl String?     @map("documento_firmado_url")
 
   @@index([documentoId])
   @@index([userId])
