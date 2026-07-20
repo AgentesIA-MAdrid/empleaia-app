@@ -253,6 +253,11 @@ model User {
   // Horas semanales contratadas del empleado (columna "HORAS A CONTRATO"
   // del cuadrante). Si null, se usa `ConfiguracionEmpresa.horasSemanales`.
   horasSemanalesContrato   Decimal?                  @db.Decimal(5, 2) @map("horas_semanales_contrato")
+  // Empleado de oficina: al publicar el cuadrante, los días laborables (L-V)
+  // de la semana que queden SIN ningún turno en ninguna sede se rellenan
+  // automáticamente con un turno de 09:00–17:00 en la sede "Oficina".
+  // Ver `src/lib/turnos/rellenar-oficina.ts`.
+  autoTurnoOficina         Boolean                   @default(false) @map("auto_turno_oficina")
   // Marca si el empleado/manager ya rellenó sus datos personales
   // obligatorios (bloque personal + dirección + contacto) en su primer
   // acceso. El OWNER queda exento del flujo. La lista exacta de campos

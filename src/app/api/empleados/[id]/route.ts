@@ -55,6 +55,7 @@ const userSelect = {
   activo: true,
   salarioBase: true,
   horasSemanalesContrato: true,
+  autoTurnoOficina: true,
   perfilCompletado: true,
   // Ficha ampliada.
   tipoIdentificacion: true,
@@ -198,6 +199,7 @@ export const PUT = withTenant(async (request: NextRequest,
       activo,
       salarioBase,
       horasSemanalesContrato,
+      autoTurnoOficina,
     } = body as {
       email?: string;
       password?: string;
@@ -214,6 +216,7 @@ export const PUT = withTenant(async (request: NextRequest,
       activo?: boolean;
       salarioBase?: number | null;
       horasSemanalesContrato?: number | null;
+      autoTurnoOficina?: boolean;
     };
 
     // Non-admins cannot change their own role or tienda
@@ -293,6 +296,9 @@ export const PUT = withTenant(async (request: NextRequest,
       updateData.managerId = managerId;
     }
     if (activo !== undefined && userRol === Rol.OWNER) updateData.activo = activo;
+    if (autoTurnoOficina !== undefined && userRol === Rol.OWNER) {
+      updateData.autoTurnoOficina = Boolean(autoTurnoOficina);
+    }
     if (salarioBase !== undefined && userRol === Rol.OWNER) {
       if (salarioBase === null) {
         updateData.salarioBase = null;

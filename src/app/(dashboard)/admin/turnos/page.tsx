@@ -547,7 +547,31 @@ export default function AdminTurnosPage() {
   };
 
   const publicarTodos = async () => {
-    const borradores = turnos.filter(t => t.estado === "BORRADOR");
+    // Relleno automático de oficina: los empleados marcados con "horario de
+    // oficina automático" cubren sus días laborables sin turno con un
+    // 09:00–17:00 en la sede "Oficina". Se crean como BORRADOR y la propia
+    // publicación de más abajo los pasa a PUBLICADO. Es best-effort: si falla,
+    // la publicación del resto continúa.
+    try {
+      const res = await fetch("/api/turnos/cuadrante/rellenar-oficina", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dias: dias.map(d => format(d, "yyyy-MM-dd")) }),
+      });
+      if (res.ok) {
+        const r = await res.json().catch(() => ({}));
+        if (r?.sinOficina && r?.empleados > 0) {
+          toast({ title: "Crea una sede llamada «Oficina» para el horario de oficina automático", variant: "destructive" });
+        }
+      }
+    } catch { /* el relleno es best-effort; la publicación continúa */ }
+
+    // Recarga los turnos para incluir los de oficina recién creados.
+    const turnosRes = await fetch(`/api/turnos?fechaInicio=${inicioSemana.toISOString()}&fechaFin=${finSemana.toISOString()}`);
+    const turnosData = await turnosRes.json().catch(() => []);
+    const todos: Turno[] = Array.isArray(turnosData) ? turnosData : (turnosData.turnos || []);
+
+    const borradores = todos.filter(t => t.estado === "BORRADOR");
     await Promise.all(borradores.map(t =>
       fetch(`/api/turnos/${t.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estado: "PUBLICADO" }) })
     ));

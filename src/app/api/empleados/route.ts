@@ -74,6 +74,7 @@ export const GET = withTenant(async (request: NextRequest) => {
           },
         },
         horasSemanalesContrato: true,
+        autoTurnoOficina: true,
         activo: true,
         password: true,
         resetToken: true,

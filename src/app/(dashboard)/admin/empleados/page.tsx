@@ -33,6 +33,7 @@ interface Empleado {
   tienda?: { nombre: string; color: string };
   sedes?: { tiendaId: string; principal: boolean; tienda: { id: string; nombre: string; color: string } }[];
   horasSemanalesContrato?: number | string | null;
+  autoTurnoOficina?: boolean;
 }
 
 function getEstadoEmpleado(emp: Empleado): { label: string; tone: "warning" | "neutral" | "success" } {
@@ -217,6 +218,7 @@ const FORM_INICIAL = {
   // sedeIds = todas las sedes del empleado; tiendaId = la principal.
   sedeIds: [] as string[],
   managerId: "", horasSemanalesContrato: "",
+  autoTurnoOficina: false,
 };
 
 // Password field only used when editing (to change existing password)
@@ -404,6 +406,7 @@ export default function EmpleadosPage() {
         emp.horasSemanalesContrato === null || emp.horasSemanalesContrato === undefined
           ? ""
           : String(emp.horasSemanalesContrato),
+      autoTurnoOficina: emp.autoTurnoOficina ?? false,
     });
     setDialogOpen(true);
   };
@@ -1139,6 +1142,22 @@ export default function EmpleadosPage() {
                   value={form.horasSemanalesContrato}
                   onChange={(e) => setForm((f) => ({ ...f, horasSemanalesContrato: e.target.value }))}
                 />
+              </div>
+              <div className="col-span-2">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-[var(--primary)] cursor-pointer shrink-0"
+                    checked={form.autoTurnoOficina}
+                    onChange={(e) => setForm((f) => ({ ...f, autoTurnoOficina: e.target.checked }))}
+                  />
+                  <span className="text-sm">
+                    <span className="font-medium text-slate-700">Horario de oficina automático</span>
+                    <span className="block text-xs text-slate-400">
+                      Al publicar el cuadrante, los días laborables (L-V) sin turno en ninguna sede se rellenan con un turno de 9:00 a 17:00 en la sede «Oficina».
+                    </span>
+                  </span>
+                </label>
               </div>
               <div className="col-span-2">
                 <Label>Manager (responsable directo)</Label>
