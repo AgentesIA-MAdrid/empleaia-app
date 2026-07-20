@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileText, Upload, Download, Trash2, PenLine, Loader2, CheckCircle2, Clock, Award } from "lucide-react";
+import { FileText, Upload, Download, Trash2, PenLine, Loader2, CheckCircle2, Clock, Award, FileCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,6 +53,7 @@ export function DocumentosEmpleadoTab({
   const [enviando, setEnviando] = useState(false);
   const [firmandoId, setFirmandoId] = useState<string | null>(null);
   const [certId, setCertId] = useState<string | null>(null);
+  const [firmadoId, setFirmadoId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<{ nombre: string; tipo: string; descripcion: string; dataUrl: string | null }>({
     nombre: "", tipo: "otro", descripcion: "", dataUrl: null,
@@ -155,16 +156,39 @@ export function DocumentosEmpleadoTab({
       }
       await descargarCertificadoFirma({
         documentoNombre: doc.nombre,
-        firmanteNombre: `${firma.user?.nombre ?? ""} ${firma.user?.apellidos ?? ""}`.trim() || empleadoNombre,
+        firmanteNombre:
+          firma.firmanteNombre ||
+          `${firma.user?.nombre ?? ""} ${firma.user?.apellidos ?? ""}`.trim() ||
+          empleadoNombre,
         firmadoEn: firma.firmadoEn,
         documentHash: firma.documentHash,
         ip: firma.ip,
         userAgent: firma.userAgent,
+        firmanteDni: firma.firmanteDni,
+        firmaImagen: firma.firmaImagen,
       });
     } catch {
       toast({ variant: "destructive", title: "No se pudo generar el certificado" });
     } finally {
       setCertId(null);
+    }
+  };
+
+  // Descarga la copia del documento con la firma estampada en cada página.
+  const descargarFirmado = async (doc: DocRow) => {
+    setFirmadoId(doc.id);
+    try {
+      const r = await fetch(`/api/firmas?documentoId=${doc.id}`);
+      const firma = r.ok ? ((await r.json()).firmas ?? [])[0] : null;
+      if (!firma?.documentoFirmadoUrl) {
+        toast({ variant: "destructive", title: "Este documento no tiene copia firmada" });
+        return;
+      }
+      downloadDoc(firma.documentoFirmadoUrl, `${doc.nombre} (firmado).pdf`);
+    } catch {
+      toast({ variant: "destructive", title: "No se pudo descargar el documento firmado" });
+    } finally {
+      setFirmadoId(null);
     }
   };
 
@@ -208,6 +232,11 @@ export function DocumentosEmpleadoTab({
                 {isSafeDocUrl(d.url) && (
                   <button type="button" onClick={() => downloadDoc(d.url, d.nombre)} className="text-slate-400 hover:text-[var(--primary)]" title="Descargar documento">
                     <Download className="h-4 w-4" />
+                  </button>
+                )}
+                {ef?.txt === "Firmado" && (
+                  <button type="button" onClick={() => void descargarFirmado(d)} disabled={firmadoId === d.id} className="text-slate-400 hover:text-emerald-600 disabled:opacity-50" title="Descargar documento firmado">
+                    {firmadoId === d.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileCheck className="h-4 w-4" />}
                   </button>
                 )}
                 {ef?.txt === "Firmado" && (

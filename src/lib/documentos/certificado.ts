@@ -15,6 +15,9 @@ export interface CertificadoFirmaData {
   ip?: string | null;
   userAgent?: string | null;
   empresaNombre?: string | null;
+  firmanteDni?: string | null;
+  /** Garabato manuscrito capturado al firmar (PNG data URL). */
+  firmaImagen?: string | null;
 }
 
 function slug(s: string): string {
@@ -80,6 +83,7 @@ export async function descargarCertificadoFirma(d: CertificadoFirmaData): Promis
   const filas: [string, string][] = [
     ["Documento", d.documentoNombre],
     ["Firmante", d.firmanteNombre],
+    ...(d.firmanteDni ? ([["DNI / NIE", d.firmanteDni]] as [string, string][]) : []),
     ["Fecha y hora de firma", fecha],
     ["Hash SHA-256 del documento", d.documentHash],
     ["Dirección IP", d.ip || "—"],
@@ -97,6 +101,22 @@ export async function descargarCertificadoFirma(d: CertificadoFirmaData): Promis
     const wrapped = doc.splitTextToSize(valor, W - marginX * 2 - 55);
     doc.text(wrapped, marginX + 55, y);
     y += Math.max(7, wrapped.length * 5 + 2);
+  }
+
+  // Firma manuscrita (garabato) capturada al firmar.
+  if (d.firmaImagen && /^data:image\/(png|jpe?g);base64,/i.test(d.firmaImagen)) {
+    y += 4;
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(71, 85, 105);
+    doc.text("Firma manuscrita", marginX, y);
+    y += 3;
+    const fmt = d.firmaImagen.slice(11, 14).toUpperCase() === "JPE" ? "JPEG" : "PNG";
+    try {
+      doc.addImage(d.firmaImagen, fmt, marginX, y, 60, 24);
+      y += 28;
+    } catch {
+      y += 2;
+    }
   }
 
   y += 8;
