@@ -71,6 +71,7 @@ export const POST = withTenant(
       radio = 200,
       color = "#6366f1",
       managerId,
+      esOficina = false,
     } = body as {
       nombre: string;
       direccion: string;
@@ -83,6 +84,7 @@ export const POST = withTenant(
       radio?: number;
       color?: string;
       managerId?: string | null;
+      esOficina?: boolean;
     };
 
     if (!nombre || !direccion || !ciudad) {
@@ -123,6 +125,14 @@ export const POST = withTenant(
         });
       }
 
+      // Solo una sede puede ser la oficina: al marcarla, se desmarca el resto.
+      if (esOficina) {
+        await tx.tienda.updateMany({
+          where: { esOficina: true },
+          data: { esOficina: false },
+        });
+      }
+
       return tx.tienda.create({
         data: {
           nombre,
@@ -137,6 +147,7 @@ export const POST = withTenant(
           color,
           // Responsable informativo: cadena vacía → sin responsable.
           managerId: managerId || null,
+          esOficina: Boolean(esOficina),
         },
       });
     });

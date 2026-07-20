@@ -39,6 +39,7 @@ export const PUT = withTenant(async (request: NextRequest,
       color,
       activa,
       managerId,
+      esOficina,
     } = body as {
       nombre?: string;
       direccion?: string;
@@ -52,6 +53,7 @@ export const PUT = withTenant(async (request: NextRequest,
       color?: string;
       activa?: boolean;
       managerId?: string | null;
+      esOficina?: boolean;
     };
 
     // Si cambia la dirección y NO se envían coordenadas explícitas,
@@ -72,23 +74,35 @@ export const PUT = withTenant(async (request: NextRequest,
       }
     }
 
-    const updated = await prisma.tienda.update({
-      where: { id },
-      data: {
-        ...(nombre !== undefined && { nombre }),
-        ...(direccion !== undefined && { direccion }),
-        ...(ciudad !== undefined && { ciudad }),
-        ...(codigoPostal !== undefined && { codigoPostal }),
-        ...(telefono !== undefined && { telefono }),
-        ...(email !== undefined && { email }),
-        ...(lat !== undefined && { latitud: lat }),
-        ...(lon !== undefined && { longitud: lon }),
-        ...(radio !== undefined && { radio }),
-        ...(color !== undefined && { color }),
-        ...(activa !== undefined && { activa }),
-        // Responsable informativo: ausente → no se toca; "" → se borra.
-        ...(managerId !== undefined && { managerId: managerId || null }),
-      },
+    // Solo una sede puede ser la oficina: al marcar esta, se desmarca el
+    // resto. Ambas escrituras van en la misma transacción para no dejar el
+    // tenant sin oficina si la actualización fallara tras el desmarcado.
+    const updated = await prisma.$transaction(async (tx) => {
+      if (esOficina === true) {
+        await tx.tienda.updateMany({
+          where: { esOficina: true, NOT: { id } },
+          data: { esOficina: false },
+        });
+      }
+      return tx.tienda.update({
+        where: { id },
+        data: {
+          ...(nombre !== undefined && { nombre }),
+          ...(direccion !== undefined && { direccion }),
+          ...(ciudad !== undefined && { ciudad }),
+          ...(codigoPostal !== undefined && { codigoPostal }),
+          ...(telefono !== undefined && { telefono }),
+          ...(email !== undefined && { email }),
+          ...(lat !== undefined && { latitud: lat }),
+          ...(lon !== undefined && { longitud: lon }),
+          ...(radio !== undefined && { radio }),
+          ...(color !== undefined && { color }),
+          ...(activa !== undefined && { activa }),
+          // Responsable informativo: ausente → no se toca; "" → se borra.
+          ...(managerId !== undefined && { managerId: managerId || null }),
+          ...(esOficina !== undefined && { esOficina: Boolean(esOficina) }),
+        },
+      });
     });
 
     return Response.json(updated);

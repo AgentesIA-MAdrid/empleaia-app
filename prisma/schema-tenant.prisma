@@ -97,6 +97,10 @@ model Tienda {
   radio        Int       @default(200)
   activa       Boolean   @default(true)
   color        String    @default("#6366f1")
+  // Marca la sede que hace de "oficina": destino del relleno automático del
+  // cuadrante (ver `User.turnoOficinaPorDefecto`). Solo una sede debería
+  // tenerlo activo; la API lo garantiza al guardar.
+  esOficina    Boolean   @default(false) @map("es_oficina")
   // Responsable de la sede (dato informativo / de visualización). NO altera
   // la jerarquía de aprobaciones: el coordinador que aprueba fichajes sigue
   // siendo `User.managerId` (relación ManagerSubordinados). Relación propia
@@ -253,6 +257,11 @@ model User {
   // Horas semanales contratadas del empleado (columna "HORAS A CONTRATO"
   // del cuadrante). Si null, se usa `ConfiguracionEmpresa.horasSemanales`.
   horasSemanalesContrato   Decimal?                  @db.Decimal(5, 2) @map("horas_semanales_contrato")
+  // Relleno automático del cuadrante: si true, los días de la semana en que
+  // este empleado no tenga turno en ninguna sede (ni ausencia aprobada) se
+  // asignan solos a un turno 09:00–17:00 en la sede marcada como oficina
+  // (`Tienda.esOficina`). Ver src/lib/turnos/oficina-por-defecto.ts.
+  turnoOficinaPorDefecto   Boolean                   @default(false) @map("turno_oficina_por_defecto")
   // Marca si el empleado/manager ya rellenó sus datos personales
   // obligatorios (bloque personal + dirección + contacto) en su primer
   // acceso. El OWNER queda exento del flujo. La lista exacta de campos
@@ -356,6 +365,10 @@ model Turno {
   horaFin     String
   nota        String?
   estado      EstadoTurno @default(BORRADOR)
+  // true si lo generó el relleno automático de oficina (ver
+  // `User.turnoOficinaPorDefecto`). Distingue estos turnos de los creados a
+  // mano para poder retirarlos cuando el día pasa a cubrirse en una tienda.
+  generadoAuto Boolean    @default(false) @map("generado_auto")
   // Marca de cuándo se envió el aviso de "olvido de fichaje" para este turno
   // (null = aún no enviado). Evita avisar repetidamente en cada pasada del cron.
   avisoFichajeEnviadoAt DateTime? @map("aviso_fichaje_enviado_at")

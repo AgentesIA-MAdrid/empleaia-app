@@ -156,6 +156,19 @@ export default function AdminTurnosPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      // Relleno automático de "oficina por defecto": antes de leer, el
+      // servidor rellena los días sin turno (ni ausencia) de los empleados
+      // marcados con un turno 09:00–17:00 en la sede oficina, y retira los
+      // que ya se hayan cubierto en una tienda. Idempotente y de mejor
+      // esfuerzo: si la feature está OFF o el rol no gestiona turnos, se
+      // ignora el error y el cuadrante se carga igual.
+      const fechasSemana = Array.from({ length: 7 }, (_, i) =>
+        format(addDays(inicioSemana, i), "yyyy-MM-dd"));
+      await fetch("/api/turnos/oficina-por-defecto", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fechas: fechasSemana }),
+      }).catch(() => {});
       const [empRes, turnosRes, ausRes] = await Promise.all([
         // Solo empleados activos: los desactivados no se planifican en el
         // cuadrante (aparecían en "Sin sede" y en sus sedes). Alinea la vista
