@@ -26,6 +26,9 @@ interface Tienda {
   radio: number;
   activa: boolean;
   color: string;
+  // Marca la sede que hace de oficina (destino del relleno automático del
+  // cuadrante). Solo una sede puede tenerlo activo.
+  esOficina?: boolean;
   // Responsable de la sede (dato informativo). Null si no se ha asignado.
   managerId?: string | null;
   manager?: { id: string; nombre: string; apellidos: string } | null;
@@ -140,7 +143,7 @@ const COLORES = [
 const FORM_INICIAL = {
   nombre: "", direccion: "", ciudad: "", codigoPostal: "", telefono: "",
   email: "", latitud: "", longitud: "", radio: "200", color: "#6366f1",
-  managerId: "",
+  managerId: "", esOficina: false,
 };
 
 export default function TiendasPage() {
@@ -219,7 +222,7 @@ export default function TiendasPage() {
       codigoPostal: t.codigoPostal || "", telefono: t.telefono || "",
       email: t.email || "", latitud: t.latitud?.toString() || "",
       longitud: t.longitud?.toString() || "", radio: t.radio.toString(),
-      color: t.color, managerId: t.managerId || "",
+      color: t.color, managerId: t.managerId || "", esOficina: t.esOficina ?? false,
     });
     setDialogOpen(true);
   };
@@ -415,6 +418,21 @@ export default function TiendasPage() {
                 />
                 <p className="mt-1 text-xs text-slate-400">
                   Solo informativo: quién está al frente de esta sede. No cambia quién aprueba fichajes.
+                </p>
+              </div>
+              <div className="col-span-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[var(--primary)]"
+                    checked={form.esOficina}
+                    onChange={(e) => setForm((f) => ({ ...f, esOficina: e.target.checked }))}
+                  />
+                  <span className="text-sm font-medium text-slate-800">Esta sede es la oficina</span>
+                </label>
+                <p className="mt-1 text-xs text-slate-400">
+                  Los empleados con “horario de oficina por defecto” cubrirán aquí (9:00–17:00) los días
+                  que no tengan turno en ninguna tienda. Solo una sede puede ser la oficina.
                 </p>
               </div>
               <div className="col-span-2 flex items-center justify-between rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">

@@ -55,6 +55,7 @@ const userSelect = {
   activo: true,
   salarioBase: true,
   horasSemanalesContrato: true,
+  turnoOficinaPorDefecto: true,
   perfilCompletado: true,
   // Ficha ampliada.
   tipoIdentificacion: true,
@@ -198,6 +199,7 @@ export const PUT = withTenant(async (request: NextRequest,
       activo,
       salarioBase,
       horasSemanalesContrato,
+      turnoOficinaPorDefecto,
     } = body as {
       email?: string;
       password?: string;
@@ -214,6 +216,7 @@ export const PUT = withTenant(async (request: NextRequest,
       activo?: boolean;
       salarioBase?: number | null;
       horasSemanalesContrato?: number | null;
+      turnoOficinaPorDefecto?: boolean;
     };
 
     // Non-admins cannot change their own role or tienda
@@ -320,6 +323,10 @@ export const PUT = withTenant(async (request: NextRequest,
           { status: 400 },
         );
       }
+    }
+    // Relleno automático de oficina en el cuadrante (solo OWNER).
+    if (turnoOficinaPorDefecto !== undefined && userRol === Rol.OWNER) {
+      updateData.turnoOficinaPorDefecto = Boolean(turnoOficinaPorDefecto);
     }
     // Fecha de alta del contrato (antigüedad RR.HH.): solo la edita el OWNER.
     // "" / null → null. Distinta de `createdAt` (alta en la app).

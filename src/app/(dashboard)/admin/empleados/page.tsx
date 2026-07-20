@@ -33,6 +33,7 @@ interface Empleado {
   tienda?: { nombre: string; color: string };
   sedes?: { tiendaId: string; principal: boolean; tienda: { id: string; nombre: string; color: string } }[];
   horasSemanalesContrato?: number | string | null;
+  turnoOficinaPorDefecto?: boolean;
 }
 
 function getEstadoEmpleado(emp: Empleado): { label: string; tone: "warning" | "neutral" | "success" } {
@@ -216,7 +217,7 @@ const FORM_INICIAL = {
   password: "", rol: "EMPLEADO" as "OWNER" | "MANAGER" | "EMPLEADO", tiendaId: "",
   // sedeIds = todas las sedes del empleado; tiendaId = la principal.
   sedeIds: [] as string[],
-  managerId: "", horasSemanalesContrato: "",
+  managerId: "", horasSemanalesContrato: "", turnoOficinaPorDefecto: false,
 };
 
 // Password field only used when editing (to change existing password)
@@ -412,6 +413,7 @@ export default function EmpleadosPage() {
         emp.horasSemanalesContrato === null || emp.horasSemanalesContrato === undefined
           ? ""
           : String(emp.horasSemanalesContrato),
+      turnoOficinaPorDefecto: emp.turnoOficinaPorDefecto ?? false,
     });
     setDialogOpen(true);
   };
@@ -1150,6 +1152,21 @@ export default function EmpleadosPage() {
                   value={form.horasSemanalesContrato}
                   onChange={(e) => setForm((f) => ({ ...f, horasSemanalesContrato: e.target.value }))}
                 />
+              </div>
+              <div className="col-span-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[var(--primary)]"
+                    checked={form.turnoOficinaPorDefecto}
+                    onChange={(e) => setForm((f) => ({ ...f, turnoOficinaPorDefecto: e.target.checked }))}
+                  />
+                  <span className="text-sm font-medium text-slate-800">Horario de oficina por defecto</span>
+                </label>
+                <p className="mt-1 text-xs text-slate-400">
+                  En el cuadrante, los días que no tenga turno en ninguna tienda se rellenan solos con
+                  un turno de 9:00 a 17:00 en la sede marcada como oficina.
+                </p>
               </div>
               <div className="col-span-2">
                 <Label>Manager (responsable directo)</Label>
