@@ -226,6 +226,9 @@ export default function EmpleadosPage() {
   const { toast } = useToast();
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [tiendas, setTiendas] = useState<Tienda[]>([]);
+  // Plantillas de documentos disponibles para enviar en el alta.
+  const [plantillas, setPlantillas] = useState<{ id: string; nombre: string }[]>([]);
+  const [plantillaIds, setPlantillaIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState("");
   const [filtroTienda, setFiltroTienda] = useState("todas");
@@ -254,13 +257,17 @@ export default function EmpleadosPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [empRes, tiendasRes] = await Promise.all([
+      const [empRes, tiendasRes, plantillasRes] = await Promise.all([
         fetch("/api/empleados"),
         fetch("/api/tiendas"),
+        fetch("/api/documentos/plantillas"),
       ]);
-      const [empData, tiendasData] = await Promise.all([empRes.json(), tiendasRes.json()]);
+      const [empData, tiendasData, plantillasData] = await Promise.all([
+        empRes.json(), tiendasRes.json(), plantillasRes.json().catch(() => ({})),
+      ]);
       setEmpleados(empData.empleados || []);
       setTiendas(tiendasData.tiendas || []);
+      setPlantillas((plantillasData.plantillas || []).map((p: { id: string; nombre: string }) => ({ id: p.id, nombre: p.nombre })));
     } finally {
       setLoading(false);
     }
@@ -386,6 +393,7 @@ export default function EmpleadosPage() {
   const abrirCrear = () => {
     setEditando(null);
     setForm(FORM_INICIAL);
+    setPlantillaIds(new Set());
     setDialogOpen(true);
   };
 
@@ -430,8 +438,11 @@ export default function EmpleadosPage() {
       body.tiendaId = principal;
       if (editando) {
         body.sedeIds = sedeIds; // la API sincroniza UsuarioSede (solo en PUT)
+        delete body.plantillaIds;
       } else {
         delete body.sedeIds; // el alta (POST) solo asigna la sede principal
+        // Plantillas de documentos a enviar como parte del alta.
+        body.plantillaIds = [...plantillaIds];
       }
       // managerId vacío = quitar manager. "ninguno" del select también vacío.
       if (!body.managerId || body.managerId === "ninguno") body.managerId = null;
@@ -1166,6 +1177,33 @@ export default function EmpleadosPage() {
                   onChange={(id) => setForm((f) => ({ ...f, managerId: id }))}
                 />
               </div>
+              {!editando && plantillas.length > 0 && (
+                <div className="col-span-2">
+                  <Label>Enviar plantillas en el alta <span className="text-slate-400 font-normal">(opcional)</span></Label>
+                  <div className="mt-1 max-h-44 overflow-y-auto rounded-md border border-input divide-y divide-slate-100">
+                    {plantillas.map((p) => (
+                      <label key={p.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-slate-300 accent-[var(--primary)] cursor-pointer shrink-0"
+                          checked={plantillaIds.has(p.id)}
+                          onChange={() =>
+                            setPlantillaIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(p.id)) next.delete(p.id); else next.add(p.id);
+                              return next;
+                            })
+                          }
+                        />
+                        <span className="truncate">{p.nombre}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Los documentos de estas plantillas se enviarán al nuevo empleado al crearlo.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
