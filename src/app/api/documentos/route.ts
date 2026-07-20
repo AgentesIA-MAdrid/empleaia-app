@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
 import { isSafeDocUrl } from "@/lib/documentos/url";
+import { esCarpetaFirmaObligatoria } from "@/lib/documentos/categorias";
+import { crearSolicitudFirma } from "@/lib/firmas/solicitudes";
 import { currentTenant } from "@/lib/tenant/context";
 import { sendSystemEmail } from "@/lib/email";
 import { documentoSubidoTemplate } from "@/lib/email-templates/documento-subido";
@@ -56,7 +58,7 @@ export const POST = withTenant(withFeature("documentos", async (req: NextRequest
     const meId = (session.user as any).id as string;
 
     const body = await req.json();
-    const { nombre, descripcion, url, tipo, userId } = body;
+    const { nombre, descripcion, url, tipo, userId, solicitarFirma } = body;
     if (!nombre) return NextResponse.json({ error: "El nombre es obligatorio" }, { status: 400 });
     if (typeof url === "string" && url.length > MAX_URL_LEN) {
       return NextResponse.json({ error: "El archivo es demasiado grande (máx ~5 MB)." }, { status: 400 });
@@ -71,6 +73,32 @@ export const POST = withTenant(withFeature("documentos", async (req: NextRequest
     // su propio id). OWNER/MANAGER: pueden enviar documentos a cualquier
     // empleado (userId del body) o generales (null).
     const destinatarioId = rol === "EMPLEADO" ? meId : (userId || null);
+
+    // Firma. La carpeta "Contratos laborales y anexos" exige firma OBLIGATORIA
+    // de todo documento que se sube en ella; en el resto de carpetas es opcional
+    // (botón "solicitar firma" al enviar). Solo la gestión (OWNER/MANAGER) puede
+    // solicitar firma; un EMPLEADO subiendo un doc propio nunca la dispara.
+    const puedeSolicitar = rol === "OWNER" || rol === "MANAGER";
+    const firmaObligatoria = esCarpetaFirmaObligatoria(tipo);
+    const firmaRequerida = puedeSolicitar && (firmaObligatoria || solicitarFirma === true);
+    if (firmaRequerida) {
+      if (!destinatarioId) {
+        return NextResponse.json(
+          { error: "Para solicitar la firma, elige el empleado destinatario del documento." },
+          { status: 400 },
+        );
+      }
+      if (!isSafeDocUrl(url)) {
+        return NextResponse.json(
+          {
+            error: firmaObligatoria
+              ? "Los documentos de «Contratos laborales y anexos» necesitan un archivo adjunto para que el empleado pueda firmarlo."
+              : "Adjunta el archivo del documento para poder solicitar su firma.",
+          },
+          { status: 400 },
+        );
+      }
+    }
 
     const documento = await prisma.documento.create({
       data: {
@@ -87,11 +115,30 @@ export const POST = withTenant(withFeature("documentos", async (req: NextRequest
       },
     });
 
+    // Firma requerida (carpeta de contratos = obligatoria, o botón "solicitar
+    // firma" en el resto de carpetas): se crea la SolicitudFirma y el empleado
+    // recibe su propio aviso "tienes un documento para firmar". En ese caso NO
+    // se manda además el aviso genérico de documento subido (sería duplicado).
+    // Fire-and-forget: un fallo aquí no revierte la subida del documento.
+    let firmaSolicitada = false;
+    if (firmaRequerida && destinatarioId) {
+      try {
+        await crearSolicitudFirma({
+          documentoId: documento.id,
+          destinatarioId,
+          solicitadaPorId: meId,
+        });
+        firmaSolicitada = true;
+      } catch (err) {
+        console.error("[documentos POST] fallo al crear solicitud de firma:", err);
+      }
+    }
+
     // Aviso por email al empleado, si la empresa lo tiene activado
     // (Configuración → Notificaciones → Documentos). Solo cuando el documento
-    // va dirigido a un empleado distinto de quien lo sube. Fire-and-forget:
-    // un fallo de email no rompe la subida.
-    if (destinatarioId && destinatarioId !== meId && documento.user?.email) {
+    // va dirigido a un empleado distinto de quien lo sube y no se ha pedido
+    // firma. Fire-and-forget: un fallo de email no rompe la subida.
+    if (!firmaSolicitada && destinatarioId && destinatarioId !== meId && documento.user?.email) {
       try {
         const config = await prisma.configuracionEmpresa.findFirst({
           select: { notifDocumentos: true, nombre: true, appNombre: true },
@@ -119,7 +166,7 @@ export const POST = withTenant(withFeature("documentos", async (req: NextRequest
       }
     }
 
-    return NextResponse.json({ documento }, { status: 201 });
+    return NextResponse.json({ documento, firmaSolicitada }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }

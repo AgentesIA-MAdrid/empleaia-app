@@ -11,10 +11,7 @@ import { auth } from "@/lib/auth";
 import { Rol } from "@/generated/prisma-tenant/client";
 import { prismaApp } from "@/lib/prisma";
 import { withTenant } from "@/lib/tenant/with-tenant";
-import { currentTenant } from "@/lib/tenant/context";
-import { sendSystemEmail } from "@/lib/email";
-import { solicitudFirmaTemplate } from "@/lib/email-templates/solicitud-firma";
-import { tenantBaseUrl } from "@/lib/tenant/urls";
+import { crearSolicitudFirma } from "@/lib/firmas/solicitudes";
 
 const createSchema = z.object({
   documentoId: z.string(),
@@ -54,45 +51,13 @@ export const POST = withTenant(async (req: NextRequest) => {
     return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 });
   }
 
-  const solicitud = await prismaApp.solicitudFirma.create({
-    data: {
-      documentoId: data.documentoId,
-      destinatarioId: data.destinatarioId,
-      solicitadaPorId: user.id,
-      mensaje: data.mensaje,
-      expiraEn: data.expiraEn ? new Date(data.expiraEn) : null,
-    },
-    include: {
-      destinatario: { select: { email: true, nombre: true, apellidos: true } },
-      solicitadaPor: { select: { nombre: true, apellidos: true } },
-      documento: { select: { nombre: true } },
-    },
+  const solicitud = await crearSolicitudFirma({
+    documentoId: data.documentoId,
+    destinatarioId: data.destinatarioId,
+    solicitadaPorId: user.id,
+    mensaje: data.mensaje,
+    expiraEn: data.expiraEn ? new Date(data.expiraEn) : null,
   });
-
-  // Email al destinatario con link a /empleado/firmas/[id].
-  try {
-    const config = await prismaApp.configuracionEmpresa.findFirst({
-      select: { nombre: true, appNombre: true },
-    });
-    const empresa = config?.nombre ?? config?.appNombre ?? "tu empresa";
-    const firmarUrl = `${tenantBaseUrl(currentTenant().slug)}/empleado/firmas/${solicitud.id}`;
-    const html = solicitudFirmaTemplate({
-      destinatarioNombre: solicitud.destinatario.nombre,
-      solicitanteNombre: `${solicitud.solicitadaPor.nombre} ${solicitud.solicitadaPor.apellidos}`,
-      documentoNombre: solicitud.documento.nombre,
-      empresa,
-      mensaje: solicitud.mensaje,
-      expiraEn: solicitud.expiraEn,
-      firmarUrl,
-    });
-    await sendSystemEmail(
-      solicitud.destinatario.email,
-      `Tienes un documento para firmar: ${solicitud.documento.nombre}`,
-      html,
-    );
-  } catch (err) {
-    console.error("[solicitudes-firma POST] fallo email:", err);
-  }
 
   return NextResponse.json({ solicitud }, { status: 201 });
 });
