@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { CheckCircle, XCircle, Calendar, AlertCircle, Plus, ChevronDown, Search, Check, Settings, List, CalendarDays } from "lucide-react";
+import { CheckCircle, XCircle, Calendar, AlertCircle, Plus, ChevronDown, Search, Check, Settings, List, CalendarDays, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CalendarioAusencias, type FestivoCal } from "@/components/ausencias/calendario-ausencias";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,7 +34,7 @@ interface Ausencia {
   motivo?: string;
   estado: "PENDIENTE" | "APROBADA" | "RECHAZADA" | "CANCELADA";
   comentarioAdmin?: string;
-  tipoAusencia: { nombre: string; color: string };
+  tipoAusencia: { id: string; nombre: string; color: string };
   user: { nombre: string; apellidos: string };
   createdAt: string;
 }
@@ -152,6 +152,14 @@ export default function AdminAusenciasPage() {
     fechaFin: "",
     motivo: "",
   });
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editForm, setEditForm] = useState({
+    tipoAusenciaId: "",
+    fechaInicio: "",
+    fechaFin: "",
+    motivo: "",
+  });
 
   const fetchAusencias = useCallback(async () => {
     setLoading(true);
@@ -247,6 +255,48 @@ export default function AdminAusenciasPage() {
       toast({ title: "Error al procesar", variant: "destructive" });
     } finally {
       setProcesando(null);
+    }
+  };
+
+  const editDiasCalc =
+    editForm.fechaInicio && editForm.fechaFin
+      ? Math.max(0, differenceInCalendarDays(parseISO(editForm.fechaFin), parseISO(editForm.fechaInicio)) + 1)
+      : 0;
+
+  const handleEditar = (a: Ausencia) => {
+    setEditId(a.id);
+    setEditForm({
+      tipoAusenciaId: a.tipoAusencia.id,
+      fechaInicio: a.fechaInicio.slice(0, 10),
+      fechaFin: a.fechaFin.slice(0, 10),
+      motivo: a.motivo ?? "",
+    });
+  };
+
+  const handleGuardarEdicion = async () => {
+    if (!editId) return;
+    if (!editForm.tipoAusenciaId || !editForm.fechaInicio || !editForm.fechaFin) {
+      toast({ title: "Completa todos los campos", variant: "destructive" });
+      return;
+    }
+    setEditSubmitting(true);
+    try {
+      const res = await fetch(`/api/ausencias/${editId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Error al guardar los cambios");
+      }
+      toast({ title: "Ausencia actualizada" });
+      setEditId(null);
+      fetchAusencias();
+    } catch (e) {
+      toast({ title: "Error", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
+    } finally {
+      setEditSubmitting(false);
     }
   };
 
@@ -366,6 +416,14 @@ export default function AdminAusenciasPage() {
                   </div>
                   {a.estado !== "CANCELADA" && (
                     <div className="flex gap-2 flex-shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={procesando === a.id}
+                        onClick={() => handleEditar(a)}
+                      >
+                        <Pencil className="h-4 w-4 mr-1" /> Editar
+                      </Button>
                       {a.estado !== "APROBADA" && (
                         <Button
                           size="sm"
@@ -509,6 +567,85 @@ export default function AdminAusenciasPage() {
               onClick={() => rechazarId && handleAccion(rechazarId, "RECHAZADA", comentario)}
             >
               Confirmar rechazo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editId} onOpenChange={(o) => !o && setEditId(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar ausencia</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>Tipo de ausencia</Label>
+              <Select value={editForm.tipoAusenciaId} onValueChange={(v) => setEditForm((f) => ({ ...f, tipoAusenciaId: v }))}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Selecciona tipo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {tipos.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: t.color }} />
+                        {t.nombre}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label>Fecha inicio</Label>
+                <Input
+                  type="date"
+                  className="mt-1"
+                  value={editForm.fechaInicio}
+                  onChange={(e) =>
+                    setEditForm((f) => ({
+                      ...f,
+                      fechaInicio: e.target.value,
+                      fechaFin:
+                        !f.fechaFin || f.fechaFin < e.target.value
+                          ? e.target.value
+                          : f.fechaFin,
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                <Label>Fecha fin</Label>
+                <Input
+                  type="date"
+                  className="mt-1"
+                  value={editForm.fechaFin}
+                  min={editForm.fechaInicio || undefined}
+                  onChange={(e) => setEditForm((f) => ({ ...f, fechaFin: e.target.value }))}
+                />
+              </div>
+            </div>
+            {editDiasCalc > 0 && (
+              <p className="text-sm text-[var(--primary)] font-medium">
+                Total: {editDiasCalc} {editDiasCalc === 1 ? "día" : "días"}
+              </p>
+            )}
+            <div>
+              <Label>Motivo (opcional)</Label>
+              <textarea
+                className="mt-1 w-full rounded-lg border border-slate-200 p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                rows={3}
+                placeholder="Describe el motivo de la ausencia..."
+                value={editForm.motivo}
+                onChange={(e) => setEditForm((f) => ({ ...f, motivo: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditId(null)}>Cancelar</Button>
+            <Button onClick={handleGuardarEdicion} disabled={editSubmitting}>
+              {editSubmitting ? "Guardando..." : "Guardar cambios"}
             </Button>
           </DialogFooter>
         </DialogContent>
