@@ -1,11 +1,16 @@
 /**
  * Genera y descarga (solo cliente) un certificado/acta probatorio de la firma
  * electrónica de un documento. Usa jsPDF con import dinámico para no cargar la
- * librería hasta que el usuario pulsa "Descargar certificado".
+ * librería hasta que el usuario pulsa "Descargar".
  *
  * Los datos probatorios vienen de la Firma (GET /api/firmas): firmante, fecha,
  * hash SHA-256 del documento, IP y navegador con los que se firmó.
+ *
+ * `descargarFirmadoConCertificado` fusiona la copia sellada del documento con
+ * el acta en un único PDF (pdf-lib, también dinámico), para que el usuario
+ * descargue ambas cosas en un solo archivo en vez de por separado.
  */
+import { downloadDoc } from "@/lib/documentos/url";
 
 export interface CertificadoFirmaData {
   documentoNombre: string;
@@ -31,7 +36,13 @@ function slug(s: string): string {
   );
 }
 
-export async function descargarCertificadoFirma(d: CertificadoFirmaData): Promise<void> {
+/**
+ * Construye el acta probatoria y la devuelve como instancia jsPDF (sin
+ * guardarla en disco). Separado de la descarga para poder, o bien guardarla
+ * suelta (`descargarCertificadoFirma`), o bien fusionarla con el documento
+ * sellado en un único PDF (`descargarFirmadoConCertificado`).
+ */
+async function construirCertificado(d: CertificadoFirmaData) {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
@@ -134,5 +145,63 @@ export async function descargarCertificadoFirma(d: CertificadoFirmaData): Promis
   );
   doc.text(nota, marginX, y);
 
+  return doc;
+}
+
+/** Descarga solo el acta probatoria (usado cuando no hay copia sellada). */
+export async function descargarCertificadoFirma(d: CertificadoFirmaData): Promise<void> {
+  const doc = await construirCertificado(d);
   doc.save(`certificado-firma-${slug(d.documentoNombre)}.pdf`);
+}
+
+/** Convierte un data URL base64 en bytes (solo cliente, sin Buffer). */
+function base64DataUrlToBytes(dataUrl: string): Uint8Array {
+  const comma = dataUrl.indexOf(",");
+  const payload = comma === -1 ? dataUrl : dataUrl.slice(comma + 1);
+  return Uint8Array.from(atob(payload), (c) => c.charCodeAt(0));
+}
+
+/** Convierte bytes en un data URL de PDF (solo cliente, sin Buffer). */
+function bytesToPdfDataUrl(bytes: Uint8Array): string {
+  let binary = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return `data:application/pdf;base64,${btoa(binary)}`;
+}
+
+/**
+ * Descarga en un ÚNICO PDF la copia sellada del documento seguida del acta
+ * probatoria de la firma. Fusiona ambos con pdf-lib (import dinámico, ya es
+ * dependencia del proyecto en `estampar.ts`): añade las páginas del acta al
+ * final del documento firmado.
+ *
+ * Si el documento no tiene copia sellada (`documentoFirmadoUrl` nulo o no es un
+ * PDF en data URL — p. ej. no era estampable), cae a descargar solo el acta,
+ * preservando el comportamiento previo para esos casos.
+ *
+ * El `documentoFirmadoUrl` es un data URL local (decodificado en el navegador,
+ * sin red ni ruta) — no aplica la regla de "no fetch interno entre rutas".
+ */
+export async function descargarFirmadoConCertificado(
+  documentoFirmadoUrl: string | null | undefined,
+  d: CertificadoFirmaData,
+): Promise<void> {
+  const acta = await construirCertificado(d);
+
+  // Sin copia sellada estampable → solo el acta (comportamiento previo).
+  if (!documentoFirmadoUrl || !/^data:application\/pdf[;,]/i.test(documentoFirmadoUrl)) {
+    acta.save(`certificado-firma-${slug(d.documentoNombre)}.pdf`);
+    return;
+  }
+
+  const { PDFDocument } = await import("pdf-lib");
+  const combinado = await PDFDocument.load(base64DataUrlToBytes(documentoFirmadoUrl));
+  const actaPdf = await PDFDocument.load(acta.output("arraybuffer"));
+  const paginas = await combinado.copyPages(actaPdf, actaPdf.getPageIndices());
+  paginas.forEach((p) => combinado.addPage(p));
+
+  const out = await combinado.save();
+  downloadDoc(bytesToPdfDataUrl(out), `${d.documentoNombre} (firmado).pdf`);
 }
