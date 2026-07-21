@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileText, Upload, Download, Trash2, PenLine, Loader2, CheckCircle2, Clock, Award, FileCheck } from "lucide-react";
+import { FileText, Upload, Download, Trash2, PenLine, Loader2, CheckCircle2, Clock, FileCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { isSafeDocUrl, downloadDoc } from "@/lib/documentos/url";
 import { esCarpetaFirmaObligatoria } from "@/lib/documentos/categorias";
-import { descargarCertificadoFirma } from "@/lib/documentos/certificado";
+import { descargarFirmadoConCertificado } from "@/lib/documentos/certificado";
 
 interface DocRow {
   id: string;
@@ -54,8 +54,7 @@ export function DocumentosEmpleadoTab({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [firmandoId, setFirmandoId] = useState<string | null>(null);
-  const [certId, setCertId] = useState<string | null>(null);
-  const [firmadoId, setFirmadoId] = useState<string | null>(null);
+  const [descargandoId, setDescargandoId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<{ nombre: string; tipo: string; descripcion: string; dataUrl: string | null }>({
     nombre: "", tipo: "otro", descripcion: "", dataUrl: null,
@@ -164,10 +163,11 @@ export function DocumentosEmpleadoTab({
     else toast({ variant: "destructive", title: "No se pudo eliminar" });
   };
 
-  // Descarga el certificado/acta probatorio de la firma. Los datos (fecha,
-  // hash, IP, navegador) vienen de /api/firmas; el PDF se genera en cliente.
-  const descargarCertificado = async (doc: DocRow) => {
-    setCertId(doc.id);
+  // Descarga en un ÚNICO PDF la copia sellada del documento seguida del acta
+  // probatoria de la firma (fecha, hash, IP, navegador). Los datos vienen de
+  // /api/firmas; la fusión se hace en cliente (jsPDF + pdf-lib).
+  const descargarFirmadoConActa = async (doc: DocRow) => {
+    setDescargandoId(doc.id);
     try {
       const r = await fetch(`/api/firmas?documentoId=${doc.id}`);
       const firma = r.ok ? ((await r.json()).firmas ?? [])[0] : null;
@@ -175,7 +175,7 @@ export function DocumentosEmpleadoTab({
         toast({ variant: "destructive", title: "No se encontró la firma de este documento" });
         return;
       }
-      await descargarCertificadoFirma({
+      await descargarFirmadoConCertificado(firma.documentoFirmadoUrl, {
         documentoNombre: doc.nombre,
         firmanteNombre:
           firma.firmanteNombre ||
@@ -189,27 +189,9 @@ export function DocumentosEmpleadoTab({
         firmaImagen: firma.firmaImagen,
       });
     } catch {
-      toast({ variant: "destructive", title: "No se pudo generar el certificado" });
-    } finally {
-      setCertId(null);
-    }
-  };
-
-  // Descarga la copia del documento con la firma estampada en cada página.
-  const descargarFirmado = async (doc: DocRow) => {
-    setFirmadoId(doc.id);
-    try {
-      const r = await fetch(`/api/firmas?documentoId=${doc.id}`);
-      const firma = r.ok ? ((await r.json()).firmas ?? [])[0] : null;
-      if (!firma?.documentoFirmadoUrl) {
-        toast({ variant: "destructive", title: "Este documento no tiene copia firmada" });
-        return;
-      }
-      downloadDoc(firma.documentoFirmadoUrl, `${doc.nombre} (firmado).pdf`);
-    } catch {
       toast({ variant: "destructive", title: "No se pudo descargar el documento firmado" });
     } finally {
-      setFirmadoId(null);
+      setDescargandoId(null);
     }
   };
 
@@ -261,13 +243,8 @@ export function DocumentosEmpleadoTab({
                   </button>
                 )}
                 {ef?.txt === "Firmado" && (
-                  <button type="button" onClick={() => void descargarFirmado(d)} disabled={firmadoId === d.id} className="text-slate-400 hover:text-emerald-600 disabled:opacity-50" title="Descargar documento firmado">
-                    {firmadoId === d.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileCheck className="h-4 w-4" />}
-                  </button>
-                )}
-                {ef?.txt === "Firmado" && (
-                  <button type="button" onClick={() => void descargarCertificado(d)} disabled={certId === d.id} className="text-slate-400 hover:text-[var(--primary)] disabled:opacity-50" title="Descargar certificado de firma">
-                    {certId === d.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Award className="h-4 w-4" />}
+                  <button type="button" onClick={() => void descargarFirmadoConActa(d)} disabled={descargandoId === d.id} className="text-slate-400 hover:text-emerald-600 disabled:opacity-50" title="Descargar documento firmado con certificado">
+                    {descargandoId === d.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileCheck className="h-4 w-4" />}
                   </button>
                 )}
                 {puedeFirmarYBorrar && isSafeDocUrl(d.url) && !ef && (
