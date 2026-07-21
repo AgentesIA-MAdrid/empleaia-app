@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { Plus, FolderOpen, Folder, Trash2, FileText, Download, ArrowLeft, Settings2, Pencil, X, LayoutTemplate, Send } from "lucide-react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Plus, FolderOpen, Folder, Trash2, FileText, Download, ArrowLeft, Settings2, Pencil, X, LayoutTemplate, Send, Upload } from "lucide-react";
 import { isSafeDocUrl, openDocInNewTab } from "@/lib/documentos/url";
 import { esCarpetaFirmaObligatoria } from "@/lib/documentos/categorias";
 import { CAMPO_TIPOS, CAMPO_TIPO_LABEL, type CampoPlantilla, type CampoTipo } from "@/lib/documentos/campos";
+import { PlantillaPlacementEditor } from "@/components/admin/plantilla-placement-editor";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -53,6 +54,10 @@ const PLANTILLA_FORM_INICIAL = {
 // centinela para la opción "Documento general" y lo traducimos a "" (→ null).
 const GENERAL = "__general__";
 
+// Los archivos se suben como data URL (base64) en el campo `url`, igual que el
+// resto de documentos. ~7MB de cadena base64 ≈ ~5MB de fichero.
+const MAX_MB = 5;
+
 export default function AdminDocumentosPage() {
   const { toast } = useToast();
   const [documentos, setDocumentos] = useState<Documento[]>([]);
@@ -76,6 +81,7 @@ export default function AdminDocumentosPage() {
   const [editandoPlantilla, setEditandoPlantilla] = useState<Plantilla | null>(null);
   const [plantillaForm, setPlantillaForm] = useState(PLANTILLA_FORM_INICIAL);
   const [savingPlantilla, setSavingPlantilla] = useState(false);
+  const plantillaFileRef = useRef<HTMLInputElement>(null);
   // Envío de una plantilla a empleados.
   const [enviarPlantilla, setEnviarPlantilla] = useState<Plantilla | null>(null);
   const [enviarUserIds, setEnviarUserIds] = useState<Set<string>>(new Set());
@@ -187,6 +193,25 @@ export default function AdminDocumentosPage() {
     setPlantillaDialogOpen(true);
   };
 
+  // Adjuntar el archivo de la plantilla: se lee como data URL (base64) y se
+  // guarda en `url`, igual que el resto de documentos (no una URL externa).
+  const onPlantillaFile = (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > MAX_MB * 1024 * 1024) {
+      toast({ title: `El archivo supera ${MAX_MB} MB`, variant: "destructive" });
+      if (plantillaFileRef.current) plantillaFileRef.current.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () =>
+      setPlantillaForm((f) => ({
+        ...f,
+        url: reader.result as string,
+        nombre: f.nombre || file.name.replace(/\.[^.]+$/, ""),
+      }));
+    reader.readAsDataURL(file);
+  };
+
   const plantillaFirmaObligatoria = esCarpetaFirmaObligatoria(plantillaForm.tipo || tipos[0]?.slug || "");
 
   const addCampo = () =>
@@ -202,10 +227,13 @@ export default function AdminDocumentosPage() {
     const tipo = plantillaForm.tipo || tipos[0]?.slug || "otro";
     const pedirFirma = plantillaFirmaObligatoria || plantillaForm.solicitarFirma;
     if (pedirFirma && !isSafeDocUrl(plantillaForm.url)) {
-      toast({ title: "Añade la URL del documento para poder solicitar su firma", variant: "destructive" });
+      toast({ title: "Adjunta el archivo del documento para poder solicitar su firma", variant: "destructive" });
       return;
     }
-    const campos = plantillaForm.campos.map((c) => ({ label: c.label.trim(), tipo: c.tipo })).filter((c) => c.label);
+    // Preserva la posición marcada (si la hay) al guardar; descarta campos sin nombre.
+    const campos = plantillaForm.campos
+      .map((c) => ({ label: c.label.trim(), tipo: c.tipo, ...(c.posicion ? { posicion: c.posicion } : {}) }))
+      .filter((c) => c.label);
     setSavingPlantilla(true);
     try {
       const url = editandoPlantilla ? `/api/documentos/plantillas/${editandoPlantilla.id}` : "/api/documentos/plantillas";
@@ -641,8 +669,27 @@ export default function AdminDocumentosPage() {
               </Select>
             </div>
             <div>
-              <Label>URL del archivo</Label>
-              <Input className="mt-1" value={plantillaForm.url} onChange={(e) => setPlantillaForm((f) => ({ ...f, url: e.target.value }))} placeholder="https://..." />
+              <Label>Archivo del documento (PDF/imagen, máx {MAX_MB} MB)</Label>
+              <input ref={plantillaFileRef} type="file" accept=".pdf,image/*" className="hidden" onChange={(e) => onPlantillaFile(e.target.files?.[0])} />
+              {isSafeDocUrl(plantillaForm.url) ? (
+                <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                  <FileText className="h-4 w-4 shrink-0 text-[var(--primary)]" />
+                  <span className="flex-1 truncate text-slate-700">Archivo adjunto</span>
+                  <button type="button" onClick={() => openDocInNewTab(plantillaForm.url)} className="p-1 text-slate-400 hover:text-[var(--primary)]" title="Ver documento">
+                    <Download className="h-4 w-4" />
+                  </button>
+                  <button type="button" onClick={() => plantillaFileRef.current?.click()} className="text-xs font-medium text-[var(--primary)] hover:underline">
+                    Cambiar
+                  </button>
+                  <button type="button" onClick={() => setPlantillaForm((f) => ({ ...f, url: "" }))} className="p-1 text-slate-400 hover:text-red-500" title="Quitar archivo">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <Button variant="outline" className="mt-1 w-full" onClick={() => plantillaFileRef.current?.click()}>
+                  <Upload className="mr-2 h-4 w-4" /> Adjuntar archivo
+                </Button>
+              )}
             </div>
             <div>
               <Label>Descripción</Label>
@@ -685,6 +732,20 @@ export default function AdminDocumentosPage() {
                 </div>
               )}
             </div>
+
+            {/* Colocar cada campo sobre el archivo: dónde irá el dato del empleado */}
+            {plantillaForm.campos.length > 0 && (
+              <div>
+                <Label>Colocar los datos en el documento</Label>
+                <div className="mt-2">
+                  <PlantillaPlacementEditor
+                    url={isSafeDocUrl(plantillaForm.url) ? plantillaForm.url : null}
+                    campos={plantillaForm.campos}
+                    onCamposChange={(next) => setPlantillaForm((f) => ({ ...f, campos: next }))}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
               <label className="flex items-start gap-2.5 text-sm">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { FolderOpen, FileText, Download, Upload, Loader2, PencilLine } from "lucide-react";
+import { FolderOpen, FileText, Download, Upload, Loader2, PencilLine, FileCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,12 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { isSafeDocUrl, openDocInNewTab } from "@/lib/documentos/url";
+import { isSafeDocUrl, openDocInNewTab, downloadDoc } from "@/lib/documentos/url";
 import { normalizarCampos, type CampoPlantilla } from "@/lib/documentos/campos";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
-interface Documento { id: string; nombre: string; descripcion?: string; url?: string; tipo: string; createdAt: string; subidoPor?: { nombre: string; apellidos: string } | null; campos?: unknown; camposRespuestas?: unknown; }
+interface Documento { id: string; nombre: string; descripcion?: string; url?: string; tipo: string; createdAt: string; subidoPor?: { nombre: string; apellidos: string } | null; campos?: unknown; camposRespuestas?: unknown; documentoRellenoUrl?: string | null; }
 
 // ¿El documento tiene campos que el empleado debe rellenar?
 function camposDe(doc: Documento): CampoPlantilla[] {
@@ -146,6 +146,9 @@ export default function EmpleadoDocumentosPage() {
                 <Button size="sm" variant="outline" onClick={() => abrirRellenar(doc)}>
                   <PencilLine className="h-4 w-4 mr-1.5" /> {relleno ? "Editar" : "Rellenar"}
                 </Button>
+              )}
+              {isSafeDocUrl(doc.documentoRellenoUrl) && (
+                <button type="button" onClick={() => downloadDoc(doc.documentoRellenoUrl, `${doc.nombre} (con mis datos).pdf`)} title="Descargar con mis datos" className="p-2 text-slate-400 hover:text-emerald-600"><FileCheck className="h-4 w-4" /></button>
               )}
               {isSafeDocUrl(doc.url) && <button type="button" onClick={() => openDocInNewTab(doc.url)} title="Abrir documento" className="p-2 text-slate-400 hover:text-[var(--primary)]"><Download className="h-4 w-4" /></button>}
             </div>
