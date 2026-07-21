@@ -31,7 +31,12 @@ function slug(s: string): string {
   );
 }
 
-export async function descargarCertificadoFirma(d: CertificadoFirmaData): Promise<void> {
+/**
+ * Construye el acta probatoria en un documento jsPDF y lo devuelve SIN guardar,
+ * para que quien llame decida qué hacer con él (descargarlo suelto o fusionarlo
+ * con la copia sellada del documento).
+ */
+async function construirCertificado(d: CertificadoFirmaData) {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
@@ -134,5 +139,72 @@ export async function descargarCertificadoFirma(d: CertificadoFirmaData): Promis
   );
   doc.text(nota, marginX, y);
 
+  return doc;
+}
+
+/**
+ * Descarga el acta probatoria suelta (PDF de una o varias páginas).
+ */
+export async function descargarCertificadoFirma(d: CertificadoFirmaData): Promise<void> {
+  const doc = await construirCertificado(d);
   doc.save(`certificado-firma-${slug(d.documentoNombre)}.pdf`);
+}
+
+/** Decodifica un data URL base64 (`data:...;base64,XXXX`) a bytes, o null. */
+function dataUrlBase64ToBytes(dataUrl: string): Uint8Array | null {
+  const comma = dataUrl.indexOf(",");
+  if (comma === -1) return null;
+  if (!/;base64/i.test(dataUrl.slice(5, comma))) return null;
+  try {
+    return Uint8Array.from(atob(dataUrl.slice(comma + 1)), (c) => c.charCodeAt(0));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Descarga en un ÚNICO PDF la copia sellada del documento firmado seguida del
+ * acta probatoria (certificado de firma) como páginas finales.
+ *
+ * Si el documento no tiene copia sellada (`documentoFirmadoUrl` nulo o no es un
+ * PDF, p. ej. un documento no estampable), cae a descargar solo el acta,
+ * preservando el comportamiento previo para esos casos.
+ *
+ * Solo cliente: usa jsPDF (acta) + pdf-lib (fusión), ambos con import dinámico
+ * para no engordar el bundle inicial. pdf-lib ya es dependencia del proyecto.
+ */
+export async function descargarFirmadoConCertificado(
+  documentoFirmadoUrl: string | null | undefined,
+  d: CertificadoFirmaData,
+): Promise<void> {
+  const acta = await construirCertificado(d);
+
+  // Sin copia sellada estampable → solo el acta (comportamiento previo).
+  if (!documentoFirmadoUrl || !/^data:application\/pdf[;,]/i.test(documentoFirmadoUrl)) {
+    acta.save(`certificado-firma-${slug(d.documentoNombre)}.pdf`);
+    return;
+  }
+
+  const firmadoBytes = dataUrlBase64ToBytes(documentoFirmadoUrl);
+  if (!firmadoBytes) {
+    // No se pudo decodificar la copia sellada: descarga al menos el acta.
+    acta.save(`certificado-firma-${slug(d.documentoNombre)}.pdf`);
+    return;
+  }
+
+  const { PDFDocument } = await import("pdf-lib");
+  const merged = await PDFDocument.load(firmadoBytes);
+  const actaDoc = await PDFDocument.load(acta.output("arraybuffer"));
+  const paginas = await merged.copyPages(actaDoc, actaDoc.getPageIndices());
+  for (const p of paginas) merged.addPage(p);
+  const bytes = await merged.save();
+
+  const objectUrl = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: "application/pdf" }));
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = `${d.documentoNombre} (firmado + certificado).pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
 }
