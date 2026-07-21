@@ -24,6 +24,7 @@ interface DocRow {
   tipo: string;
   userId: string | null;
   createdAt: string;
+  documentoRellenoUrl?: string | null;
   subidoPor?: { nombre: string; apellidos: string } | null;
   solicitudesFirma?: { id: string; estado: string; destinatarioId: string }[];
   firmas?: { id: string; userId: string }[];
@@ -252,6 +253,11 @@ export function DocumentosEmpleadoTab({
                 {isSafeDocUrl(d.url) && (
                   <button type="button" onClick={() => downloadDoc(d.url, d.nombre)} className="text-slate-400 hover:text-[var(--primary)]" title="Descargar documento">
                     <Download className="h-4 w-4" />
+                  </button>
+                )}
+                {isSafeDocUrl(d.documentoRellenoUrl) && (
+                  <button type="button" onClick={() => downloadDoc(d.documentoRellenoUrl, `${d.nombre} (con datos).pdf`)} className="text-slate-400 hover:text-emerald-600" title="Descargar con los datos rellenados">
+                    <FileText className="h-4 w-4" />
                   </button>
                 )}
                 {ef?.txt === "Firmado" && (

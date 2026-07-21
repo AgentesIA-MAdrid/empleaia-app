@@ -661,6 +661,11 @@ model Documento {
   // normales que no vienen de plantilla.
   campos           Json?
   camposRespuestas Json?
+  // Copia del documento con las respuestas del empleado estampadas en las
+  // posiciones marcadas en la plantilla (data URL de PDF). Se regenera cada vez
+  // que el empleado guarda sus respuestas. Null si la plantilla no marcó
+  // posiciones o el archivo no es estampable.
+  documentoRellenoUrl String? @map("documento_relleno_url")
   firmas             Firma[]
   solicitudesFirma   SolicitudFirma[] @relation("SolicitudFirmaDocumento")
 
