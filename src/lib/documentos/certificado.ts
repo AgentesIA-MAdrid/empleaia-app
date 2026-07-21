@@ -1,7 +1,8 @@
 /**
- * Genera y descarga (solo cliente) un certificado/acta probatorio de la firma
- * electrónica de un documento. Usa jsPDF con import dinámico para no cargar la
- * librería hasta que el usuario pulsa "Descargar certificado".
+ * Genera y descarga (solo cliente) la copia sellada del documento firmado
+ * seguida, en el MISMO PDF, del certificado/acta probatorio de la firma. Usa
+ * jsPDF (certificado) y pdf-lib (fusión), ambos con import dinámico para no
+ * cargar las librerías hasta que el usuario pulsa "Descargar".
  *
  * Los datos probatorios vienen de la Firma (GET /api/firmas): firmante, fecha,
  * hash SHA-256 del documento, IP y navegador con los que se firmó.
@@ -31,7 +32,8 @@ function slug(s: string): string {
   );
 }
 
-export async function descargarCertificadoFirma(d: CertificadoFirmaData): Promise<void> {
+/** Construye el PDF del certificado con jsPDF y lo devuelve (sin descargarlo). */
+async function construirCertificado(d: CertificadoFirmaData) {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
@@ -134,5 +136,51 @@ export async function descargarCertificadoFirma(d: CertificadoFirmaData): Promis
   );
   doc.text(nota, marginX, y);
 
-  doc.save(`certificado-firma-${slug(d.documentoNombre)}.pdf`);
+  return doc;
+}
+
+/** Dispara la descarga de un PDF (bytes) en el navegador. */
+function descargarPdf(bytes: Uint8Array, filename: string): void {
+  const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/**
+ * Descarga en un ÚNICO PDF la copia sellada del documento firmado seguida del
+ * certificado/acta probatorio de la firma (páginas del documento primero, el
+ * acta al final). Si el documento no tiene copia sellada —p. ej. no era
+ * estampable— se descarga solo el certificado.
+ */
+export async function descargarFirmadoConCertificado(
+  documentoFirmadoUrl: string | null | undefined,
+  d: CertificadoFirmaData,
+): Promise<void> {
+  const cert = await construirCertificado(d);
+  const certBytes = new Uint8Array(cert.output("arraybuffer") as ArrayBuffer);
+
+  // Sin copia sellada del documento: descarga solo el certificado.
+  if (!documentoFirmadoUrl || !/^data:application\/pdf[;,]/i.test(documentoFirmadoUrl)) {
+    descargarPdf(certBytes, `certificado-firma-${slug(d.documentoNombre)}.pdf`);
+    return;
+  }
+
+  // Fusiona documento firmado + certificado en un solo PDF con pdf-lib.
+  const { PDFDocument } = await import("pdf-lib");
+  const firmadoBytes = new Uint8Array(
+    await (await fetch(documentoFirmadoUrl)).arrayBuffer(),
+  );
+  const merged = await PDFDocument.load(firmadoBytes);
+  const certPdf = await PDFDocument.load(certBytes);
+  const paginas = await merged.copyPages(certPdf, certPdf.getPageIndices());
+  for (const p of paginas) merged.addPage(p);
+  const out = await merged.save();
+
+  descargarPdf(out, `${slug(d.documentoNombre)}-firmado.pdf`);
 }
