@@ -55,13 +55,12 @@ export function DashboardShell({ children, user, branding, trial }: DashboardShe
         branding={branding}
         isOpen={sidebarOpen}
         onToggle={toggleSidebar}
-        notificationCount={0}
         pendingAusencias={0}
       />
 
       {/* Main content area */}
       <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
-        <Header user={user} onMenuToggle={toggleSidebar} notificationCount={0} />
+        <Header user={user} onMenuToggle={toggleSidebar} />
         {trial?.isTrialing && user.rol === "OWNER" && (
           <div className="bg-amber-50 border-b border-amber-200 px-4 lg:px-6 py-2.5 text-sm flex items-center gap-3 flex-wrap">
             <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />

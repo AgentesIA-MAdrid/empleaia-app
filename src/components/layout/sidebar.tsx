@@ -9,7 +9,7 @@ import { Lock } from "lucide-react";
 import {
   LayoutDashboard, Store, Users, Calendar, FileText,
   Settings, LogOut, Clock, ClipboardList, CalendarCheck, BarChart3,
-  Bell, ChevronLeft, ChevronRight, UserCheck, CheckSquare, Megaphone, ClipboardCheck,
+  ChevronLeft, ChevronRight, UserCheck, CheckSquare, Megaphone, ClipboardCheck,
   BookOpen, FolderOpen, Rocket, Timer, Search, Pen,
   ChevronDown, Sparkles, ShieldAlert, Network,
   Bot, ScanFace, Target, MessageSquare,
@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmpleaIALogo, EmpleaIASymbol } from "@/components/brand/empleaia-logo";
+import { NotificationsBell } from "@/components/layout/notifications-bell";
 
 interface SessionUser {
   id: string;
@@ -247,7 +248,6 @@ interface Branding {
 interface SidebarProps {
   user: SessionUser;
   branding?: Branding;
-  notificationCount?: number;
   pendingAusencias?: number;
   isOpen?: boolean;
   onToggle?: () => void;
@@ -256,7 +256,6 @@ interface SidebarProps {
 export function Sidebar({
   user,
   branding,
-  notificationCount = 0,
   pendingAusencias = 0,
   isOpen = true,
   onToggle,
@@ -477,23 +476,7 @@ export function Sidebar({
 
         {/* Bottom */}
         <div className="mt-auto border-t border-slate-200 p-2 space-y-0.5 shrink-0">
-          <button
-            className={cn(
-              "group flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors",
-              collapsed && "justify-center px-2"
-            )}
-            title={collapsed ? "Notificaciones" : undefined}
-          >
-            <div className="relative shrink-0">
-              <Bell className="h-4 w-4 text-slate-400 group-hover:text-slate-700 transition-colors" />
-              {notificationCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-bold text-white leading-none">
-                  {notificationCount > 9 ? "9+" : notificationCount}
-                </span>
-              )}
-            </div>
-            {!collapsed && <span className="flex-1 text-left text-sm">Notificaciones</span>}
-          </button>
+          <NotificationsBell variant="sidebar" collapsed={collapsed} />
 
           {user.rol === "OWNER" && (
             <Link

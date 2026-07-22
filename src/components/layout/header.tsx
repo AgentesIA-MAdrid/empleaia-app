@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
   Menu,
-  Bell,
   ChevronDown,
   User,
   LogOut,
@@ -16,6 +15,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { NotificationsBell } from "@/components/layout/notifications-bell";
 
 // ─── Page title map ───────────────────────────────────────────────────────────
 
@@ -102,10 +102,9 @@ interface SessionUser {
 interface HeaderProps {
   user: SessionUser;
   onMenuToggle?: () => void;
-  notificationCount?: number;
 }
 
-export function Header({ user, onMenuToggle, notificationCount = 0 }: HeaderProps) {
+export function Header({ user, onMenuToggle }: HeaderProps) {
   const pathname = usePathname();
 
   const nombre = user.nombre;
@@ -139,17 +138,7 @@ export function Header({ user, onMenuToggle, notificationCount = 0 }: HeaderProp
       {/* Right: notifications + user menu */}
       <div className="flex items-center gap-2">
         {/* Notification bell */}
-        <button
-          className="relative flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-          aria-label="Notificaciones"
-        >
-          <Bell className="h-5 w-5" />
-          {notificationCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-bold text-white leading-none">
-              {notificationCount > 9 ? "9+" : notificationCount}
-            </span>
-          )}
-        </button>
+        <NotificationsBell variant="header" />
 
         {/* User dropdown */}
         <DropdownMenu.Root>
