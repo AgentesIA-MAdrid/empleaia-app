@@ -960,7 +960,11 @@ function GrupoSede({
         // sedes, no solo en esta: si no, quien reparte su jornada entre varias
         // tiendas aparece como deficitario en cada una (se le pediría el
         // contrato completo en cada sede). En "Sin sede" (null) `total` ya es
-        // global. Los correturnos (visitante) no muestran contrato/diferencia.
+        // global. Los correturnos (visitante) SÍ muestran contrato/diferencia:
+        // como `dif` se mide contra `totalGlobal`, es el mismo número en toda
+        // sede donde aparezca la persona (no un déficit falso por sede), y así
+        // el cuadrante rinde cuentas de sus horas totales y de las que le
+        // faltan/sobran también cuando cubre como correturno.
         const totalGlobal = grupo.id === null ? total : totalSemana(emp.id, null);
         const horasOtrasSedes = Math.round((totalGlobal - total) * 100) / 100;
         const dif = Math.round((totalGlobal - contrato) * 100) / 100;
@@ -1005,25 +1009,16 @@ function GrupoSede({
             ))}
             <td className="px-2 py-2 text-center font-semibold text-slate-700">
               {Math.round(total * 100) / 100}h
-              {!visitante && horasOtrasSedes > 0 && (
+              {horasOtrasSedes > 0 && (
                 <div className="text-[10px] font-normal text-slate-400" title="Horas de esta persona en otras sedes esta semana (cuentan para su contrato)">
                   +{horasOtrasSedes}h otras sedes
                 </div>
               )}
             </td>
-            {visitante ? (
-              <>
-                <td className="px-2 py-2 text-center text-slate-300" title="No aplica: el contrato se controla en su sede">—</td>
-                <td className="px-2 py-2 text-center text-slate-300">—</td>
-              </>
-            ) : (
-              <>
-                <td className="px-2 py-2 text-center text-slate-500">{contrato}h</td>
-                <td className={cn("px-2 py-2 text-center font-semibold", dif < 0 ? "text-red-600" : "text-emerald-600")}>
-                  {dif > 0 ? "+" : ""}{dif}h
-                </td>
-              </>
-            )}
+            <td className="px-2 py-2 text-center text-slate-500">{contrato}h</td>
+            <td className={cn("px-2 py-2 text-center font-semibold", dif < 0 ? "text-red-600" : "text-emerald-600")}>
+              {dif > 0 ? "+" : ""}{dif}h
+            </td>
           </tr>
         );
       })}
