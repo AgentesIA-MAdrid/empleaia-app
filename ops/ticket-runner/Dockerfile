@@ -25,6 +25,9 @@ RUN mkdir -p /home/runner/repo && chown -R runner:runner /home/runner
 
 COPY --chown=runner:runner run-ticket.mjs ./run-ticket.mjs
 COPY --chown=runner:runner runner-claude-settings.json ./runner-claude-settings.json
+# Hook de time-tracking del agente de feedback: reporta a /agency/time del
+# portal. Copia de agency-portal ops/claude-time-tracker/claude-time-hook.mjs.
+COPY --chown=runner:runner claude-time-hook.mjs ./claude-time-hook.mjs
 COPY --chown=runner:runner entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
