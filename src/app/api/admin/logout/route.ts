@@ -4,25 +4,40 @@
  * El botón "Salir" es un <form method="POST">, así que el navegador navega a
  * la respuesta. Devolvemos un redirect 303 a /admin/login (en vez de JSON)
  * para que el super-admin acabe en la pantalla de login, no viendo el JSON.
+ *
+ * IMPORTANTE: NO usa `withSuperAdmin`. Cerrar sesión debe funcionar también
+ * con la sesión ya caducada — si exigiéramos JWT válido, el "Salir" tras un
+ * rato de inactividad devolvía `401 {"error":"No autorizado"}` en crudo en el
+ * navegador en lugar de llevar al login. Verificamos el token a mano solo
+ * para poder auditar quién salió; si no hay sesión válida, limpiamos la
+ * cookie igualmente y redirigimos.
  */
 
-import { NextResponse } from "next/server";
-import { withSuperAdmin } from "@/lib/admin/with-super-admin";
-import { currentSuperAdmin } from "@/lib/admin/context";
+import { type NextRequest, NextResponse } from "next/server";
 import { writeAuditEntry, extractRequestMeta } from "@/lib/admin/audit";
-import { ADMIN_COOKIE_NAME } from "@/lib/admin/jwt";
+import { verifySuperAdminJwt, ADMIN_COOKIE_NAME } from "@/lib/admin/jwt";
 
-export const POST = withSuperAdmin(async (req) => {
-  const sa = currentSuperAdmin();
-  const meta = extractRequestMeta(req.headers);
-  await writeAuditEntry({
-    superAdminId: sa.id,
-    action: "super-admin:logout",
-    targetKind: "session",
-    targetId: sa.id,
-    ipAddress: meta.ipAddress,
-    userAgent: meta.userAgent,
-  });
+export const POST = async (req: NextRequest) => {
+  // Auditoría best-effort: solo si el token sigue siendo válido sabemos quién
+  // es; con sesión caducada no hay nada fiable que auditar.
+  try {
+    const token = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
+    const claims = token ? await verifySuperAdminJwt(token) : null;
+    if (claims) {
+      const meta = extractRequestMeta(req.headers);
+      await writeAuditEntry({
+        superAdminId: claims.sub,
+        action: "super-admin:logout",
+        targetKind: "session",
+        targetId: claims.sub,
+        ipAddress: meta.ipAddress,
+        userAgent: meta.userAgent,
+      });
+    }
+  } catch {
+    // Un fallo de auditoría nunca debe impedir salir.
+  }
+
   // Redirect con Location RELATIVO (RFC 7231 §7.1.2). El navegador lo resuelve
   // contra el origen actual (admin.empleaia.es), así que:
   //  - no depende de req.url (que detrás del proxy es el host interno
@@ -39,4 +54,4 @@ export const POST = withSuperAdmin(async (req) => {
     maxAge: 0,
   });
   return res;
-});
+};
