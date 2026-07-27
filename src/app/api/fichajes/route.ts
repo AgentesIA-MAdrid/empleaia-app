@@ -11,6 +11,7 @@ import { consumeFaceToken } from "@/lib/face/token";
 import { currentTenant } from "@/lib/tenant/context";
 import { resolveEmpresaScope, fichajeScopeFilter } from "@/lib/multi-empresa/scope";
 import { calcularDistancia } from "@/lib/utils";
+import { notifyFichajeFueraSede } from "@/lib/fichajes/notify-fuera-sede";
 export const GET = withTenant(async (request: NextRequest) => {
   try {
     const session = await auth();
@@ -162,15 +163,19 @@ export const POST = withTenant(async (request: NextRequest) => {
     // auditar desde dónde se fichó. Además, un valor enviado por el
     // cliente no es auditable: puede falsearse.
     let dist: number | null = null;
+    // Sede del empleado con su radio: si la distancia lo supera, avisamos
+    // por email a los administradores (ver más abajo, tras el create).
+    let sede: { id: string; nombre: string; radio: number } | null = null;
     if (geofencingActivo && lat != null && lon != null) {
       const tienda = userTiendaId
         ? await prisma.tienda.findUnique({
             where: { id: userTiendaId },
-            select: { latitud: true, longitud: true },
+            select: { id: true, nombre: true, radio: true, latitud: true, longitud: true },
           })
         : null;
       if (tienda?.latitud != null && tienda?.longitud != null) {
         dist = Math.round(calcularDistancia(lat, lon, tienda.latitud, tienda.longitud));
+        sede = { id: tienda.id, nombre: tienda.nombre, radio: tienda.radio };
       } else if (typeof distancia === "number" && Number.isFinite(distancia)) {
         // Sede sin coordenadas (o empleado sin sede): conservamos lo
         // que envíe el cliente/integración para no perder el dato.
@@ -314,6 +319,27 @@ export const POST = withTenant(async (request: NextRequest) => {
         },
       },
     });
+
+    // Aviso a administradores si el fichaje cae fuera del radio de la sede
+    // (`Tienda.radio`, 200 m por defecto). Solo con la distancia calculada
+    // en servidor — la que envía el cliente no es auditable. El fichaje ya
+    // está guardado: esto NO lo rechaza (RD 8/2019), solo avisa.
+    // Best-effort: notifyFichajeFueraSede nunca lanza.
+    if (sede && dist != null && dist > sede.radio) {
+      await notifyFichajeFueraSede({
+        empleado: {
+          id: fichaje.user.id,
+          nombre: fichaje.user.nombre,
+          apellidos: fichaje.user.apellidos,
+        },
+        tipo: fichaje.tipo,
+        timestamp: fichaje.timestamp,
+        distancia: dist,
+        sede,
+        latitud: lat ?? null,
+        longitud: lon ?? null,
+      });
+    }
 
     return Response.json(fichaje, { status: 201 });
   } catch (error) {

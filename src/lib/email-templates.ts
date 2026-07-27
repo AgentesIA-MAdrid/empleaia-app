@@ -509,6 +509,103 @@ export function resetPasswordTemplate(p: ResetPasswordParams): string {
   });
 }
 
+// ─── Fichajes fuera de la sede ───────────────────────────────────────────────
+
+interface FichajeFueraSedeParams {
+  destinatarioNombre: string;
+  empleadoNombre: string;
+  /** ENTRADA | SALIDA | PAUSA | VUELTA_PAUSA, ya en texto legible. */
+  tipo: string;
+  timestamp: Date;
+  /** Distancia real a la sede, en metros (calculada en servidor). */
+  distancia: number;
+  /** Radio permitido de la sede, en metros. */
+  radio: number;
+  sedeNombre: string;
+  latitud: number | null;
+  longitud: number | null;
+  empresa: string;
+  colorPrimario: string;
+  colorSidebar: string;
+  logo?: string | null;
+  appUrl?: string;
+}
+
+function fmtFechaHora(d: Date): string {
+  return d.toLocaleString("es-ES", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/** 850 → "850 m"; 1240 → "1,2 km". */
+export function fmtDistancia(m: number): string {
+  return m >= 1000
+    ? `${(m / 1000).toLocaleString("es-ES", { maximumFractionDigits: 1 })} km`
+    : `${Math.round(m)} m`;
+}
+
+export function fichajeFueraSedeTemplate(p: FichajeFueraSedeParams): string {
+  const base = p.appUrl ?? process.env.NEXTAUTH_URL ?? "";
+  const url = `${base}/admin/informes`;
+  const mapa =
+    p.latitud != null && p.longitud != null
+      ? `https://www.google.com/maps?q=${p.latitud},${p.longitud}`
+      : null;
+
+  const row = (k: string, v: string) => `
+    <tr>
+      <td style="padding:8px 0;font-size:13px;color:#64748b;width:40%;">${k}</td>
+      <td style="padding:8px 0;font-size:14px;color:#0f172a;font-weight:600;">${v}</td>
+    </tr>`;
+
+  const body = `
+    <p style="margin:0 0 8px;font-size:18px;font-weight:700;color:#0f172a;">Hola, ${escapeHtml(p.destinatarioNombre)} 👋</p>
+    <p style="margin:0 0 24px;font-size:14px;color:#64748b;line-height:1.6;">
+      <strong style="color:#0f172a;">${escapeHtml(p.empleadoNombre)}</strong> ha fichado a
+      <strong style="color:#d97706;">${fmtDistancia(p.distancia)}</strong> de
+      <strong style="color:#0f172a;">${escapeHtml(p.sedeNombre)}</strong>, fuera del radio
+      de ${fmtDistancia(p.radio)} configurado para esa sede.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+      style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;margin-top:8px;overflow:hidden;">
+      <tr>
+        <td style="background:${p.colorPrimario};padding:10px 20px;">
+          <p style="margin:0;font-size:11px;font-weight:700;color:rgba(255,255,255,0.85);text-transform:uppercase;letter-spacing:1px;">Detalles del fichaje</p>
+        </td>
+      </tr>
+      <tr><td style="padding:8px 20px 14px;">
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+          ${row("Empleado", escapeHtml(p.empleadoNombre))}
+          ${row("Tipo", escapeHtml(p.tipo))}
+          ${row("Fecha y hora", fmtFechaHora(p.timestamp))}
+          ${row("Sede", escapeHtml(p.sedeNombre))}
+          ${row("Distancia", `${fmtDistancia(p.distancia)} (radio: ${fmtDistancia(p.radio)})`)}
+          ${mapa ? row("Ubicación", `<a href="${mapa}" style="color:${p.colorPrimario};">Ver en mapa</a>`) : ""}
+        </table>
+      </td></tr>
+    </table>
+    <p style="margin:20px 0 0;font-size:12px;color:#94a3b8;line-height:1.5;">
+      El fichaje se ha registrado correctamente: la ley (RD 8/2019) no permite bloquear
+      el registro de jornada por la ubicación. Este correo es solo un aviso para que
+      puedas revisarlo.
+    </p>`;
+
+  return shellLayout({
+    empresa: p.empresa,
+    colorPrimario: p.colorPrimario,
+    colorSidebar: p.colorSidebar,
+    logo: p.logo,
+    headerTitulo: "Fichaje fuera de la sede",
+    headerSubtitulo: `${escapeHtml(p.empleadoNombre)} ha fichado a ${fmtDistancia(p.distancia)} de su puesto`,
+    body,
+    cta: { label: "Ver en Informes", url },
+  });
+}
+
 export function ausenciaResueltaTemplate(p: AusenciaEmailParams): string {
   const aprobada = p.estado === "APROBADA";
   const titulo = aprobada ? "Solicitud aprobada" : "Solicitud rechazada";
