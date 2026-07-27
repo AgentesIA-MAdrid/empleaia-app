@@ -157,7 +157,6 @@ export default function EmpleadoPage() {
   // Geolocation
   const [locationStatus, setLocationStatus] = useState<LocationStatus>("idle");
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
-  const [distancia, setDistancia] = useState<number | undefined>(undefined);
 
   // Action loading
   const [loadingAction, setLoadingAction] = useState<TipoFichaje | null>(null);
@@ -309,7 +308,6 @@ export default function EmpleadoPage() {
       try {
         let lat: number | undefined;
         let lon: number | undefined;
-        let dist: number | undefined;
 
         try {
           const loc = await getLocation();
@@ -324,7 +322,9 @@ export default function EmpleadoPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            tipo, latitud: lat, longitud: lon, distancia: dist,
+            // `distancia` la calcula el servidor con las coordenadas
+            // de la sede: un valor enviado desde aquí no sería auditable.
+            tipo, latitud: lat, longitud: lon,
             ...(opts.faceVerifyToken ? { faceVerifyToken: opts.faceVerifyToken } : {}),
             ...(opts.fotoSnapshot ? { fotoSnapshot: opts.fotoSnapshot } : {}),
           }),

@@ -36,6 +36,8 @@ vi.mock("@/lib/prisma", () => {
       configuracionEmpresa: { findUnique: vi.fn().mockResolvedValue(null) },
       // Solo se consulta si el plan tiene face_id; en estos tests no.
       faceTemplate: { findUnique: vi.fn().mockResolvedValue(null) },
+      // Sede del empleado — se consulta para calcular la distancia.
+      tienda: { findUnique: vi.fn().mockResolvedValue(null) },
     },
     prismaMaster: {},
     prismaRuntime: {},
@@ -151,5 +153,49 @@ describe("CORE — POST /api/fichajes con tenant sin features", () => {
     expect(lastCall.data.latitud).toBe(40.4);
     expect(lastCall.data.longitud).toBe(-3.7);
     expect(lastCall.data.distancia).toBe(50);
+  });
+
+  it("calcula la distancia a la sede en el servidor e ignora la del cliente", async () => {
+    ctxStarter.features.set("geofencing", {
+      key: "geofencing",
+      value: true,
+      source: "plan",
+      expiresAt: null,
+    });
+    const { POST } = await import("./route");
+    const { prismaApp } = await import("@/lib/prisma");
+    const { auth } = await import("@/lib/auth");
+    const { NextRequest } = await import("next/server");
+
+    // Empleado con sede asignada y sede con coordenadas.
+    vi.mocked(auth).mockResolvedValueOnce({
+      user: { id: "user_1", rol: "EMPLEADO", tiendaId: "tienda_1", name: "X" },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+    vi.mocked(prismaApp.tienda.findUnique).mockResolvedValueOnce({
+      latitud: 40.4168,
+      longitud: -3.7038,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+
+    const createSpy = vi.mocked(prismaApp.fichaje.create);
+    createSpy.mockClear();
+
+    const req = new NextRequest("http://starter1.localhost:3000/api/fichajes", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        tipo: "ENTRADA",
+        latitud: 40.42,
+        longitud: -3.7038,
+        distancia: 5, // el cliente miente: ~356 m reales.
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+    const lastCall = createSpy.mock.calls[createSpy.mock.calls.length - 1]![0];
+    // ~0.0032° de latitud ≈ 356 m.
+    expect(lastCall.data.distancia).toBeGreaterThan(340);
+    expect(lastCall.data.distancia).toBeLessThan(370);
   });
 });

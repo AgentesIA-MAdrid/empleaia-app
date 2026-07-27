@@ -164,7 +164,9 @@ async function informeFichajes(
       // No exponemos `fotoSnapshotEnc` (binario cifrado, no necesario en
       // respuesta JSON). El cliente sabe que hay foto si `tieneFoto=true`.
       user: { select: { id: true, nombre: true, apellidos: true, email: true, foto: true } },
-      tienda: { select: { id: true, nombre: true } },
+      // `radio` permite contrastar `distancia` contra el perímetro de
+      // la sede y marcar los fichajes hechos fuera de ella.
+      tienda: { select: { id: true, nombre: true, radio: true } },
       fotoSnapshotEnc: false,
     },
     orderBy: [{ userId: "asc" }, { timestamp: "asc" }],

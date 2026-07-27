@@ -10,6 +10,7 @@ import { encrypt } from "@/lib/crypto/aes-gcm";
 import { consumeFaceToken } from "@/lib/face/token";
 import { currentTenant } from "@/lib/tenant/context";
 import { resolveEmpresaScope, fichajeScopeFilter } from "@/lib/multi-empresa/scope";
+import { calcularDistancia } from "@/lib/utils";
 export const GET = withTenant(async (request: NextRequest) => {
   try {
     const session = await auth();
@@ -153,7 +154,29 @@ export const POST = withTenant(async (request: NextRequest) => {
     const geofencingActivo = hasFeature("geofencing");
     const lat = geofencingActivo ? latitud : null;
     const lon = geofencingActivo ? longitud : null;
-    const dist = geofencingActivo ? distancia : null;
+
+    // La distancia a la sede se calcula SIEMPRE en el servidor a
+    // partir de las coordenadas de la tienda asignada. El cliente web
+    // nunca la enviaba (quedaba `undefined`), así que `distancia` se
+    // guardaba a null en todos los fichajes y el OWNER no podía
+    // auditar desde dónde se fichó. Además, un valor enviado por el
+    // cliente no es auditable: puede falsearse.
+    let dist: number | null = null;
+    if (geofencingActivo && lat != null && lon != null) {
+      const tienda = userTiendaId
+        ? await prisma.tienda.findUnique({
+            where: { id: userTiendaId },
+            select: { latitud: true, longitud: true },
+          })
+        : null;
+      if (tienda?.latitud != null && tienda?.longitud != null) {
+        dist = Math.round(calcularDistancia(lat, lon, tienda.latitud, tienda.longitud));
+      } else if (typeof distancia === "number" && Number.isFinite(distancia)) {
+        // Sede sin coordenadas (o empleado sin sede): conservamos lo
+        // que envíe el cliente/integración para no perder el dato.
+        dist = Math.round(distancia);
+      }
+    }
 
     // Políticas de tenant: geo + Face ID + device gating.
     const cfg = await prisma.configuracionEmpresa.findUnique({
