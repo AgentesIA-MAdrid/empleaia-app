@@ -40,8 +40,15 @@ interface FichajeDetalle {
   distancia: number | null;
   nota: string | null;
   user: { id: string; nombre: string; apellidos: string; foto: string | null };
-  tienda: { id: string; nombre: string } | null;
+  tienda: { id: string; nombre: string; radio?: number | null } | null;
   tieneFoto?: boolean;
+}
+
+/** "34 m" / "1,2 km" — distancia del fichaje al centro de la sede. */
+function formatDistancia(metros: number): string {
+  return metros < 1000
+    ? `${Math.round(metros)} m`
+    : `${(metros / 1000).toFixed(1).replace(".", ",")} km`;
 }
 
 const TIPO_LABEL: Record<FichajeDetalle["tipo"], string> = {
@@ -541,6 +548,11 @@ export default function AdminInformesPage() {
                       const mapsUrl = tieneGeo
                         ? `https://www.google.com/maps?q=${f.latitud},${f.longitud}`
                         : null;
+                      // Fuera de la sede = distancia mayor que el radio
+                      // configurado para esa tienda (200 m por defecto).
+                      const radio = f.tienda?.radio ?? null;
+                      const fueraDeSede =
+                        f.distancia != null && radio != null && f.distancia > radio;
                       return (
                         <tr key={f.id} className="hover:bg-slate-50 transition-colors">
                           <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">
@@ -565,16 +577,35 @@ export default function AdminInformesPage() {
                           </td>
                           <td className="hidden md:table-cell px-4 py-3 text-sm">
                             {mapsUrl ? (
-                              <a
-                                href={mapsUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[var(--primary)] hover:underline"
-                                title={`${f.latitud!.toFixed(6)}, ${f.longitud!.toFixed(6)}${f.distancia != null ? ` · ${f.distancia.toFixed(0)} m` : ""}`}
-                              >
-                                <MapPin className="h-3.5 w-3.5" />
-                                Ver en mapa
-                              </a>
+                              <div className="flex items-center gap-2">
+                                <a
+                                  href={mapsUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-[var(--primary)] hover:underline"
+                                  title={`${f.latitud!.toFixed(6)}, ${f.longitud!.toFixed(6)}`}
+                                >
+                                  <MapPin className="h-3.5 w-3.5" />
+                                  Ver en mapa
+                                </a>
+                                {f.distancia != null && (
+                                  <span
+                                    className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium whitespace-nowrap ${
+                                      fueraDeSede
+                                        ? "bg-amber-50 text-amber-700"
+                                        : "bg-slate-100 text-slate-600"
+                                    }`}
+                                    title={
+                                      radio != null
+                                        ? `${formatDistancia(f.distancia)} del centro de la sede (radio configurado: ${radio} m)`
+                                        : `${formatDistancia(f.distancia)} del centro de la sede`
+                                    }
+                                  >
+                                    {fueraDeSede ? "Fuera de la sede · " : ""}
+                                    {formatDistancia(f.distancia)}
+                                  </span>
+                                )}
+                              </div>
                             ) : (
                               <span className="text-slate-400 text-xs">Sin ubicación</span>
                             )}
