@@ -1,4 +1,5 @@
 import type { NextAuthConfig } from "next-auth";
+import { freshUserClaims } from "@/lib/auth/session-claims";
 
 // NEXTAUTH_URL hace que NextAuth construya URLs absolutas a ese host
 // para errores y callbacks. Como en producción NEXTAUTH_URL=app.empleaia.es
@@ -30,6 +31,20 @@ export const authConfig: NextAuthConfig = {
         // compara esto con el slug del host y devuelve 401 si difieren.
         token.tenantId = (user as any).tenantId;
         token.tenantSlug = (user as any).tenantSlug;
+        return token;
+      }
+
+      // Sin `user` = request posterior al login (NextAuth invoca este
+      // callback en cada resolución de sesión). `rol`/`tiendaId` son
+      // volátiles: el Administrador puede cambiarlos en cualquier
+      // momento y el JWT no se re-emite hasta caducar. Los releemos de
+      // BD (cacheado, ver session-claims.ts) para que un cambio de rol
+      // —p. ej. promoción a Administrador— surta efecto sin obligar a
+      // cerrar sesión y volver a entrar.
+      const fresh = await freshUserClaims(token);
+      if (fresh) {
+        token.rol = fresh.rol;
+        token.tiendaId = fresh.tiendaId;
       }
       return token;
     },
