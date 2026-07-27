@@ -32,6 +32,12 @@ services:
       # 1 = modo plumbing (no invoca Claude; cambio trivial para probar el flujo
       # claim→PR→callback). Quitar/0 para resolución real.
       CLAUDE_RUNNER_STUB: ${CLAUDE_RUNNER_STUB:-0}
+      # Time-tracking en /agency/time del portal. La key identifica al agente
+      # ("Claudia") y va dada de alta en TIME_TRACKER_KEYS del portal. Sin key,
+      # el hook no envía nada y Claudia no sale en el dashboard.
+      AGENTESIA_TRACKER_URL: ${AGENTESIA_TRACKER_URL:-https://app.agentesialabs.com}
+      AGENTESIA_TRACKER_KEY: ${AGENTESIA_TRACKER_KEY:-}
+      AGENTESIA_TRACKER_MACHINE: ${AGENTESIA_TRACKER_MACHINE:-}
     deploy:
       # N réplicas drenan la cola en paralelo (claim = FOR UPDATE SKIP LOCKED, sin
       # colisión). Cada réplica ~3 GB en pico + cuota OAuth. Default 1.

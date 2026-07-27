@@ -21,10 +21,18 @@ RUN npm install -g @anthropic-ai/claude-code
 RUN useradd -m -u 10001 runner
 WORKDIR /home/runner/app
 
-RUN mkdir -p /home/runner/repo && chown -R runner:runner /home/runner
+# El clon persistente lo crea el entrypoint con el GH_TOKEN, en
+# /home/runner/fichaje. El nombre importa: alimenta el proyecto que reporta el
+# time-tracking (basename del repo principal del que cuelga el worktree del job).
+RUN mkdir -p /home/runner/fichaje && chown -R runner:runner /home/runner
 
 COPY --chown=runner:runner run-ticket.mjs ./run-ticket.mjs
 COPY --chown=runner:runner runner-claude-settings.json ./runner-claude-settings.json
+# Hook de time-tracking del agente "Claudia": reporta a /agency/time del portal.
+# Copia literal de agency-portal:ops/claude-time-tracker/claude-time-hook.mjs
+# (fuente única, otro repo). Al actualizarlo, copiarlo tal cual: el hook reporta
+# su HOOK_VERSION y el dashboard avisa si esta copia se queda atrás.
+COPY --chown=runner:runner claude-time-hook.mjs ./claude-time-hook.mjs
 COPY --chown=runner:runner entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 

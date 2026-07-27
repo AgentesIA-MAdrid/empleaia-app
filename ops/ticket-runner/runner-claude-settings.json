@@ -13,5 +13,13 @@
       "Bash(sudo:*)",
       "Bash(curl:*EMPLEAIA_SIGNING_SECRET*)"
     ]
+  },
+  "hooks": {
+    "SessionStart":     [{ "hooks": [{ "type": "command", "command": "node /home/runner/app/claude-time-hook.mjs", "timeout": 10 }] }],
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node /home/runner/app/claude-time-hook.mjs", "timeout": 10 }] }],
+    "Stop":             [{ "hooks": [{ "type": "command", "command": "node /home/runner/app/claude-time-hook.mjs", "timeout": 10 }] }],
+    "SessionEnd":       [{ "hooks": [{ "type": "command", "command": "node /home/runner/app/claude-time-hook.mjs", "timeout": 10 }] }],
+    "SubagentStop":     [{ "hooks": [{ "type": "command", "command": "node /home/runner/app/claude-time-hook.mjs", "timeout": 10 }] }],
+    "PostToolUse":      [{ "hooks": [{ "type": "command", "command": "node /home/runner/app/claude-time-hook.mjs", "timeout": 10 }] }]
   }
 }

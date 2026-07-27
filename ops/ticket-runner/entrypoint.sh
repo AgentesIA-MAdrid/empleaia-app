@@ -4,7 +4,11 @@ set -euo pipefail
 # Prepara el clon persistente del repo (una vez) y lanza el loop del runner.
 # El GH_TOKEN (PAT de la cuenta bot aiabot) autentica git y gh.
 
-REPO_DIR="${REPO_DIR:-/home/runner/repo}"
+# El nombre del directorio del clon NO es indiferente: el hook de time-tracking
+# resuelve el proyecto al basename del repo principal del que cuelga el worktree
+# del job, así que llamarlo "repo" agruparía las horas de Claudia bajo un
+# proyecto llamado "repo" en /agency/time. Mantenerlo como "fichaje".
+REPO_DIR="${REPO_DIR:-/home/runner/fichaje}"
 REPO_SLUG="${REPO_SLUG:-AgentesIA-MAdrid/empleaia-app}"
 BASE_BRANCH="${BASE_BRANCH:-feature/saas-migration}"
 

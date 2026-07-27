@@ -20,7 +20,8 @@ import { join } from "node:path";
 
 const APP_BASE_URL = required("APP_BASE_URL");
 const SIGNING_SECRET = required("EMPLEAIA_SIGNING_SECRET");
-const REPO_DIR = process.env.REPO_DIR || "/home/runner/repo";
+// Ojo: el basename alimenta el proyecto del time-tracking (ver entrypoint.sh).
+const REPO_DIR = process.env.REPO_DIR || "/home/runner/fichaje";
 const REPO_SLUG = process.env.REPO_SLUG || "AgentesIA-MAdrid/empleaia-app";
 const BASE_BRANCH = process.env.BASE_BRANCH || "feature/saas-migration";
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "opus";
