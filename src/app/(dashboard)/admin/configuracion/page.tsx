@@ -41,6 +41,7 @@ interface Configuracion {
   notifFichajes: boolean;
   notifComunicados: boolean;
   notifDocumentos: boolean;
+  notifFueraSede: boolean;
   // Email
   emailActivo: boolean;
   emailHost: string;
@@ -95,6 +96,11 @@ const EVENTOS_NOTIF = [
   { key: "Fichajes", label: "Fichajes", desc: "Alertas de fichaje (tardanzas, ausencias)" },
   { key: "Comunicados", label: "Comunicados", desc: "Publicación de nuevos comunicados" },
   { key: "Documentos", label: "Documentos", desc: "Cuando se envía un documento a un empleado" },
+  {
+    key: "FueraSede",
+    label: "Fichajes fuera de la sede",
+    desc: "Avisa por email a administradores y responsables cuando alguien ficha más lejos del radio de su sede",
+  },
 ] as const;
 
 // ── Toggle component ──────────────────────────────────────────────────────────
@@ -152,6 +158,7 @@ function ConfiguracionPageInner() {
     fichajeMovilActivo: true, fichajeTabletActivo: true,
     notifAusencias: true, notifTurnos: true, notifTareas: true,
     notifFichajes: false, notifComunicados: true, notifDocumentos: true,
+    notifFueraSede: true,
     emailActivo: false, emailHost: "", emailPort: 587, emailSecure: true,
     emailUser: "", emailPassword: "", emailFrom: "",
     pushActivo: false, pushVapidPublicKey: null,
@@ -231,6 +238,7 @@ function ConfiguracionPageInner() {
           notifFichajes: config.notifFichajes,
           notifComunicados: config.notifComunicados,
           notifDocumentos: config.notifDocumentos,
+          notifFueraSede: config.notifFueraSede,
           emailActivo: config.emailActivo,
           emailHost: config.emailHost,
           emailPort: config.emailPort,

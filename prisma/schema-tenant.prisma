@@ -530,6 +530,11 @@ model ConfiguracionEmpresa {
   notifFichajes       Boolean  @default(false)
   notifComunicados    Boolean  @default(true)
   notifDocumentos     Boolean  @default(true)
+  // Aviso por email a OWNER + managers de la sede cuando un empleado
+  // ficha a más distancia de la sede que el radio configurado en
+  // `Tienda.radio` (200 m por defecto). Solo avisa: RD 8/2019 impide
+  // rechazar el fichaje por ubicación.
+  notifFueraSede      Boolean  @default(true)
   emailActivo         Boolean  @default(false)
   emailHost           String?
   emailPort           Int?
