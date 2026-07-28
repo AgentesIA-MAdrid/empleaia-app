@@ -72,6 +72,7 @@ export const POST = withTenant(
       color = "#6366f1",
       managerId,
       esOficina = false,
+      exigirFichajeEnSede = false,
     } = body as {
       nombre: string;
       direccion: string;
@@ -85,6 +86,7 @@ export const POST = withTenant(
       color?: string;
       managerId?: string | null;
       esOficina?: boolean;
+      exigirFichajeEnSede?: boolean;
     };
 
     if (!nombre || !direccion || !ciudad) {
@@ -148,6 +150,7 @@ export const POST = withTenant(
           // Responsable informativo: cadena vacía → sin responsable.
           managerId: managerId || null,
           esOficina: Boolean(esOficina),
+          exigirFichajeEnSede: Boolean(exigirFichajeEnSede),
         },
       });
     });

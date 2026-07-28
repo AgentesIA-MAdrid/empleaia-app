@@ -19,6 +19,7 @@ import type { NextRequest } from "next/server";
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { normalizarCrearSolicitud } from "@/lib/solicitudes-fichaje/core";
 import { notifySolicitudCreada } from "@/lib/solicitudes-fichaje/notify";
+import { calcularDistancia } from "@/lib/utils";
 
 const ESTADOS = ["PENDIENTE", "APROBADA", "RECHAZADA", "CANCELADA"];
 
@@ -94,7 +95,7 @@ export const POST = withTenant(async (request: NextRequest) => {
     if (!norm.ok) {
       return Response.json({ error: norm.error }, { status: 400 });
     }
-    const { clase, tipo, fechaHora, motivo, fichajeId } = norm.data;
+    const { clase, tipo, fechaHora, motivo, fichajeId, latitud, longitud, distancia } = norm.data;
 
     // Solicitante: el propio usuario (con su tienda y coordinador).
     const solicitante = await prisma.user.findUnique({
@@ -116,6 +117,22 @@ export const POST = withTenant(async (request: NextRequest) => {
       }
     }
 
+    // En "fuera_sede" la distancia se recalcula aquí con las coordenadas de
+    // la sede: la que envíe el cliente no es auditable (ver /api/fichajes).
+    let distanciaReal = distancia;
+    if (clase === "fuera_sede" && latitud != null && longitud != null) {
+      const tienda = solicitante.tiendaId
+        ? await prisma.tienda.findUnique({
+            where: { id: solicitante.tiendaId },
+            select: { latitud: true, longitud: true },
+          })
+        : null;
+      distanciaReal =
+        tienda?.latitud != null && tienda?.longitud != null
+          ? Math.round(calcularDistancia(latitud, longitud, tienda.latitud, tienda.longitud))
+          : null;
+    }
+
     const creada = await prisma.solicitudFichaje.create({
       data: {
         solicitanteId: userId,
@@ -126,6 +143,9 @@ export const POST = withTenant(async (request: NextRequest) => {
         fechaHora,
         motivo,
         estado: "PENDIENTE",
+        latitud,
+        longitud,
+        distancia: distanciaReal,
       },
       include: includeSolicitud,
     });

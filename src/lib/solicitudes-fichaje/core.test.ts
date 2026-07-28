@@ -119,3 +119,85 @@ describe("build fichaje data", () => {
     expect(n).toContain("Olvidé fichar");
   });
 });
+
+describe("clase fuera_sede (ticket #61)", () => {
+  const ahora = new Date("2026-06-25T12:00:00Z");
+  const base = {
+    clase: "fuera_sede",
+    tipo: "ENTRADA",
+    fechaHora: "2026-06-25T09:00:00Z",
+    motivo: "Reparto en casa de un cliente",
+  };
+
+  it("acepta el intento con coordenadas y conserva la geo", () => {
+    const r = normalizarCrearSolicitud(
+      { ...base, latitud: 40.4168, longitud: -3.7038, distancia: 1234.6 },
+      ahora,
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.data.clase).toBe("fuera_sede");
+      expect(r.data.latitud).toBe(40.4168);
+      expect(r.data.longitud).toBe(-3.7038);
+      expect(r.data.distancia).toBe(1235);
+    }
+  });
+
+  it("rechaza el intento sin coordenadas", () => {
+    const r = normalizarCrearSolicitud(base, ahora);
+    expect(r.ok).toBe(false);
+  });
+
+  it("rechaza coordenadas fuera de rango", () => {
+    const r = normalizarCrearSolicitud({ ...base, latitud: 120, longitud: 0 }, ahora);
+    expect(r.ok).toBe(false);
+  });
+
+  it("acepta distancia ausente (la recalcula el servidor)", () => {
+    const r = normalizarCrearSolicitud({ ...base, latitud: 40.4, longitud: -3.7 }, ahora);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.distancia).toBeNull();
+  });
+
+  it("exige motivo como cualquier otra solicitud", () => {
+    const r = normalizarCrearSolicitud(
+      { ...base, motivo: "x", latitud: 40.4, longitud: -3.7 },
+      ahora,
+    );
+    expect(r.ok).toBe(false);
+  });
+
+  it("las clases sin geo no arrastran coordenadas", () => {
+    const r = normalizarCrearSolicitud(
+      { clase: "olvido", tipo: "ENTRADA", fechaHora: "2026-06-25T09:00:00Z", motivo: "Olvido", latitud: 40.4, longitud: -3.7 },
+      ahora,
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.data.latitud).toBeNull();
+      expect(r.data.longitud).toBeNull();
+    }
+  });
+
+  it("el fichaje aprobado hereda dónde se fichó", () => {
+    const d = buildFichajeCreate({
+      solicitanteId: "u1",
+      tiendaId: "t1",
+      tipo: "ENTRADA",
+      fechaHora: new Date("2026-06-25T09:00:00Z"),
+      resolverId: "u2",
+      nota: "nota",
+      latitud: 40.4168,
+      longitud: -3.7038,
+      distancia: 1235,
+    });
+    expect(d.latitud).toBe(40.4168);
+    expect(d.distancia).toBe(1235);
+  });
+
+  it("la nota distingue el fichaje fuera de sede", () => {
+    const n = notaFichaje("Reparto", "Sandra", "fuera_sede");
+    expect(n).toContain("fuera de la sede");
+    expect(n).toContain("Reparto");
+  });
+});
