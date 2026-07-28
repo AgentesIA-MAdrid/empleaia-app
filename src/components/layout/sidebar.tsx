@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useFeatures } from "@/lib/hooks/use-features";
 import { Lock } from "lucide-react";
@@ -71,7 +71,7 @@ function getSidebarConfig(rol: string, pendingAusencias = 0): SidebarConfig {
           key: "tiempo",
           label: "GESTIÓN DEL TIEMPO",
           items: [
-            { label: "Fichajes", href: "/admin/informes?vista=fichajes", icon: Clock },
+            { label: "Fichajes", href: "/admin/fichajes", icon: Clock },
             { label: "Aprobaciones de fichaje", href: "/admin/solicitudes-fichaje", icon: ClipboardCheck },
             { label: "Ausencias", href: "/admin/ausencias", icon: ClipboardList, badge: pendingAusencias || undefined, feature: "ausencias_aprobacion" },
             { label: "Turnos", href: "/admin/turnos", icon: Calendar, feature: "turnos_publicacion" },
@@ -128,7 +128,7 @@ function getSidebarConfig(rol: string, pendingAusencias = 0): SidebarConfig {
           label: "EMPRESA",
           items: [
             { label: "Documentos", href: "/admin/documentos", icon: FolderOpen, feature: "documentos" },
-            { label: "Informes", href: "/admin/informes?vista=informes", icon: BarChart3, feature: "informes_avanzados" },
+            { label: "Informes", href: "/admin/informes", icon: BarChart3, feature: "informes_avanzados" },
             { label: "Asistente IA", href: "/admin/asistente-ia", icon: Bot, feature: "asistente_ia" },
             { label: "Face ID", href: "/admin/face-id", icon: ScanFace, feature: "face_id" },
             { label: "Firma electrónica", href: "/admin/firma", icon: Pen, feature: "firma_electronica" },
@@ -261,7 +261,6 @@ export function Sidebar({
   onToggle,
 }: SidebarProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [collapsed, setCollapsed] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
@@ -279,15 +278,6 @@ export function Sidebar({
   };
 
   const isActive = (href: string) => {
-    // Entradas que solo se distinguen por la query (?vista=…): hay que
-    // comparar el parámetro, o dos items de la misma ruta salen activos a la
-    // vez. Sin query en la URL vale el valor por defecto de la página.
-    const [base, query] = href.split("?");
-    if (query) {
-      if (pathname !== base) return false;
-      const esperado = new URLSearchParams(query).get("vista");
-      return (searchParams.get("vista") ?? "fichajes") === esperado;
-    }
     if (pathname === href) return true;
     if (href !== "/admin" && href !== "/manager" && href !== "/empleado") {
       return pathname.startsWith(href);

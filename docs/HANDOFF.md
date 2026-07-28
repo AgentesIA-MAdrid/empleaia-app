@@ -94,10 +94,18 @@ migración verificada en `tenant_mobileshop`, `healthz` 200).
   lat/lon/distancia y el fichaje resultante las hereda.
   Migración: `20260728120000_fichaje_en_sede` (idempotente).
 - **#62 — "informes y fichajes son la misma página".** Lo eran: las dos
-  entradas del sidebar apuntaban a `/admin/informes`. Ahora son dos
-  pestañas (`?vista=fichajes|informes`) y el listado de fichajes deja
-  de estar limitado al plan básico. `isActive` del sidebar compara
-  también la query.
+  entradas del sidebar apuntaban a `/admin/informes`. Se resolvió con
+  dos pestañas (`?vista=fichajes|informes`) sobre la misma ruta.
+  **Superado** — ver `f9e69bf5` más abajo: la clienta volvió a
+  reportarlo (seguía siendo la misma página) y ahora son dos rutas.
+- **f9e69bf5 — reapertura de #62.** Las pestañas no bastaban: misma
+  URL, mismo título de cabecera, mismos filtros y botones. Ahora
+  `/admin/fichajes` (registro en crudo, sin gate de plan — RD 8/2019)
+  y `/admin/informes` (KPIs, gráfica, resumen por empleado, gateado por
+  `informes_avanzados`) son páginas distintas. El export de Informes
+  pasa a `tipo=resumen` (el de Fichajes sigue en `tipo=fichajes`);
+  `/admin/informes?vista=fichajes` redirige a la ruta nueva y el
+  `isActive` del sidebar vuelve a comparar solo el pathname.
 - **#63 — horas de un mes según cuadrante.** Botón "Horas del mes" en
   `/admin/turnos`: total por empleado, total general y CSV por centro,
   sobre `/api/informes/horas-por-centro?origen=cuadrante`.

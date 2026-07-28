@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { Suspense, useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FileSpreadsheet, FileText, BarChart2, CalendarRange, MapPin, Smartphone, Tablet, Globe, ScanFace, Search, Lock } from "lucide-react";
+import { FileSpreadsheet, FileText, BarChart2, CalendarRange, Search, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FeatureGateClient } from "@/components/feature-gate-client";
 import { useFeatures } from "@/lib/hooks/use-features";
@@ -21,9 +21,6 @@ import { descargarCSVHorasPorCentro } from "@/lib/informes/horas-centro-csv";
 /** Origen de las horas del informe por centro: fichadas o planificadas. */
 type OrigenHoras = "fichajes" | "cuadrante";
 
-/** Pestaña activa de la página (ticket #62). */
-type Vista = "fichajes" | "informes";
-
 interface Tienda { id: string; nombre: string; }
 interface Empleado {
   id: string;
@@ -38,68 +35,32 @@ interface ResumenEmpleado {
 }
 interface Stats { totalHoras: number; mediaHorasDia: number; totalAusencias: number; horasExtra: number; }
 
-interface FichajeDetalle {
-  id: string;
-  timestamp: string;
-  tipo: "ENTRADA" | "PAUSA" | "VUELTA_PAUSA" | "SALIDA";
-  metodo: "WEB" | "MOVIL" | "TABLET" | "MANUAL";
-  latitud: number | null;
-  longitud: number | null;
-  distancia: number | null;
-  nota: string | null;
-  user: { id: string; nombre: string; apellidos: string; foto: string | null };
-  tienda: { id: string; nombre: string; radio?: number | null } | null;
-  tieneFoto?: boolean;
-}
-
-/** "34 m" / "1,2 km" — distancia del fichaje al centro de la sede. */
-function formatDistancia(metros: number): string {
-  return metros < 1000
-    ? `${Math.round(metros)} m`
-    : `${(metros / 1000).toFixed(1).replace(".", ",")} km`;
-}
-
-const TIPO_LABEL: Record<FichajeDetalle["tipo"], string> = {
-  ENTRADA: "Entrada",
-  PAUSA: "Pausa",
-  VUELTA_PAUSA: "Vuelta",
-  SALIDA: "Salida",
-};
-const TIPO_CLS: Record<FichajeDetalle["tipo"], string> = {
-  ENTRADA: "bg-emerald-50 text-emerald-700",
-  PAUSA: "bg-amber-50 text-amber-700",
-  VUELTA_PAUSA: "bg-sky-50 text-sky-700",
-  SALIDA: "bg-rose-50 text-rose-700",
-};
-
-function MetodoIcon({ m }: { m: FichajeDetalle["metodo"] }) {
-  if (m === "MOVIL") return <Smartphone className="h-3.5 w-3.5" />;
-  if (m === "TABLET") return <Tablet className="h-3.5 w-3.5" />;
-  if (m === "MANUAL") return <ScanFace className="h-3.5 w-3.5" />;
-  return <Globe className="h-3.5 w-3.5" />;
-}
-
-export default function AdminInformesPage() {
+/**
+ * Análisis de asistencia y horas trabajadas. El registro en crudo de
+ * entradas y salidas vive en su propia pantalla (`/admin/fichajes`): son
+ * dos cosas distintas y cada entrada del menú abre la suya.
+ */
+function AdminInformesContent() {
   const { toast } = useToast();
-  const { data: features } = useFeatures();
+  const { data: features, loading: featuresLoading } = useFeatures();
   // Análisis avanzado (resumen agregado, gráficos, estadísticas) requiere
-  // plan Pro o superior. Sin la feature mostramos solo el listado de
-  // fichajes (RD 8/2019 obliga a que el OWNER pueda consultarlo siempre).
-  // `null` mientras carga: tratamos como avanzado para evitar el flash
-  // del estado básico antes de saber el plan real.
+  // plan Pro o superior. Sin la feature esta pantalla solo muestra el
+  // upsell: el listado de fichajes (obligatorio por RD 8/2019) está en
+  // /admin/fichajes, sin gate.
+  // Mientras el hook carga tratamos el plan como avanzado (evita el flash
+  // del upsell) y no pedimos datos todavía, así no provocamos un 402
+  // seguro en `tipo=resumen`. Si el hook falla, `features` se queda a null
+  // y seguimos pidiendo: el backend es quien manda.
   const hasAdvanced = features == null || features.booleans?.informes_avanzados === true;
 
-  // Ticket #62 — "Fichajes" e "Informes" eran la misma pantalla. Ahora son
-  // dos pestañas de esta página; el menú lateral apunta a cada una con
-  // ?vista=. Sin query, la pestaña por defecto es el listado de fichajes,
-  // que es lo que todos los planes deben poder ver (RD 8/2019).
+  // Compatibilidad con los enlaces antiguos `?vista=fichajes` (cuando
+  // Fichajes e Informes compartían página): llevan a la pantalla nueva.
   const searchParams = useSearchParams();
-  const vista: Vista = searchParams.get("vista") === "informes" ? "informes" : "fichajes";
   const router = useRouter();
-  const cambiarVista = useCallback(
-    (v: Vista) => router.replace(`/admin/informes?vista=${v}`, { scroll: false }),
-    [router],
-  );
+  const vistaLegacy = searchParams.get("vista");
+  useEffect(() => {
+    if (vistaLegacy === "fichajes") router.replace("/admin/fichajes");
+  }, [vistaLegacy, router]);
 
   const [fechaInicio, setFechaInicio] = useState(format(subDays(new Date(), 30), "yyyy-MM-dd"));
   const [fechaFin, setFechaFin] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -110,15 +71,14 @@ export default function AdminInformesPage() {
 
   const [datos, setDatos] = useState<ResumenEmpleado[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
-  const [fichajes, setFichajes] = useState<FichajeDetalle[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [exportando, setExportando] = useState(false);
   // Origen del informe por centro que se está generando (null = ninguno).
   const [horasCargando, setHorasCargando] = useState<OrigenHoras | null>(null);
 
   // ── Carga inicial: sedes + empleados ────────────────────────────────────
   useEffect(() => {
-    fetch("/api/tiendas").then(r => r.json()).then(d => setTiendas(d.tiendas || []));
+    fetch("/api/tiendas").then(r => r.json()).then(d => setTiendas(d.tiendas || [])).catch(() => setTiendas([]));
     fetch("/api/empleados").then(r => r.json()).then(d => {
       const list: Empleado[] = (d.empleados || d || []).map((e: Record<string, unknown>) => ({
         id: String(e.id),
@@ -144,54 +104,38 @@ export default function AdminInformesPage() {
     return empleados.filter((e) => e.tiendaId === tiendaId);
   }, [empleados, tiendaId]);
 
-  const empleadoSel = useMemo(
-    () => empleados.find((e) => e.id === empleadoId) ?? null,
-    [empleados, empleadoId],
-  );
-  const empleadoTienda = useMemo(
-    () => (empleadoSel?.tiendaId ? tiendas.find((t) => t.id === empleadoSel.tiendaId) : null),
-    [empleadoSel, tiendas],
-  );
+  const buildParams = useCallback(() => {
+    const params = new URLSearchParams({
+      fechaInicio: `${fechaInicio}T00:00:00Z`,
+      fechaFin: `${fechaFin}T23:59:59Z`,
+    });
+    if (tiendaId !== "todas") params.set("tiendaId", tiendaId);
+    if (empleadoId !== "todos") params.set("userId", empleadoId);
+    return params;
+  }, [fechaInicio, fechaFin, tiendaId, empleadoId]);
 
-  // ── Fetch principal ──────────────────────────────────────────────────────
+  // ── Fetch principal: resumen agregado ────────────────────────────────────
   const fetchInformes = useCallback(async () => {
+    if (featuresLoading) return;
+    if (!hasAdvanced) {
+      setDatos([]);
+      setStats(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const baseParams = new URLSearchParams({
-        fechaInicio: `${fechaInicio}T00:00:00Z`,
-        fechaFin: `${fechaFin}T23:59:59Z`,
-      });
-      if (tiendaId !== "todas") baseParams.set("tiendaId", tiendaId);
-      if (empleadoId !== "todos") baseParams.set("userId", empleadoId);
-
-      if (hasAdvanced) {
-        // Plan con análisis avanzado: resumen + (si toca) detalle.
-        const resResumen = await fetch(`/api/informes?${baseParams}&tipo=resumen`);
-        const dataResumen = await resResumen.json();
-        setDatos(dataResumen.empleados || []);
-        setStats(dataResumen.stats || null);
-
-        // El listado de fichajes hace falta en la pestaña "Fichajes" (para
-        // todos) y al abrir el detalle de un empleado concreto.
-        if (empleadoId !== "todos" || vista === "fichajes") {
-          const resF = await fetch(`/api/informes?${baseParams}&tipo=fichajes`);
-          const dataF = await resF.json();
-          setFichajes((dataF?.data ?? []) as FichajeDetalle[]);
-        } else {
-          setFichajes([]);
-        }
-      } else {
-        // Plan básico: solo listado de fichajes, sin agregaciones.
-        setDatos([]);
-        setStats(null);
-        const resF = await fetch(`/api/informes?${baseParams}&tipo=fichajes`);
-        const dataF = await resF.json();
-        setFichajes((dataF?.data ?? []) as FichajeDetalle[]);
-      }
+      const res = await fetch(`/api/informes?${buildParams()}&tipo=resumen`);
+      const data = await res.json();
+      setDatos(data.empleados || []);
+      setStats(data.stats || null);
+    } catch {
+      setDatos([]);
+      setStats(null);
     } finally {
       setLoading(false);
     }
-  }, [fechaInicio, fechaFin, tiendaId, empleadoId, hasAdvanced, vista]);
+  }, [buildParams, featuresLoading, hasAdvanced]);
 
   useEffect(() => { fetchInformes(); }, [fetchInformes]);
 
@@ -204,14 +148,9 @@ export default function AdminInformesPage() {
   const handleExport = async (formato: "xlsx" | "pdf") => {
     setExportando(true);
     try {
-      const params = new URLSearchParams({
-        tipo: "fichajes",
-        fechaInicio: `${fechaInicio}T00:00:00Z`,
-        fechaFin: `${fechaFin}T23:59:59Z`,
-        formato,
-      });
-      if (tiendaId !== "todas") params.set("tiendaId", tiendaId);
-      if (empleadoId !== "todos") params.set("userId", empleadoId);
+      const params = buildParams();
+      params.set("tipo", "resumen");
+      params.set("formato", formato);
       const res = await fetch(`/api/informes/exportar?${params}`);
       if (!res.ok) {
         if (res.status === 402 || res.status === 429) {
@@ -285,23 +224,21 @@ export default function AdminInformesPage() {
 
   const maxHoras = Math.max(...datos.map((d) => d.horasTotales), 0);
 
-  // Selecciona la fila del resumen correspondiente al empleado activo.
-  const detalleEmpleadoStats = useMemo(() => {
-    if (empleadoId === "todos") return null;
-    return datos.find((d) => d.userId === empleadoId) ?? null;
-  }, [datos, empleadoId]);
+  /** Enlace al registro de fichajes con los filtros actuales aplicados. */
+  const enlaceFichajes = (userId?: string) => {
+    const params = new URLSearchParams({ fechaInicio, fechaFin });
+    if (tiendaId !== "todas") params.set("tiendaId", tiendaId);
+    if (userId) params.set("userId", userId);
+    return `/admin/fichajes?${params}`;
+  };
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            {vista === "fichajes" ? "Fichajes" : "Informes"}
-          </h1>
+          <h1 className="text-2xl font-bold text-slate-900">Informes</h1>
           <p className="text-slate-500 text-sm mt-1">
-            {vista === "fichajes"
-              ? "Registro de entradas y salidas de tu plantilla"
-              : "Análisis de asistencia y horas trabajadas"}
+            Análisis de asistencia y horas trabajadas
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -337,27 +274,6 @@ export default function AdminInformesPage() {
             </Button>
           </FeatureGateClient>
         </div>
-      </div>
-
-      <div className="flex gap-1 border-b border-slate-200">
-        {([
-          { id: "fichajes", label: "Fichajes" },
-          { id: "informes", label: "Informes" },
-        ] as { id: Vista; label: string }[]).map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => cambiarVista(t.id)}
-            aria-current={vista === t.id ? "page" : undefined}
-            className={
-              vista === t.id
-                ? "px-4 py-2 text-sm font-semibold text-[var(--primary)] border-b-2 border-[var(--primary)] -mb-px"
-                : "px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-800 border-b-2 border-transparent -mb-px"
-            }
-          >
-            {t.label}
-          </button>
-        ))}
       </div>
 
       <Card>
@@ -397,11 +313,14 @@ export default function AdminInformesPage() {
               <Search className="h-4 w-4 mr-1.5" />
               {loading ? "Cargando..." : "Aplicar"}
             </Button>
+            <Link href={enlaceFichajes(empleadoId !== "todos" ? empleadoId : undefined)} className="ml-auto">
+              <Button variant="ghost">Ver registro de fichajes →</Button>
+            </Link>
           </div>
         </CardContent>
       </Card>
 
-      {vista === "informes" && !hasAdvanced && (
+      {!hasAdvanced && (
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="pt-4 pb-4 flex items-start gap-3">
             <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
@@ -411,8 +330,9 @@ export default function AdminInformesPage() {
               </p>
               <p className="text-sm text-amber-800 mt-0.5">
                 Tu plan actual incluye el listado de fichajes (obligatorio por
-                RD 8/2019). Para ver resumen agregado, gráficos de horas,
-                detección de horas extra y ausencias, actualiza tu plan.
+                RD 8/2019), en la pantalla de Fichajes. Para ver resumen
+                agregado, gráficos de horas, detección de horas extra y
+                ausencias, actualiza tu plan.
               </p>
             </div>
             <Link href="/admin/planes" className="shrink-0">
@@ -422,7 +342,7 @@ export default function AdminInformesPage() {
         </Card>
       )}
 
-      {vista === "informes" && stats && (
+      {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
           {[
             { label: "Total horas", value: `${stats.totalHoras.toFixed(0)}h`, color: "text-[var(--primary)]" },
@@ -440,8 +360,7 @@ export default function AdminInformesPage() {
         </div>
       )}
 
-      {/* ─── Vista resumen (sin empleado seleccionado) — requiere informes_avanzados ─── */}
-      {vista === "informes" && empleadoId === "todos" && hasAdvanced && (
+      {hasAdvanced && (
         <>
           {chartData.length > 0 && (
             <Card>
@@ -507,9 +426,10 @@ export default function AdminInformesPage() {
                             </td>
                             <td className="px-4 py-3 text-sm text-slate-600">{e.diasAusencia} días</td>
                             <td className="px-4 py-3 text-right">
-                              <Button variant="ghost" size="sm" onClick={() => setEmpleadoId(e.userId)}>
-                                Ver fichajes →
-                              </Button>
+                              {/* El detalle en crudo vive en su propia pantalla. */}
+                              <Link href={enlaceFichajes(e.userId)}>
+                                <Button variant="ghost" size="sm">Ver fichajes →</Button>
+                              </Link>
                             </td>
                           </tr>
                         );
@@ -522,195 +442,16 @@ export default function AdminInformesPage() {
           </Card>
         </>
       )}
-
-      {/* ─── Listado de fichajes: pestaña "Fichajes", cualquier plan ────── */}
-      {vista === "fichajes" && empleadoId === "todos" && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Listado de fichajes</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="p-4 space-y-2">{[1, 2, 3, 4].map(i => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />)}</div>
-            ) : fichajes.length === 0 ? (
-              <p className="text-center py-8 text-slate-400">No hay fichajes en el periodo seleccionado</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      {["Fecha", "Hora", "Empleado", "Tipo", "Método", "Sede"].map(h => (
-                        <th key={h} className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {fichajes.map(f => {
-                      const d = new Date(f.timestamp);
-                      return (
-                        <tr key={f.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{format(d, "dd/MM/yyyy")}</td>
-                          <td className="px-4 py-3 text-sm font-mono text-slate-900 whitespace-nowrap">{format(d, "HH:mm:ss")}</td>
-                          <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{f.user.nombre} {f.user.apellidos}</td>
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${TIPO_CLS[f.tipo]}`}>
-                              {TIPO_LABEL[f.tipo]}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-slate-500"><MetodoIcon m={f.metodo} /></td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{f.tienda?.nombre ?? "—"}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ─── Vista detalle de un empleado ───────────────────────────────── */}
-      {empleadoId !== "todos" && empleadoSel && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-4 flex-wrap">
-              {empleadoSel.foto ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={empleadoSel.foto}
-                  alt={`${empleadoSel.nombre} ${empleadoSel.apellidos}`}
-                  className="h-14 w-14 rounded-full object-cover border-2 border-white shadow-sm"
-                />
-              ) : (
-                <EmployeeAvatar nombre={empleadoSel.nombre} apellidos={empleadoSel.apellidos} seed={empleadoSel.id} size="lg" />
-              )}
-              <div className="flex-1 min-w-0">
-                <CardTitle className="text-lg">{empleadoSel.nombre} {empleadoSel.apellidos}</CardTitle>
-                <p className="text-sm text-slate-500 mt-0.5">
-                  {empleadoTienda ? empleadoTienda.nombre : "Sin sede asignada"}
-                  {detalleEmpleadoStats && (
-                    <> · <strong>{detalleEmpleadoStats.horasTotales.toFixed(1)}h</strong> en {detalleEmpleadoStats.diasTrabajados} días</>
-                  )}
-                </p>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => setEmpleadoId("todos")}>
-                ← Volver al resumen
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="p-4 space-y-2">{[1, 2, 3, 4].map(i => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />)}</div>
-            ) : fichajes.length === 0 ? (
-              <p className="text-center py-8 text-slate-400">No hay fichajes en el periodo seleccionado</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      {["Fecha", "Hora", "Tipo", "Método", "Sede", "Localización", "Foto", "Nota"].map(h => (
-                        <th key={h} className={`text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3${(h === "Localización" || h === "Foto") ? " hidden md:table-cell" : ""}`}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {fichajes.map(f => {
-                      const d = new Date(f.timestamp);
-                      const tieneGeo = f.latitud != null && f.longitud != null;
-                      const mapsUrl = tieneGeo
-                        ? `https://www.google.com/maps?q=${f.latitud},${f.longitud}`
-                        : null;
-                      // Fuera de la sede = distancia mayor que el radio
-                      // configurado para esa tienda (200 m por defecto).
-                      const radio = f.tienda?.radio ?? null;
-                      const fueraDeSede =
-                        f.distancia != null && radio != null && f.distancia > radio;
-                      return (
-                        <tr key={f.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">
-                            {format(d, "dd/MM/yyyy")}
-                          </td>
-                          <td className="px-4 py-3 text-sm font-mono text-slate-900 whitespace-nowrap">
-                            {format(d, "HH:mm:ss")}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${TIPO_CLS[f.tipo]}`}>
-                              {TIPO_LABEL[f.tipo]}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="inline-flex items-center gap-1 text-xs text-slate-600">
-                              <MetodoIcon m={f.metodo} />
-                              {f.metodo}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
-                            {f.tienda?.nombre ?? "—"}
-                          </td>
-                          <td className="hidden md:table-cell px-4 py-3 text-sm">
-                            {mapsUrl ? (
-                              <div className="flex items-center gap-2">
-                                <a
-                                  href={mapsUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-[var(--primary)] hover:underline"
-                                  title={`${f.latitud!.toFixed(6)}, ${f.longitud!.toFixed(6)}`}
-                                >
-                                  <MapPin className="h-3.5 w-3.5" />
-                                  Ver en mapa
-                                </a>
-                                {f.distancia != null && (
-                                  <span
-                                    className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium whitespace-nowrap ${
-                                      fueraDeSede
-                                        ? "bg-amber-50 text-amber-700"
-                                        : "bg-slate-100 text-slate-600"
-                                    }`}
-                                    title={
-                                      radio != null
-                                        ? `${formatDistancia(f.distancia)} del centro de la sede (radio configurado: ${radio} m)`
-                                        : `${formatDistancia(f.distancia)} del centro de la sede`
-                                    }
-                                  >
-                                    {fueraDeSede ? "Fuera de la sede · " : ""}
-                                    {formatDistancia(f.distancia)}
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-slate-400 text-xs">Sin ubicación</span>
-                            )}
-                          </td>
-                          <td className="hidden md:table-cell px-4 py-3">
-                            {f.tieneFoto ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <a href={`/api/fichajes/${f.id}/foto`} target="_blank" rel="noopener noreferrer" title="Ver foto del fichaje">
-                                <img
-                                  src={`/api/fichajes/${f.id}/foto`}
-                                  alt="Snapshot Face ID"
-                                  className="h-10 w-10 rounded-md object-cover border border-slate-200 hover:scale-110 transition-transform"
-                                  loading="lazy"
-                                />
-                              </a>
-                            ) : (
-                              <span className="text-slate-300 text-xs">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-slate-600 max-w-[200px] truncate" title={f.nota ?? ""}>
-                            {f.nota || "—"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
     </div>
+  );
+}
+
+// `useSearchParams` exige un límite de Suspense en Next 16 (misma pauta
+// que /admin/configuracion).
+export default function AdminInformesPage() {
+  return (
+    <Suspense fallback={<div className="p-6 animate-pulse"><div className="h-40 bg-slate-100 rounded-xl" /></div>}>
+      <AdminInformesContent />
+    </Suspense>
   );
 }
