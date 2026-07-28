@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { agregarHorasPorCentro } from "./horas-por-centro";
+import {
+  agregarHorasPorCentro,
+  agregarHorasCuadrantePorCentro,
+} from "./horas-por-centro";
 
 const u = (nombre: string) => ({ nombre, apellidos: "X" });
 
@@ -43,5 +46,55 @@ describe("agregarHorasPorCentro", () => {
     ]);
     expect(filas[0].centro).toBe("Sin sede");
     expect(filas[0].horas).toBe(2);
+  });
+});
+
+describe("agregarHorasCuadrantePorCentro", () => {
+  const turno = (
+    userId: string,
+    nombre: string,
+    tiendaId: string,
+    centro: string,
+    extra: Record<string, unknown>,
+  ) => ({
+    userId,
+    tiendaId,
+    user: u(nombre),
+    tienda: { nombre: centro },
+    ...extra,
+  });
+
+  it("suma las horas del tipo de turno por empleado y centro", () => {
+    const filas = agregarHorasCuadrantePorCentro([
+      // Ana: 2 mañanas (6h) en Sede A y 1 tarde (7h) en Sede B.
+      turno("ana", "Ana", "A", "Sede A", { tipoTurno: { horas: 6 } }),
+      turno("ana", "Ana", "A", "Sede A", { tipoTurno: { horas: "6" } }),
+      turno("ana", "Ana", "B", "Sede B", { tipoTurno: { horas: 7 } }),
+    ]);
+    expect(filas).toHaveLength(2);
+    expect(filas.find((f) => f.tiendaId === "A")!.horas).toBe(12);
+    expect(filas.find((f) => f.tiendaId === "B")!.horas).toBe(7);
+    expect(filas[0].empleado).toBe("Ana X");
+  });
+
+  it("cae al rango horario cuando el tipo no fija horas y suma 0 en LIBRE", () => {
+    const filas = agregarHorasCuadrantePorCentro([
+      turno("leo", "Leo", "A", "Sede A", { horaInicio: "09:00", horaFin: "13:30" }),
+      turno("leo", "Leo", "A", "Sede A", {
+        tipoTurno: { esLibre: true, horas: 0 },
+        horaInicio: "00:00",
+        horaFin: "00:00",
+      }),
+    ]);
+    expect(filas).toHaveLength(1);
+    expect(filas[0].horas).toBe(4.5);
+  });
+
+  it("cuenta el turno que cruza medianoche como 8h", () => {
+    const filas = agregarHorasCuadrantePorCentro([
+      turno("sam", "Sam", "A", "Sede A", { horaInicio: "22:00", horaFin: "06:00" }),
+    ]);
+    expect(filas[0].horas).toBe(8);
+    expect(filas[0].centro).toBe("Sede A");
   });
 });
