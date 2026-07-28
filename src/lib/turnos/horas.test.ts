@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { horasDeRango, horasDeTurno, etiquetaTurno } from "./horas";
+import {
+  horasDeRango,
+  horasDeTurno,
+  etiquetaTurno,
+  indexarAusencias,
+  diaConAusencia,
+} from "./horas";
 
 describe("horasDeRango", () => {
   it("calcula un turno de mañana", () => {
@@ -35,6 +41,33 @@ describe("horasDeTurno", () => {
   });
   it("deriva del rango sin tipo", () => {
     expect(horasDeTurno({ horaInicio: "16:00", horaFin: "21:00" })).toBe(5);
+  });
+});
+
+describe("diaConAusencia", () => {
+  // Turnos y ausencias se guardan a medianoche UTC.
+  const indice = indexarAusencias([
+    { userId: "yesy", fechaInicio: "2026-07-06T00:00:00.000Z", fechaFin: "2026-07-10T00:00:00.000Z" },
+    { userId: "yesy", fechaInicio: new Date("2026-07-20T00:00:00.000Z"), fechaFin: new Date("2026-07-20T00:00:00.000Z") },
+  ]);
+
+  it("detecta el primer y el último día del rango (extremos incluidos)", () => {
+    expect(diaConAusencia("yesy", "2026-07-06T00:00:00.000Z", indice)).toBe(true);
+    expect(diaConAusencia("yesy", "2026-07-10T00:00:00.000Z", indice)).toBe(true);
+  });
+  it("detecta una ausencia de un solo día", () => {
+    expect(diaConAusencia("yesy", new Date("2026-07-20T00:00:00.000Z"), indice)).toBe(true);
+  });
+  it("no marca los días fuera del rango", () => {
+    expect(diaConAusencia("yesy", "2026-07-05T00:00:00.000Z", indice)).toBe(false);
+    expect(diaConAusencia("yesy", "2026-07-11T00:00:00.000Z", indice)).toBe(false);
+  });
+  it("no contagia a otros empleados", () => {
+    expect(diaConAusencia("otro", "2026-07-07T00:00:00.000Z", indice)).toBe(false);
+  });
+  it("tolera fechas inválidas y el índice vacío", () => {
+    expect(diaConAusencia("yesy", "no-es-fecha", indice)).toBe(false);
+    expect(diaConAusencia("yesy", "2026-07-07T00:00:00.000Z", indexarAusencias([]))).toBe(false);
   });
 });
 

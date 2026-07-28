@@ -248,9 +248,16 @@ export default function AdminTurnosPage() {
         end: endOfDay(new Date(a.fechaFin)),
       }));
 
+  // Un turno que cae en un día con ausencia APROBADA no suma: ese día la
+  // persona no trabaja (la celda ya impide crear turnos ahí). Misma regla que
+  // el informe de horas por centro y el export a Excel, para que los tres
+  // cuenten igual.
   const totalSemana = (userId: string, tiendaId: string | null) =>
     turnos
-      .filter(t => t.userId === userId && (tiendaId === null || t.tiendaId === tiendaId))
+      .filter(t =>
+        t.userId === userId
+        && (tiendaId === null || t.tiendaId === tiendaId)
+        && ausenciasDe(t.userId, new Date(t.fecha)).length === 0)
       .reduce((s, t) => s + horasDeTurno(t), 0);
 
   // Filas de un grupo: empleados fijos de la sede + correturnos (visitantes)
@@ -1024,7 +1031,8 @@ export default function AdminTurnosPage() {
             <p className="text-xs text-slate-400">
               Suma las horas planificadas en el cuadrante
               {filtroTienda !== "todas" ? " de la sede filtrada" : " de todas las sedes"}. No son las
-              horas fichadas.
+              horas fichadas. No cuentan los días con ausencia aprobada (vacaciones, bajas…) ni las
+              personas dadas de baja.
             </p>
 
             {mesFilas && totalesMes.length === 0 && (
@@ -1270,10 +1278,14 @@ function CeldaDia({
               t.estado === "PUBLICADO" ? "text-white" : "border border-dashed border-slate-300 text-slate-600",
             )}
             style={t.estado === "PUBLICADO" ? { backgroundColor: t.tipoTurno?.color || "var(--primary)" } : undefined}
-            title={t.nota ? `${t.nota} · arrastra por los días para copiar` : "Arrastra por los días para copiar en cada uno"}
+            title={enAusencia
+              ? "No suma horas: la persona tiene una ausencia aprobada ese día"
+              : t.nota ? `${t.nota} · arrastra por los días para copiar` : "Arrastra por los días para copiar en cada uno"}
           >
             <div>{etiquetaTurno(t)}</div>
-            <div className="opacity-80">{horasDeTurno(t)}h</div>
+            {/* En un día con ausencia aprobada el turno queda tachado: sigue
+                visible (para poder borrarlo) pero no suma en el total. */}
+            <div className={cn("opacity-80", enAusencia && "line-through")}>{horasDeTurno(t)}h</div>
             <span
               onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
               className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px]"

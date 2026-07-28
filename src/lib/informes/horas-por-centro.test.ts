@@ -59,6 +59,8 @@ describe("agregarHorasCuadrantePorCentro", () => {
   ) => ({
     userId,
     tiendaId,
+    // Día por defecto del turno (medianoche UTC, como se guarda en BD).
+    fecha: "2026-07-01T00:00:00.000Z",
     user: u(nombre),
     tienda: { nombre: centro },
     ...extra,
@@ -88,6 +90,45 @@ describe("agregarHorasCuadrantePorCentro", () => {
     ]);
     expect(filas).toHaveLength(1);
     expect(filas[0].horas).toBe(4.5);
+  });
+
+  it("no cuenta los turnos que caen en una ausencia aprobada", () => {
+    const filas = agregarHorasCuadrantePorCentro(
+      [
+        // Día de vacaciones con un turno viejo debajo: no computa.
+        turno("yesy", "Yesy", "A", "Sede A", {
+          fecha: "2026-07-07T00:00:00.000Z",
+          horaInicio: "09:00",
+          horaFin: "15:00",
+        }),
+        // Fuera de la ausencia: sí computa.
+        turno("yesy", "Yesy", "A", "Sede A", {
+          fecha: "2026-07-15T00:00:00.000Z",
+          horaInicio: "09:00",
+          horaFin: "13:00",
+        }),
+      ],
+      [{ userId: "yesy", fechaInicio: "2026-07-06T00:00:00.000Z", fechaFin: "2026-07-10T00:00:00.000Z" }],
+    );
+    expect(filas).toHaveLength(1);
+    expect(filas[0].horas).toBe(4);
+  });
+
+  it("deja fuera del informe a quien solo tiene turnos en días de ausencia", () => {
+    const filas = agregarHorasCuadrantePorCentro(
+      [
+        turno("yesy", "Yesy", "A", "Sede A", {
+          fecha: "2026-07-07T00:00:00.000Z",
+          horaInicio: "09:00",
+          horaFin: "15:00",
+        }),
+        turno("ana", "Ana", "A", "Sede A", { tipoTurno: { horas: 6 } }),
+      ],
+      [{ userId: "yesy", fechaInicio: "2026-07-06T00:00:00.000Z", fechaFin: "2026-07-10T00:00:00.000Z" }],
+    );
+    expect(filas).toHaveLength(1);
+    expect(filas[0].empleado).toBe("Ana X");
+    expect(filas[0].horas).toBe(6);
   });
 
   it("cuenta el turno que cruza medianoche como 8h", () => {

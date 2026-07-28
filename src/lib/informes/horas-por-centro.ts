@@ -6,13 +6,21 @@
  *    sede donde fichó la entrada.
  *  - `cuadrante` (horas planificadas): suma las horas de cada turno del
  *    cuadrante y las atribuye a la sede del turno. Cuenta igual que la
- *    pantalla de Turnos y su export a Excel porque comparte `horasDeTurno`.
+ *    pantalla de Turnos y su export a Excel porque comparte `horasDeTurno`
+ *    y la misma regla de ausencias.
  *
  * Funciones puras (reciben el cliente Prisma) → testeables sin red ni BD real.
  */
 
 import type { PrismaClient } from "@/generated/prisma-tenant/client";
-import { horasDeTurno, type TurnoLite } from "@/lib/turnos/horas";
+import { EstadoAusencia } from "@/generated/prisma-tenant/client";
+import {
+  horasDeTurno,
+  indexarAusencias,
+  diaConAusencia,
+  type TurnoLite,
+  type AusenciaLite,
+} from "@/lib/turnos/horas";
 
 /** De dónde salen las horas del informe. */
 export type OrigenHorasCentro = "fichajes" | "cuadrante";
@@ -122,6 +130,8 @@ export async function calcularHorasPorCentro(opts: {
 export interface TurnoMin extends TurnoLite {
   userId: string;
   tiendaId: string | null;
+  /** Día del turno (medianoche UTC). Necesario para cruzarlo con ausencias. */
+  fecha: Date | string;
   user: { nombre: string; apellidos: string };
   tienda: { nombre: string } | null;
 }
@@ -133,12 +143,21 @@ export interface TurnoMin extends TurnoLite {
  * horario, LIBRE = 0), la misma función que usan la pantalla de Turnos y el
  * export del cuadrante: así el informe cuadra con lo que el cliente ve ahí.
  * Se acumula en minutos enteros para no arrastrar error de coma flotante.
+ *
+ * Los turnos que caen en un día con ausencia APROBADA se descartan: la
+ * persona no trabaja ese día, así que sus horas no son horas planificadas
+ * (el turno viejo que quedó bajo unas vacaciones/baja aprobadas después
+ * inflaba el informe). Si tras el descarte alguien se queda sin turnos, no
+ * aparece en el informe.
  */
 export function agregarHorasCuadrantePorCentro(
   turnos: TurnoMin[],
+  ausencias: AusenciaLite[] = [],
 ): FilaHorasCentro[] {
+  const indiceAusencias = indexarAusencias(ausencias);
   const acc = new Map<string, FilaHorasCentro>();
   for (const t of turnos) {
+    if (diaConAusencia(t.userId, t.fecha, indiceAusencias)) continue;
     const key = `${t.userId}::${t.tiendaId ?? "sin"}`;
     const minutos = Math.max(0, Math.round(horasDeTurno(t) * 60));
     const fila = acc.get(key);
@@ -177,10 +196,15 @@ export async function calcularHorasPorCentroCuadrante(opts: {
     where: {
       fecha: { gte: fechaInicio, lte: fechaFin },
       ...(tiendaId ? { tiendaId } : {}),
+      // Solo personas de alta: el cuadrante (`/api/empleados?activo=true`) y su
+      // export a Excel ya filtran así, y sin esto el informe facturaba turnos
+      // de gente dada de baja o eliminada que no sale por ningún otro sitio.
+      user: { activo: true, anonimizadoAt: null },
     },
     select: {
       userId: true,
       tiendaId: true,
+      fecha: true,
       horaInicio: true,
       horaFin: true,
       // `horas` llega como Decimal; `horasDeTurno` ya acepta Decimal/string.
@@ -192,5 +216,19 @@ export async function calcularHorasPorCentroCuadrante(opts: {
     },
     orderBy: { fecha: "asc" },
   });
-  return agregarHorasCuadrantePorCentro(turnos as TurnoMin[]);
+  if (turnos.length === 0) return [];
+
+  // Ausencias APROBADAS que solapan el periodo: sus días no computan horas
+  // planificadas aunque haya quedado un turno viejo debajo.
+  const ausencias = await prisma.ausencia.findMany({
+    where: {
+      userId: { in: [...new Set(turnos.map((t) => t.userId))] },
+      estado: EstadoAusencia.APROBADA,
+      fechaInicio: { lte: fechaFin },
+      fechaFin: { gte: fechaInicio },
+    },
+    select: { userId: true, fechaInicio: true, fechaFin: true },
+  });
+
+  return agregarHorasCuadrantePorCentro(turnos as TurnoMin[], ausencias);
 }

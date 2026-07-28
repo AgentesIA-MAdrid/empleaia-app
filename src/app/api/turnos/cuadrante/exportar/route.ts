@@ -11,11 +11,16 @@
 
 import { auth } from "@/lib/auth";
 import { prismaApp as prisma } from "@/lib/prisma";
-import { Rol } from "@/generated/prisma-tenant/client";
+import { Rol, EstadoAusencia } from "@/generated/prisma-tenant/client";
 import { type NextRequest, NextResponse } from "next/server";
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
-import { horasDeTurno, etiquetaTurno } from "@/lib/turnos/horas";
+import {
+  horasDeTurno,
+  etiquetaTurno,
+  indexarAusencias,
+  diaConAusencia,
+} from "@/lib/turnos/horas";
 import ExcelJS from "exceljs";
 
 const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
@@ -73,7 +78,7 @@ export const GET = withTenant(
     const tiendaScopeTurnos =
       user.rol === Rol.MANAGER ? (user.tiendaId ?? null) : null;
 
-    const [config, tiendas, empleados, turnos] = await Promise.all([
+    const [config, tiendas, empleados, turnos, ausencias] = await Promise.all([
       prisma.configuracionEmpresa.findFirst({ select: { horasSemanales: true } }),
       prisma.tienda.findMany({
         where: { activa: true, ...(tiendaFiltro ? { id: tiendaFiltro } : {}) },
@@ -109,9 +114,24 @@ export const GET = withTenant(
           user: { select: { nombre: true, apellidos: true } },
         },
       }),
+      // Ausencias aprobadas que solapan la semana: esos días no computan
+      // horas planificadas (misma regla que la pantalla del cuadrante y el
+      // informe de horas por centro).
+      prisma.ausencia.findMany({
+        where: {
+          estado: EstadoAusencia.APROBADA,
+          fechaInicio: { lte: fin },
+          fechaFin: { gte: inicio },
+        },
+        select: { userId: true, fechaInicio: true, fechaFin: true },
+      }),
     ]);
 
     const horasGlobal = Number(config?.horasSemanales ?? 40);
+    const indiceAusencias = indexarAusencias(ausencias);
+    /** Horas del turno, 0 si ese día la persona está de ausencia aprobada. */
+    const horasComputables = (t: (typeof turnos)[number]) =>
+      diaConAusencia(t.userId, t.fecha, indiceAusencias) ? 0 : horasDeTurno(t);
 
     // Dos índices: global (userId+ymd) — cubre TODAS las sedes de la persona,
     // sostiene "Sin sede" y la Diferencia vs. contrato — y por sede
@@ -170,8 +190,14 @@ export const GET = withTenant(
           row[`d${i}`] = "";
           return;
         }
-        total += ts.reduce((s, t) => s + horasDeTurno(t), 0);
-        row[`d${i}`] = ts.map((t) => etiquetaTurno(t)).join(" + ");
+        total += ts.reduce((s, t) => s + horasComputables(t), 0);
+        row[`d${i}`] = ts
+          .map((t) =>
+            diaConAusencia(t.userId, t.fecha, indiceAusencias)
+              ? `${etiquetaTurno(t)} (ausencia)`
+              : etiquetaTurno(t),
+          )
+          .join(" + ");
       });
       row.total = Math.round(total * 100) / 100;
       row.contrato = contrato ?? "";
@@ -188,7 +214,7 @@ export const GET = withTenant(
           (s, d) =>
             s +
             (porUserDia.get(`${userId}|${ymd(d)}`) ?? []).reduce(
-              (a, t) => a + horasDeTurno(t),
+              (a, t) => a + horasComputables(t),
               0,
             ),
           0,
