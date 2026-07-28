@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   agregarHorasPorCentro,
   agregarHorasCuadrantePorCentro,
+  calcularHorasPorCentroCuadrante,
 } from "./horas-por-centro";
 
 const u = (nombre: string) => ({ nombre, apellidos: "X" });
@@ -96,5 +97,59 @@ describe("agregarHorasCuadrantePorCentro", () => {
     ]);
     expect(filas[0].horas).toBe(8);
     expect(filas[0].centro).toBe("Sede A");
+  });
+});
+
+describe("calcularHorasPorCentroCuadrante — filtros de la consulta", () => {
+  /** Doble de Prisma que solo captura los argumentos de findMany. */
+  function prismaEspia() {
+    const capturado: { args?: Record<string, unknown> } = {};
+    const prisma = {
+      turno: {
+        findMany: (args: Record<string, unknown>) => {
+          capturado.args = args;
+          return Promise.resolve([]);
+        },
+      },
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return { prisma: prisma as any, capturado };
+  }
+
+  it("excluye a los empleados dados de baja (ticket #65)", async () => {
+    const { prisma, capturado } = prismaEspia();
+    await calcularHorasPorCentroCuadrante({
+      prisma,
+      fechaInicio: new Date("2026-07-01T00:00:00Z"),
+      fechaFin: new Date("2026-07-31T23:59:59Z"),
+    });
+    // Un empleado de baja conserva turnos planificados de sus últimos días:
+    // sin este filtro el informe los sumaba como horas de quien ya no está.
+    const where = capturado.args?.where as { user?: { activo?: boolean } };
+    expect(where.user).toEqual({ activo: true });
+  });
+
+  it("respeta el filtro de sede cuando se pasa", async () => {
+    const { prisma, capturado } = prismaEspia();
+    await calcularHorasPorCentroCuadrante({
+      prisma,
+      fechaInicio: new Date("2026-07-01T00:00:00Z"),
+      fechaFin: new Date("2026-07-31T23:59:59Z"),
+      tiendaId: "t1",
+    });
+    const where = capturado.args?.where as { tiendaId?: string };
+    expect(where.tiendaId).toBe("t1");
+  });
+
+  it("acepta rangos futuros: el cuadrante se planifica a futuro (ticket #64)", async () => {
+    const { prisma, capturado } = prismaEspia();
+    const finFuturo = new Date("2099-12-31T23:59:59Z");
+    await calcularHorasPorCentroCuadrante({
+      prisma,
+      fechaInicio: new Date("2099-12-01T00:00:00Z"),
+      fechaFin: finFuturo,
+    });
+    const where = capturado.args?.where as { fecha?: { lte?: Date } };
+    expect(where.fecha?.lte).toEqual(finFuturo);
   });
 });
