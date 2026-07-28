@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
-import { ChevronLeft, ChevronRight, Send, Download, BarChart2, Settings2, Trash2, Pencil, UserPlus, Copy, Search, Coffee } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { ChevronLeft, ChevronRight, Send, Download, BarChart2, CalendarRange, Settings2, Trash2, Pencil, UserPlus, Copy, Search, Coffee, X as XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -99,6 +99,12 @@ export default function AdminTurnosPage() {
   const [submitting, setSubmitting] = useState(false);
   const [copiandoSemana, setCopiandoSemana] = useState(false);
   const [horasCargando, setHorasCargando] = useState(false);
+  // Ticket #63 — totales de horas planificadas de un mes completo. El
+  // cuadrante se navega por semanas, así que no había forma de ver el mes.
+  const [mesAbierto, setMesAbierto] = useState(false);
+  const [mesSel, setMesSel] = useState(() => format(new Date(), "yyyy-MM"));
+  const [mesCargando, setMesCargando] = useState(false);
+  const [mesFilas, setMesFilas] = useState<{ empleado: string; centro: string; horas: number }[] | null>(null);
 
   const [tiposDialog, setTiposDialog] = useState(false);
   const [tipoForm, setTipoForm] = useState(TIPO_FORM_INICIAL);
@@ -611,6 +617,51 @@ export default function AdminTurnosPage() {
     }
   };
 
+  // Rango [primer día, último día] del mes elegido, en hora local.
+  const rangoMes = useCallback((mes: string) => {
+    const [y, m] = mes.split("-").map(Number);
+    return { desde: new Date(y, m - 1, 1, 0, 0, 0), hasta: new Date(y, m, 0, 23, 59, 59) };
+  }, []);
+
+  const cargarHorasMes = useCallback(async () => {
+    setMesCargando(true);
+    setMesFilas(null);
+    try {
+      const { desde, hasta } = rangoMes(mesSel);
+      const params = new URLSearchParams({
+        fechaInicio: desde.toISOString(),
+        fechaFin: hasta.toISOString(),
+        origen: "cuadrante",
+      });
+      if (filtroTienda !== "todas") params.set("tiendaId", filtroTienda);
+      const res = await fetch(`/api/informes/horas-por-centro?${params.toString()}`);
+      if (!res.ok) throw new Error();
+      const { filas } = (await res.json()) as {
+        filas: { empleado: string; centro: string; horas: number }[];
+      };
+      setMesFilas(filas);
+    } catch {
+      toast({ title: "Error al calcular las horas del mes", variant: "destructive" });
+    } finally {
+      setMesCargando(false);
+    }
+  }, [mesSel, filtroTienda, rangoMes, toast]);
+
+  // Total por empleado sumando sus centros, de más horas a menos.
+  const totalesMes = useMemo(() => {
+    if (!mesFilas) return [];
+    const acc = new Map<string, number>();
+    for (const f of mesFilas) acc.set(f.empleado, (acc.get(f.empleado) ?? 0) + f.horas);
+    return [...acc.entries()]
+      .map(([empleado, horas]) => ({ empleado, horas: Math.round(horas * 100) / 100 }))
+      .sort((a, b) => b.horas - a.horas);
+  }, [mesFilas]);
+
+  const horasTotalesMes = useMemo(
+    () => Math.round(totalesMes.reduce((n, e) => n + e.horas, 0) * 100) / 100,
+    [totalesMes],
+  );
+
   // ---- Tipos de turno: CRUD ----
   const guardarTipo = async () => {
     if (!tipoForm.nombre) {
@@ -678,6 +729,13 @@ export default function AdminTurnosPage() {
           <Button variant="outline" disabled={horasCargando} onClick={exportarHorasPorCentro}>
             <BarChart2 className="h-4 w-4 mr-2" />
             {horasCargando ? "Generando…" : "Horas por centro"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => { setMesAbierto(true); setMesFilas(null); }}
+          >
+            <CalendarRange className="h-4 w-4 mr-2" />
+            Horas del mes
           </Button>
           {turnos.some(t => t.estado === "BORRADOR") && (
             <Button variant="outline" onClick={publicarTodos}>
@@ -939,6 +997,80 @@ export default function AdminTurnosPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setTiposDialog(false)}>Cerrar</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Horas totales de un mes según el cuadrante (ticket #63) ─────── */}
+      <Dialog open={mesAbierto} onOpenChange={setMesAbierto}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Horas del mes según el cuadrante</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <Label>Mes</Label>
+                <Input
+                  type="month"
+                  className="mt-1"
+                  value={mesSel}
+                  onChange={(e) => { setMesSel(e.target.value); setMesFilas(null); }}
+                />
+              </div>
+              <Button onClick={() => void cargarHorasMes()} disabled={mesCargando || !mesSel}>
+                {mesCargando ? "Calculando…" : "Calcular"}
+              </Button>
+            </div>
+            <p className="text-xs text-slate-400">
+              Suma las horas planificadas en el cuadrante
+              {filtroTienda !== "todas" ? " de la sede filtrada" : " de todas las sedes"}. No son las
+              horas fichadas.
+            </p>
+
+            {mesFilas && totalesMes.length === 0 && (
+              <p className="text-center py-6 text-slate-400 text-sm">
+                No hay turnos planificados en ese mes.
+              </p>
+            )}
+
+            {totalesMes.length > 0 && (
+              <>
+                <div className="max-h-72 overflow-y-auto rounded-md border border-slate-200">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                      <tr>
+                        <th className="text-left px-3 py-2 font-semibold text-slate-600">Empleado</th>
+                        <th className="text-right px-3 py-2 font-semibold text-slate-600">Horas</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {totalesMes.map((e) => (
+                        <tr key={e.empleado} className="border-b border-slate-100 last:border-0">
+                          <td className="px-3 py-2 text-slate-800">{e.empleado}</td>
+                          <td className="px-3 py-2 text-right tabular-nums font-medium">{e.horas}h</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-slate-50 border-t border-slate-200">
+                        <td className="px-3 py-2 font-semibold text-slate-700">Total</td>
+                        <td className="px-3 py-2 text-right tabular-nums font-bold">{horasTotalesMes}h</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() =>
+                    descargarCSVHorasPorCentro(mesFilas ?? [], `horas-cuadrante-${mesSel}.csv`)
+                  }
+                >
+                  <Download className="h-4 w-4 mr-2" /> Descargar CSV (detalle por centro)
+                </Button>
+              </>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
