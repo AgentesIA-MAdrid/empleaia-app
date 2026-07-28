@@ -1,5 +1,5 @@
 {
-  "$comment": "Deny-list del runner headless. La frontera real es la infra (worktree efímero, non-root, ruleset 'Protect main'/rama base require PR+approval con el bot sin bypass) + el no-merge del orquestador (solo gh pr create). Esto es defensa en profundidad: bloquea lo catastrófico aunque skip-permissions esté activo.",
+  "$comment": "Deny-list del runner headless. La frontera real es la infra (worktree efímero, non-root, ruleset 'Protect main'/rama base require PR+approval con el bot sin bypass) + el no-merge del orquestador (solo gh pr create). Esto es defensa en profundidad: bloquea lo catastrófico aunque skip-permissions esté activo. El segundo bloque (docker/postgres/next dev/build) no es por seguridad sino por supervivencia: el contenedor tiene 3 GB y levantar Postgres embebido o arrancar la app se comía el timeout del job y su RAM (28-jul). La verificación aquí es estática: lint + tsc + vitest.",
   "permissions": {
     "deny": [
       "Bash(gh pr merge:*)",
@@ -11,7 +11,22 @@
       "Bash(rm -rf ~:*)",
       "Bash(rm -rf /home:*)",
       "Bash(sudo:*)",
-      "Bash(curl:*EMPLEAIA_SIGNING_SECRET*)"
+      "Bash(curl:*EMPLEAIA_SIGNING_SECRET*)",
+      "Bash(docker:*)",
+      "Bash(docker-compose:*)",
+      "Bash(initdb:*)",
+      "Bash(pg_ctl:*)",
+      "Bash(postgres:*)",
+      "Bash(pg_isready:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm run dev:all:*)",
+      "Bash(npm run db:up:*)",
+      "Bash(npm run dev:seed-tenant:*)",
+      "Bash(next dev:*)",
+      "Bash(npx next dev:*)",
+      "Bash(npx prisma dev:*)",
+      "Bash(prisma dev:*)",
+      "Bash(npm run build:*)"
     ]
   },
   "hooks": {

@@ -181,8 +181,8 @@ export function buildClaudePrompt(input: ClaudePromptInput): string {
     "- Trabaja en el repositorio del directorio actual (Next.js 16 App Router + Prisma multi-tenant por schema). Lee `CLAUDE.md` y `AGENTS.md`: las reglas inviolables (withTenant/withTenantPage, prismaApp vs prismaMaster, no-legacy-prisma, NO fetch interno entre rutas) son de obligado cumplimiento.",
     ...taskGuidance(t.tipo),
     "- Mantén el cambio quirúrgico: solo lo que pide este ticket, nada de refactors ni features extra.",
-    "- AUDITA tu propio trabajo ANTES de entregar: relee el diff completo, confirma que atacas la causa raíz (no el síntoma), que no rompes los inviolables y que `npm run lint && npm run typecheck && npm run build` pasan limpios. Si la auditoría revela un problema, corrígelo antes de abrir el PR.",
-    '- Si tu cambio es visible en la interfaz, deja una captura del resultado ("después") en `feedback-after.png` en la raíz del repo: el sistema la adjuntará al resumen del cliente.',
+    "- AUDITA tu propio trabajo ANTES de entregar: relee el diff completo, confirma que atacas la causa raíz (no el síntoma), que no rompes los inviolables y que `npm run lint` y `npx tsc --noEmit` pasan limpios (más `npx vitest run <fichero>` si tocas lógica pura). Si la auditoría revela un problema, corrígelo antes de abrir el PR.",
+    "- NO montes entorno de ejecución: nada de levantar Postgres (embedded-postgres, `prisma dev`, initdb), arrancar la app (`next dev`, `npm run dev`), usar docker ni `npm run build`. El runner tiene 3 GB y un límite de tiempo por ticket: hacerlo agota ambos y el trabajo se pierde entero. Tu verificación es estática, y lo que necesite prueba en caliente se revisa al mergear el PR — dilo en el [DIAGNÓSTICO].",
     "",
     "Formato de salida (OBLIGATORIO) — termina SIEMPRE con estos dos bloques, cada etiqueta en su propia línea:",
     "[DIAGNÓSTICO]",
@@ -190,7 +190,7 @@ export function buildClaudePrompt(input: ClaudePromptInput): string {
     "[RESUMEN]",
     "Para el cliente final: trato de tú, cercano y sin jerga técnica. En 2-4 frases cuenta qué pasaba y cómo queda ahora. Si no hubo cambios de código, explica con claridad la respuesta a su caso.",
     "",
-    "- Pre-commit: npm run lint && npm run typecheck && npm run build.",
+    "- Pre-commit: npm run lint && npx tsc --noEmit. El build NO se corre aquí (OOM en el contenedor del runner); lo verifica el deploy.",
   );
   return lines.join("\n");
 }

@@ -14,9 +14,9 @@
 
 import { createHmac, createHash } from "node:crypto";
 import { spawnSync, spawn } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, cpSync, existsSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, readFileSync, cpSync, existsSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, basename } from "node:path";
 
 const APP_BASE_URL = required("APP_BASE_URL");
 const SIGNING_SECRET = required("EMPLEAIA_SIGNING_SECRET");
@@ -65,11 +65,17 @@ function run(cmd, args, opts = {}) {
   return spawnSync(cmd, args, { encoding: "utf8", ...opts });
 }
 
+/**
+ * Latido del job. Devuelve "ajeno" si el backend responde 409: significa que
+ * el job ya no está en `ejecutando` (el watchdog lo rescató por zombi), así
+ * que insistir no sirve de nada y hay que abandonar el trabajo en curso.
+ */
 async function heartbeat(jobId) {
   try {
-    await callback(jobId, "ejecutando", {}, { retry: false });
+    const r = await callback(jobId, "ejecutando", {}, { retry: false });
+    return r && r.status === 409 ? "ajeno" : "ok";
   } catch {
-    /* best-effort */
+    return "ok"; // best-effort: un fallo de red no justifica tirar el job
   }
 }
 
@@ -150,15 +156,34 @@ function runClaudeHeartbeat(jobId, args, opts) {
     });
     if (child.stderr) child.stderr.on("data", (d) => { stderr += d.toString(); });
     let timedOut = false;
-    const hb = setInterval(() => { void heartbeat(jobId); }, HEARTBEAT_MS);
-    const killer = setTimeout(() => { timedOut = true; try { child.kill("SIGKILL"); } catch { /* ya muerto */ } }, JOB_TIMEOUT);
+    let abandonado = false;
+    // Mata el ÁRBOL entero (grupo de procesos). Matar solo a `claude` dejaba
+    // huérfanos vivos —Postgres embebido, prisma dev— comiendo la RAM del
+    // contenedor y asfixiando a los jobs siguientes.
+    const matarArbol = () => {
+      try { process.kill(-child.pid, "SIGKILL"); }
+      catch { try { child.kill("SIGKILL"); } catch { /* ya muerto */ } }
+    };
+    const hb = setInterval(() => {
+      void heartbeat(jobId).then((estado) => {
+        // 409 = el job ya no es nuestro (el watchdog lo dio por zombi).
+        // Seguir latiendo era un bucle infinito que ni liberaba el runner ni
+        // mataba el trabajo en curso.
+        if (estado === "ajeno" && !abandonado) {
+          abandonado = true;
+          console.error(`[runner] job ${jobId} ya no es nuestro (409): abortando el trabajo en curso`);
+          matarArbol();
+        }
+      });
+    }, HEARTBEAT_MS);
+    const killer = setTimeout(() => { timedOut = true; matarArbol(); }, JOB_TIMEOUT);
     const finish = (code, extraErr) => {
       clearInterval(hb); clearTimeout(killer);
       if (lineBuf.trim()) handleLine(lineBuf); // última línea sin \n
       // Texto final para parseClaudeOutput: result event → fallback a textos
       // del assistant → fallback al stdout crudo (modo print legacy).
       const finalText = resultText || assistantText.trim() || stdout;
-      resolve({ code, stdout, stderr: extraErr ? `${stderr}\nspawn error: ${extraErr}` : stderr, timedOut, finalText });
+      resolve({ code, stdout, stderr: extraErr ? `${stderr}\nspawn error: ${extraErr}` : stderr, timedOut, abandonado, finalText });
     };
     child.on("error", (err) => finish(null, err.message));
     child.on("close", (code) => finish(code));
@@ -197,10 +222,26 @@ async function uploadAfterScreenshot(jobId, wt) {
   }
 }
 
+/**
+ * Borra restos de jobs anteriores en /tmp. Un job matado a mitad puede dejar
+ * cientos de MB (datadirs de Postgres embebido, cachés de prisma dev) que el
+ * contenedor arrastra hasta reiniciarse.
+ */
+function limpiarRestos(actual) {
+  try {
+    for (const nombre of readdirSync(tmpdir())) {
+      if (nombre === basename(actual)) continue;
+      if (!/^(ticket-|@prisma$|pgserver)/.test(nombre)) continue;
+      try { rmSync(join(tmpdir(), nombre), { recursive: true, force: true }); } catch { /* noop */ }
+    }
+  } catch { /* noop */ }
+}
+
 async function processJob({ job, prompt }) {
   const id8 = job.id.slice(0, 8);
   const branch = `fix/ticket-${id8}`;
   const wt = mkdtempSync(join(tmpdir(), `ticket-${id8}-`));
+  limpiarRestos(wt);
 
   try {
     run("git", ["-C", REPO_DIR, "fetch", "origin", "--quiet"]);
@@ -227,8 +268,14 @@ async function processJob({ job, prompt }) {
         `corre \`npm run lint\` y \`npx tsc --noEmit\` antes de dar por bueno el cambio (NO corras build: ` +
         `revienta por OOM en el contenedor y CI ya lo verifica); AUDITA tu propio diff antes de terminar ` +
         `(causa raíz, sin regresiones, inviolables de CLAUDE.md y AGENTS.md: withTenant/withTenantPage, ` +
-        `prismaApp vs prismaMaster, no-legacy-prisma, NO fetch interno entre rutas); si el cambio es ` +
-        `visible en la UI, deja una captura del resultado en feedback-after.png en la raíz del worktree. ` +
+        `prismaApp vs prismaMaster, no-legacy-prisma, NO fetch interno entre rutas). ` +
+        `PROHIBIDO montar entorno de ejecución: NO levantes Postgres (ni embedded-postgres, ni ` +
+        `\`prisma dev\`, ni initdb/pg_ctl), NO arranques la app (\`next dev\`, \`npm run dev\`, ` +
+        `servidores propios) y NO uses docker ni curl contra la app. En este contenedor no hay entorno: ` +
+        `hacerlo consume los ${Math.round(JOB_TIMEOUT / 60000)} min del job, agota su RAM y el trabajo se ` +
+        `pierde entero. Tu verificación es estática: \`npm run lint\`, \`npx tsc --noEmit\` y, si tocas ` +
+        `lógica pura, \`npx vitest run <fichero>\`. Tampoco intentes hacer capturas de pantalla. ` +
+        `Lo que necesite prueba en caliente se revisa al mergear el PR: dilo en el [DIAGNÓSTICO]. ` +
         `MUY IMPORTANTE — alcance: distingue si el ticket es un BUG puntual o una MEJORA / funcionalidad ` +
         `nueva. Si pide una mejora o funcionalidad, IMPLÉMENTALA COMPLETA aunque sea grande, toque varios ` +
         `archivos o requiera modelo/migración/API/UI nuevos; NO la reduzcas a un arreglo menor de un ` +
@@ -250,7 +297,12 @@ async function processJob({ job, prompt }) {
         "--verbose",
         "--append-system-prompt", append,
         ...(existsSync(settings) ? ["--settings", settings] : []),
-      ], { cwd: wt, env: { ...process.env } });
+      ], { cwd: wt, env: { ...process.env }, detached: true });
+      if (cl.abandonado) {
+        // El watchdog ya lo marcó fallido; cualquier callback nuestro daría 409.
+        console.error(`[runner] job ${job.id} abandonado (ya resuelto por el watchdog)`);
+        return;
+      }
       if (cl.timedOut) {
         await callback(job.id, "fallido", { error: `timeout: claude excedió ${JOB_TIMEOUT}ms` });
         return;
@@ -345,18 +397,25 @@ async function processJob({ job, prompt }) {
 const RETRYABLE_STATUS = new Set([404, 408, 425, 429, 500, 502, 503, 504]);
 const CALLBACK_RETRY_DELAYS_MS = [1000, 2000, 5000, 10000];
 
+/**
+ * Devuelve `{ status }` para que quien llama pueda reaccionar al código HTTP.
+ * Lo usa el latido: un 409 significa que el job ya no está en `ejecutando` y
+ * hay que abandonarlo, en vez de reintentar cada minuto para siempre.
+ */
 async function callback(jobId, event, extra, { retry = true } = {}) {
   const path = `/api/internal/feedback-ai-job/${jobId}/callback`;
   const maxRetries = retry ? CALLBACK_RETRY_DELAYS_MS.length : 0;
   let lastInfo = "";
+  let lastStatus = 0;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const r = await apiPost(path, { event, ...extra });
-      if (r.ok) return;
+      lastStatus = r.status;
+      if (r.ok) return { ok: true, status: r.status };
       lastInfo = `${r.status}`;
       if (!RETRYABLE_STATUS.has(r.status)) {
         console.error(`[runner] callback ${event} falló (no reintentable): ${r.status}`, r.json);
-        return;
+        return { ok: false, status: r.status };
       }
     } catch (e) {
       lastInfo = String(e?.message || e);
@@ -368,6 +427,7 @@ async function callback(jobId, event, extra, { retry = true } = {}) {
     }
   }
   console.error(`[runner] callback ${event} ${retry ? "AGOTÓ reintentos" : "falló"}: ${lastInfo}`);
+  return { ok: false, status: lastStatus };
 }
 
 async function main() {

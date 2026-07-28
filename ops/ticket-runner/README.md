@@ -61,6 +61,42 @@ En headless normalmente **no** se reporta el % de límites (no hay statusLine qu
 genere `~/.claude/statusline-rate-limits.json`): Claudia sale en tiempo y tokens,
 pero no en la columna "Límites".
 
+## Por qué Claudia no monta entorno (28-jul-2026)
+
+Los jobs empezaron a morir en masa con `timeout: claude excedió 1800000ms`.
+La causa no era el modelo ni la cuenta: **Claudia levantaba un Postgres
+embebido y arrancaba la app dentro del contenedor** para poder verificar y
+hacer la captura que le pedía el prompt. Lo que se veía en el contenedor:
+
+- `@embedded-postgres/linux-x64/native/bin/postgres` + `postgres: io worker`
+- `@prisma/cli-dev@latest/.../@prisma/dev`, `node /tmp/pgserver.mjs`
+- `curl -H "Host: dev.localhost"` contra la app
+- 1,3 GB en `/tmp` por job, **RAM 2,6 GiB de 3 GiB**, CPU 200 %
+
+Consecuencias en cadena: el job agotaba sus 30 min sin escribir código; al
+matarlo, el `SIGKILL` iba solo a `claude` y los nietos quedaban huérfanos
+asfixiando al job siguiente; y con el runner ahogado el watchdog lo declaraba
+zombi, tras lo cual el runner **latía en bucle** contra un job ya fallido
+(`409 transición inválida fallido → ejecutando`) sin liberarse.
+
+Qué se cambió:
+
+- **Prompt** (`src/lib/feedback/claude-prompt.ts` y el `--append-system-prompt`
+  del runner): prohibido levantar Postgres, arrancar la app, usar docker y
+  correr `npm run build`; fuera la exigencia de captura. La verificación es
+  estática (`lint`, `tsc --noEmit`, `vitest` en lógica pura) y lo que necesite
+  prueba en caliente se revisa al mergear el PR.
+- **`runner-claude-settings.json`**: deny de `docker`, `postgres`, `pg_ctl`,
+  `initdb`, `next dev`, `npm run dev`, `prisma dev`, `npm run build`. Red de
+  seguridad, no la defensa principal.
+- **`run-ticket.mjs`**: `spawn` con `detached: true` y el timeout mata el
+  **grupo** de procesos (`kill(-pid)`), no solo a `claude`; el latido detecta
+  el 409 y **abandona** el job en vez de insistir; y cada job barre los restos
+  de `/tmp` de los anteriores.
+
+Si un ticket necesita de verdad probarse contra una BD, eso no va aquí: se
+revisa a mano sobre el PR.
+
 ## Watchdog (Fase 7)
 Cron de Dokploy cada ~5 min que hace `POST` a
 `/api/internal/feedback-ai-job-watchdog` con `Authorization: Bearer $CRON_SECRET`
