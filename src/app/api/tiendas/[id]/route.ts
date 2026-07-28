@@ -40,6 +40,7 @@ export const PUT = withTenant(async (request: NextRequest,
       activa,
       managerId,
       esOficina,
+      exigirFichajeEnSede,
     } = body as {
       nombre?: string;
       direccion?: string;
@@ -54,6 +55,7 @@ export const PUT = withTenant(async (request: NextRequest,
       activa?: boolean;
       managerId?: string | null;
       esOficina?: boolean;
+      exigirFichajeEnSede?: boolean;
     };
 
     // Si cambia la dirección y NO se envían coordenadas explícitas,
@@ -101,6 +103,9 @@ export const PUT = withTenant(async (request: NextRequest,
           // Responsable informativo: ausente → no se toca; "" → se borra.
           ...(managerId !== undefined && { managerId: managerId || null }),
           ...(esOficina !== undefined && { esOficina: Boolean(esOficina) }),
+          ...(exigirFichajeEnSede !== undefined && {
+            exigirFichajeEnSede: Boolean(exigirFichajeEnSede),
+          }),
         },
       });
     });

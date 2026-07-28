@@ -95,6 +95,13 @@ model Tienda {
   latitud      Float?
   longitud     Float?
   radio        Int       @default(200)
+  /// Exige fichar dentro del `radio` de la sede. Fuera de él, el fichaje
+  /// directo se rechaza y el empleado solo puede registrarlo explicando el
+  /// motivo: eso crea una SolicitudFichaje PENDIENTE (clase "fuera_sede")
+  /// que un OWNER aprueba. La jornada nunca se pierde (RD 8/2019), pero
+  /// queda marcada y bajo control del administrador. Requiere coordenadas
+  /// en la sede: sin ellas no hay distancia que comparar y no se aplica.
+  exigirFichajeEnSede Boolean @default(false)
   activa       Boolean   @default(true)
   color        String    @default("#6366f1")
   // Marca la sede que hace de "oficina": destino del relleno automático del
@@ -490,6 +497,12 @@ model SolicitudFichaje {
   respuesta     String?
   resueltaPorId String?
   resueltaEn    DateTime?
+  /// Geolocalización del intento, solo en clase "fuera_sede": se guarda aquí
+  /// porque el Fichaje aún no existe, y se copia al fichaje resultante al
+  /// aprobar. `distancia` en metros, calculada en servidor.
+  latitud       Float?
+  longitud      Float?
+  distancia     Int?
   /// Fichaje creado o editado al aprobar la solicitud.
   fichajeResultanteId String?
   createdAt     DateTime               @default(now())

@@ -140,6 +140,21 @@ function calcularDistancia(
 export default function EmpleadoPage() {
   const { toast } = useToast();
 
+  // Ticket #61 — intento de fichaje rechazado por estar fuera del radio de
+  // una sede que exige presencia. Guarda el contexto para pedir el motivo y
+  // convertirlo en solicitud pendiente de aprobación.
+  const [fueraSede, setFueraSede] = useState<{
+    tipo: TipoFichaje;
+    mensaje: string;
+    distancia: number;
+    radio: number;
+    sede: string;
+    lat: number;
+    lon: number;
+  } | null>(null);
+  const [motivoFueraSede, setMotivoFueraSede] = useState("");
+  const [enviandoFueraSede, setEnviandoFueraSede] = useState(false);
+
   // Clock
   const [now, setNow] = useState<Date>(new Date());
   useEffect(() => {
@@ -333,6 +348,21 @@ export default function EmpleadoPage() {
         const data = await res.json();
 
         if (!res.ok) {
+          // 409 fuera_de_sede: la sede exige presencia. No es un error del
+          // empleado — se le ofrece registrarlo justificando el motivo.
+          if (res.status === 409 && data.code === "fuera_de_sede" && lat != null && lon != null) {
+            setMotivoFueraSede("");
+            setFueraSede({
+              tipo,
+              mensaje: data.error,
+              distancia: data.distancia,
+              radio: data.radio,
+              sede: data.sede?.nombre ?? "tu sede",
+              lat,
+              lon,
+            });
+            return;
+          }
           toast({
             title: "No se pudo registrar",
             description: data.error ?? "Error desconocido",
@@ -375,6 +405,59 @@ export default function EmpleadoPage() {
     },
     [getLocation, fetchEstado, fetchFichajesHoy, toast]
   );
+
+  // Envía el intento rechazado como SolicitudFichaje "fuera_sede": el
+  // fichaje no se pierde, queda pendiente de que un administrador lo apruebe.
+  const enviarSolicitudFueraSede = useCallback(async () => {
+    if (!fueraSede) return;
+    const motivo = motivoFueraSede.trim();
+    if (motivo.length < 3) {
+      toast({
+        title: "Falta el motivo",
+        description: "Explica brevemente por qué fichas fuera de la sede (mínimo 3 caracteres).",
+        variant: "destructive",
+      });
+      return;
+    }
+    setEnviandoFueraSede(true);
+    try {
+      const res = await fetch("/api/solicitudes-fichaje", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clase: "fuera_sede",
+          tipo: fueraSede.tipo,
+          fechaHora: new Date().toISOString(),
+          motivo,
+          latitud: fueraSede.lat,
+          longitud: fueraSede.lon,
+          distancia: fueraSede.distancia,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({
+          title: "No se pudo enviar",
+          description: data.error ?? "Error desconocido",
+          variant: "destructive",
+        });
+        return;
+      }
+      setFueraSede(null);
+      toast({
+        title: "Enviado para aprobación",
+        description: "Tu responsable revisará el fichaje. No hace falta que lo repitas.",
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Error desconocido",
+        variant: "destructive",
+      });
+    } finally {
+      setEnviandoFueraSede(false);
+    }
+  }, [fueraSede, motivoFueraSede, toast]);
 
   // Wrapper público que decide si pedir Face ID antes de fichar.
   const fichar = useCallback(
@@ -735,6 +818,58 @@ export default function EmpleadoPage() {
             </ul>
           </CardContent>
         </Card>
+      )}
+
+      {fueraSede && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-start justify-between">
+              <h2 className="font-semibold text-lg flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-amber-600" />
+                Estás fuera de tu sede
+              </h2>
+              <button
+                onClick={() => setFueraSede(null)}
+                className="text-slate-400 hover:text-slate-600"
+                aria-label="Cerrar"
+                disabled={enviandoFueraSede}
+              >
+                <XIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Estás a <strong>{fueraSede.distancia} m</strong> de {fueraSede.sede} y tu empresa exige
+              fichar desde el puesto de trabajo (máximo {fueraSede.radio} m). Puedes registrarlo de
+              todas formas explicando el motivo: quedará pendiente de aprobación por tu responsable.
+            </p>
+            <div>
+              <label htmlFor="motivo-fuera-sede" className="text-sm font-medium text-slate-800">
+                Motivo
+              </label>
+              <textarea
+                id="motivo-fuera-sede"
+                className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                rows={3}
+                value={motivoFueraSede}
+                onChange={(e) => setMotivoFueraSede(e.target.value)}
+                placeholder="Ej.: reparto en casa de un cliente, visita a proveedor…"
+                disabled={enviandoFueraSede}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setFueraSede(null)} disabled={enviandoFueraSede}>
+                Cancelar
+              </Button>
+              <Button onClick={() => void enviarSolicitudFueraSede()} disabled={enviandoFueraSede}>
+                {enviandoFueraSede ? "Enviando…" : "Enviar para aprobación"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {pendingFaceTipo && (

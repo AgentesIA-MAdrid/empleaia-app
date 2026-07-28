@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FileSpreadsheet, FileText, BarChart2, CalendarRange, MapPin, Smartphone, Tablet, Globe, ScanFace, Search, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FeatureGateClient } from "@/components/feature-gate-client";
@@ -19,6 +20,9 @@ import { descargarCSVHorasPorCentro } from "@/lib/informes/horas-centro-csv";
 
 /** Origen de las horas del informe por centro: fichadas o planificadas. */
 type OrigenHoras = "fichajes" | "cuadrante";
+
+/** Pestaña activa de la página (ticket #62). */
+type Vista = "fichajes" | "informes";
 
 interface Tienda { id: string; nombre: string; }
 interface Empleado {
@@ -84,6 +88,18 @@ export default function AdminInformesPage() {
   // `null` mientras carga: tratamos como avanzado para evitar el flash
   // del estado básico antes de saber el plan real.
   const hasAdvanced = features == null || features.booleans?.informes_avanzados === true;
+
+  // Ticket #62 — "Fichajes" e "Informes" eran la misma pantalla. Ahora son
+  // dos pestañas de esta página; el menú lateral apunta a cada una con
+  // ?vista=. Sin query, la pestaña por defecto es el listado de fichajes,
+  // que es lo que todos los planes deben poder ver (RD 8/2019).
+  const searchParams = useSearchParams();
+  const vista: Vista = searchParams.get("vista") === "informes" ? "informes" : "fichajes";
+  const router = useRouter();
+  const cambiarVista = useCallback(
+    (v: Vista) => router.replace(`/admin/informes?vista=${v}`, { scroll: false }),
+    [router],
+  );
 
   const [fechaInicio, setFechaInicio] = useState(format(subDays(new Date(), 30), "yyyy-MM-dd"));
   const [fechaFin, setFechaFin] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -155,7 +171,9 @@ export default function AdminInformesPage() {
         setDatos(dataResumen.empleados || []);
         setStats(dataResumen.stats || null);
 
-        if (empleadoId !== "todos") {
+        // El listado de fichajes hace falta en la pestaña "Fichajes" (para
+        // todos) y al abrir el detalle de un empleado concreto.
+        if (empleadoId !== "todos" || vista === "fichajes") {
           const resF = await fetch(`/api/informes?${baseParams}&tipo=fichajes`);
           const dataF = await resF.json();
           setFichajes((dataF?.data ?? []) as FichajeDetalle[]);
@@ -173,7 +191,7 @@ export default function AdminInformesPage() {
     } finally {
       setLoading(false);
     }
-  }, [fechaInicio, fechaFin, tiendaId, empleadoId, hasAdvanced]);
+  }, [fechaInicio, fechaFin, tiendaId, empleadoId, hasAdvanced, vista]);
 
   useEffect(() => { fetchInformes(); }, [fetchInformes]);
 
@@ -277,8 +295,14 @@ export default function AdminInformesPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Informes</h1>
-          <p className="text-slate-500 text-sm mt-1">Análisis de asistencia y detalle de fichajes</p>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {vista === "fichajes" ? "Fichajes" : "Informes"}
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            {vista === "fichajes"
+              ? "Registro de entradas y salidas de tu plantilla"
+              : "Análisis de asistencia y horas trabajadas"}
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button
@@ -313,6 +337,27 @@ export default function AdminInformesPage() {
             </Button>
           </FeatureGateClient>
         </div>
+      </div>
+
+      <div className="flex gap-1 border-b border-slate-200">
+        {([
+          { id: "fichajes", label: "Fichajes" },
+          { id: "informes", label: "Informes" },
+        ] as { id: Vista; label: string }[]).map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => cambiarVista(t.id)}
+            aria-current={vista === t.id ? "page" : undefined}
+            className={
+              vista === t.id
+                ? "px-4 py-2 text-sm font-semibold text-[var(--primary)] border-b-2 border-[var(--primary)] -mb-px"
+                : "px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-800 border-b-2 border-transparent -mb-px"
+            }
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       <Card>
@@ -356,7 +401,7 @@ export default function AdminInformesPage() {
         </CardContent>
       </Card>
 
-      {!hasAdvanced && (
+      {vista === "informes" && !hasAdvanced && (
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="pt-4 pb-4 flex items-start gap-3">
             <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
@@ -377,7 +422,7 @@ export default function AdminInformesPage() {
         </Card>
       )}
 
-      {stats && (
+      {vista === "informes" && stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
           {[
             { label: "Total horas", value: `${stats.totalHoras.toFixed(0)}h`, color: "text-[var(--primary)]" },
@@ -396,7 +441,7 @@ export default function AdminInformesPage() {
       )}
 
       {/* ─── Vista resumen (sin empleado seleccionado) — requiere informes_avanzados ─── */}
-      {empleadoId === "todos" && hasAdvanced && (
+      {vista === "informes" && empleadoId === "todos" && hasAdvanced && (
         <>
           {chartData.length > 0 && (
             <Card>
@@ -478,8 +523,8 @@ export default function AdminInformesPage() {
         </>
       )}
 
-      {/* ─── Vista plana de fichajes (plan básico, sin agregaciones) ────── */}
-      {!hasAdvanced && empleadoId === "todos" && (
+      {/* ─── Listado de fichajes: pestaña "Fichajes", cualquier plan ────── */}
+      {vista === "fichajes" && empleadoId === "todos" && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Listado de fichajes</CardTitle>

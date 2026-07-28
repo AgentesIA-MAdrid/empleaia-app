@@ -29,6 +29,7 @@ interface Tienda {
   // Marca la sede que hace de oficina (destino del relleno automático del
   // cuadrante). Solo una sede puede tenerlo activo.
   esOficina?: boolean;
+  exigirFichajeEnSede?: boolean;
   // Responsable de la sede (dato informativo). Null si no se ha asignado.
   managerId?: string | null;
   manager?: { id: string; nombre: string; apellidos: string } | null;
@@ -143,7 +144,7 @@ const COLORES = [
 const FORM_INICIAL = {
   nombre: "", direccion: "", ciudad: "", codigoPostal: "", telefono: "",
   email: "", latitud: "", longitud: "", radio: "200", color: "#6366f1",
-  managerId: "", esOficina: false,
+  managerId: "", esOficina: false, exigirFichajeEnSede: false,
 };
 
 export default function TiendasPage() {
@@ -223,6 +224,7 @@ export default function TiendasPage() {
       email: t.email || "", latitud: t.latitud?.toString() || "",
       longitud: t.longitud?.toString() || "", radio: t.radio.toString(),
       color: t.color, managerId: t.managerId || "", esOficina: t.esOficina ?? false,
+      exigirFichajeEnSede: t.exigirFichajeEnSede ?? false,
     });
     setDialogOpen(true);
   };
@@ -239,6 +241,7 @@ export default function TiendasPage() {
         latitud: form.latitud ? parseFloat(form.latitud) : null,
         longitud: form.longitud ? parseFloat(form.longitud) : null,
         radio: parseInt(form.radio) || 200,
+        exigirFichajeEnSede: form.exigirFichajeEnSede,
       };
       const url = editando ? `/api/tiendas/${editando.id}` : "/api/tiendas";
       const method = editando ? "PUT" : "POST";
@@ -455,6 +458,22 @@ export default function TiendasPage() {
               <div>
                 <Label>Radio geofencing (metros)</Label>
                 <Input className="mt-1" type="number" value={form.radio} onChange={(e) => setForm((f) => ({ ...f, radio: e.target.value }))} placeholder="200" />
+              </div>
+              <div className="col-span-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[var(--primary)]"
+                    checked={form.exigirFichajeEnSede}
+                    onChange={(e) => setForm((f) => ({ ...f, exigirFichajeEnSede: e.target.checked }))}
+                  />
+                  <span className="text-sm font-medium text-slate-800">Exigir fichar desde esta sede</span>
+                </label>
+                <p className="mt-1 text-xs text-slate-400">
+                  Fuera del radio no se podrá fichar directamente: el empleado tendrá que explicar el
+                  motivo y quedará como solicitud pendiente de tu aprobación en “Aprobaciones de
+                  fichaje”. Necesita coordenadas en la sede.
+                </p>
               </div>
               <div>
                 <Label>Color</Label>

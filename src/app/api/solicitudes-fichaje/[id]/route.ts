@@ -23,6 +23,7 @@ import {
   buildFichajeUpdate,
   notaFichaje,
 } from "@/lib/solicitudes-fichaje/core";
+import type { ClaseSolicitud } from "@/lib/solicitudes-fichaje/core";
 import { notifySolicitudResuelta } from "@/lib/solicitudes-fichaje/notify";
 
 export const PATCH = withTenant(
@@ -96,7 +97,7 @@ export const PATCH = withTenant(
         let fichajeResultanteId: string | null = null;
 
         if (estado === "APROBADA") {
-          const nota = notaFichaje(sol.motivo, resolverNombre);
+          const nota = notaFichaje(sol.motivo, resolverNombre, sol.clase as ClaseSolicitud);
           if (sol.clase === "correccion" && sol.fichajeId) {
             const f = await tx.fichaje.update({
               where: { id: sol.fichajeId },
@@ -118,6 +119,11 @@ export const PATCH = withTenant(
                 fechaHora: sol.fechaHora,
                 resolverId: userId,
                 nota,
+                // "fuera_sede": el fichaje hereda dónde se hizo realmente,
+                // para que la auditoría de distancia siga siendo cierta.
+                latitud: sol.latitud,
+                longitud: sol.longitud,
+                distancia: sol.distancia,
               }),
               select: { id: true },
             });

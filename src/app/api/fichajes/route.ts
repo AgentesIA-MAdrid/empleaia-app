@@ -166,13 +166,29 @@ export const POST = withTenant(async (request: NextRequest) => {
     // Sede del empleado con su radio: si la distancia lo supera, avisamos
     // por email a los administradores (ver más abajo, tras el create).
     let sede: { id: string; nombre: string; radio: number } | null = null;
+    // Modo estricto de la sede (ticket #61): fuera del radio no se ficha
+    // directo; hay que justificarlo y lo aprueba un OWNER.
+    let exigeEnSede = false;
+    // Sede del empleado, se consulte o no la distancia: hace falta saber si
+    // exige presencia aunque el navegador no haya dado coordenadas.
+    const tienda = userTiendaId
+      ? await prisma.tienda.findUnique({
+          where: { id: userTiendaId },
+          select: {
+            id: true, nombre: true, radio: true, latitud: true, longitud: true,
+            exigirFichajeEnSede: true,
+          },
+        })
+      : null;
+    // El modo estricto solo puede aplicarse si hay con qué comparar: sede
+    // con coordenadas y la feature de geofencing en el plan.
+    exigeEnSede =
+      geofencingActivo &&
+      tienda?.exigirFichajeEnSede === true &&
+      tienda.latitud != null &&
+      tienda.longitud != null;
+
     if (geofencingActivo && lat != null && lon != null) {
-      const tienda = userTiendaId
-        ? await prisma.tienda.findUnique({
-            where: { id: userTiendaId },
-            select: { id: true, nombre: true, radio: true, latitud: true, longitud: true },
-          })
-        : null;
       if (tienda?.latitud != null && tienda?.longitud != null) {
         dist = Math.round(calcularDistancia(lat, lon, tienda.latitud, tienda.longitud));
         sede = { id: tienda.id, nombre: tienda.nombre, radio: tienda.radio };
@@ -228,6 +244,36 @@ export const POST = withTenant(async (request: NextRequest) => {
       return Response.json(
         { error: "Tu empresa requiere localización para fichar. Activa el GPS y vuelve a intentarlo." },
         { status: 400 },
+      );
+    }
+
+    // Ticket #61 — modo estricto de la sede. La sede exige fichar dentro de
+    // su radio, así que sin coordenadas no hay nada que comprobar: pedirlas
+    // es obligatorio, o bastaría con apagar el GPS para saltarse el control.
+    if (exigeEnSede && (lat == null || lon == null)) {
+      return Response.json(
+        {
+          error: "Tu sede exige fichar desde el puesto de trabajo. Activa la localización y vuelve a intentarlo.",
+          code: "ubicacion_requerida",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Fuera del radio no se registra el fichaje directamente: el empleado
+    // tiene que explicar el motivo, y eso crea una SolicitudFichaje que
+    // aprueba un OWNER (POST /api/solicitudes-fichaje, clase "fuera_sede").
+    // Así la jornada nunca se pierde —RD 8/2019— pero no entra sin control.
+    if (exigeEnSede && sede && dist != null && dist > sede.radio) {
+      return Response.json(
+        {
+          error: `Estás a ${dist} m de ${sede.nombre} y tu sede exige fichar desde el puesto de trabajo (máximo ${sede.radio} m).`,
+          code: "fuera_de_sede",
+          distancia: dist,
+          radio: sede.radio,
+          sede: { id: sede.id, nombre: sede.nombre },
+        },
+        { status: 409 },
       );
     }
 

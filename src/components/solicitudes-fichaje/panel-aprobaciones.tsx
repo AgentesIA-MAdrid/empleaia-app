@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle, XCircle, Clock, AlertCircle, Loader2, InboxIcon } from "lucide-react";
+import { CheckCircle, XCircle, Clock, AlertCircle, Loader2, InboxIcon, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +21,8 @@ interface Solicitud {
   motivo: string;
   estado: string;
   createdAt: string;
+  /** Solo en clase "fuera_sede": metros a los que se intentó fichar. */
+  distancia?: number | null;
   solicitante: { id: string; nombre: string; apellidos: string };
 }
 
@@ -149,6 +151,13 @@ export function PanelAprobaciones() {
                       <span className="font-medium">{TIPO_LABEL[s.tipo] ?? s.tipo}</span> ·{" "}
                       {fmt(s.fechaHora)}
                     </p>
+                    {s.clase === "fuera_sede" && (
+                      <p className="mt-0.5 inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+                        <MapPin className="h-3.5 w-3.5" />
+                        Fichaje fuera de la sede
+                        {typeof s.distancia === "number" ? ` · a ${s.distancia} m` : ""}
+                      </p>
+                    )}
                     <p className="mt-0.5 text-sm text-muted-foreground">
                       <span className="font-medium">Motivo:</span> {s.motivo}
                     </p>
