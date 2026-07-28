@@ -1,4 +1,4 @@
-# Handoff — estado del proyecto a 2026-05-13 (post-sesión Sprint 4)
+# Handoff — estado del proyecto a 2026-07-28
 
 Documento para retomar el trabajo desde otra cuenta de Claude (o
 máquina). Resume lo que hay en marcha, decisiones recientes y
@@ -72,6 +72,70 @@ Producción ya corre desde esta rama vía Dokploy.
 - Ver `AGENTS.md` — incluye reglas críticas (handlers usan
   `withTenant`, pages usan `withTenantPage`, no `fetch` interno entre
   rutas, etc.).
+
+## 4.hoy. Lo último que hicimos (sesión 2026-07-28)
+
+Tres tickets de Mobileshop + limpieza de PRs y de vulnerabilidades.
+Todo mergeado a `feature/saas-migration` y desplegado (deploys `done`,
+migración verificada en `tenant_mobileshop`, `healthz` 200).
+
+**Tickets** (PR #73, commits 1a14e60 / 1673381 / 92fb18b):
+
+- **#61 — fichar solo en el puesto de trabajo.** Cambio de doctrina:
+  hasta ahora el geofencing NUNCA rechazaba un fichaje. Ahora
+  `Tienda.exigirFichajeEnSede` (off por defecto) hace que fuera del
+  radio el `POST /api/fichajes` devuelva **409 `fuera_de_sede`**; el
+  empleado solo puede registrarlo con motivo, y eso crea una
+  `SolicitudFichaje` de clase **`fuera_sede`** que aprueba un OWNER.
+  Regla que no hay que revertir: se bloquea el camino fácil, nunca el
+  registro de la jornada (RD 8/2019). En modo estricto la localización
+  pasa a ser obligatoria (si no, apagar el GPS saltaría el control) y
+  la distancia se recalcula siempre en servidor. La solicitud guarda
+  lat/lon/distancia y el fichaje resultante las hereda.
+  Migración: `20260728120000_fichaje_en_sede` (idempotente).
+- **#62 — "informes y fichajes son la misma página".** Lo eran: las dos
+  entradas del sidebar apuntaban a `/admin/informes`. Ahora son dos
+  pestañas (`?vista=fichajes|informes`) y el listado de fichajes deja
+  de estar limitado al plan básico. `isActive` del sidebar compara
+  también la query.
+- **#63 — horas de un mes según cuadrante.** Botón "Horas del mes" en
+  `/admin/turnos`: total por empleado, total general y CSV por centro,
+  sobre `/api/informes/horas-por-centro?origen=cuadrante`.
+
+**PRs cerrados por obsoletos**: #65 (time-tracking del runner, versión
+anterior a la de `2daa4a5`), #62 y #60 (PDF único de firma, ya resuelto
+en `2cb94f6`), #58 (oficina por defecto, ya resuelto en `6948df1`).
+Los cuatro partían de bases muy anteriores: mergearlos habría revertido
+trabajo posterior. Lección: revisar los PRs de Claudia pronto o mueren
+de viejos.
+
+**Seguridad** (PR #74 y #75). De 83 avisos en GitHub a 16.
+
+- `npm audit fix` (sin `--force`): 4 críticas → 0.
+- `next` 16.2.10 → **16.2.12**; overrides de **`postcss` ^8.5.24** (next
+  fijaba 8.4.31, con XSS y path traversal) y **`sharp` ^0.35.3** (CVEs
+  heredados de libvips; sharp procesa imágenes subidas por usuarios).
+  Verificado en el contenedor: sharp genera PNG en alpine.
+- **`npm audit fix --force` está descartado**: propone downgrades
+  encubiertos (`exceljs` 4.4.0→**3.4.0**, que rompería el export a
+  Excel; `eslint-config-next` 16.2.3→**0.2.4**; `next-pwa` 5.6.0→2.0.2).
+  No ejecutarlo.
+- Quedan ~21 altas colgando de `exceljs → archiver` y de
+  `next-pwa → workbox` (glob, minimatch, brace-expansion, ejs, jake,
+  serialize-javascript). Son de build. **`next-pwa` 5.6.0 es de 2022 y
+  está abandonado**: el arreglo de fondo es sustituirlo (p. ej.
+  `@serwist/next`), no forzar versiones.
+
+**`main` sincronizado con `feature/saas-migration`** (era fast-forward,
+0 commits propios, 458 detrás). Importante: dependabot abre sus PRs
+contra `main`, así que mientras main iba retrasado sus avisos y sus PRs
+no servían de nada. Si se vuelve a desfasar, repetir:
+`git push origin origin/feature/saas-migration:refs/heads/main`.
+
+**Pendiente de esta sesión**: responder los tres tickets a Silvia desde
+`/admin` (los textos quedaron redactados en la conversación; el endpoint
+`POST /api/admin/feedback/[id]/messages` exige sesión super-admin y ya
+envía el email al cliente).
 
 ## 4.0. Lo último que hicimos (sesión Sprint 4 — 2026-05-13)
 
