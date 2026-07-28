@@ -307,7 +307,10 @@ function AdminInformesContent() {
             </div>
             <div>
               <Label>Hasta</Label>
-              <Input type="date" className="mt-1 w-40" value={fechaFin} min={fechaInicio} max={format(new Date(), "yyyy-MM-dd")} onChange={e => setFechaFin(e.target.value)} />
+              {/* Sin tope en hoy (ticket #64): el cuadrante se planifica a futuro,
+                  así que el informe de horas del cuadrante necesita poder pedir
+                  fechas posteriores a hoy. En fichajes, un rango futuro sale vacío. */}
+              <Input type="date" className="mt-1 w-40" value={fechaFin} min={fechaInicio} onChange={e => setFechaFin(e.target.value)} />
             </div>
             <Button onClick={fetchInformes} disabled={loading}>
               <Search className="h-4 w-4 mr-1.5" />

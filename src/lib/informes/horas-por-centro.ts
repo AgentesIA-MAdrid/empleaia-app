@@ -177,6 +177,13 @@ export async function calcularHorasPorCentroCuadrante(opts: {
     where: {
       fecha: { gte: fechaInicio, lte: fechaFin },
       ...(tiendaId ? { tiendaId } : {}),
+      // Solo plantilla activa (ticket #65): un empleado dado de baja puede
+      // conservar turnos planificados de sus últimos días, y el informe los
+      // sumaba como horas de gente que ya no está. La exportación del
+      // cuadrante ya filtraba así; esto alinea el informe con ella.
+      // En la variante de FICHAJES no se filtra a propósito: esas horas se
+      // trabajaron de verdad y quitarlas falsearía el histórico.
+      user: { activo: true },
     },
     select: {
       userId: true,
