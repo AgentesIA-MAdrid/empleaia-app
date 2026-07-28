@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { FileSpreadsheet, FileText, BarChart2, MapPin, Smartphone, Tablet, Globe, ScanFace, Search, Lock } from "lucide-react";
+import { FileSpreadsheet, FileText, BarChart2, CalendarRange, MapPin, Smartphone, Tablet, Globe, ScanFace, Search, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FeatureGateClient } from "@/components/feature-gate-client";
 import { useFeatures } from "@/lib/hooks/use-features";
@@ -15,6 +15,10 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { subDays, format } from "date-fns";
 import { EmployeeAvatar } from "@/components/ui/employee-avatar";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { descargarCSVHorasPorCentro } from "@/lib/informes/horas-centro-csv";
+
+/** Origen de las horas del informe por centro: fichadas o planificadas. */
+type OrigenHoras = "fichajes" | "cuadrante";
 
 interface Tienda { id: string; nombre: string; }
 interface Empleado {
@@ -93,7 +97,8 @@ export default function AdminInformesPage() {
   const [fichajes, setFichajes] = useState<FichajeDetalle[]>([]);
   const [loading, setLoading] = useState(false);
   const [exportando, setExportando] = useState(false);
-  const [horasCargando, setHorasCargando] = useState(false);
+  // Origen del informe por centro que se está generando (null = ninguno).
+  const [horasCargando, setHorasCargando] = useState<OrigenHoras | null>(null);
 
   // ── Carga inicial: sedes + empleados ────────────────────────────────────
   useEffect(() => {
@@ -216,42 +221,47 @@ export default function AdminInformesPage() {
     }
   };
 
-  // Informe de horas por empleado y centro: descarga un CSV.
-  const handleHorasPorCentro = async () => {
-    setHorasCargando(true);
+  // Informe de horas por empleado y centro: descarga un CSV. `origen`
+  // decide si las horas salen de los fichajes reales o del cuadrante de
+  // turnos (horas planificadas), que es un dato distinto y no equivalente.
+  const handleHorasPorCentro = async (origen: OrigenHoras) => {
+    setHorasCargando(origen);
     try {
       const params = new URLSearchParams({
         fechaInicio: `${fechaInicio}T00:00:00Z`,
         fechaFin: `${fechaFin}T23:59:59Z`,
+        origen,
       });
       if (tiendaId !== "todas") params.set("tiendaId", tiendaId);
       const res = await fetch(`/api/informes/horas-por-centro?${params}`);
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        if (res.status === 402) {
+          toast({ title: "Función no disponible en tu plan", variant: "destructive" });
+          return;
+        }
+        throw new Error();
+      }
       const { filas } = (await res.json()) as {
         filas: { empleado: string; centro: string; horas: number }[];
       };
       if (!filas.length) {
-        toast({ title: "Sin horas registradas en el periodo" });
+        toast({
+          title:
+            origen === "cuadrante"
+              ? "Sin turnos planificados en el periodo"
+              : "Sin horas registradas en el periodo",
+        });
         return;
       }
-      const esc = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
-      const csv = [
-        "Empleado,Centro,Horas",
-        ...filas.map((f) =>
-          [esc(f.empleado), esc(f.centro), String(f.horas).replace(".", ",")].join(","),
-        ),
-      ].join("\r\n");
-      const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `horas_por_centro_${fechaInicio}_${fechaFin}.csv`;
-      a.click();
-      window.URL.revokeObjectURL(url);
+      const sufijo = origen === "cuadrante" ? "_cuadrante" : "";
+      descargarCSVHorasPorCentro(
+        filas,
+        `horas_por_centro${sufijo}_${fechaInicio}_${fechaFin}.csv`,
+      );
     } catch {
       toast({ title: "Error al generar el informe", variant: "destructive" });
     } finally {
-      setHorasCargando(false);
+      setHorasCargando(null);
     }
   };
 
@@ -270,10 +280,28 @@ export default function AdminInformesPage() {
           <h1 className="text-2xl font-bold text-slate-900">Informes</h1>
           <p className="text-slate-500 text-sm mt-1">Análisis de asistencia y detalle de fichajes</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" disabled={horasCargando} onClick={handleHorasPorCentro}>
-            <BarChart2 className="h-4 w-4 mr-2" /> {horasCargando ? "Generando…" : "Horas por centro"}
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            disabled={horasCargando !== null}
+            onClick={() => handleHorasPorCentro("fichajes")}
+          >
+            <BarChart2 className="h-4 w-4 mr-2" />
+            {horasCargando === "fichajes" ? "Generando…" : "Horas fichadas por centro"}
           </Button>
+          {/* Mismo informe pero con las horas del cuadrante (planificadas).
+              Gateado por la feature de Turnos: sin ella el endpoint responde
+              402 y el botón no debe ni pintarse. */}
+          <FeatureGateClient feature="turnos_publicacion">
+            <Button
+              variant="outline"
+              disabled={horasCargando !== null}
+              onClick={() => handleHorasPorCentro("cuadrante")}
+            >
+              <CalendarRange className="h-4 w-4 mr-2" />
+              {horasCargando === "cuadrante" ? "Generando…" : "Horas del cuadrante por centro"}
+            </Button>
+          </FeatureGateClient>
           <FeatureGateClient feature="export_excel">
             <Button variant="outline" disabled={exportando} onClick={() => handleExport("xlsx")}>
               <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel

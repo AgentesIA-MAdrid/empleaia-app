@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { ChevronLeft, ChevronRight, Send, Download, Settings2, Trash2, Pencil, UserPlus, Copy, Search, Coffee } from "lucide-react";
+import { ChevronLeft, ChevronRight, Send, Download, BarChart2, Settings2, Trash2, Pencil, UserPlus, Copy, Search, Coffee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { addDays, startOfWeek, endOfWeek, format, addWeeks, subWeeks, isSameDay, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { horasDeTurno, etiquetaTurno } from "@/lib/turnos/horas";
+import { descargarCSVHorasPorCentro } from "@/lib/informes/horas-centro-csv";
 
 interface Tienda { id: string; nombre: string; color: string; activa: boolean }
 interface Empleado {
@@ -97,6 +98,7 @@ export default function AdminTurnosPage() {
   const [turnoForm, setTurnoForm] = useState(TURNO_FORM_INICIAL);
   const [submitting, setSubmitting] = useState(false);
   const [copiandoSemana, setCopiandoSemana] = useState(false);
+  const [horasCargando, setHorasCargando] = useState(false);
 
   const [tiposDialog, setTiposDialog] = useState(false);
   const [tipoForm, setTipoForm] = useState(TIPO_FORM_INICIAL);
@@ -577,6 +579,38 @@ export default function AdminTurnosPage() {
     window.open(`/api/turnos/cuadrante/exportar?${params.toString()}`, "_blank");
   };
 
+  // Informe de horas por empleado y centro de la semana visible, calculado
+  // sobre el CUADRANTE (horas planificadas), no sobre los fichajes. Comparte
+  // endpoint y CSV con el mismo informe de /admin/informes.
+  const exportarHorasPorCentro = async () => {
+    setHorasCargando(true);
+    try {
+      const params = new URLSearchParams({
+        fechaInicio: inicioSemana.toISOString(),
+        fechaFin: finSemana.toISOString(),
+        origen: "cuadrante",
+      });
+      if (filtroTienda !== "todas") params.set("tiendaId", filtroTienda);
+      const res = await fetch(`/api/informes/horas-por-centro?${params.toString()}`);
+      if (!res.ok) throw new Error();
+      const { filas } = (await res.json()) as {
+        filas: { empleado: string; centro: string; horas: number }[];
+      };
+      if (!filas.length) {
+        toast({ title: "No hay turnos en la semana seleccionada" });
+        return;
+      }
+      descargarCSVHorasPorCentro(
+        filas,
+        `horas-por-centro-cuadrante-${format(inicioSemana, "yyyy-MM-dd")}.csv`,
+      );
+    } catch {
+      toast({ title: "Error al generar el informe", variant: "destructive" });
+    } finally {
+      setHorasCargando(false);
+    }
+  };
+
   // ---- Tipos de turno: CRUD ----
   const guardarTipo = async () => {
     if (!tipoForm.nombre) {
@@ -640,6 +674,10 @@ export default function AdminTurnosPage() {
           </Button>
           <Button variant="outline" onClick={exportar}>
             <Download className="h-4 w-4 mr-2" /> Excel
+          </Button>
+          <Button variant="outline" disabled={horasCargando} onClick={exportarHorasPorCentro}>
+            <BarChart2 className="h-4 w-4 mr-2" />
+            {horasCargando ? "Generando…" : "Horas por centro"}
           </Button>
           {turnos.some(t => t.estado === "BORRADOR") && (
             <Button variant="outline" onClick={publicarTodos}>
