@@ -10,6 +10,10 @@
  *  - `cuadrante` → horas planificadas en los turnos del cuadrante. Requiere
  *    la feature `turnos_publicacion` (es el módulo de Turnos el que aporta
  *    el dato), igual que el export del cuadrante.
+ *
+ * Cada fila lleva además `horasTotales` (del empleado en todas sus sedes),
+ * `horasContrato` (su contrato semanal prorrateado al periodo) y
+ * `diferencia`, para poder calcular horas extra.
  */
 
 import { auth } from "@/lib/auth";

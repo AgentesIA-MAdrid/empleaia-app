@@ -3,6 +3,7 @@ import {
   agregarHorasPorCentro,
   agregarHorasCuadrantePorCentro,
   calcularHorasPorCentroCuadrante,
+  enriquecerConContrato,
 } from "./horas-por-centro";
 
 const u = (nombre: string) => ({ nombre, apellidos: "X" });
@@ -97,6 +98,57 @@ describe("agregarHorasCuadrantePorCentro", () => {
     ]);
     expect(filas[0].horas).toBe(8);
     expect(filas[0].centro).toBe("Sede A");
+  });
+});
+
+describe("enriquecerConContrato", () => {
+  const fila = (userId: string, tiendaId: string, minutos: number) => ({
+    userId,
+    empleado: `${userId} X`,
+    tiendaId,
+    centro: `Sede ${tiendaId}`,
+    minutos,
+    horas: Math.round((minutos / 60) * 100) / 100,
+  });
+
+  it("reparte el mismo contrato y diferencia en todas las sedes del empleado", () => {
+    // Ana: 20h en A + 25h en B = 45h, contrato 40h/semana en 7 días.
+    const filas = enriquecerConContrato([fila("ana", "A", 1200), fila("ana", "B", 1500)], {
+      horasSemanalesPorUsuario: new Map([["ana", 40]]),
+      horasSemanalesEmpresa: 38,
+      dias: 7,
+    });
+    expect(filas.map((f) => f.horas)).toEqual([20, 25]);
+    // El contrato es de la persona, no de la sede: no puede pedirse entero
+    // en cada una. Total y diferencia se repiten iguales en ambas filas.
+    for (const f of filas) {
+      expect(f.horasTotales).toBe(45);
+      expect(f.horasContrato).toBe(40);
+      expect(f.diferencia).toBe(5);
+    }
+  });
+
+  it("usa la jornada de la empresa cuando el empleado no tiene contrato", () => {
+    const [f] = enriquecerConContrato([fila("leo", "A", 600)], {
+      horasSemanalesPorUsuario: new Map([["leo", null]]),
+      horasSemanalesEmpresa: 35,
+      dias: 7,
+    });
+    expect(f.horasContrato).toBe(35);
+    expect(f.diferencia).toBe(-25);
+  });
+
+  it("mide el contrato contra las horas globales cuando el informe va filtrado por sede", () => {
+    // Filtrado a la sede A (10h), pero la persona hace otras 30h en B.
+    const [f] = enriquecerConContrato([fila("sam", "A", 600)], {
+      horasSemanalesPorUsuario: new Map([["sam", 40]]),
+      horasSemanalesEmpresa: 40,
+      dias: 7,
+      filasGlobales: [fila("sam", "A", 600), fila("sam", "B", 1800)],
+    });
+    expect(f.horas).toBe(10);
+    expect(f.horasTotales).toBe(40);
+    expect(f.diferencia).toBe(0);
   });
 });
 
