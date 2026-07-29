@@ -10,6 +10,11 @@
  * Solo reclama a quien tenía turno ese día — si no, cualquier día libre saldría
  * como pendiente.
  *
+ * Un único cron sirve para TODOS los clientes: no hay que programar nada al dar
+ * de alta uno nuevo. Y se salta a los que no tienen contratado el módulo: sin
+ * ese filtro, un cliente sin cierre de turno recibiría un correo diciendo que
+ * toda su plantilla ha dejado el cierre sin empezar.
+ *
  * Programación en Dokploy (sobre las 23:00, con las tiendas ya cerradas):
  *   curl -fsS -X POST https://app.empleaia.es/api/cron/cierres-incompletos \
  *        -H "Authorization: Bearer $CRON_SECRET"
@@ -23,6 +28,7 @@ import { runWithTenant } from "@/lib/tenant/context";
 import { sendSystemEmail } from "@/lib/email";
 import { Rol } from "@/generated/prisma-tenant/client";
 import { diaMadrid } from "@/lib/cierre-turno/core";
+import { loadFeaturesFor, hasFeatureInMap } from "@/lib/tenant/features";
 import { agruparPendientesPorSede, describirPendiente } from "@/lib/cierre-turno/vigilancia";
 
 export const dynamic = "force-dynamic";
@@ -136,13 +142,29 @@ export async function POST(req: NextRequest) {
     select: { id: true, slug: true },
   });
 
-  type Resultado = { slug: string; sedes: number; personas: number; correos: number; error?: string };
+  type Resultado = {
+    slug: string;
+    sedes: number;
+    personas: number;
+    correos: number;
+    /** El cliente no tiene el módulo: no se le revisa nada. */
+    sinModulo?: boolean;
+    error?: string;
+  };
   const resultados: Resultado[] = [];
 
   for (const t of tenants) {
     try {
+      // Solo los clientes con el módulo contratado. Se resuelven sus features
+      // reales (plan + extras + overrides), no se asume por plan.
+      const features = await loadFeaturesFor(t.id);
+      if (!hasFeatureInMap(features, "cierre_turno")) {
+        resultados.push({ slug: t.slug, sedes: 0, personas: 0, correos: 0, sinModulo: true });
+        continue;
+      }
+
       const r = await runWithTenant(
-        { tenantId: t.id, slug: t.slug, status: "active", features: new Map() },
+        { tenantId: t.id, slug: t.slug, status: "active", features },
         async () => revisarTenant(dia),
       );
       resultados.push({ slug: t.slug, ...r });
@@ -158,6 +180,7 @@ export async function POST(req: NextRequest) {
     ok: true,
     dia,
     tenantsProcesados: resultados.length,
+    tenantsConModulo: resultados.filter((r) => !r.sinModulo).length,
     totalPersonas: resultados.reduce((n, r) => n + r.personas, 0),
     totalCorreos: resultados.reduce((n, r) => n + r.correos, 0),
     resultados,
