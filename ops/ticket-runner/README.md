@@ -97,6 +97,37 @@ Qué se cambió:
 Si un ticket necesita de verdad probarse contra una BD, eso no va aquí: se
 revisa a mano sobre el PR.
 
+## node_modules compartido y Prisma generado (29-jul-2026)
+
+Dos causas de fallos intermitentes, ambas en la preparación del worktree:
+
+**1. `EINTR, Interrupted system call`.** Cada job copiaba `node_modules` con
+`cpSync`: 1,3 GB y ~75.000 ficheros. Una copia síncrona tan larga la
+interrumpe cualquier señal que reciba el proceso, y Node la propaga como
+`EINTR` — con el job muerto antes de empezar. Además se comía minutos del
+presupuesto y disco. Ahora se **enlaza** (`symlinkSync`), con la copia como
+fallback si el enlace fallara. El worktree solo necesita leerlos; para que
+nadie escriba en el árbol compartido hay deny de `npm install`/`ci`.
+
+Al limpiar, el enlace se borra con `unlinkSync` **antes** del
+`git worktree remove`: si algo siguiera el symlink, se llevaría el
+`node_modules` del clon persistente y dejaría al runner sin dependencias.
+Verificado que no ocurre.
+
+**2. `tsc` daba errores de tipos falsos.** `src/generated/prisma*` está en
+`.gitignore`, así que el worktree nace sin los clientes Prisma y todo lo que
+venga de Prisma queda `unknown`:
+
+```
+src/lib/worker/jobs/recordatorio-fichaje.ts(119,5): error TS2322:
+  Type 'Set<unknown>' is not assignable to type 'Set<string>'
+```
+
+Dependía de que Claude se diera cuenta y los generara. Ahora los genera el
+runner al preparar el worktree (dos `prisma generate`, <1 s en total), y el
+prompt le dice que ya están hechos. Comprobado en el contenedor: con los
+clientes generados, `tsc --noEmit` sale limpio sobre la misma rama.
+
 ## Watchdog (Fase 7)
 Cron de Dokploy cada ~5 min que hace `POST` a
 `/api/internal/feedback-ai-job-watchdog` con `Authorization: Bearer $CRON_SECRET`
