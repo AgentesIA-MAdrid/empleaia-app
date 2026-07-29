@@ -32,7 +32,7 @@ import { runWithTenant } from "@/lib/tenant/context";
 import { sendSystemEmail } from "@/lib/email";
 import { Rol } from "@/generated/prisma-tenant/client";
 import { diaMadrid } from "@/lib/cierre-turno/core";
-import { loadFeaturesFor, hasFeatureInMap } from "@/lib/tenant/features";
+import { loadFeatureCatalog, loadFeaturesFor, hasFeatureInMap } from "@/lib/tenant/features";
 import {
   agruparPendientesPorSede,
   describirPendiente,
@@ -186,6 +186,12 @@ export async function POST(req: NextRequest) {
   if (!expected || authHeader !== `Bearer ${expected}`) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
+
+  // El catálogo de features vive en memoria de proceso y lo hidratan las
+  // peticiones normales; un cron puede caer en un proceso recién arrancado que
+  // aún no lo tiene, y entonces `hasFeatureInMap` lanza y no se avisa a nadie.
+  // Verificado en producción: sin esto, todos los tenants fallaban.
+  await loadFeatureCatalog();
 
   const ahora = new Date();
   const tenants = await prismaMaster.tenant.findMany({
