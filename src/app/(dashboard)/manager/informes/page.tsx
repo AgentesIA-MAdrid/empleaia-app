@@ -18,6 +18,10 @@ interface ResumenEmpleado {
   apellidos: string;
   diasTrabajados: number;
   horasTotales: number;
+  /** Horas de contrato imputables al periodo filtrado. */
+  horasContrato: number;
+  /** `horasTotales − horasContrato`: positiva = exceso, negativa = déficit. */
+  diferencia: number;
   horasExtra: number;
   diasAusencia: number;
 }
@@ -26,6 +30,8 @@ interface Stats {
   totalHoras: number;
   mediaHorasDia: number;
   totalAusencias: number;
+  horasContrato: number;
+  diferencia: number;
   horasExtra: number;
 }
 
@@ -148,10 +154,16 @@ export default function ManagerInformesPage() {
 
       {/* Stats */}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
           {[
             { label: "Total horas", value: `${stats.totalHoras.toFixed(0)}h`, color: "text-[var(--primary)]" },
             { label: "Media horas/día", value: `${stats.mediaHorasDia.toFixed(1)}h`, color: "text-slate-700" },
+            { label: "Horas de contrato", value: `${stats.horasContrato.toFixed(0)}h`, color: "text-slate-700" },
+            {
+              label: "Diferencia",
+              value: `${stats.diferencia > 0 ? "+" : ""}${stats.diferencia.toFixed(1)}h`,
+              color: stats.diferencia > 0 ? "text-amber-600" : "text-slate-500",
+            },
             { label: "Horas extra", value: `${stats.horasExtra.toFixed(0)}h`, color: "text-amber-600" },
             { label: "Ausencias", value: stats.totalAusencias.toString(), color: "text-red-500" },
           ].map((s) => (
@@ -206,7 +218,7 @@ export default function ManagerInformesPage() {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b">
                   <tr>
-                    {["Empleado", "Días trab.", "Horas totales", "Horas extra", "Ausencias"].map((h) => (
+                    {["Empleado", "Días trab.", "Horas totales", "Horas de contrato", "Diferencia", "Horas extra", "Ausencias"].map((h) => (
                       <th key={h} className="text-left text-xs font-semibold text-slate-500 px-4 py-3">{h}</th>
                     ))}
                   </tr>
@@ -219,6 +231,12 @@ export default function ManagerInformesPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-600">{e.diasTrabajados}</td>
                       <td className="px-4 py-3 text-sm font-semibold text-slate-900">{e.horasTotales.toFixed(1)}h</td>
+                      <td className="px-4 py-3 text-sm text-slate-600 tabular-nums">{e.horasContrato.toFixed(1)}h</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={e.diferencia > 0 ? "text-amber-600 font-medium tabular-nums" : "text-slate-500 tabular-nums"}>
+                          {e.diferencia > 0 ? "+" : ""}{e.diferencia.toFixed(1)}h
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-sm">
                         <span className={e.horasExtra > 0 ? "text-amber-600 font-medium" : "text-slate-400"}>
                           {e.horasExtra > 0 ? `+${e.horasExtra.toFixed(1)}h` : "0h"}

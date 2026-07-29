@@ -38,6 +38,15 @@ interface Ausencia {
   id: string; userId: string; fechaInicio: string; fechaFin: string;
   tipoAusencia: { nombre: string; color: string };
 }
+/**
+ * Fila de `/api/informes/horas-por-centro`. `horasTotales`, `horasContrato`
+ * y `diferencia` son del EMPLEADO (no de la sede): se repiten iguales en
+ * todas sus filas.
+ */
+interface FilaHorasCentro {
+  empleado: string; centro: string; horas: number;
+  horasTotales: number; horasContrato: number; diferencia: number;
+}
 
 interface Tramo { horaApertura: string; horaCierre: string }
 
@@ -104,7 +113,7 @@ export default function AdminTurnosPage() {
   const [mesAbierto, setMesAbierto] = useState(false);
   const [mesSel, setMesSel] = useState(() => format(new Date(), "yyyy-MM"));
   const [mesCargando, setMesCargando] = useState(false);
-  const [mesFilas, setMesFilas] = useState<{ empleado: string; centro: string; horas: number }[] | null>(null);
+  const [mesFilas, setMesFilas] = useState<FilaHorasCentro[] | null>(null);
 
   const [tiposDialog, setTiposDialog] = useState(false);
   const [tipoForm, setTipoForm] = useState(TIPO_FORM_INICIAL);
@@ -599,9 +608,7 @@ export default function AdminTurnosPage() {
       if (filtroTienda !== "todas") params.set("tiendaId", filtroTienda);
       const res = await fetch(`/api/informes/horas-por-centro?${params.toString()}`);
       if (!res.ok) throw new Error();
-      const { filas } = (await res.json()) as {
-        filas: { empleado: string; centro: string; horas: number }[];
-      };
+      const { filas } = (await res.json()) as { filas: FilaHorasCentro[] };
       if (!filas.length) {
         toast({ title: "No hay turnos en la semana seleccionada" });
         return;
@@ -636,9 +643,7 @@ export default function AdminTurnosPage() {
       if (filtroTienda !== "todas") params.set("tiendaId", filtroTienda);
       const res = await fetch(`/api/informes/horas-por-centro?${params.toString()}`);
       if (!res.ok) throw new Error();
-      const { filas } = (await res.json()) as {
-        filas: { empleado: string; centro: string; horas: number }[];
-      };
+      const { filas } = (await res.json()) as { filas: FilaHorasCentro[] };
       setMesFilas(filas);
     } catch {
       toast({ title: "Error al calcular las horas del mes", variant: "destructive" });
@@ -647,13 +652,27 @@ export default function AdminTurnosPage() {
     }
   }, [mesSel, filtroTienda, rangoMes, toast]);
 
-  // Total por empleado sumando sus centros, de más horas a menos.
+  // Total por empleado sumando sus centros, de más horas a menos. El
+  // contrato y la diferencia son de la persona (iguales en todas sus filas),
+  // así que se toman tal cual de la primera fila suya.
   const totalesMes = useMemo(() => {
     if (!mesFilas) return [];
-    const acc = new Map<string, number>();
-    for (const f of mesFilas) acc.set(f.empleado, (acc.get(f.empleado) ?? 0) + f.horas);
+    const acc = new Map<string, { horas: number; contrato: number; diferencia: number }>();
+    for (const f of mesFilas) {
+      const prev = acc.get(f.empleado);
+      acc.set(f.empleado, {
+        horas: (prev?.horas ?? 0) + f.horas,
+        contrato: f.horasContrato,
+        diferencia: f.diferencia,
+      });
+    }
     return [...acc.entries()]
-      .map(([empleado, horas]) => ({ empleado, horas: Math.round(horas * 100) / 100 }))
+      .map(([empleado, v]) => ({
+        empleado,
+        horas: Math.round(v.horas * 100) / 100,
+        contrato: v.contrato,
+        diferencia: v.diferencia,
+      }))
       .sort((a, b) => b.horas - a.horas);
   }, [mesFilas]);
 
@@ -1002,7 +1021,7 @@ export default function AdminTurnosPage() {
 
       {/* ─── Horas totales de un mes según el cuadrante (ticket #63) ─────── */}
       <Dialog open={mesAbierto} onOpenChange={setMesAbierto}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Horas del mes según el cuadrante</DialogTitle>
           </DialogHeader>
@@ -1024,7 +1043,8 @@ export default function AdminTurnosPage() {
             <p className="text-xs text-slate-400">
               Suma las horas planificadas en el cuadrante
               {filtroTienda !== "todas" ? " de la sede filtrada" : " de todas las sedes"}. No son las
-              horas fichadas.
+              horas fichadas. «Contrato» son las horas del contrato de cada persona
+              prorrateadas al mes y «Dif.» lo que sobra (+) o falta (−) frente a ellas.
             </p>
 
             {mesFilas && totalesMes.length === 0 && (
@@ -1041,6 +1061,8 @@ export default function AdminTurnosPage() {
                       <tr>
                         <th className="text-left px-3 py-2 font-semibold text-slate-600">Empleado</th>
                         <th className="text-right px-3 py-2 font-semibold text-slate-600">Horas</th>
+                        <th className="text-right px-3 py-2 font-semibold text-slate-600">Contrato</th>
+                        <th className="text-right px-3 py-2 font-semibold text-slate-600">Dif.</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1048,6 +1070,14 @@ export default function AdminTurnosPage() {
                         <tr key={e.empleado} className="border-b border-slate-100 last:border-0">
                           <td className="px-3 py-2 text-slate-800">{e.empleado}</td>
                           <td className="px-3 py-2 text-right tabular-nums font-medium">{e.horas}h</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-slate-500">{e.contrato}h</td>
+                          <td
+                            className={`px-3 py-2 text-right tabular-nums font-medium ${
+                              e.diferencia > 0 ? "text-amber-600" : e.diferencia < 0 ? "text-slate-500" : "text-slate-400"
+                            }`}
+                          >
+                            {e.diferencia > 0 ? "+" : ""}{e.diferencia}h
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -1055,6 +1085,7 @@ export default function AdminTurnosPage() {
                       <tr className="bg-slate-50 border-t border-slate-200">
                         <td className="px-3 py-2 font-semibold text-slate-700">Total</td>
                         <td className="px-3 py-2 text-right tabular-nums font-bold">{horasTotalesMes}h</td>
+                        <td colSpan={2} />
                       </tr>
                     </tfoot>
                   </table>

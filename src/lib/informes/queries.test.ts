@@ -30,8 +30,13 @@ function fakePrisma(rows: {
   turnos?: unknown[];
   users?: unknown[];
   tiendas?: unknown[];
+  /** `ConfiguracionEmpresa` del tenant (jornada semanal por defecto). */
+  config?: { horasSemanales: number } | null;
 }): PrismaClient {
   return {
+    configuracionEmpresa: {
+      findFirst: async () => rows.config ?? null,
+    },
     fichaje: {
       findMany: async () => rows.fichajes ?? [],
     },
@@ -157,6 +162,69 @@ describe("getInformeData — shape JSON", () => {
     expect(r.data.empleados).toEqual([]);
     expect(r.data.total).toBe(0);
     expect(r.data.stats).toMatchObject({ totalHoras: 0 });
+  });
+
+  // El periodo de BASE_ARGS (2026-04-01 → 2026-04-30) son 30 días naturales,
+  // así que un contrato semanal de 35h prorratea a 35/7*30 = 150h.
+  const jornadaDeUnDia: FakeFichaje[] = [
+    {
+      id: "f1",
+      userId: "u1",
+      tipo: "ENTRADA",
+      timestamp: new Date("2026-04-15T08:00:00Z"),
+      tiendaId: "t1",
+    },
+    {
+      id: "f2",
+      userId: "u1",
+      tipo: "SALIDA",
+      timestamp: new Date("2026-04-15T16:00:00Z"),
+      tiendaId: "t1",
+    },
+  ];
+
+  it("resumen compara las horas contra el contrato del empleado", async () => {
+    const r = await getInformeData({
+      ...BASE_ARGS,
+      tipo: "resumen",
+      prisma: fakePrisma({
+        users: [{ id: "u1", nombre: "Ana", apellidos: "G", email: "a@x", horasSemanalesContrato: 35, tienda: null }],
+        fichajes: jornadaDeUnDia,
+        ausencias: [],
+        config: { horasSemanales: 40 },
+      }),
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error("expected ok");
+    const [e] = r.data.empleados as {
+      horasTotales: number; horasContrato: number; diferencia: number; horasExtra: number;
+    }[];
+    expect(e.horasTotales).toBe(8);
+    expect(e.horasContrato).toBe(150);
+    expect(e.diferencia).toBe(-142);
+    // Por debajo del contrato no hay horas extra (antes se calculaban con una
+    // jornada fija de 8h/día trabajado, que ignoraba el contrato).
+    expect(e.horasExtra).toBe(0);
+    expect(r.data.stats).toMatchObject({ horasContrato: 150, diferencia: -142, horasExtra: 0 });
+  });
+
+  it("resumen usa la jornada de la empresa si el empleado no tiene contrato", async () => {
+    const r = await getInformeData({
+      ...BASE_ARGS,
+      tipo: "resumen",
+      prisma: fakePrisma({
+        users: [{ id: "u1", nombre: "Ana", apellidos: "G", email: "a@x", horasSemanalesContrato: null, tienda: null }],
+        fichajes: jornadaDeUnDia,
+        ausencias: [],
+        config: { horasSemanales: 1.4 },
+      }),
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error("expected ok");
+    const [e] = r.data.empleados as { horasContrato: number; horasExtra: number }[];
+    // 1,4 h/semana → 6h en 30 días; con 8h fichadas hay 2h de exceso.
+    expect(e.horasContrato).toBe(6);
+    expect(e.horasExtra).toBe(2);
   });
 
   it("turnos preserva tipo", async () => {

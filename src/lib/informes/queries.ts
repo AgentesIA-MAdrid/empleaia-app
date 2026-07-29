@@ -16,6 +16,13 @@
 
 import { Rol, TipoFichaje } from "@/generated/prisma-tenant/client";
 import type { PrismaClient } from "@/generated/prisma-tenant/client";
+import {
+  diasDelPeriodo,
+  diferenciaContrato,
+  horasContratoPeriodo,
+  horasSemanalesDe,
+  type HorasContratoRaw,
+} from "@/lib/informes/horas-contrato";
 
 export type InformeTipo =
   | "fichajes"
@@ -269,12 +276,19 @@ async function informeResumen(
       nombre: true,
       apellidos: true,
       email: true,
+      // Horas de contrato de la persona: base de la diferencia y, por tanto,
+      // de las horas extra. Si es null se usa la jornada de la empresa.
+      horasSemanalesContrato: true,
       tienda: { select: { id: true, nombre: true } },
     },
   });
   const empleadoIds = empleados.map((e) => e.id);
 
-  const [fichajes, ausencias] = await Promise.all([
+  const diasPeriodo = diasDelPeriodo(inicio, fin);
+
+  const [config, fichajes, ausencias] = await Promise.all([
+    // Jornada semanal por defecto: se aplica a quien no tiene contrato propio.
+    prisma.configuracionEmpresa.findFirst({ select: { horasSemanales: true } }),
     prisma.fichaje.findMany({
       where: { userId: { in: empleadoIds }, timestamp: { gte: inicio, lte: fin } },
       orderBy: [{ userId: "asc" }, { timestamp: "asc" }],
@@ -338,6 +352,18 @@ async function informeResumen(
         .filter((f) => f.tipo === TipoFichaje.ENTRADA)
         .map((f) => f.timestamp.toISOString().split("T")[0]),
     ).size;
+    // Horas de contrato del periodo y diferencia contra lo trabajado: es lo
+    // que convierte el informe en algo con lo que calcular horas extra. Antes
+    // se asumía una jornada fija de 8h/día trabajado, que ignoraba tanto el
+    // contrato de la persona como la jornada configurada de la empresa.
+    const horasContrato = horasContratoPeriodo(
+      horasSemanalesDe(
+        empleado.horasSemanalesContrato as HorasContratoRaw,
+        config?.horasSemanales ?? null,
+      ),
+      diasPeriodo,
+    );
+    const diferencia = diferenciaContrato(totalHoras, horasContrato);
     return {
       empleado,
       totalHoras,
@@ -346,25 +372,29 @@ async function informeResumen(
       totalFichajes,
       totalDiasAusencia,
       diasPorTipo,
+      horasContrato,
+      diferencia,
     };
   });
 
   const totalHorasGlobal = resumen.reduce((acc, e) => acc + e.totalHoras, 0);
   const diasTotales = resumen.reduce((acc, e) => acc + e.diasTrabajados, 0);
+  const totalHorasContrato = resumen.reduce((acc, e) => acc + e.horasContrato, 0);
   const stats = {
     totalHoras: Math.round(totalHorasGlobal * 10) / 10,
     mediaHorasDia:
       diasTotales > 0
         ? Math.round((totalHorasGlobal / diasTotales) * 10) / 10
         : 0,
-    horasExtra: Math.max(
-      0,
+    // Horas de contrato del periodo (suma de las de cada empleado) y horas
+    // extra = suma de los excesos individuales. No se compensan entre
+    // personas: quien va por debajo no descuenta las extras de otro.
+    horasContrato: Math.round(totalHorasContrato * 10) / 10,
+    diferencia: Math.round((totalHorasGlobal - totalHorasContrato) * 10) / 10,
+    horasExtra:
       Math.round(
-        (totalHorasGlobal -
-          (resumen.length * 8 * diasTotales) / Math.max(resumen.length, 1)) *
-          10,
+        resumen.reduce((acc, e) => acc + Math.max(0, e.diferencia), 0) * 10,
       ) / 10,
-    ),
     totalAusencias: resumen.reduce((acc, e) => acc + e.totalDiasAusencia, 0),
   };
   const empleadosResumen = resumen.map((e) => ({
@@ -373,7 +403,9 @@ async function informeResumen(
     apellidos: e.empleado.apellidos,
     diasTrabajados: e.diasTrabajados,
     horasTotales: e.totalHoras,
-    horasExtra: Math.max(0, e.totalHoras - e.diasTrabajados * 8),
+    horasContrato: e.horasContrato,
+    diferencia: e.diferencia,
+    horasExtra: Math.max(0, e.diferencia),
     diasAusencia: e.totalDiasAusencia,
   }));
   return {

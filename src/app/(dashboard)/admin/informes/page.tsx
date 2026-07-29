@@ -31,9 +31,22 @@ interface Empleado {
 }
 interface ResumenEmpleado {
   userId: string; nombre: string; apellidos: string;
-  diasTrabajados: number; horasTotales: number; horasExtra: number; diasAusencia: number;
+  diasTrabajados: number; horasTotales: number;
+  /** Horas de contrato imputables al periodo filtrado. */
+  horasContrato: number;
+  /** `horasTotales − horasContrato`: positiva = exceso, negativa = déficit. */
+  diferencia: number;
+  horasExtra: number; diasAusencia: number;
 }
-interface Stats { totalHoras: number; mediaHorasDia: number; totalAusencias: number; horasExtra: number; }
+interface Stats {
+  totalHoras: number; mediaHorasDia: number; totalAusencias: number;
+  horasContrato: number; diferencia: number; horasExtra: number;
+}
+/** Fila del informe de horas por centro que devuelve la API. */
+interface FilaCentro {
+  empleado: string; centro: string; horas: number;
+  horasTotales: number; horasContrato: number; diferencia: number;
+}
 
 /**
  * Análisis de asistencia y horas trabajadas. El registro en crudo de
@@ -198,9 +211,7 @@ function AdminInformesContent() {
         }
         throw new Error();
       }
-      const { filas } = (await res.json()) as {
-        filas: { empleado: string; centro: string; horas: number }[];
-      };
+      const { filas } = (await res.json()) as { filas: FilaCentro[] };
       if (!filas.length) {
         toast({
           title:
@@ -346,10 +357,18 @@ function AdminInformesContent() {
       )}
 
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
           {[
             { label: "Total horas", value: `${stats.totalHoras.toFixed(0)}h`, color: "text-[var(--primary)]" },
             { label: "Media horas/día", value: `${stats.mediaHorasDia.toFixed(1)}h`, color: "text-slate-900" },
+            // Horas de contrato del periodo y saldo frente a ellas: sin esto,
+            // "horas extra" no se puede contrastar con nada.
+            { label: "Horas de contrato", value: `${stats.horasContrato.toFixed(0)}h`, color: "text-slate-900" },
+            {
+              label: "Diferencia",
+              value: `${stats.diferencia > 0 ? "+" : ""}${stats.diferencia.toFixed(1)}h`,
+              color: stats.diferencia > 0 ? "text-amber-600" : stats.diferencia < 0 ? "text-slate-500" : "text-slate-900",
+            },
             { label: "Horas extra", value: `${stats.horasExtra.toFixed(0)}h`, color: "text-amber-600" },
             { label: "Ausencias", value: stats.totalAusencias.toString(), color: "text-red-500" },
           ].map(s => (
@@ -398,7 +417,7 @@ function AdminInformesContent() {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>{["Empleado", "Días trab.", "Horas trabajadas", "Horas extra", "Ausencias", ""].map(h => (
+                      <tr>{["Empleado", "Días trab.", "Horas trabajadas", "Horas de contrato", "Diferencia", "Horas extra", "Ausencias", ""].map(h => (
                         <th key={h} className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3">{h}</th>
                       ))}</tr>
                     </thead>
@@ -421,6 +440,24 @@ function AdminInformesContent() {
                                   {e.horasTotales.toFixed(1)}h
                                 </span>
                               </div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-slate-600 tabular-nums">
+                              {e.horasContrato.toFixed(1)}h
+                            </td>
+                            {/* Diferencia con signo: por encima del contrato (extra)
+                                o por debajo (horas pendientes de cubrir). */}
+                            <td className="px-4 py-3 text-sm">
+                              <span
+                                className={
+                                  e.diferencia > 0
+                                    ? "text-amber-600 font-medium tabular-nums"
+                                    : e.diferencia < 0
+                                      ? "text-slate-500 tabular-nums"
+                                      : "text-slate-400 tabular-nums"
+                                }
+                              >
+                                {e.diferencia > 0 ? "+" : ""}{e.diferencia.toFixed(1)}h
+                              </span>
                             </td>
                             <td className="px-4 py-3 text-sm">
                               <span className={e.horasExtra > 0 ? "text-amber-600 font-medium" : "text-slate-400"}>
