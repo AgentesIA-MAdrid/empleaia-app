@@ -15,9 +15,13 @@
  * ese filtro, un cliente sin cierre de turno recibiría un correo diciendo que
  * toda su plantilla ha dejado el cierre sin empezar.
  *
- * Programación en Dokploy (sobre las 23:00, con las tiendas ya cerradas):
- *   curl -fsS -X POST https://app.empleaia.es/api/cron/cierres-incompletos \
- *        -H "Authorization: Bearer $CRON_SECRET"
+ * Programación en Dokploy: CADA HORA. Cada cliente elige a qué hora local
+ * quiere el aviso (Configuración → Notificaciones), así que el cron se despierta
+ * en punto y solo avisa a quien le toca en ese momento. Una hora global mandaría
+ * el correo a media tarde a quien cierra a medianoche, y una hora antes de lo
+ * debido a un cliente en Canarias.
+ *   0 * * * *  →  curl -fsS -X POST https://app.empleaia.es/api/cron/cierres-incompletos \
+ *                     -H "Authorization: Bearer $CRON_SECRET"
  *
  * Auth: `Authorization: Bearer ${CRON_SECRET}`, igual que el resto de crons.
  */
@@ -29,15 +33,49 @@ import { sendSystemEmail } from "@/lib/email";
 import { Rol } from "@/generated/prisma-tenant/client";
 import { diaMadrid } from "@/lib/cierre-turno/core";
 import { loadFeaturesFor, hasFeatureInMap } from "@/lib/tenant/features";
-import { agruparPendientesPorSede, describirPendiente } from "@/lib/cierre-turno/vigilancia";
+import {
+  agruparPendientesPorSede,
+  describirPendiente,
+  decidirAviso,
+  diaARevisar,
+} from "@/lib/cierre-turno/vigilancia";
 
 export const dynamic = "force-dynamic";
 
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-/** Revisa un tenant ya en contexto y manda los avisos. Devuelve el recuento. */
-async function revisarTenant(dia: string): Promise<{ sedes: number; personas: number; correos: number }> {
+/**
+ * Revisa un tenant ya en contexto: decide si le toca a esta hora y, si sí,
+ * manda los avisos y registra el día para no repetirlo.
+ */
+async function revisarTenant(
+  ahora: Date,
+): Promise<{ sedes: number; personas: number; correos: number; motivo: string; dia: string }> {
+  const cfgAviso = await prismaApp.configuracionEmpresa.findUnique({
+    where: { id: "singleton" },
+    select: {
+      avisoCierresActivo: true,
+      avisoCierresHora: true,
+      avisoCierresZona: true,
+      avisoCierresUltimoDia: true,
+    },
+  });
+
+  const decision = decidirAviso(
+    {
+      activo: cfgAviso?.avisoCierresActivo ?? true,
+      hora: cfgAviso?.avisoCierresHora ?? 23,
+      zona: cfgAviso?.avisoCierresZona ?? "Europe/Madrid",
+      ultimoDia: cfgAviso?.avisoCierresUltimoDia ?? null,
+    },
+    ahora,
+  );
+  if (!decision.toca) {
+    return { sedes: 0, personas: 0, correos: 0, motivo: decision.motivo, dia: decision.dia };
+  }
+
+  const dia = diaARevisar(decision.dia, cfgAviso?.avisoCierresHora ?? 23);
   const fecha = new Date(`${dia}T00:00:00Z`);
 
   const [turnos, cierres, cfg] = await Promise.all([
@@ -84,7 +122,15 @@ async function revisarTenant(dia: string): Promise<{ sedes: number; personas: nu
     })),
   );
 
-  if (pendientes.length === 0) return { sedes: 0, personas: 0, correos: 0 };
+  // Aunque no haya nada pendiente se marca el día: si más tarde alguien deja un
+  // cierre a medias, no tiene sentido reabrir el aviso de una jornada cerrada.
+  if (pendientes.length === 0) {
+    await prismaApp.configuracionEmpresa.update({
+      where: { id: "singleton" },
+      data: { avisoCierresUltimoDia: decision.dia },
+    });
+    return { sedes: 0, personas: 0, correos: 0, motivo: "todo_al_dia", dia };
+  }
 
   const empresa = cfg?.nombre ?? cfg?.appNombre ?? "empleaIA";
   const color = cfg?.colorPrimario ?? "#6366f1";
@@ -126,7 +172,12 @@ async function revisarTenant(dia: string): Promise<{ sedes: number; personas: nu
     correos += envios.filter((e) => e.status === "fulfilled").length;
   }
 
-  return { sedes: pendientes.length, personas, correos };
+  await prismaApp.configuracionEmpresa.update({
+    where: { id: "singleton" },
+    data: { avisoCierresUltimoDia: decision.dia },
+  });
+
+  return { sedes: pendientes.length, personas, correos, motivo: "avisado", dia };
 }
 
 export async function POST(req: NextRequest) {
@@ -136,7 +187,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
-  const dia = diaMadrid();
+  const ahora = new Date();
   const tenants = await prismaMaster.tenant.findMany({
     where: { status: "active" },
     select: { id: true, slug: true },
@@ -147,6 +198,10 @@ export async function POST(req: NextRequest) {
     sedes: number;
     personas: number;
     correos: number;
+    /** Por qué se ha avisado o no: toca, otra_hora, ya_avisado, desactivado… */
+    motivo?: string;
+    /** Día revisado, en la zona del cliente. */
+    dia?: string;
     /** El cliente no tiene el módulo: no se le revisa nada. */
     sinModulo?: boolean;
     error?: string;
@@ -165,7 +220,7 @@ export async function POST(req: NextRequest) {
 
       const r = await runWithTenant(
         { tenantId: t.id, slug: t.slug, status: "active", features },
-        async () => revisarTenant(dia),
+        async () => revisarTenant(ahora),
       );
       resultados.push({ slug: t.slug, ...r });
     } catch (err) {
@@ -178,7 +233,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    dia,
     tenantsProcesados: resultados.length,
     tenantsConModulo: resultados.filter((r) => !r.sinModulo).length,
     totalPersonas: resultados.reduce((n, r) => n + r.personas, 0),

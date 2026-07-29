@@ -61,6 +61,9 @@ export const PUT = withTenant(async (request: NextRequest) => {
       "geoObligatoria", "faceIdObligatorio", "faceIdGuardarFoto", "retencionFotosDias",
       "notifAusencias", "notifTurnos", "notifTareas", "notifFichajes", "notifComunicados", "notifDocumentos",
       "notifFueraSede",
+      // Aviso diario de cierres de turno sin terminar (módulo Enterprise): se
+      // manda a la hora local que elija cada cliente.
+      "avisoCierresActivo", "avisoCierresHora", "avisoCierresZona",
       "emailActivo", "emailHost", "emailPort", "emailSecure", "emailUser", "emailPassword", "emailFrom",
       "pushActivo", "pushVapidPublicKey",
       "colorPrimario", "colorSidebar",
