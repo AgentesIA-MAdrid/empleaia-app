@@ -64,6 +64,9 @@ export const PUT = withTenant(async (request: NextRequest) => {
       // Aviso diario de cierres de turno sin terminar (módulo Enterprise): se
       // manda a la hora local que elija cada cliente.
       "avisoCierresActivo", "avisoCierresHora", "avisoCierresZona",
+      // Precios en el catálogo de ventas: con esto encendido, el módulo lee
+      // las ventas también en euros. Se cambia desde la pestaña Catálogo.
+      "ventasPreciosActivos",
       "emailActivo", "emailHost", "emailPort", "emailSecure", "emailUser", "emailPassword", "emailFrom",
       "pushActivo", "pushVapidPublicKey",
       "colorPrimario", "colorSidebar",

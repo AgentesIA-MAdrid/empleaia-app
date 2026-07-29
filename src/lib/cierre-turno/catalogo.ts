@@ -15,11 +15,14 @@
 /** Nombres de columna que reconocemos, normalizados (sin tildes ni mayúsculas). */
 const CABECERAS_NOMBRE = ["nombre", "articulo", "artículo", "servicio", "producto", "concepto", "descripcion", "descripción"];
 const CABECERAS_CATEGORIA = ["categoria", "categoría", "familia", "grupo", "tipo", "seccion", "sección"];
+const CABECERAS_PRECIO = ["precio", "pvp", "importe", "tarifa", "coste", "euros"];
 
 export interface FilaCatalogo {
   nombre: string;
   categoria: string | null;
   orden: number;
+  /** Precio unitario, si la hoja traía una columna de precio. */
+  precio: number | null;
 }
 
 export interface ResultadoImportacion {
@@ -47,9 +50,15 @@ function normalizar(s: string): string {
  * nombre de columna conocido. Si el cliente no puso encabezados, la primera
  * fila es un artículo y no se pierde.
  */
-function detectarCabecera(primera: string[]): { esCabecera: boolean; colNombre: number; colCategoria: number } {
+function detectarCabecera(primera: string[]): {
+  esCabecera: boolean;
+  colNombre: number;
+  colCategoria: number;
+  colPrecio: number;
+} {
   let colNombre = 0;
   let colCategoria = -1;
+  let colPrecio = -1;
   let esCabecera = false;
 
   primera.forEach((celda, i) => {
@@ -60,15 +69,36 @@ function detectarCabecera(primera: string[]): { esCabecera: boolean; colNombre: 
     } else if (CABECERAS_CATEGORIA.includes(c)) {
       colCategoria = i;
       esCabecera = true;
+    } else if (CABECERAS_PRECIO.includes(c)) {
+      colPrecio = i;
+      esCabecera = true;
     }
   });
 
   // Sin encabezado reconocible: primera columna el nombre y, si hay una
-  // segunda con texto, se toma como categoría.
+  // segunda con texto, se toma como categoría. El precio NO se adivina por
+  // posición: cobrar por una columna mal interpretada sería peor que no
+  // importarla, y el cliente siempre puede poner "Precio" en la cabecera.
   if (!esCabecera && primera.length > 1 && (primera[1] ?? "").trim()) {
     colCategoria = 1;
   }
-  return { esCabecera, colNombre, colCategoria };
+  return { esCabecera, colNombre, colCategoria, colPrecio };
+}
+
+/**
+ * Precio de una celda de Excel. Acepta "12,50", "12.50", "12,50 €" y miles
+ * con punto ("1.234,50"): las hojas de precios españolas vienen así.
+ * Devuelve null si no hay número aprovechable, y nunca un negativo.
+ */
+export function parsearPrecio(celda: string | undefined): number | null {
+  const bruto = (celda ?? "").replace(/[€\s]/g, "").trim();
+  if (!bruto) return null;
+
+  // Con coma decimal, los puntos son separadores de miles.
+  const normalizado = bruto.includes(",") ? bruto.replace(/\./g, "").replace(",", ".") : bruto;
+  const n = Number.parseFloat(normalizado);
+  if (!Number.isFinite(n) || n < 0 || n > 1_000_000) return null;
+  return Math.round(n * 100) / 100;
 }
 
 /**
@@ -80,7 +110,7 @@ export function construirCatalogo(matriz: string[][]): ResultadoImportacion {
   const ignoradas: { fila: number; motivo: string }[] = [];
   if (matriz.length === 0) return { filas: [], ignoradas, conCabecera: false };
 
-  const { esCabecera, colNombre, colCategoria } = detectarCabecera(matriz[0] ?? []);
+  const { esCabecera, colNombre, colCategoria, colPrecio } = detectarCabecera(matriz[0] ?? []);
   const cuerpo = esCabecera ? matriz.slice(1) : matriz;
   const desplazamiento = esCabecera ? 2 : 1; // nº de fila real en la hoja
 
@@ -117,8 +147,9 @@ export function construirCatalogo(matriz: string[][]): ResultadoImportacion {
 
     const categoria =
       colCategoria >= 0 ? ((celdas[colCategoria] ?? "").trim().replace(/\s+/g, " ") || null) : null;
+    const precio = colPrecio >= 0 ? parsearPrecio(celdas[colPrecio]) : null;
 
-    filas.push({ nombre, categoria, orden: filas.length });
+    filas.push({ nombre, categoria, orden: filas.length, precio });
   });
 
   return { filas, ignoradas, conCabecera: esCabecera };
