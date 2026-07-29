@@ -16,6 +16,7 @@ import {
   AlertCircle,
   XCircle,
   ScanFace,
+  ClipboardCheck,
   X as XIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,16 @@ interface FichajeRegistro {
   timestamp: string;
   tienda?: { id: string; nombre: string } | null;
 }
+
+/** Punto de control que hay que confirmar antes de fichar (ticket c4bc33d6). */
+interface ChecklistItem {
+  id: string;
+  tipo: TipoFichaje;
+  texto: string;
+  orden: number;
+}
+
+type RespuestaChecklist = { itemId: string; marcado: boolean };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -186,6 +197,16 @@ export default function EmpleadoPage() {
   const [faceVerifying, setFaceVerifying] = useState(false);
   const [faceError, setFaceError] = useState<string | null>(null);
 
+  // Checklist de fichaje (ticket c4bc33d6): puntos que el empleado tiene
+  // que confirmar antes de la ENTRADA y antes de la SALIDA. Solo se pide
+  // si el OWNER lo activó y hay puntos definidos para ese tipo.
+  const [checklistActivo, setChecklistActivo] = useState(false);
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+  const [pendingChecklistTipo, setPendingChecklistTipo] = useState<TipoFichaje | null>(null);
+  const [checksMarcados, setChecksMarcados] = useState<Record<string, boolean>>({});
+  // Confirmaciones ya hechas, en espera de que termine el Face ID.
+  const [respuestasChecklist, setRespuestasChecklist] = useState<RespuestaChecklist[] | null>(null);
+
   // Fetch estado
   const fetchEstado = useCallback(async () => {
     try {
@@ -229,10 +250,24 @@ export default function EmpleadoPage() {
     }
   }, []);
 
+  // Puntos de control configurados por la empresa (solo los activos).
+  const fetchChecklist = useCallback(async () => {
+    try {
+      const res = await fetch("/api/checklist-fichaje");
+      if (!res.ok) return;
+      const data = (await res.json()) as { activo: boolean; items: ChecklistItem[] };
+      setChecklistActivo(!!data.activo);
+      setChecklistItems(Array.isArray(data.items) ? data.items : []);
+    } catch {
+      // silent — sin checklist se ficha igual (RD 8/2019).
+    }
+  }, []);
+
   useEffect(() => {
     fetchEstado();
     fetchFichajesHoy();
-  }, [fetchEstado, fetchFichajesHoy]);
+    void fetchChecklist();
+  }, [fetchEstado, fetchFichajesHoy, fetchChecklist]);
 
   // Política de Face ID del tenant + ¿el usuario tiene template?
   useEffect(() => {
@@ -318,7 +353,14 @@ export default function EmpleadoPage() {
 
   // Fichar action
   const handleFichar = useCallback(
-    async (tipo: TipoFichaje, opts: { faceVerifyToken?: string; fotoSnapshot?: string } = {}) => {
+    async (
+      tipo: TipoFichaje,
+      opts: {
+        faceVerifyToken?: string;
+        fotoSnapshot?: string;
+        checklist?: RespuestaChecklist[];
+      } = {},
+    ) => {
       setLoadingAction(tipo);
       try {
         let lat: number | undefined;
@@ -342,6 +384,7 @@ export default function EmpleadoPage() {
             tipo, latitud: lat, longitud: lon,
             ...(opts.faceVerifyToken ? { faceVerifyToken: opts.faceVerifyToken } : {}),
             ...(opts.fotoSnapshot ? { fotoSnapshot: opts.fotoSnapshot } : {}),
+            ...(opts.checklist ? { checklist: opts.checklist } : {}),
           }),
         });
 
@@ -403,7 +446,7 @@ export default function EmpleadoPage() {
         setLoadingAction(null);
       }
     },
-    [getLocation, fetchEstado, fetchFichajesHoy, toast]
+    [getLocation, fetchEstado, fetchFichajesHoy, fetchChecklist, toast]
   );
 
   // Envía el intento rechazado como SolicitudFichaje "fuera_sede": el
@@ -459,18 +502,59 @@ export default function EmpleadoPage() {
     }
   }, [fueraSede, motivoFueraSede, toast]);
 
-  // Wrapper público que decide si pedir Face ID antes de fichar.
-  const fichar = useCallback(
-    (tipo: TipoFichaje) => {
+  // Puntos de control activos para un tipo de fichaje concreto.
+  const checksDe = useCallback(
+    (tipo: TipoFichaje): ChecklistItem[] =>
+      checklistActivo
+        ? checklistItems
+            .filter((i) => i.tipo === tipo)
+            .sort((a, b) => a.orden - b.orden)
+        : [],
+    [checklistActivo, checklistItems],
+  );
+
+  // Tras el checklist (si lo hay), decide si pedir Face ID antes de fichar.
+  const continuarFichaje = useCallback(
+    (tipo: TipoFichaje, checklist?: RespuestaChecklist[]) => {
       if (faceRequired && hasFaceTemplate) {
         setFaceError(null);
+        setRespuestasChecklist(checklist ?? null);
         setPendingFaceTipo(tipo);
         return;
       }
-      void handleFichar(tipo);
+      void handleFichar(tipo, checklist ? { checklist } : {});
     },
     [faceRequired, hasFaceTemplate, handleFichar],
   );
+
+  // Wrapper público: primero el checklist de la empresa, luego Face ID.
+  const fichar = useCallback(
+    (tipo: TipoFichaje) => {
+      if (checksDe(tipo).length > 0) {
+        setChecksMarcados({});
+        setPendingChecklistTipo(tipo);
+        return;
+      }
+      continuarFichaje(tipo);
+    },
+    [checksDe, continuarFichaje],
+  );
+
+  // Confirma el checklist y sigue con el fichaje. Se envía el estado real de
+  // cada punto: los que no haya marcado viajan como `marcado: false` y quedan
+  // registrados así. No se le impide fichar por dejar alguno sin marcar —el
+  // registro de jornada no puede bloquearse (RD 8/2019)—, pero su responsable
+  // ve qué no confirmó.
+  const confirmarChecklist = useCallback(() => {
+    const tipo = pendingChecklistTipo;
+    if (!tipo) return;
+    const items = checksDe(tipo);
+    setPendingChecklistTipo(null);
+    continuarFichaje(
+      tipo,
+      items.map((i) => ({ itemId: i.id, marcado: Boolean(checksMarcados[i.id]) })),
+    );
+  }, [pendingChecklistTipo, checksDe, checksMarcados, continuarFichaje]);
 
   const handleFaceCapture = useCallback(
     async (embedding: number[], snapshot?: string) => {
@@ -493,14 +577,19 @@ export default function EmpleadoPage() {
         if (typeof data.faceVerifyToken !== "string") {
           throw new Error("El servidor no emitió token de verificación.");
         }
-        await handleFichar(tipo, { faceVerifyToken: data.faceVerifyToken, fotoSnapshot: snapshot });
+        await handleFichar(tipo, {
+          faceVerifyToken: data.faceVerifyToken,
+          fotoSnapshot: snapshot,
+          ...(respuestasChecklist ? { checklist: respuestasChecklist } : {}),
+        });
+        setRespuestasChecklist(null);
       } catch (e) {
         setFaceError(e instanceof Error ? e.message : "Error verificando rostro");
       } finally {
         setFaceVerifying(false);
       }
     },
-    [pendingFaceTipo, handleFichar],
+    [pendingFaceTipo, respuestasChecklist, handleFichar],
   );
 
   // ── Render helpers ────────────────────────────────────────────────────────
@@ -866,6 +955,74 @@ export default function EmpleadoPage() {
               </Button>
               <Button onClick={() => void enviarSolicitudFueraSede()} disabled={enviandoFueraSede}>
                 {enviandoFueraSede ? "Enviando…" : "Enviar para aprobación"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingChecklistTipo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-start justify-between">
+              <h2 className="font-semibold text-lg flex items-center gap-2">
+                <ClipboardCheck className="h-5 w-5 text-[var(--primary)]" />
+                Antes de fichar la {pendingChecklistTipo === "SALIDA" ? "salida" : "entrada"}
+              </h2>
+              <button
+                onClick={() => setPendingChecklistTipo(null)}
+                className="text-slate-400 hover:text-slate-600"
+                aria-label="Cerrar"
+              >
+                <XIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Marca cada comprobación para confirmar que la has hecho. Quedan
+              registradas junto a tu fichaje.
+            </p>
+            <ul className="space-y-2">
+              {checksDe(pendingChecklistTipo).map((item) => (
+                <li key={item.id}>
+                  <label
+                    className={cn(
+                      "flex items-start gap-3 rounded-lg border p-3 text-sm cursor-pointer transition-colors",
+                      checksMarcados[item.id]
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                        : "border-slate-200 hover:bg-slate-50",
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-emerald-600"
+                      checked={!!checksMarcados[item.id]}
+                      onChange={(e) =>
+                        setChecksMarcados((prev) => ({ ...prev, [item.id]: e.target.checked }))
+                      }
+                    />
+                    <span>{item.texto}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setPendingChecklistTipo(null)}>
+                Cancelar
+              </Button>
+              {/* Sin `disabled`: dejar puntos sin marcar no puede impedir el
+                  fichaje (RD 8/2019). El texto avisa de lo que se va a
+                  registrar como no confirmado. */}
+              <Button onClick={confirmarChecklist}>
+                {(() => {
+                  const faltan = checksDe(pendingChecklistTipo).filter((i) => !checksMarcados[i.id]).length;
+                  return faltan === 0
+                    ? "Confirmar y fichar"
+                    : `Fichar con ${faltan} sin marcar`;
+                })()}
               </Button>
             </div>
           </div>

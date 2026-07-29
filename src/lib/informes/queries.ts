@@ -174,6 +174,12 @@ async function informeFichajes(
       // `radio` permite contrastar `distancia` contra el perímetro de
       // la sede y marcar los fichajes hechos fuera de ella.
       tienda: { select: { id: true, nombre: true, radio: true } },
+      // Comprobaciones que confirmó el empleado al fichar (ticket
+      // c4bc33d6). Vacío si el tenant no usa checklist.
+      checklist: {
+        select: { texto: true, marcado: true },
+        orderBy: { orden: "asc" as const },
+      },
       fotoSnapshotEnc: false,
     },
     orderBy: [{ userId: "asc" }, { timestamp: "asc" }],
@@ -190,7 +196,23 @@ async function informeFichajes(
     select: { id: true },
   });
   const fotoSet = new Set(conFoto.map((f) => f.id));
-  const enriched = data.map((f) => ({ ...f, tieneFoto: fotoSet.has(f.id) }));
+  const enriched = data.map((f) => {
+    const checks = f.checklist ?? [];
+    // `checklistTexto` es escalar y solo aparece cuando hay checks, así
+    // sale en los exports (CSV/Excel/PDF) sin añadir una columna vacía a
+    // los tenants que no usan checklist.
+    return {
+      ...f,
+      tieneFoto: fotoSet.has(f.id),
+      ...(checks.length > 0
+        ? {
+            checklistTexto: checks
+              .map((c) => `${c.marcado ? "✔" : "✘"} ${c.texto}`)
+              .join(" · "),
+          }
+        : {}),
+    };
+  });
   return { tipo: "fichajes", data: enriched, total: enriched.length };
 }
 

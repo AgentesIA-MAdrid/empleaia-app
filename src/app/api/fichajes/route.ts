@@ -12,6 +12,12 @@ import { currentTenant } from "@/lib/tenant/context";
 import { resolveEmpresaScope, fichajeScopeFilter } from "@/lib/multi-empresa/scope";
 import { calcularDistancia } from "@/lib/utils";
 import { notifyFichajeFueraSede } from "@/lib/fichajes/notify-fuera-sede";
+import {
+  admiteChecklist,
+  resolverChecklist,
+  type ConfirmacionChecklist,
+  type RespuestaChecklist,
+} from "@/lib/fichajes/checklist";
 export const GET = withTenant(async (request: NextRequest) => {
   try {
     const session = await auth();
@@ -110,6 +116,7 @@ export const POST = withTenant(async (request: NextRequest) => {
       nota,
       faceVerifyToken,
       fotoSnapshot,
+      checklist,
     } = body as {
       tipo: TipoFichaje;
       latitud?: number;
@@ -121,6 +128,8 @@ export const POST = withTenant(async (request: NextRequest) => {
       faceVerifyToken?: string;
       /** Data URL JPEG ≤200 KB. Solo se guarda si el tenant lo activó. */
       fotoSnapshot?: string;
+      /** Puntos de control confirmados por el empleado (ticket c4bc33d6). */
+      checklist?: RespuestaChecklist[];
     };
 
     if (!tipo || !Object.values(TipoFichaje).includes(tipo)) {
@@ -208,6 +217,7 @@ export const POST = withTenant(async (request: NextRequest) => {
         faceIdGuardarFoto: true,
         fichajeMovilActivo: true,
         fichajeTabletActivo: true,
+        checklistFichajeActivo: true,
       },
     });
 
@@ -275,6 +285,27 @@ export const POST = withTenant(async (request: NextRequest) => {
         },
         { status: 409 },
       );
+    }
+
+    // Checklist de fichaje (ticket c4bc33d6): antes de la ENTRADA y de la
+    // SALIDA el empleado confirma los puntos de control que haya definido
+    // el OWNER (stock y caja del turno anterior, cierre de caja…). Opt-in
+    // por tenant y sin gate de plan. Se comprueba antes que Face ID para
+    // no gastar el token de verificación en un intento incompleto.
+    let confirmaciones: ConfirmacionChecklist[] = [];
+    if (cfg?.checklistFichajeActivo && admiteChecklist(tipo)) {
+      const itemsActivos = await prisma.checklistFichajeItem.findMany({
+        where: { tipo, activo: true },
+        orderBy: { orden: "asc" },
+        select: { id: true, tipo: true, texto: true, orden: true, activo: true },
+      });
+      if (itemsActivos.length > 0) {
+        // No se rechaza el fichaje por dejar puntos sin marcar: el registro
+        // de jornada no puede impedirse (RD 8/2019, igual que el geofencing
+        // estricto del ticket #61). Se guarda lo confirmado y lo NO
+        // confirmado, y el administrador lo ve en el detalle del fichaje.
+        confirmaciones = resolverChecklist(itemsActivos, checklist).confirmaciones;
+      }
     }
 
     // Validación Face ID server-side: el cliente debe traer un token
@@ -365,6 +396,20 @@ export const POST = withTenant(async (request: NextRequest) => {
         },
       },
     });
+
+    // Confirmaciones del checklist, con el enunciado en snapshot para que
+    // el histórico siga siendo legible si el OWNER edita los puntos.
+    if (confirmaciones.length > 0) {
+      await prisma.fichajeChecklist.createMany({
+        data: confirmaciones.map((c) => ({
+          fichajeId: fichaje.id,
+          itemId: c.itemId,
+          texto: c.texto,
+          orden: c.orden,
+          marcado: c.marcado,
+        })),
+      });
+    }
 
     // Aviso a administradores si el fichaje cae fuera del radio de la sede
     // (`Tienda.radio`, 200 m por defecto). Solo con la distancia calculada

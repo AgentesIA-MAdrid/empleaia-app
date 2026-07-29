@@ -351,11 +351,50 @@ model Fichaje {
   // Solo se rellena cuando ConfiguracionEmpresa.faceIdGuardarFoto=true
   // y el fichaje viene del flujo Face ID.
   fotoSnapshotEnc Bytes?     @map("foto_snapshot_enc")
+  // Puntos de control confirmados por el empleado al fichar (checklist
+  // de entrada/salida configurado por el OWNER). Vacío si el tenant no
+  // tiene el checklist activo.
+  checklist  FichajeChecklist[]
   createdAt  DateTime      @default(now())
 
   @@index([userId])
   @@index([tiendaId])
   @@index([timestamp])
+}
+
+/// Punto de control que el empleado debe confirmar antes de fichar
+/// (solo ENTRADA y SALIDA). Lo configura el OWNER en
+/// /admin/configuracion?tab=checklist. Se muestra únicamente si
+/// `ConfiguracionEmpresa.checklistFichajeActivo` está activo.
+model ChecklistFichajeItem {
+  id         String             @id @default(cuid())
+  tipo       TipoFichaje
+  texto      String
+  orden      Int                @default(0)
+  activo     Boolean            @default(true)
+  respuestas FichajeChecklist[]
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  @@index([tipo, orden])
+}
+
+/// Confirmación de un punto de control en un fichaje concreto. Guarda
+/// el enunciado como snapshot (`texto`): si el OWNER edita o borra el
+/// item después, el registro histórico sigue siendo legible.
+model FichajeChecklist {
+  id        String                @id @default(cuid())
+  fichajeId String
+  fichaje   Fichaje               @relation(fields: [fichajeId], references: [id], onDelete: Cascade)
+  itemId    String?
+  item      ChecklistFichajeItem? @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  texto     String
+  orden     Int                   @default(0)
+  marcado   Boolean               @default(true)
+  createdAt DateTime              @default(now())
+
+  @@index([fichajeId])
+  @@index([itemId])
 }
 
 model Turno {
@@ -537,6 +576,10 @@ model ConfiguracionEmpresa {
   // (`/api/cron/purge-biometrics`) borra fotos con `timestamp` mayor
   // a este número de días. RGPD art. 5.1.e (minimización).
   retencionFotosDias  Int      @default(90) @map("retencion_fotos_dias")
+  // Si true, al fichar ENTRADA/SALIDA el empleado debe confirmar los
+  // puntos de control activos (`ChecklistFichajeItem`) antes de que se
+  // registre el fichaje. Off por defecto: cada tenant lo activa.
+  checklistFichajeActivo Boolean @default(false) @map("checklist_fichaje_activo")
   notifAusencias      Boolean  @default(true)
   notifTurnos         Boolean  @default(true)
   notifTareas         Boolean  @default(true)

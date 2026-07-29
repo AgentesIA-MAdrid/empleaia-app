@@ -18,6 +18,7 @@ import { FeatureGateClient } from "@/components/feature-gate-client";
 import { UpsellCTA } from "@/components/upsell-cta";
 import { CalendarioTab } from "@/components/configuracion/calendario-tab";
 import { DominioTab } from "@/components/configuracion/dominio-tab";
+import { ChecklistFichajeTab } from "@/components/configuracion/checklist-fichaje-tab";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -122,9 +123,9 @@ function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: bool
 
 // ── Tab type ─────────────────────────────────────────────────────────────────
 
-type Tab = "general" | "ausencias" | "notificaciones" | "branding" | "calendario" | "dominio" | "nomina";
+type Tab = "general" | "ausencias" | "checklist" | "notificaciones" | "branding" | "calendario" | "dominio" | "nomina";
 
-const TABS: Tab[] = ["general", "ausencias", "notificaciones", "branding", "calendario", "dominio", "nomina"];
+const TABS: Tab[] = ["general", "ausencias", "checklist", "notificaciones", "branding", "calendario", "dominio", "nomina"];
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -419,6 +420,7 @@ function ConfiguracionPageInner() {
           const labels: Record<Tab, string> = {
             general: "General",
             ausencias: "Tipos de ausencia",
+            checklist: "Checklist de fichaje",
             notificaciones: "Notificaciones",
             branding: "Branding",
             calendario: "Calendario",
@@ -979,6 +981,9 @@ function ConfiguracionPageInner() {
           onUpdateConfig={(patch) => setConfig((c) => c && ({ ...c, ...patch }))}
         />
       )}
+
+      {/* ── TAB: Checklist de fichaje (ticket c4bc33d6) ───────────────────────── */}
+      {tab === "checklist" && <ChecklistFichajeTab />}
 
       {/* ── TAB: Dominio ──────────────────────────────────────────────────────── */}
       {tab === "dominio" && <DominioTab />}
