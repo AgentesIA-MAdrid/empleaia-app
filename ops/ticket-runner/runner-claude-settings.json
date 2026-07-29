@@ -1,5 +1,5 @@
 {
-  "$comment": "Deny-list del runner headless. La frontera real es la infra (worktree efímero, non-root, ruleset 'Protect main'/rama base require PR+approval con el bot sin bypass) + el no-merge del orquestador (solo gh pr create). Esto es defensa en profundidad: bloquea lo catastrófico aunque skip-permissions esté activo. El segundo bloque (docker/postgres/next dev/build) no es por seguridad sino por supervivencia: el contenedor tiene 3 GB y levantar Postgres embebido o arrancar la app se comía el timeout del job y su RAM (28-jul). La verificación aquí es estática: lint + tsc + vitest.",
+  "$comment": "Deny-list del runner headless. La frontera real es la infra (worktree efímero, non-root, ruleset 'Protect main'/rama base require PR+approval con el bot sin bypass) + el no-merge del orquestador (solo gh pr create). Esto es defensa en profundidad: bloquea lo catastrófico aunque skip-permissions esté activo. El segundo bloque (docker/postgres/next dev/build) no es por seguridad sino por supervivencia: el contenedor tiene 3 GB y levantar Postgres embebido o arrancar la app se comía el timeout del job y su RAM (28-jul). La verificación aquí es estática: lint + tsc + vitest. El deny de npm install/ci es porque node_modules se comparte por symlink con el clon persistente (evita copiar 75.000 ficheros por job y los EINTR que provocaba): instalar desde el worktree contaminaría el árbol compartido.",
   "permissions": {
     "deny": [
       "Bash(gh pr merge:*)",
@@ -26,15 +26,81 @@
       "Bash(npx next dev:*)",
       "Bash(npx prisma dev:*)",
       "Bash(prisma dev:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm install:*)",
+      "Bash(npm ci:*)",
+      "Bash(npm i:*)",
+      "Bash(pnpm install:*)",
+      "Bash(yarn install:*)",
+      "Bash(npm uninstall:*)"
     ]
   },
   "hooks": {
-    "SessionStart":     [{ "hooks": [{ "type": "command", "command": "node /home/runner/app/claude-time-hook.mjs", "timeout": 10 }] }],
-    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node /home/runner/app/claude-time-hook.mjs", "timeout": 10 }] }],
-    "Stop":             [{ "hooks": [{ "type": "command", "command": "node /home/runner/app/claude-time-hook.mjs", "timeout": 10 }] }],
-    "SessionEnd":       [{ "hooks": [{ "type": "command", "command": "node /home/runner/app/claude-time-hook.mjs", "timeout": 10 }] }],
-    "SubagentStop":     [{ "hooks": [{ "type": "command", "command": "node /home/runner/app/claude-time-hook.mjs", "timeout": 10 }] }],
-    "PostToolUse":      [{ "hooks": [{ "type": "command", "command": "node /home/runner/app/claude-time-hook.mjs", "timeout": 10 }] }]
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /home/runner/app/claude-time-hook.mjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /home/runner/app/claude-time-hook.mjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /home/runner/app/claude-time-hook.mjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /home/runner/app/claude-time-hook.mjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /home/runner/app/claude-time-hook.mjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /home/runner/app/claude-time-hook.mjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }

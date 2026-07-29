@@ -14,7 +14,7 @@
 
 import { createHmac, createHash } from "node:crypto";
 import { spawnSync, spawn } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, cpSync, existsSync, readdirSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, readFileSync, cpSync, existsSync, readdirSync, symlinkSync, lstatSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, basename } from "node:path";
 
@@ -246,8 +246,33 @@ async function processJob({ job, prompt }) {
   try {
     run("git", ["-C", REPO_DIR, "fetch", "origin", "--quiet"]);
     run("git", ["-C", REPO_DIR, "worktree", "add", "-B", branch, wt, `origin/${BASE_BRANCH}`]);
-    if (existsSync(join(REPO_DIR, "node_modules"))) {
-      cpSync(join(REPO_DIR, "node_modules"), join(wt, "node_modules"), { recursive: true, verbatimSymlinks: true });
+    // node_modules se COMPARTE por symlink, no se copia. Copiarlo eran 1,3 GB
+    // y ~75.000 ficheros por job con `cpSync`: minutos del presupuesto, disco
+    // de sobra gastado y, sobre todo, fallos intermitentes con
+    // `EINTR, Interrupted system call` — una copia síncrona tan larga la
+    // interrumpe cualquier señal que reciba el proceso y Node la propaga.
+    // El worktree solo necesita leerlos (lint, tsc, vitest); escribir en ellos
+    // está fuera de lo que puede hacer el job (deny de npm install/ci).
+    // Si el enlace falla por lo que sea, se cae a la copia de siempre.
+    const nmOrigen = join(REPO_DIR, "node_modules");
+    if (existsSync(nmOrigen)) {
+      try {
+        symlinkSync(nmOrigen, join(wt, "node_modules"), "dir");
+      } catch (e) {
+        console.error(`[runner] symlink de node_modules falló (${e?.message}); copiando`);
+        cpSync(nmOrigen, join(wt, "node_modules"), { recursive: true, verbatimSymlinks: true });
+      }
+    }
+    // Los clientes Prisma generados (`src/generated/prisma*`) están en
+    // .gitignore, así que un worktree recién creado NO los tiene y `tsc` saca
+    // errores de tipos falsos (todo lo que venga de Prisma queda `unknown`).
+    // Generarlos aquí, una vez y en <1 s, hace que la verificación del job y
+    // el gate del runner sirvan de algo desde el primer momento, en vez de
+    // depender de que Claude se dé cuenta y los genere por su cuenta.
+    const genMaster = run("npx", ["--no-install", "prisma", "generate"], { cwd: wt });
+    const genTenant = run("npx", ["--no-install", "prisma", "generate", "--config", "prisma.config.tenant.ts"], { cwd: wt });
+    if (genMaster.status !== 0 || genTenant.status !== 0) {
+      console.error(`[runner] prisma generate falló (master=${genMaster.status}, tenant=${genTenant.status}); el gate puede dar falsos positivos`);
     }
     await progress(job.id, "preparando", `Worktree aislado listo desde origin/${BASE_BRANCH}`);
 
@@ -389,6 +414,14 @@ async function processJob({ job, prompt }) {
   } catch (e) {
     await callback(job.id, "fallido", { error: String(e?.message || e).slice(0, 4000) });
   } finally {
+    // Quitar el enlace de node_modules ANTES de borrar el worktree: si algo
+    // siguiera el symlink al limpiar, se llevaría por delante el
+    // node_modules del clon persistente y el runner se quedaría sin
+    // dependencias. `unlinkSync` borra el enlace, nunca su destino.
+    try {
+      const nmLink = join(wt, "node_modules");
+      if (lstatSync(nmLink).isSymbolicLink()) unlinkSync(nmLink);
+    } catch { /* no existía o no era enlace */ }
     run("git", ["-C", REPO_DIR, "worktree", "remove", "--force", wt]);
     try { rmSync(wt, { recursive: true, force: true }); } catch { /* noop */ }
   }
