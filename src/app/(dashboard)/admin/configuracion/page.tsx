@@ -19,6 +19,8 @@ import { UpsellCTA } from "@/components/upsell-cta";
 import { CalendarioTab } from "@/components/configuracion/calendario-tab";
 import { DominioTab } from "@/components/configuracion/dominio-tab";
 import { ChecklistFichajeTab } from "@/components/configuracion/checklist-fichaje-tab";
+import { CatalogoVentasTab } from "@/components/configuracion/catalogo-ventas-tab";
+import { useFeatures } from "@/lib/hooks/use-features";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -123,9 +125,9 @@ function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: bool
 
 // ── Tab type ─────────────────────────────────────────────────────────────────
 
-type Tab = "general" | "ausencias" | "checklist" | "notificaciones" | "branding" | "calendario" | "dominio" | "nomina";
+type Tab = "general" | "ausencias" | "checklist" | "catalogo" | "notificaciones" | "branding" | "calendario" | "dominio" | "nomina";
 
-const TABS: Tab[] = ["general", "ausencias", "checklist", "notificaciones", "branding", "calendario", "dominio", "nomina"];
+const TABS: Tab[] = ["general", "ausencias", "checklist", "catalogo", "notificaciones", "branding", "calendario", "dominio", "nomina"];
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -136,6 +138,10 @@ function ConfiguracionPageInner() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab") as Tab | null;
   const [tab, setTab] = useState<Tab>(tabParam && TABS.includes(tabParam) ? tabParam : "general");
+  // Con features aún sin cargar no se pinta la pestaña: es preferible que
+  // aparezca un instante después que enseñarla a quien no la tiene.
+  const { data: featuresData } = useFeatures();
+  const tieneCierreTurno = featuresData?.booleans?.cierre_turno === true;
   const [config, setConfig] = useState<Configuracion | null>(null);
   const [tipos, setTipos] = useState<TipoAusencia[]>([]);
   const [saving, setSaving] = useState(false);
@@ -416,11 +422,12 @@ function ConfiguracionPageInner() {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-slate-200">
-        {TABS.map((t) => {
+        {TABS.filter((t) => t !== "catalogo" || tieneCierreTurno).map((t) => {
           const labels: Record<Tab, string> = {
             general: "General",
             ausencias: "Tipos de ausencia",
             checklist: "Checklist de fichaje",
+            catalogo: "Catálogo de ventas",
             notificaciones: "Notificaciones",
             branding: "Branding",
             calendario: "Calendario",
@@ -984,6 +991,13 @@ function ConfiguracionPageInner() {
 
       {/* ── TAB: Checklist de fichaje (ticket c4bc33d6) ───────────────────────── */}
       {tab === "checklist" && <ChecklistFichajeTab />}
+      {/* Solo con el módulo de cierre de turno contratado: sin él, esta tabla
+          no la usa nadie y la pestaña sería ruido. */}
+      {tab === "catalogo" && (
+        <FeatureGateClient feature="cierre_turno">
+          <CatalogoVentasTab />
+        </FeatureGateClient>
+      )}
 
       {/* ── TAB: Dominio ──────────────────────────────────────────────────────── */}
       {tab === "dominio" && <DominioTab />}
