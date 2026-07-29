@@ -406,19 +406,6 @@ export default function EmpleadoPage() {
             });
             return;
           }
-          // El servidor exige puntos de control que este cliente no tenía
-          // cargados (el admin los cambió con la pantalla abierta): los
-          // recargamos y volvemos a pedirlos.
-          if (res.status === 400 && data.code === "checklist_requerido") {
-            await fetchChecklist();
-            setChecksMarcados({});
-            setPendingChecklistTipo(tipo);
-            toast({
-              title: "Faltan comprobaciones",
-              description: data.error ?? "Confirma los puntos de control antes de fichar.",
-            });
-            return;
-          }
           toast({
             title: "No se pudo registrar",
             description: data.error ?? "Error desconocido",
@@ -553,16 +540,19 @@ export default function EmpleadoPage() {
     [checksDe, continuarFichaje],
   );
 
-  // Confirma el checklist y sigue con el fichaje.
+  // Confirma el checklist y sigue con el fichaje. Se envía el estado real de
+  // cada punto: los que no haya marcado viajan como `marcado: false` y quedan
+  // registrados así. No se le impide fichar por dejar alguno sin marcar —el
+  // registro de jornada no puede bloquearse (RD 8/2019)—, pero su responsable
+  // ve qué no confirmó.
   const confirmarChecklist = useCallback(() => {
     const tipo = pendingChecklistTipo;
     if (!tipo) return;
     const items = checksDe(tipo);
-    if (items.some((i) => !checksMarcados[i.id])) return;
     setPendingChecklistTipo(null);
     continuarFichaje(
       tipo,
-      items.map((i) => ({ itemId: i.id, marcado: true })),
+      items.map((i) => ({ itemId: i.id, marcado: Boolean(checksMarcados[i.id]) })),
     );
   }, [pendingChecklistTipo, checksDe, checksMarcados, continuarFichaje]);
 
@@ -1023,11 +1013,16 @@ export default function EmpleadoPage() {
               <Button variant="outline" onClick={() => setPendingChecklistTipo(null)}>
                 Cancelar
               </Button>
-              <Button
-                onClick={confirmarChecklist}
-                disabled={checksDe(pendingChecklistTipo).some((i) => !checksMarcados[i.id])}
-              >
-                Confirmar y fichar
+              {/* Sin `disabled`: dejar puntos sin marcar no puede impedir el
+                  fichaje (RD 8/2019). El texto avisa de lo que se va a
+                  registrar como no confirmado. */}
+              <Button onClick={confirmarChecklist}>
+                {(() => {
+                  const faltan = checksDe(pendingChecklistTipo).filter((i) => !checksMarcados[i.id]).length;
+                  return faltan === 0
+                    ? "Confirmar y fichar"
+                    : `Fichar con ${faltan} sin marcar`;
+                })()}
               </Button>
             </div>
           </div>

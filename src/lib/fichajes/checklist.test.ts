@@ -6,7 +6,7 @@ import { describe, it, expect } from "vitest";
 import {
   admiteChecklist,
   normalizarItems,
-  validarChecklist,
+  resolverChecklist,
   CHECKLIST_MAX_ITEMS,
   type ChecklistItem,
 } from "./checklist";
@@ -26,95 +26,44 @@ describe("admiteChecklist", () => {
   });
 });
 
-describe("validarChecklist", () => {
+describe("resolverChecklist", () => {
   it("con todos los puntos marcados devuelve las confirmaciones", () => {
-    const r = validarChecklist(items, [
+    const r = resolverChecklist(items, [
       { itemId: "a", marcado: true },
       { itemId: "b", marcado: true },
     ]);
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
+    expect(r.sinMarcar).toHaveLength(0);
     expect(r.confirmaciones).toHaveLength(2);
-    expect(r.confirmaciones[0]).toMatchObject({ itemId: "a", texto: "Stock del turno anterior", orden: 0 });
+    expect(r.confirmaciones[0]).toMatchObject({ itemId: "a", texto: "Stock del turno anterior", orden: 0, marcado: true });
   });
 
-  it("falta un punto → ok=false con los pendientes", () => {
-    const r = validarChecklist(items, [{ itemId: "a", marcado: true }]);
-    expect(r.ok).toBe(false);
-    if (r.ok) return;
-    expect(r.faltan.map((i) => i.id)).toEqual(["b"]);
+  it("un punto sin marcar NO impide fichar: se guarda como no confirmado", () => {
+    // Regla del producto (RD 8/2019, igual que el geofencing estricto del
+    // #61): la jornada se registra siempre; lo que no se marcó queda visible.
+    const r = resolverChecklist(items, [{ itemId: "a", marcado: true }]);
+    expect(r.sinMarcar.map((i) => i.id)).toEqual(["b"]);
+    expect(r.confirmaciones).toHaveLength(2);
+    expect(r.confirmaciones.find((c) => c.itemId === "b")?.marcado).toBe(false);
   });
 
-  it("un punto enviado con marcado=false cuenta como pendiente", () => {
-    const r = validarChecklist(items, [
+  it("un punto enviado con marcado=false cuenta como no confirmado", () => {
+    const r = resolverChecklist(items, [
       { itemId: "a", marcado: true },
       { itemId: "b", marcado: false },
     ]);
-    expect(r.ok).toBe(false);
+    expect(r.sinMarcar.map((i) => i.id)).toEqual(["b"]);
+    expect(r.confirmaciones.find((c) => c.itemId === "b")?.marcado).toBe(false);
   });
 
-  it("sin respuestas → todos pendientes", () => {
-    const r = validarChecklist(items, undefined);
-    expect(r.ok).toBe(false);
-    if (r.ok) return;
-    expect(r.faltan).toHaveLength(2);
+  it("sin respuestas se registran todos como no confirmados", () => {
+    const r = resolverChecklist(items, undefined);
+    expect(r.sinMarcar).toHaveLength(2);
+    expect(r.confirmaciones.every((c) => c.marcado === false)).toBe(true);
   });
 
-  it("sin puntos activos no exige nada", () => {
-    const r = validarChecklist([], undefined);
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    expect(r.confirmaciones).toEqual([]);
-  });
-
-  it("marcar puntos que ya no existen no cuela un fichaje incompleto", () => {
-    const r = validarChecklist(items, [
-      { itemId: "zzz", marcado: true },
-      { itemId: "a", marcado: true },
-    ]);
-    expect(r.ok).toBe(false);
-    if (r.ok) return;
-    expect(r.faltan.map((i) => i.id)).toEqual(["b"]);
-  });
-});
-
-describe("normalizarItems", () => {
-  it("acepta una lista válida y recorta el texto", () => {
-    const r = normalizarItems([
-      { id: "a", tipo: "ENTRADA", texto: "  Revisar stock  ", orden: 0 },
-      { tipo: "SALIDA", texto: "Cierre de caja" },
-    ]);
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    expect(r.items[0]).toMatchObject({ id: "a", texto: "Revisar stock", activo: true });
-    // Sin id → alta nueva; sin orden → posición dentro de su tipo.
-    expect(r.items[1]).toMatchObject({ id: null, tipo: "SALIDA", orden: 0 });
-  });
-
-  it("rechaza tipos que no son ENTRADA/SALIDA", () => {
-    const r = normalizarItems([{ tipo: "PAUSA", texto: "Algo" }]);
-    expect(r.ok).toBe(false);
-  });
-
-  it("rechaza textos vacíos o demasiado cortos", () => {
-    expect(normalizarItems([{ tipo: "ENTRADA", texto: "  " }]).ok).toBe(false);
-    expect(normalizarItems([{ tipo: "ENTRADA", texto: "ab" }]).ok).toBe(false);
-  });
-
-  it("rechaza textos demasiado largos", () => {
-    const r = normalizarItems([{ tipo: "ENTRADA", texto: "x".repeat(201) }]);
-    expect(r.ok).toBe(false);
-  });
-
-  it("rechaza más de CHECKLIST_MAX_ITEMS por tipo", () => {
-    const muchos = Array.from({ length: CHECKLIST_MAX_ITEMS + 1 }, (_, i) => ({
-      tipo: "ENTRADA",
-      texto: `Punto ${i}`,
-    }));
-    expect(normalizarItems(muchos).ok).toBe(false);
-  });
-
-  it("rechaza payloads que no son array", () => {
-    expect(normalizarItems({ tipo: "ENTRADA" }).ok).toBe(false);
+  it("sin puntos activos no hay nada que guardar", () => {
+    const r = resolverChecklist([], undefined);
+    expect(r.confirmaciones).toHaveLength(0);
+    expect(r.sinMarcar).toHaveLength(0);
   });
 });

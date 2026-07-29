@@ -51,32 +51,34 @@ export const CHECKLIST_TEXTO_MAX = 200;
 export const CHECKLIST_MAX_ITEMS = 20;
 
 /**
- * Comprueba que el empleado ha marcado TODOS los puntos activos del
- * tipo de fichaje. Devuelve las confirmaciones a guardar, o los items
- * que faltan por marcar.
+ * Resuelve qué puntos ha confirmado el empleado y devuelve las filas a
+ * guardar en `FichajeChecklist`: los que marcó con `marcado: true` y el
+ * resto con `false`.
  *
- * Nota RD 8/2019: esto no impide registrar la jornada — el empleado
- * solo tiene que confirmar los puntos, no depende de terceros ni de
- * conectividad extra. Aun así el checklist es opt-in por tenant
- * (`ConfiguracionEmpresa.checklistFichajeActivo`).
+ * **No bloquea el fichaje, a propósito** (misma regla que el geofencing
+ * estricto, ticket #61): el registro de jornada no puede impedirse —RD
+ * 8/2019—, así que si el empleado deja puntos sin marcar la jornada se
+ * registra igual y queda constancia de lo que no confirmó, para que el
+ * administrador lo vea en el detalle del fichaje. El objetivo del cliente
+ * es que los puntos se revisen y quede rastro, no dejar a nadie sin poder
+ * fichar por no marcar una casilla.
  */
-export function validarChecklist(
+export function resolverChecklist(
   itemsActivos: ChecklistItem[],
   respuestas: RespuestaChecklist[] | undefined,
-): { ok: true; confirmaciones: ConfirmacionChecklist[] } | { ok: false; faltan: ChecklistItem[] } {
+): { confirmaciones: ConfirmacionChecklist[]; sinMarcar: ChecklistItem[] } {
   const marcados = new Set(
     (respuestas ?? []).filter((r) => r?.marcado === true).map((r) => r.itemId),
   );
-  const faltan = itemsActivos.filter((i) => !marcados.has(i.id));
-  if (faltan.length > 0) return { ok: false, faltan };
+  const sinMarcar = itemsActivos.filter((i) => !marcados.has(i.id));
   return {
-    ok: true,
     confirmaciones: itemsActivos.map((i) => ({
       itemId: i.id,
       texto: i.texto,
       orden: i.orden,
-      marcado: true,
+      marcado: marcados.has(i.id),
     })),
+    sinMarcar,
   };
 }
 

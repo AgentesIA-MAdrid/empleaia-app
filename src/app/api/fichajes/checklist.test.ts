@@ -2,8 +2,8 @@
  * Checklist de fichaje en POST /api/fichajes — ticket c4bc33d6.
  *
  * Verifica que:
- *  1. Con el checklist activo, fichar sin confirmar los puntos → 400
- *     `checklist_requerido` y NO se crea el fichaje.
+ *  1. Con el checklist activo, fichar sin confirmar los puntos → 201: el
+ *     fichaje se crea igual y los puntos quedan como NO confirmados.
  *  2. Con todos los puntos marcados → 201 y se guardan las confirmaciones
  *     con el enunciado en snapshot.
  *  3. Con el checklist desactivado no se pide nada (ni se consulta la
@@ -92,22 +92,34 @@ beforeEach(async () => {
 });
 
 describe("POST /api/fichajes — checklist", () => {
-  it("sin confirmar los puntos → 400 checklist_requerido y sin fichaje", async () => {
+  it("sin confirmar los puntos → 201 y quedan registrados como NO confirmados", async () => {
+    // El registro de jornada nunca se bloquea (RD 8/2019, misma regla que el
+    // geofencing estricto del #61): se ficha y queda constancia de lo que el
+    // empleado no marcó, para que el administrador lo vea.
     const { prismaApp } = await import("@/lib/prisma");
     const res = await postFichaje({ tipo: "ENTRADA" });
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.code).toBe("checklist_requerido");
-    expect(body.items).toHaveLength(2);
-    expect(vi.mocked(prismaApp.fichaje.create)).not.toHaveBeenCalled();
+    expect(res.status).toBe(201);
+    expect(vi.mocked(prismaApp.fichaje.create)).toHaveBeenCalled();
+    const createMany = vi.mocked(prismaApp.fichajeChecklist.createMany);
+    expect(createMany.mock.calls[0]![0]).toEqual({
+      data: [
+        { fichajeId: "fic_1", itemId: "chk_1", texto: "He revisado el stock", orden: 0, marcado: false },
+        { fichajeId: "fic_1", itemId: "chk_2", texto: "El fondo de caja es correcto", orden: 1, marcado: false },
+      ],
+    });
   });
 
-  it("con un punto sin marcar → 400", async () => {
+  it("con un punto sin marcar → 201, ese punto queda como no confirmado", async () => {
+    const { prismaApp } = await import("@/lib/prisma");
     const res = await postFichaje({
       tipo: "ENTRADA",
       checklist: [{ itemId: "chk_1", marcado: true }],
     });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(201);
+    const createMany = vi.mocked(prismaApp.fichajeChecklist.createMany);
+    const filas = (createMany.mock.calls[0]![0] as { data: { itemId: string; marcado: boolean }[] }).data;
+    expect(filas.find((f) => f.itemId === "chk_1")?.marcado).toBe(true);
+    expect(filas.find((f) => f.itemId === "chk_2")?.marcado).toBe(false);
   });
 
   it("con todos los puntos marcados → 201 y guarda las confirmaciones", async () => {

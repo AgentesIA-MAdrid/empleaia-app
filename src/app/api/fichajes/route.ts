@@ -14,8 +14,7 @@ import { calcularDistancia } from "@/lib/utils";
 import { notifyFichajeFueraSede } from "@/lib/fichajes/notify-fuera-sede";
 import {
   admiteChecklist,
-  mensajeFaltanChecks,
-  validarChecklist,
+  resolverChecklist,
   type ConfirmacionChecklist,
   type RespuestaChecklist,
 } from "@/lib/fichajes/checklist";
@@ -301,18 +300,11 @@ export const POST = withTenant(async (request: NextRequest) => {
         select: { id: true, tipo: true, texto: true, orden: true, activo: true },
       });
       if (itemsActivos.length > 0) {
-        const resultado = validarChecklist(itemsActivos, checklist);
-        if (!resultado.ok) {
-          return Response.json(
-            {
-              error: mensajeFaltanChecks(tipo),
-              code: "checklist_requerido",
-              items: itemsActivos.map((i) => ({ id: i.id, texto: i.texto })),
-            },
-            { status: 400 },
-          );
-        }
-        confirmaciones = resultado.confirmaciones;
+        // No se rechaza el fichaje por dejar puntos sin marcar: el registro
+        // de jornada no puede impedirse (RD 8/2019, igual que el geofencing
+        // estricto del ticket #61). Se guarda lo confirmado y lo NO
+        // confirmado, y el administrador lo ve en el detalle del fichaje.
+        confirmaciones = resolverChecklist(itemsActivos, checklist).confirmaciones;
       }
     }
 
