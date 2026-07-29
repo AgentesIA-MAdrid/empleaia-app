@@ -85,46 +85,51 @@ enum TipoConceptoPrenomina {
 // ─── Modelos del producto ──────────────────────────────────────────────────────
 
 model Tienda {
-  id           String    @id @default(cuid())
-  nombre       String
-  direccion    String
-  ciudad       String
-  codigoPostal String?
-  telefono     String?
-  email        String?
-  latitud      Float?
-  longitud     Float?
-  radio        Int       @default(200)
+  id                  String            @id @default(cuid())
+  nombre              String
+  direccion           String
+  ciudad              String
+  codigoPostal        String?
+  telefono            String?
+  email               String?
+  latitud             Float?
+  longitud            Float?
+  radio               Int               @default(200)
   /// Exige fichar dentro del `radio` de la sede. Fuera de él, el fichaje
   /// directo se rechaza y el empleado solo puede registrarlo explicando el
   /// motivo: eso crea una SolicitudFichaje PENDIENTE (clase "fuera_sede")
   /// que un OWNER aprueba. La jornada nunca se pierde (RD 8/2019), pero
   /// queda marcada y bajo control del administrador. Requiere coordenadas
   /// en la sede: sin ellas no hay distancia que comparar y no se aplica.
-  exigirFichajeEnSede Boolean @default(false)
-  activa       Boolean   @default(true)
-  color        String    @default("#6366f1")
+  exigirFichajeEnSede Boolean           @default(false)
+  activa              Boolean           @default(true)
+  color               String            @default("#6366f1")
   // Marca la sede que hace de "oficina": destino del relleno automático del
   // cuadrante (ver `User.turnoOficinaPorDefecto`). Solo una sede debería
   // tenerlo activo; la API lo garantiza al guardar.
-  esOficina    Boolean   @default(false) @map("es_oficina")
+  esOficina           Boolean           @default(false) @map("es_oficina")
   // Responsable de la sede (dato informativo / de visualización). NO altera
   // la jerarquía de aprobaciones: el coordinador que aprueba fichajes sigue
   // siendo `User.managerId` (relación ManagerSubordinados). Relación propia
   // (TiendaManager), independiente de `empleados`/`User.tiendaId`.
-  managerId    String?
-  manager      User?     @relation("TiendaManager", fields: [managerId], references: [id])
-  empleados    User[]
-  fichajes     Fichaje[]
-  turnos       Turno[]
+  managerId           String?
+  manager             User?             @relation("TiendaManager", fields: [managerId], references: [id])
+  empleados           User[]
+  fichajes            Fichaje[]
+  turnos              Turno[]
   // Horarios de apertura: N tramos por día (sin filas para un día = cerrado).
-  horarios     HorarioSede[]
+  horarios            HorarioSede[]
   // Multi-sede: empleados asignados a esta sede (N:N vía UsuarioSede).
-  miembros     UsuarioSede[]
+  miembros            UsuarioSede[]
   // Festivos locales que aplican solo a esta sede.
-  festivos     Festivo[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  festivos            Festivo[]
+  // ── Cierre de turno (plan Enterprise) ──────────────────────────────────
+  cierresTurno        CierreTurno[]
+  arqueos             Arqueo[]
+  movimientosBanco    MovimientoBanco[]
+  objetivosVenta      ObjetivoVenta[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   @@index([managerId])
 }
@@ -162,200 +167,213 @@ model UsuarioSede {
 }
 
 model User {
-  id                       String                    @id @default(cuid())
-  email                    String                    @unique
-  password                 String?
-  resetToken               String?                   @unique
-  resetTokenExpiry         DateTime?
-  nombre                   String
-  apellidos                String
-  dni                      String?                   @unique
-  telefono                 String?
-  foto                     String?
-  fechaNacimiento          DateTime?
-  rol                      Rol                       @default(EMPLEADO)
-  tiendaId                 String?
-  tienda                   Tienda?                   @relation(fields: [tiendaId], references: [id])
-  activo                   Boolean                   @default(true)
+  id                         String                     @id @default(cuid())
+  email                      String                     @unique
+  password                   String?
+  resetToken                 String?                    @unique
+  resetTokenExpiry           DateTime?
+  nombre                     String
+  apellidos                  String
+  dni                        String?                    @unique
+  telefono                   String?
+  foto                       String?
+  fechaNacimiento            DateTime?
+  rol                        Rol                        @default(EMPLEADO)
+  tiendaId                   String?
+  tienda                     Tienda?                    @relation(fields: [tiendaId], references: [id])
+  activo                     Boolean                    @default(true)
   // Anonimización (borrado RGPD-compatible): cuando se "elimina" un empleado
   // no se hace hard-delete (rompería FKs y borraría registros legales como
   // fichajes/nóminas que hay que conservar). Se ponen a null sus datos
   // personales, activo=false y esta marca con la fecha. Los listados de
   // empleados filtran `anonimizadoAt: null`.
-  anonimizadoAt            DateTime?                 @map("anonimizado_at")
-  fichajes                 Fichaje[]
-  turnos                   Turno[]
-  ausencias                Ausencia[]                @relation("AusenciaEmpleado")
-  ausenciasAprobadas       Ausencia[]                @relation("AusenciaAprobador")
-  notificaciones           Notificacion[]
-  tareas                   Tarea[]                   @relation("TareaAsignada")
-  tareasCreadas            Tarea[]                   @relation("TareaCreada")
-  comunicados              Comunicado[]
-  articulos                Articulo[]
-  documentos               Documento[]               @relation("DocumentoEmpleado")
-  documentosSubidos        Documento[]               @relation("DocumentoSubido")
-  plantillasDocumento      PlantillaDocumento[]      @relation("PlantillaCreador")
-  firmas                   Firma[]                   @relation("FirmaUsuario")
-  onboardings              ProcesoOnboarding[]
-  bolsaHoras               BolsaHoras[]
-  bolsaHorasAprobadas      BolsaHoras[]              @relation("BolsaHorasAprobador")
-  denunciasInformante      Denuncia[]                @relation("DenunciaInformante")
-  denunciasAsignadas       Denuncia[]                @relation("DenunciaAsignada")
-  comentariosDenuncia      ComentarioDenuncia[]      @relation("ComentarioDenunciaAutor")
-  solicitudesFirmaRecibidas SolicitudFirma[]         @relation("SolicitudFirmaDestinatario")
-  solicitudesFirmaCreadas  SolicitudFirma[]          @relation("SolicitudFirmaSolicitante")
+  anonimizadoAt              DateTime?                  @map("anonimizado_at")
+  fichajes                   Fichaje[]
+  turnos                     Turno[]
+  ausencias                  Ausencia[]                 @relation("AusenciaEmpleado")
+  ausenciasAprobadas         Ausencia[]                 @relation("AusenciaAprobador")
+  notificaciones             Notificacion[]
+  tareas                     Tarea[]                    @relation("TareaAsignada")
+  tareasCreadas              Tarea[]                    @relation("TareaCreada")
+  comunicados                Comunicado[]
+  articulos                  Articulo[]
+  documentos                 Documento[]                @relation("DocumentoEmpleado")
+  documentosSubidos          Documento[]                @relation("DocumentoSubido")
+  plantillasDocumento        PlantillaDocumento[]       @relation("PlantillaCreador")
+  firmas                     Firma[]                    @relation("FirmaUsuario")
+  onboardings                ProcesoOnboarding[]
+  bolsaHoras                 BolsaHoras[]
+  bolsaHorasAprobadas        BolsaHoras[]               @relation("BolsaHorasAprobador")
+  denunciasInformante        Denuncia[]                 @relation("DenunciaInformante")
+  denunciasAsignadas         Denuncia[]                 @relation("DenunciaAsignada")
+  comentariosDenuncia        ComentarioDenuncia[]       @relation("ComentarioDenunciaAutor")
+  solicitudesFirmaRecibidas  SolicitudFirma[]           @relation("SolicitudFirmaDestinatario")
+  solicitudesFirmaCreadas    SolicitudFirma[]           @relation("SolicitudFirmaSolicitante")
   // Organigrama: jerarquía de mando self-reference.
-  managerId                String?
-  manager                  User?                     @relation("ManagerSubordinados", fields: [managerId], references: [id])
-  subordinados             User[]                    @relation("ManagerSubordinados")
+  managerId                  String?
+  manager                    User?                      @relation("ManagerSubordinados", fields: [managerId], references: [id])
+  subordinados               User[]                     @relation("ManagerSubordinados")
   // Sedes de las que este usuario figura como responsable (dato informativo;
   // ver Tienda.managerId). No interviene en aprobaciones ni organigrama.
-  sedesGestionadas         Tienda[]                  @relation("TiendaManager")
+  sedesGestionadas           Tienda[]                   @relation("TiendaManager")
   // Reclutamiento: usuarios que crearon ofertas / gestionan candidatos.
-  ofertasCreadas           OfertaTrabajo[]           @relation("OfertaCreador")
-  candidatosCreados        Candidato[]               @relation("CandidatoCreador")
+  ofertasCreadas             OfertaTrabajo[]            @relation("OfertaCreador")
+  candidatosCreados          Candidato[]                @relation("CandidatoCreador")
   // Asistente IA: conversaciones del usuario.
-  conversacionesIA         ConversacionIA[]          @relation("ConversacionIAUser")
+  conversacionesIA           ConversacionIA[]           @relation("ConversacionIAUser")
   // Face ID: plantilla biométrica (opcional, máx 1 por usuario).
-  faceTemplate             FaceTemplate?             @relation("FaceTemplateUser")
-  preferenciasNotificacion PreferenciasNotificacion?
-  pushSubscripciones       PushSubscripcion[]
+  faceTemplate               FaceTemplate?              @relation("FaceTemplateUser")
+  preferenciasNotificacion   PreferenciasNotificacion?
+  pushSubscripciones         PushSubscripcion[]
   // OKRs: objetivos asignados / creados por el usuario.
-  objetivosAsignados       Objetivo[]                @relation("ObjetivoAsignado")
-  objetivosCreados         Objetivo[]                @relation("ObjetivoCreado")
+  objetivosAsignados         Objetivo[]                 @relation("ObjetivoAsignado")
+  objetivosCreados           Objetivo[]                 @relation("ObjetivoCreado")
   // Encuestas de clima: encuestas creadas + respuestas dadas.
-  encuestasCreadas         Encuesta[]                @relation("EncuestaCreador")
-  respuestasEncuesta       RespuestaEncuesta[]       @relation("RespuestaEncuestaUser")
+  encuestasCreadas           Encuesta[]                 @relation("EncuestaCreador")
+  respuestasEncuesta         RespuestaEncuesta[]        @relation("RespuestaEncuestaUser")
   // Evaluaciones del desempeño: como evaluado, como evaluador.
-  evaluacionesRecibidas    Evaluacion[]              @relation("EvaluacionEvaluado")
-  evaluacionesARealizar    Evaluacion[]              @relation("EvaluacionEvaluador")
+  evaluacionesRecibidas      Evaluacion[]               @relation("EvaluacionEvaluado")
+  evaluacionesARealizar      Evaluacion[]               @relation("EvaluacionEvaluador")
   // Control de gastos: tickets registrados.
-  gastos                   Gasto[]
-  gastosRevisados          Gasto[]                   @relation("GastoRevisor")
+  gastos                     Gasto[]
+  gastosRevisados            Gasto[]                    @relation("GastoRevisor")
   // Reserva de espacios: mis reservas.
-  reservasEspacios         ReservaEspacio[]
+  reservasEspacios           ReservaEspacio[]
   // Envío de nóminas: archivos subidos a cada empleado.
-  nominasArchivos          NominaArchivo[]           @relation("NominaArchivoEmpleado")
-  nominasArchivosSubidos   NominaArchivo[]           @relation("NominaArchivoSubidoPor")
+  nominasArchivos            NominaArchivo[]            @relation("NominaArchivoEmpleado")
+  nominasArchivosSubidos     NominaArchivo[]            @relation("NominaArchivoSubidoPor")
   // Formación LMS: cursos creados, asignaciones recibidas.
-  cursosCreados            Curso[]                   @relation("CursoCreador")
-  cursosAsignados          AsignacionCurso[]         @relation("AsignacionCursoEmpleado")
+  cursosCreados              Curso[]                    @relation("CursoCreador")
+  cursosAsignados            AsignacionCurso[]          @relation("AsignacionCursoEmpleado")
   // Custom requests: peticiones del empleado, gestionadas por OWNER/MANAGER.
-  peticiones               Peticion[]                @relation("PeticionSolicitante")
-  peticionesGestionadas    Peticion[]                @relation("PeticionGestor")
+  peticiones                 Peticion[]                 @relation("PeticionSolicitante")
+  peticionesGestionadas      Peticion[]                 @relation("PeticionGestor")
   // Solicitudes de fichaje (olvido / corrección de hora) del empleado y
   // las que resuelve como aprobador (coordinador / OWNER / MANAGER).
-  solicitudesFichaje         SolicitudFichaje[]       @relation("SolicitudFichajeSolicitante")
-  solicitudesFichajeResolver SolicitudFichaje[]       @relation("SolicitudFichajeAprobador")
+  solicitudesFichaje         SolicitudFichaje[]         @relation("SolicitudFichajeSolicitante")
+  solicitudesFichajeResolver SolicitudFichaje[]         @relation("SolicitudFichajeAprobador")
   // Chat: participaciones + mensajes enviados.
-  conversaciones           ParticipanteConversacion[]
-  mensajesEnviados         Mensaje[]                 @relation("MensajeAutor")
+  conversaciones             ParticipanteConversacion[]
+  mensajesEnviados           Mensaje[]                  @relation("MensajeAutor")
   // Multi-empresa: el usuario puede asociarse a una empresa concreta.
-  empresaId                String?
-  empresa                  Empresa?                  @relation(fields: [empresaId], references: [id])
+  empresaId                  String?
+  empresa                    Empresa?                   @relation(fields: [empresaId], references: [id])
   // Retribución flexible: declaraciones mensuales del empleado.
-  declaracionesFlex        DeclaracionFlex[]
+  declaracionesFlex          DeclaracionFlex[]
   // Prenómina: snapshots mensuales del empleado + cierres realizados.
-  prenominas               Prenomina[]               @relation("PrenominaEmpleado")
-  prenominasCerradas       Prenomina[]               @relation("PrenominaCerrador")
-  prenominasEnviadas       Prenomina[]               @relation("PrenominaEnviador")
+  prenominas                 Prenomina[]                @relation("PrenominaEmpleado")
+  prenominasCerradas         Prenomina[]                @relation("PrenominaCerrador")
+  prenominasEnviadas         Prenomina[]                @relation("PrenominaEnviador")
   // Salario base mensual del empleado. Si null, se usa
   // `ConfiguracionEmpresa.nominaSalarioBaseDefault` al calcular prenómina.
-  salarioBase              Decimal?                  @db.Decimal(10, 2) @map("salario_base")
+  salarioBase                Decimal?                   @map("salario_base") @db.Decimal(10, 2)
   // Horas semanales contratadas del empleado (columna "HORAS A CONTRATO"
   // del cuadrante). Si null, se usa `ConfiguracionEmpresa.horasSemanales`.
-  horasSemanalesContrato   Decimal?                  @db.Decimal(5, 2) @map("horas_semanales_contrato")
+  horasSemanalesContrato     Decimal?                   @map("horas_semanales_contrato") @db.Decimal(5, 2)
   // Relleno automático del cuadrante: si true, los días de la semana en que
   // este empleado no tenga turno en ninguna sede (ni ausencia aprobada) se
   // asignan solos a un turno 09:00–17:00 en la sede marcada como oficina
   // (`Tienda.esOficina`). Ver src/lib/turnos/oficina-por-defecto.ts.
-  turnoOficinaPorDefecto   Boolean                   @default(false) @map("turno_oficina_por_defecto")
+  turnoOficinaPorDefecto     Boolean                    @default(false) @map("turno_oficina_por_defecto")
   // Marca si el empleado/manager ya rellenó sus datos personales
   // obligatorios (bloque personal + dirección + contacto) en su primer
   // acceso. El OWNER queda exento del flujo. La lista exacta de campos
   // obligatorios vive en `src/lib/empleados/perfil.ts`.
-  perfilCompletado         Boolean                   @default(false) @map("perfil_completado")
+  perfilCompletado           Boolean                    @default(false) @map("perfil_completado")
 
   // ─── Ficha de empleado ampliada (RR.HH.) ───────────────────────────
   // Identificación (el número principal es `dni`).
-  tipoIdentificacion              String?            @map("tipo_identificacion")
-  tipoIdentificacionSecundaria    String?            @map("tipo_identificacion_secundaria")
-  numeroIdentificacionSecundaria  String?            @map("numero_identificacion_secundaria")
+  tipoIdentificacion             String?              @map("tipo_identificacion")
+  tipoIdentificacionSecundaria   String?              @map("tipo_identificacion_secundaria")
+  numeroIdentificacionSecundaria String?              @map("numero_identificacion_secundaria")
   // Información personal.
-  nacionalidad             String?
-  estadoCivil              String?                   @map("estado_civil")
-  genero                   String?
-  compartirCumpleanos      Boolean                   @default(true) @map("compartir_cumpleanos")
+  nacionalidad                   String?
+  estadoCivil                    String?              @map("estado_civil")
+  genero                         String?
+  compartirCumpleanos            Boolean              @default(true) @map("compartir_cumpleanos")
   // Dirección.
-  domicilio                String?
-  codigoPostal             String?                   @map("codigo_postal")
-  localidad                String?
-  provincia                String?
-  pais                     String?                   @default("España")
+  domicilio                      String?
+  codigoPostal                   String?              @map("codigo_postal")
+  localidad                      String?
+  provincia                      String?
+  pais                           String?              @default("España")
   // Contacto (`telefono` se conserva como teléfono personal).
-  emailEmpresa             String?                   @map("email_empresa")
-  emailPersonal            String?                   @map("email_personal")
-  emailNotificaciones      String?                   @map("email_notificaciones")
-  telefonoEmpresa          String?                   @map("telefono_empresa")
-  telefonoEmergencia       String?                   @map("telefono_emergencia")
-  contactoUrgencia         String?                   @map("contacto_urgencia")
+  emailEmpresa                   String?              @map("email_empresa")
+  emailPersonal                  String?              @map("email_personal")
+  emailNotificaciones            String?              @map("email_notificaciones")
+  telefonoEmpresa                String?              @map("telefono_empresa")
+  telefonoEmergencia             String?              @map("telefono_emergencia")
+  contactoUrgencia               String?              @map("contacto_urgencia")
   // Datos de afiliación.
-  teletrabajo              Boolean                   @default(false)
-  grupoCotizacion          String?                   @map("grupo_cotizacion")
-  categoriaProfesional     String?                   @map("categoria_profesional")
-  numeroSeguridadSocial    String?                   @map("numero_seguridad_social")
-  codigoContrato           String?                   @map("codigo_contrato")
+  teletrabajo                    Boolean              @default(false)
+  grupoCotizacion                String?              @map("grupo_cotizacion")
+  categoriaProfesional           String?              @map("categoria_profesional")
+  numeroSeguridadSocial          String?              @map("numero_seguridad_social")
+  codigoContrato                 String?              @map("codigo_contrato")
   // Fecha de alta del contrato (antigüedad RR.HH.). Se fija a mano: NO es
   // `createdAt` (alta del registro en la app). Solo la edita el OWNER; la
   // ven empleado, manager y OWNER.
-  fechaAltaContrato        DateTime?                 @map("fecha_alta_contrato")
+  fechaAltaContrato              DateTime?            @map("fecha_alta_contrato")
   // Datos para retenciones.
-  numeroHijos              Int?                      @map("numero_hijos")
-  porcentajeDiscapacidad   Int?                      @map("porcentaje_discapacidad")
+  numeroHijos                    Int?                 @map("numero_hijos")
+  porcentajeDiscapacidad         Int?                 @map("porcentaje_discapacidad")
   // Datos bancarios.
-  titularCuenta            String?                   @map("titular_cuenta")
-  iban                     String?
-  bic                      String?
-  entidadBancaria          String?                   @map("entidad_bancaria")
+  titularCuenta                  String?              @map("titular_cuenta")
+  iban                           String?
+  bic                            String?
+  entidadBancaria                String?              @map("entidad_bancaria")
   // Multi-sede: pertenencia a varias sedes (N:N). `tiendaId` sigue
   // siendo la sede principal y la fuente para turnos/fichaje/informes.
-  sedes                    UsuarioSede[]
+  sedes                          UsuarioSede[]
   // Festivos que se le han "quitado" (días que trabaja pese al festivo).
-  festivoExcepciones       FestivoExcepcion[]
+  festivoExcepciones             FestivoExcepcion[]
   // Campos personalizados: valores de cada campo definido por el tenant.
-  camposPersonalizados     ValorCampoEmpleado[]
+  camposPersonalizados           ValorCampoEmpleado[]
 
-  createdAt                DateTime                  @default(now())
-  updatedAt                DateTime                  @updatedAt
+  // ── Cierre de turno (plan Enterprise) ──────────────────────────────────
+  cierresTurno         CierreTurno[]       @relation("CierreTurnoEmpleado")
+  cierresCajaEditados  CierreCajaEdicion[] @relation("CierreCajaEditor")
+  objetivosVenta       ObjetivoVenta[]     @relation("ObjetivoVentaComercial")
+  arqueosRecogidos     Arqueo[]            @relation("ArqueoRecogidoPor")
+  /// Puede firmar la recogida del efectivo de un arqueo. Se marca desde
+  /// administración; el rol por sí solo no habilita (un coordinador puede
+  /// no recoger caja y un OWNER puede no pasar nunca por la tienda).
+  puedeRecogerEfectivo Boolean             @default(false) @map("puede_recoger_efectivo")
+  /// Hash del PIN de recogida (bcrypt). NUNCA el PIN en claro. Se fija y se
+  /// resetea desde administración; null = sin PIN, no puede firmar.
+  pinRecogidaHash      String?             @map("pin_recogida_hash")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tiendaId])
 }
 
 model Fichaje {
-  id         String        @id @default(cuid())
-  userId     String
-  user       User          @relation(fields: [userId], references: [id])
-  tiendaId   String?
-  tienda     Tienda?       @relation(fields: [tiendaId], references: [id])
-  tipo       TipoFichaje
-  timestamp  DateTime      @default(now())
-  latitud    Float?
-  longitud   Float?
-  distancia  Float?
-  metodo     MetodoFichaje @default(WEB)
-  nota       String?
-  editadoPor String?
-  editadoEn  DateTime?
-  ip         String?
+  id              String             @id @default(cuid())
+  userId          String
+  user            User               @relation(fields: [userId], references: [id])
+  tiendaId        String?
+  tienda          Tienda?            @relation(fields: [tiendaId], references: [id])
+  tipo            TipoFichaje
+  timestamp       DateTime           @default(now())
+  latitud         Float?
+  longitud        Float?
+  distancia       Float?
+  metodo          MetodoFichaje      @default(WEB)
+  nota            String?
+  editadoPor      String?
+  editadoEn       DateTime?
+  ip              String?
   // Snapshot del rostro cifrado (AES-256-GCM, key IA_ENCRYPTION_KEY).
   // Solo se rellena cuando ConfiguracionEmpresa.faceIdGuardarFoto=true
   // y el fichaje viene del flujo Face ID.
-  fotoSnapshotEnc Bytes?     @map("foto_snapshot_enc")
+  fotoSnapshotEnc Bytes?             @map("foto_snapshot_enc")
   // Puntos de control confirmados por el empleado al fichar (checklist
   // de entrada/salida configurado por el OWNER). Vacío si el tenant no
   // tiene el checklist activo.
-  checklist  FichajeChecklist[]
-  createdAt  DateTime      @default(now())
+  checklist       FichajeChecklist[]
+  createdAt       DateTime           @default(now())
 
   @@index([userId])
   @@index([tiendaId])
@@ -398,29 +416,29 @@ model FichajeChecklist {
 }
 
 model Turno {
-  id          String      @id @default(cuid())
-  userId      String
-  user        User        @relation(fields: [userId], references: [id])
-  tiendaId    String
-  tienda      Tienda      @relation(fields: [tiendaId], references: [id])
+  id                    String      @id @default(cuid())
+  userId                String
+  user                  User        @relation(fields: [userId], references: [id])
+  tiendaId              String
+  tienda                Tienda      @relation(fields: [tiendaId], references: [id])
   // Tipo de turno del catálogo del cliente (Mañana, Tarde, Doble…).
   // Opcional: un turno puede ser un rango a medida sin tipo asociado.
-  tipoTurnoId String?
-  tipoTurno   TipoTurno?  @relation(fields: [tipoTurnoId], references: [id])
-  fecha       DateTime
-  horaInicio  String
-  horaFin     String
-  nota        String?
-  estado      EstadoTurno @default(BORRADOR)
+  tipoTurnoId           String?
+  tipoTurno             TipoTurno?  @relation(fields: [tipoTurnoId], references: [id])
+  fecha                 DateTime
+  horaInicio            String
+  horaFin               String
+  nota                  String?
+  estado                EstadoTurno @default(BORRADOR)
   // true si lo generó el relleno automático de oficina (ver
   // `User.turnoOficinaPorDefecto`). Distingue estos turnos de los creados a
   // mano para poder retirarlos cuando el día pasa a cubrirse en una tienda.
-  generadoAuto Boolean    @default(false) @map("generado_auto")
+  generadoAuto          Boolean     @default(false) @map("generado_auto")
   // Marca de cuándo se envió el aviso de "olvido de fichaje" para este turno
   // (null = aún no enviado). Evita avisar repetidamente en cada pasada del cron.
-  avisoFichajeEnviadoAt DateTime? @map("aviso_fichaje_enviado_at")
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  avisoFichajeEnviadoAt DateTime?   @map("aviso_fichaje_enviado_at")
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
 
   @@index([userId])
   @@index([tiendaId])
@@ -516,36 +534,36 @@ model Notificacion {
 /// o, en su defecto, de un OWNER/MANAGER de su tienda. Al aprobarse se crea
 /// o ajusta el `Fichaje` correspondiente como `MANUAL`.
 model SolicitudFichaje {
-  id            String                 @id @default(cuid())
-  solicitanteId String
-  solicitante   User                   @relation("SolicitudFichajeSolicitante", fields: [solicitanteId], references: [id])
+  id                  String                 @id @default(cuid())
+  solicitanteId       String
+  solicitante         User                   @relation("SolicitudFichajeSolicitante", fields: [solicitanteId], references: [id])
   /// Coordinador notificado (managerId del solicitante en el momento de crear).
   /// Informativo: la resolución la puede hacer cualquier OWNER/MANAGER con scope.
-  aprobadorId   String?
-  aprobador     User?                  @relation("SolicitudFichajeAprobador", fields: [aprobadorId], references: [id])
+  aprobadorId         String?
+  aprobador           User?                  @relation("SolicitudFichajeAprobador", fields: [aprobadorId], references: [id])
   /// "olvido" = registrar un fichaje que no existía;
   /// "correccion" = corregir la hora de un fichaje existente (fichajeId).
-  clase         String                 @default("olvido")
-  tipo          TipoFichaje
+  clase               String                 @default("olvido")
+  tipo                TipoFichaje
   /// Fichaje a corregir cuando clase = "correccion".
-  fichajeId     String?
+  fichajeId           String?
   /// Hora propuesta de entrada/salida/pausa.
-  fechaHora     DateTime
-  motivo        String
-  estado        EstadoSolicitudFichaje @default(PENDIENTE)
-  respuesta     String?
-  resueltaPorId String?
-  resueltaEn    DateTime?
+  fechaHora           DateTime
+  motivo              String
+  estado              EstadoSolicitudFichaje @default(PENDIENTE)
+  respuesta           String?
+  resueltaPorId       String?
+  resueltaEn          DateTime?
   /// Geolocalización del intento, solo en clase "fuera_sede": se guarda aquí
   /// porque el Fichaje aún no existe, y se copia al fichaje resultante al
   /// aprobar. `distancia` en metros, calculada en servidor.
-  latitud       Float?
-  longitud      Float?
-  distancia     Int?
+  latitud             Float?
+  longitud            Float?
+  distancia           Int?
   /// Fichaje creado o editado al aprobar la solicitud.
   fichajeResultanteId String?
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
 
   @@index([solicitanteId])
   @@index([aprobadorId])
@@ -553,74 +571,74 @@ model SolicitudFichaje {
 }
 
 model ConfiguracionEmpresa {
-  id                  String   @id @default(cuid())
-  nombre              String   @default("Mi Empresa")
-  logo                String?
-  horasJornadaDiaria  Float    @default(8)
-  horasSemanales      Float    @default(40)
-  toleranciaFichaje   Int      @default(15)
-  geofencingActivo    Boolean  @default(true)
+  id                          String   @id @default(cuid())
+  nombre                      String   @default("Mi Empresa")
+  logo                        String?
+  horasJornadaDiaria          Float    @default(8)
+  horasSemanales              Float    @default(40)
+  toleranciaFichaje           Int      @default(15)
+  geofencingActivo            Boolean  @default(true)
   // Si true, el fichaje requiere geolocalización (lat/lon). Si false,
   // se acepta sin geo y el cliente puede saltarse la captura GPS.
-  geoObligatoria      Boolean  @default(false) @map("geo_obligatoria")
-  fichajeMovilActivo  Boolean  @default(true)
-  fichajeTabletActivo Boolean  @default(true)
+  geoObligatoria              Boolean  @default(false) @map("geo_obligatoria")
+  fichajeMovilActivo          Boolean  @default(true)
+  fichajeTabletActivo         Boolean  @default(true)
   // Si true, los empleados con Face ID registrado deben verificarlo
   // al fichar (no se permite fichar sin Face ID si lo tienen).
-  faceIdObligatorio   Boolean  @default(false) @map("face_id_obligatorio")
+  faceIdObligatorio           Boolean  @default(false) @map("face_id_obligatorio")
   // Si true, al fichar con Face ID guardamos un snapshot cifrado del
   // frame de la cámara (en Fichaje.fotoSnapshotEnc) para auditoría.
   // Datos biométricos — RGPD art. 9. Off por defecto.
-  faceIdGuardarFoto   Boolean  @default(false) @map("face_id_guardar_foto")
+  faceIdGuardarFoto           Boolean  @default(false) @map("face_id_guardar_foto")
   // Días de retención del snapshot biométrico. El cron de purga
   // (`/api/cron/purge-biometrics`) borra fotos con `timestamp` mayor
   // a este número de días. RGPD art. 5.1.e (minimización).
-  retencionFotosDias  Int      @default(90) @map("retencion_fotos_dias")
+  retencionFotosDias          Int      @default(90) @map("retencion_fotos_dias")
   // Si true, al fichar ENTRADA/SALIDA el empleado debe confirmar los
   // puntos de control activos (`ChecklistFichajeItem`) antes de que se
   // registre el fichaje. Off por defecto: cada tenant lo activa.
-  checklistFichajeActivo Boolean @default(false) @map("checklist_fichaje_activo")
-  notifAusencias      Boolean  @default(true)
-  notifTurnos         Boolean  @default(true)
-  notifTareas         Boolean  @default(true)
-  notifFichajes       Boolean  @default(false)
-  notifComunicados    Boolean  @default(true)
-  notifDocumentos     Boolean  @default(true)
+  checklistFichajeActivo      Boolean  @default(false) @map("checklist_fichaje_activo")
+  notifAusencias              Boolean  @default(true)
+  notifTurnos                 Boolean  @default(true)
+  notifTareas                 Boolean  @default(true)
+  notifFichajes               Boolean  @default(false)
+  notifComunicados            Boolean  @default(true)
+  notifDocumentos             Boolean  @default(true)
   // Aviso por email a OWNER + managers de la sede cuando un empleado
   // ficha a más distancia de la sede que el radio configurado en
   // `Tienda.radio` (200 m por defecto). Solo avisa: RD 8/2019 impide
   // rechazar el fichaje por ubicación.
-  notifFueraSede      Boolean  @default(true)
-  emailActivo         Boolean  @default(false)
-  emailHost           String?
-  emailPort           Int?
-  emailSecure         Boolean  @default(true)
-  emailUser           String?
-  emailPassword       String?
-  emailFrom           String?
-  pushActivo          Boolean  @default(false)
-  pushVapidPublicKey  String?
-  pushVapidPrivateKey String?
-  favicon             String?
-  colorPrimario       String   @default("#6366f1")
-  colorSidebar        String   @default("#1e1b4b")
-  appNombre           String   @default("TelecomFichaje")
+  notifFueraSede              Boolean  @default(true)
+  emailActivo                 Boolean  @default(false)
+  emailHost                   String?
+  emailPort                   Int?
+  emailSecure                 Boolean  @default(true)
+  emailUser                   String?
+  emailPassword               String?
+  emailFrom                   String?
+  pushActivo                  Boolean  @default(false)
+  pushVapidPublicKey          String?
+  pushVapidPrivateKey         String?
+  favicon                     String?
+  colorPrimario               String   @default("#6366f1")
+  colorSidebar                String   @default("#1e1b4b")
+  appNombre                   String   @default("TelecomFichaje")
   // Fase 6 §3.1: configuración general por tenant.
-  zonaHoraria         String   @default("Europe/Madrid")
-  diasLaborables      Int[]    @default([1, 2, 3, 4, 5])
-  ausenciasDefaults   Json?
+  zonaHoraria                 String   @default("Europe/Madrid")
+  diasLaborables              Int[]    @default([1, 2, 3, 4, 5])
+  ausenciasDefaults           Json?
   // Reglas de cálculo de prenómina (feature `prenomina`, Enterprise-ready).
-  nominaJornadaSemanal       Decimal @default(40.00) @db.Decimal(5, 2)
-  nominaHoraExtraFactor      Decimal @default(1.75)  @db.Decimal(4, 2)
-  nominaPlusNocturnidadActivo Boolean @default(false)
-  nominaNocturnidadDesde     String  @default("22:00")
-  nominaNocturnidadHasta     String  @default("06:00")
-  nominaPlusNocturnidadFactor Decimal @default(1.25) @db.Decimal(4, 2)
-  nominaPlusFestivoActivo    Boolean @default(false)
-  nominaPlusFestivoFactor    Decimal @default(1.75)  @db.Decimal(4, 2)
-  nominaSalarioBaseDefault   Decimal @default(0.00)  @db.Decimal(10, 2)
-  nominaMoneda               String  @default("EUR")
-  updatedAt           DateTime @updatedAt
+  nominaJornadaSemanal        Decimal  @default(40.00) @db.Decimal(5, 2)
+  nominaHoraExtraFactor       Decimal  @default(1.75) @db.Decimal(4, 2)
+  nominaPlusNocturnidadActivo Boolean  @default(false)
+  nominaNocturnidadDesde      String   @default("22:00")
+  nominaNocturnidadHasta      String   @default("06:00")
+  nominaPlusNocturnidadFactor Decimal  @default(1.25) @db.Decimal(4, 2)
+  nominaPlusFestivoActivo     Boolean  @default(false)
+  nominaPlusFestivoFactor     Decimal  @default(1.75) @db.Decimal(4, 2)
+  nominaSalarioBaseDefault    Decimal  @default(0.00) @db.Decimal(10, 2)
+  nominaMoneda                String   @default("EUR")
+  updatedAt                   DateTime @updatedAt
 }
 
 model PreferenciasNotificacion {
@@ -705,30 +723,30 @@ model Articulo {
 }
 
 model Documento {
-  id          String   @id @default(cuid())
-  nombre      String
-  descripcion String?
-  url         String?
-  tipo        String   @default("otro")
-  userId      String?
-  user        User?    @relation("DocumentoEmpleado", fields: [userId], references: [id])
-  subidoPorId String
-  subidoPor   User     @relation("DocumentoSubido", fields: [subidoPorId], references: [id])
-  createdAt   DateTime @default(now())
+  id                  String           @id @default(cuid())
+  nombre              String
+  descripcion         String?
+  url                 String?
+  tipo                String           @default("otro")
+  userId              String?
+  user                User?            @relation("DocumentoEmpleado", fields: [userId], references: [id])
+  subidoPorId         String
+  subidoPor           User             @relation("DocumentoSubido", fields: [subidoPorId], references: [id])
+  createdAt           DateTime         @default(now())
   // Documentos creados a partir de una PlantillaDocumento (envío como alta o
   // adjuntar plantilla): `campos` es la definición congelada de los campos que
   // el empleado debe rellenar ([{ label, tipo }]); `camposRespuestas` son sus
   // respuestas alineadas por índice (string[]). Ambos null en documentos
   // normales que no vienen de plantilla.
-  campos           Json?
-  camposRespuestas Json?
+  campos              Json?
+  camposRespuestas    Json?
   // Copia del documento con las respuestas del empleado estampadas en las
   // posiciones marcadas en la plantilla (data URL de PDF). Se regenera cada vez
   // que el empleado guarda sus respuestas. Null si la plantilla no marcó
   // posiciones o el archivo no es estampable.
-  documentoRellenoUrl String? @map("documento_relleno_url")
-  firmas             Firma[]
-  solicitudesFirma   SolicitudFirma[] @relation("SolicitudFirmaDocumento")
+  documentoRellenoUrl String?          @map("documento_relleno_url")
+  firmas              Firma[]
+  solicitudesFirma    SolicitudFirma[] @relation("SolicitudFirmaDocumento")
 
   @@index([userId])
   @@index([subidoPorId])
@@ -780,19 +798,19 @@ enum EstadoSolicitudFirma {
 }
 
 model SolicitudFirma {
-  id                String                @id @default(cuid())
-  documentoId       String
-  documento         Documento             @relation("SolicitudFirmaDocumento", fields: [documentoId], references: [id], onDelete: Cascade)
-  destinatarioId    String
-  destinatario      User                  @relation("SolicitudFirmaDestinatario", fields: [destinatarioId], references: [id])
-  solicitadaPorId   String
-  solicitadaPor     User                  @relation("SolicitudFirmaSolicitante", fields: [solicitadaPorId], references: [id])
-  mensaje           String?
-  estado            EstadoSolicitudFirma  @default(pendiente)
-  expiraEn          DateTime?             @map("expira_en")
-  createdAt         DateTime              @default(now()) @map("created_at")
-  updatedAt         DateTime              @updatedAt      @map("updated_at")
-  firma             Firma?                @relation("SolicitudFirma")
+  id              String               @id @default(cuid())
+  documentoId     String
+  documento       Documento            @relation("SolicitudFirmaDocumento", fields: [documentoId], references: [id], onDelete: Cascade)
+  destinatarioId  String
+  destinatario    User                 @relation("SolicitudFirmaDestinatario", fields: [destinatarioId], references: [id])
+  solicitadaPorId String
+  solicitadaPor   User                 @relation("SolicitudFirmaSolicitante", fields: [solicitadaPorId], references: [id])
+  mensaje         String?
+  estado          EstadoSolicitudFirma @default(pendiente)
+  expiraEn        DateTime?            @map("expira_en")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+  firma           Firma?               @relation("SolicitudFirma")
 
   @@index([destinatarioId])
   @@index([documentoId])
@@ -800,48 +818,48 @@ model SolicitudFirma {
 }
 
 model Firma {
-  id              String          @id @default(cuid())
-  documentoId     String
-  documento       Documento       @relation(fields: [documentoId], references: [id], onDelete: Cascade)
-  userId          String
-  user            User            @relation("FirmaUsuario", fields: [userId], references: [id])
+  id                  String          @id @default(cuid())
+  documentoId         String
+  documento           Documento       @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+  userId              String
+  user                User            @relation("FirmaUsuario", fields: [userId], references: [id])
   // Vínculo opcional con la solicitud. Una firma "espontánea" del propio
   // usuario sobre su documento NO requiere solicitud previa.
-  solicitudId     String?         @unique
-  solicitud       SolicitudFirma? @relation("SolicitudFirma", fields: [solicitudId], references: [id])
-  documentHash    String          @map("document_hash")
-  ip              String?
-  userAgent       String?         @map("user_agent")
-  firmadoEn       DateTime        @default(now()) @map("firmado_en")
+  solicitudId         String?         @unique
+  solicitud           SolicitudFirma? @relation("SolicitudFirma", fields: [solicitudId], references: [id])
+  documentHash        String          @map("document_hash")
+  ip                  String?
+  userAgent           String?         @map("user_agent")
+  firmadoEn           DateTime        @default(now()) @map("firmado_en")
   // Identidad manuscrita capturada al firmar (contratos laborales y anexos):
   // nombre y DNI/NIE tecleados por el firmante + garabato manuscrito (PNG
   // data URL). Se estampan en el margen izquierdo de cada hoja del documento.
-  firmanteNombre      String?     @map("firmante_nombre")
-  firmanteDni         String?     @map("firmante_dni")
-  firmaImagen         String?     @map("firma_imagen")
+  firmanteNombre      String?         @map("firmante_nombre")
+  firmanteDni         String?         @map("firmante_dni")
+  firmaImagen         String?         @map("firma_imagen")
   // Copia del documento con la firma estampada en cada página (PDF data URL).
-  documentoFirmadoUrl String?     @map("documento_firmado_url")
+  documentoFirmadoUrl String?         @map("documento_firmado_url")
 
   @@index([documentoId])
   @@index([userId])
 }
 
 model Festivo {
-  id        String   @id @default(cuid())
-  nombre    String
-  fecha     DateTime
+  id          String             @id @default(cuid())
+  nombre      String
+  fecha       DateTime
   // Ámbito: "nacional" (aplica a toda la plantilla) o "local" (solo a la
   // sede `tiendaId`). Los festivos locales requieren `tiendaId`.
-  ambito    String   @default("nacional")
+  ambito      String             @default("nacional")
   // Sede a la que aplica un festivo local. null para festivos nacionales.
   // ON DELETE CASCADE: si se borra la sede, sus festivos locales se van con ella.
-  tiendaId  String?
-  tienda    Tienda?  @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+  tiendaId    String?
+  tienda      Tienda?            @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
   // Excepciones por empleado: la presencia de una fila significa que ese
   // empleado SÍ trabaja ese día (se le "quita" el festivo para asignar
   // jornada / horas extra). Ausencia de fila = el festivo le aplica.
   excepciones FestivoExcepcion[]
-  createdAt DateTime @default(now())
+  createdAt   DateTime           @default(now())
 
   @@index([tiendaId])
 }
@@ -862,14 +880,14 @@ model FestivoExcepcion {
 
 // Webhook outbound del tenant. Plan D.5.
 model TenantWebhook {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   url         String
   events      String[]
   secret      String
-  active      Boolean  @default(true)
+  active      Boolean   @default(true)
   lastFiredAt DateTime? @map("last_fired_at")
-  failCount   Int      @default(0) @map("fail_count")
-  createdAt   DateTime @default(now()) @map("created_at")
+  failCount   Int       @default(0) @map("fail_count")
+  createdAt   DateTime  @default(now()) @map("created_at")
 
   @@index([active])
 }
@@ -962,37 +980,37 @@ enum EstadoDenuncia {
 }
 
 model Denuncia {
-  id                   String            @id @default(cuid())
+  id                 String               @id @default(cuid())
   // Anonimato y acceso
-  esAnonima            Boolean           @default(false)
+  esAnonima          Boolean              @default(false)
   // Token para que un informante anónimo consulte/responda sin login.
   // Hash del token real — el token plain solo se devuelve UNA VEZ al crear.
-  accessTokenHash      String?           @unique
+  accessTokenHash    String?              @unique
   // Datos de contacto del informante (null si anónima)
-  informanteEmail      String?
-  informanteNombre     String?
-  informanteTelefono   String?
+  informanteEmail    String?
+  informanteNombre   String?
+  informanteTelefono String?
   // Si el denunciante es un usuario logueado (no anónimo), referencia.
-  informanteUserId     String?
-  informanteUser       User?             @relation("DenunciaInformante", fields: [informanteUserId], references: [id])
+  informanteUserId   String?
+  informanteUser     User?                @relation("DenunciaInformante", fields: [informanteUserId], references: [id])
   // Datos de la denuncia
-  asunto               String
-  categoria            CategoriaDenuncia
-  descripcion          String
-  fechaIncidente       DateTime?
+  asunto             String
+  categoria          CategoriaDenuncia
+  descripcion        String
+  fechaIncidente     DateTime?
   // Estado y trazabilidad
-  estado               EstadoDenuncia    @default(recibida)
-  asignadoUserId       String?
-  asignadoUser         User?             @relation("DenunciaAsignada", fields: [asignadoUserId], references: [id])
+  estado             EstadoDenuncia       @default(recibida)
+  asignadoUserId     String?
+  asignadoUser       User?                @relation("DenunciaAsignada", fields: [asignadoUserId], references: [id])
   // Plazos legales (Ley 2/2023)
-  acuseReciboAt        DateTime?         @map("acuse_recibo_at")
-  resolucionAt         DateTime?         @map("resolucion_at")
-  resolucionResumen    String?           @map("resolucion_resumen")
+  acuseReciboAt      DateTime?            @map("acuse_recibo_at")
+  resolucionAt       DateTime?            @map("resolucion_at")
+  resolucionResumen  String?              @map("resolucion_resumen")
   // Auditoría
-  createdAt            DateTime          @default(now()) @map("created_at")
-  updatedAt            DateTime          @updatedAt      @map("updated_at")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
   // Relaciones
-  comentarios          ComentarioDenuncia[]
+  comentarios        ComentarioDenuncia[]
 
   @@index([estado])
   @@index([categoria])
@@ -1041,21 +1059,21 @@ enum EstadoCandidato {
 }
 
 model OfertaTrabajo {
-  id              String        @id @default(cuid())
+  id              String       @id @default(cuid())
   titulo          String
   descripcion     String
   departamento    String?
   ubicacion       String?
-  modalidad       String?       // presencial / remoto / híbrido
-  salarioMinCents Int?          @map("salario_min_cents")
-  salarioMaxCents Int?          @map("salario_max_cents")
-  estado          EstadoOferta  @default(borrador)
-  fechaCierre     DateTime?     @map("fecha_cierre")
+  modalidad       String? // presencial / remoto / híbrido
+  salarioMinCents Int?         @map("salario_min_cents")
+  salarioMaxCents Int?         @map("salario_max_cents")
+  estado          EstadoOferta @default(borrador)
+  fechaCierre     DateTime?    @map("fecha_cierre")
   creadorId       String
-  creador         User          @relation("OfertaCreador", fields: [creadorId], references: [id])
+  creador         User         @relation("OfertaCreador", fields: [creadorId], references: [id])
   candidatos      Candidato[]
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt      @map("updated_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
 
   @@index([estado])
   @@index([creadorId])
@@ -1076,43 +1094,43 @@ enum ProveedorIA {
 
 model IAConfiguracion {
   // Singleton por tenant. id fijo a "default" para garantizar 1 fila.
-  id              String       @id @default("default")
-  provider        ProveedorIA
-  apiKeyEnc       Bytes        @map("api_key_enc")
-  modelo          String       // ej. "claude-sonnet-4-6", "gpt-4o", "gemini-1.5-pro"
-  endpointUrl     String?      @map("endpoint_url") // opcional para Azure/self-hosted
-  systemPrompt    String?      @map("system_prompt") // override del system prompt
-  activa          Boolean      @default(true)
-  ultimaPruebaAt  DateTime?    @map("ultima_prueba_at")
-  ultimaPruebaOk  Boolean?     @map("ultima_prueba_ok")
-  createdAt       DateTime     @default(now()) @map("created_at")
-  updatedAt       DateTime     @updatedAt      @map("updated_at")
+  id             String      @id @default("default")
+  provider       ProveedorIA
+  apiKeyEnc      Bytes       @map("api_key_enc")
+  modelo         String // ej. "claude-sonnet-4-6", "gpt-4o", "gemini-1.5-pro"
+  endpointUrl    String?     @map("endpoint_url") // opcional para Azure/self-hosted
+  systemPrompt   String?     @map("system_prompt") // override del system prompt
+  activa         Boolean     @default(true)
+  ultimaPruebaAt DateTime?   @map("ultima_prueba_at")
+  ultimaPruebaOk Boolean?    @map("ultima_prueba_ok")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
 }
 
 model ConversacionIA {
-  id          String       @id @default(cuid())
-  userId      String
-  user        User         @relation("ConversacionIAUser", fields: [userId], references: [id])
-  titulo      String
-  mensajes    MensajeIA[]
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt      @map("updated_at")
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation("ConversacionIAUser", fields: [userId], references: [id])
+  titulo    String
+  mensajes  MensajeIA[]
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
 
   @@index([userId])
   @@index([updatedAt])
 }
 
 model MensajeIA {
-  id              String         @id @default(cuid())
-  conversacionId  String
-  conversacion    ConversacionIA @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
-  rol             String         // "user" | "assistant" | "system"
-  contenido       String
-  tokensInput     Int?           @map("tokens_input")
-  tokensOutput    Int?           @map("tokens_output")
-  modelo          String?
-  errorMsg        String?        @map("error_msg")
-  createdAt       DateTime       @default(now()) @map("created_at")
+  id             String         @id @default(cuid())
+  conversacionId String
+  conversacion   ConversacionIA @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
+  rol            String // "user" | "assistant" | "system"
+  contenido      String
+  tokensInput    Int?           @map("tokens_input")
+  tokensOutput   Int?           @map("tokens_output")
+  modelo         String?
+  errorMsg       String?        @map("error_msg")
+  createdAt      DateTime       @default(now()) @map("created_at")
 
   @@index([conversacionId])
 }
@@ -1130,37 +1148,37 @@ model MensajeIA {
 /// o grupal (`tipo="grupo"`). Participantes en `ParticipanteConversacion`.
 /// Mensajes ordenados por createdAt.
 model Conversacion {
-  id            String                      @id @default(cuid())
+  id            String                     @id @default(cuid())
   nombre        String?
-  tipo          String                      @default("directo") // directo | grupo
+  tipo          String                     @default("directo") // directo | grupo
   creadoPorId   String?
   participantes ParticipanteConversacion[]
   mensajes      Mensaje[]
-  createdAt     DateTime                    @default(now())
-  updatedAt     DateTime                    @updatedAt
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
 }
 
 model ParticipanteConversacion {
-  id              String       @id @default(cuid())
-  conversacionId  String
-  conversacion    Conversacion @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
-  userId          String
-  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ultimoLeidoAt   DateTime?
-  createdAt       DateTime     @default(now())
+  id             String       @id @default(cuid())
+  conversacionId String
+  conversacion   Conversacion @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ultimoLeidoAt  DateTime?
+  createdAt      DateTime     @default(now())
 
   @@unique([conversacionId, userId])
   @@index([userId])
 }
 
 model Mensaje {
-  id              String       @id @default(cuid())
-  conversacionId  String
-  conversacion    Conversacion @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
-  autorId         String
-  autor           User         @relation("MensajeAutor", fields: [autorId], references: [id])
-  texto           String
-  createdAt       DateTime     @default(now())
+  id             String       @id @default(cuid())
+  conversacionId String
+  conversacion   Conversacion @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
+  autorId        String
+  autor          User         @relation("MensajeAutor", fields: [autorId], references: [id])
+  texto          String
+  createdAt      DateTime     @default(now())
 
   @@index([conversacionId, createdAt])
 }
@@ -1172,24 +1190,24 @@ model Mensaje {
 /// cola cuando se implemente la integración con WhatsApp Cloud API.
 /// El token va cifrado con `IA_ENCRYPTION_KEY`.
 model WhatsappConfig {
-  id              String   @id @default("singleton")
-  phoneNumberId   String?
+  id            String   @id @default("singleton")
+  phoneNumberId String?
   /// Token cifrado AES-GCM (mismo schema que IAConfiguracion.apiKeyEnc).
-  tokenEnc        Bytes?
-  numeroEmpresa   String?
-  activo          Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  tokenEnc      Bytes?
+  numeroEmpresa String?
+  activo        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model MensajeWhatsapp {
-  id                    String   @id @default(cuid())
-  destinatarioTelefono  String
-  texto                 String
-  estado                String   @default("pendiente") // pendiente | enviado | fallido
-  motivoError           String?
-  enviadoAt             DateTime?
-  createdAt             DateTime @default(now())
+  id                   String    @id @default(cuid())
+  destinatarioTelefono String
+  texto                String
+  estado               String    @default("pendiente") // pendiente | enviado | fallido
+  motivoError          String?
+  enviadoAt            DateTime?
+  createdAt            DateTime  @default(now())
 
   @@index([estado])
   @@index([createdAt])
@@ -1201,26 +1219,26 @@ model MensajeWhatsapp {
 /// activa las que quiera con su configuración propia. No hay ejecución
 /// real — solo registro de que el tenant ha "conectado" la integración.
 model Integracion {
-  id            String                @id @default(cuid())
-  slug          String                @unique
+  id            String                 @id @default(cuid())
+  slug          String                 @unique
   nombre        String
   descripcion   String
-  categoria     String                // "comunicacion" | "nominas" | "calendario" | etc.
+  categoria     String // "comunicacion" | "nominas" | "calendario" | etc.
   logoUrl       String?
-  esquemaConfig Json?                 // JSON Schema de los campos config
+  esquemaConfig Json? // JSON Schema de los campos config
   instalaciones IntegracionInstalada[]
-  createdAt     DateTime              @default(now())
+  createdAt     DateTime               @default(now())
 }
 
 model IntegracionInstalada {
-  id              String      @id @default(cuid())
-  integracionId   String
-  integracion     Integracion @relation(fields: [integracionId], references: [id], onDelete: Cascade)
-  configuracion   Json
-  activa          Boolean     @default(true)
-  activadaPorId   String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id            String      @id @default(cuid())
+  integracionId String
+  integracion   Integracion @relation(fields: [integracionId], references: [id], onDelete: Cascade)
+  configuracion Json
+  activa        Boolean     @default(true)
+  activadaPorId String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   @@unique([integracionId])
 }
@@ -1253,15 +1271,15 @@ model Empresa {
 /// fiscal estimado con tablas internas. Sin emisión real de tickets —
 /// la integración con proveedores (Cobee, Pluxee, Edenred) queda fuera.
 model DeclaracionFlex {
-  id          String   @id @default(cuid())
-  empleadoId  String
-  empleado    User     @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
-  periodo     String   // "2026-05"
-  concepto    String   // tickets_restaurante | guarderia | transporte | seguro_medico
-  importe     Decimal  @db.Decimal(10, 2)
-  notas       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  empleadoId String
+  empleado   User     @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
+  periodo    String // "2026-05"
+  concepto   String // tickets_restaurante | guarderia | transporte | seguro_medico
+  importe    Decimal  @db.Decimal(10, 2)
+  notas      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@unique([empleadoId, periodo, concepto], name: "empleado_periodo_concepto_uniq")
   @@index([empleadoId, periodo])
@@ -1270,20 +1288,20 @@ model DeclaracionFlex {
 /// Evaluación de desempeño 1:1 (evaluador → evaluado) en un ciclo.
 /// Feature: `evaluaciones`. Pro+Enterprise.
 model Evaluacion {
-  id            String    @id @default(cuid())
-  ciclo         String    // "2026-H1", "2026-Q1", etc.
-  evaluadoAId   String
-  evaluadoA     User      @relation("EvaluacionEvaluado", fields: [evaluadoAId], references: [id])
-  evaluadorId   String
-  evaluador     User      @relation("EvaluacionEvaluador", fields: [evaluadorId], references: [id])
+  id           String    @id @default(cuid())
+  ciclo        String // "2026-H1", "2026-Q1", etc.
+  evaluadoAId  String
+  evaluadoA    User      @relation("EvaluacionEvaluado", fields: [evaluadoAId], references: [id])
+  evaluadorId  String
+  evaluador    User      @relation("EvaluacionEvaluador", fields: [evaluadorId], references: [id])
   /// [{ idx, texto, tipo: "escala_1_5" | "texto" }]
-  preguntas     Json
+  preguntas    Json
   /// [{ preguntaIdx, valor: number | string }] | null antes de completar
-  respuestas    Json?
-  comentarios   String?
-  estado        String    @default("pendiente") // pendiente | completada
-  createdAt     DateTime  @default(now())
-  completadaAt  DateTime?
+  respuestas   Json?
+  comentarios  String?
+  estado       String    @default("pendiente") // pendiente | completada
+  createdAt    DateTime  @default(now())
+  completadaAt DateTime?
 
   @@index([evaluadoAId])
   @@index([evaluadorId])
@@ -1292,22 +1310,22 @@ model Evaluacion {
 
 /// Gasto que el empleado registra para reembolso. Feature: `control_gastos`.
 model Gasto {
-  id           String    @id @default(cuid())
-  userId       String
-  user         User      @relation(fields: [userId], references: [id])
-  concepto     String
-  importe      Decimal   @db.Decimal(10, 2)
-  moneda       String    @default("EUR")
-  categoria    String    @default("varios") // dietas | transporte | hotel | material | varios
-  fecha        DateTime
-  ticketUrl    String?   // URL/data del ticket subido (data URL pequeño OK)
-  notas        String?
-  estado       String    @default("pendiente") // pendiente | aprobado | rechazado
-  revisorId    String?
-  revisor      User?     @relation("GastoRevisor", fields: [revisorId], references: [id])
-  revisadoAt   DateTime?
+  id                 String    @id @default(cuid())
+  userId             String
+  user               User      @relation(fields: [userId], references: [id])
+  concepto           String
+  importe            Decimal   @db.Decimal(10, 2)
+  moneda             String    @default("EUR")
+  categoria          String    @default("varios") // dietas | transporte | hotel | material | varios
+  fecha              DateTime
+  ticketUrl          String? // URL/data del ticket subido (data URL pequeño OK)
+  notas              String?
+  estado             String    @default("pendiente") // pendiente | aprobado | rechazado
+  revisorId          String?
+  revisor            User?     @relation("GastoRevisor", fields: [revisorId], references: [id])
+  revisadoAt         DateTime?
   comentarioRevision String?
-  createdAt    DateTime  @default(now())
+  createdAt          DateTime  @default(now())
 
   @@index([userId])
   @@index([estado])
@@ -1327,15 +1345,15 @@ model EspacioReservable {
 }
 
 model ReservaEspacio {
-  id         String            @id @default(cuid())
-  espacioId  String
-  espacio    EspacioReservable @relation(fields: [espacioId], references: [id], onDelete: Cascade)
-  userId     String
-  user       User              @relation(fields: [userId], references: [id])
-  inicio     DateTime
-  fin        DateTime
-  motivo     String?
-  createdAt  DateTime          @default(now())
+  id        String            @id @default(cuid())
+  espacioId String
+  espacio   EspacioReservable @relation(fields: [espacioId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User              @relation(fields: [userId], references: [id])
+  inicio    DateTime
+  fin       DateTime
+  motivo    String?
+  createdAt DateTime          @default(now())
 
   @@index([espacioId, inicio])
   @@index([userId])
@@ -1343,20 +1361,20 @@ model ReservaEspacio {
 
 /// Archivo de nómina enviado a un empleado. Feature: `envio_nominas`.
 model NominaArchivo {
-  id          String    @id @default(cuid())
-  empleadoId  String
-  empleado    User      @relation("NominaArchivoEmpleado", fields: [empleadoId], references: [id])
+  id            String    @id @default(cuid())
+  empleadoId    String
+  empleado      User      @relation("NominaArchivoEmpleado", fields: [empleadoId], references: [id])
   /// "2026-04", "2026-05", etc. (mes de la nómina)
-  periodo     String
+  periodo       String
   /// Data URL del PDF o URL externa. En MVP guardamos data URL.
-  pdfUrl      String
+  pdfUrl        String
   nombreArchivo String
-  tamañoBytes Int       @default(0)
-  subidoPorId String
-  subidoPor   User      @relation("NominaArchivoSubidoPor", fields: [subidoPorId], references: [id])
+  tamañoBytes  Int       @default(0)
+  subidoPorId   String
+  subidoPor     User      @relation("NominaArchivoSubidoPor", fields: [subidoPorId], references: [id])
   /// Marca de visualización por el empleado.
-  vistoAt     DateTime?
-  createdAt   DateTime  @default(now())
+  vistoAt       DateTime?
+  createdAt     DateTime  @default(now())
 
   @@unique([empleadoId, periodo], name: "empleado_periodo_uniq")
   @@index([empleadoId])
@@ -1364,28 +1382,28 @@ model NominaArchivo {
 
 /// Curso de formación. Feature: `formacion`.
 model Curso {
-  id          String              @id @default(cuid())
-  titulo      String
-  descripcion String?
+  id           String            @id @default(cuid())
+  titulo       String
+  descripcion  String?
   /// URL externa al contenido (vídeo, PDF, web). Sin player propio en MVP.
   contenidoUrl String?
-  duracionMin Int                 @default(60)
-  creadoPorId String
-  creadoPor   User                @relation("CursoCreador", fields: [creadoPorId], references: [id])
+  duracionMin  Int               @default(60)
+  creadoPorId  String
+  creadoPor    User              @relation("CursoCreador", fields: [creadoPorId], references: [id])
   asignaciones AsignacionCurso[]
-  createdAt   DateTime            @default(now())
+  createdAt    DateTime          @default(now())
 }
 
 model AsignacionCurso {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   cursoId      String
-  curso        Curso    @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  curso        Curso     @relation(fields: [cursoId], references: [id], onDelete: Cascade)
   empleadoId   String
-  empleado     User     @relation("AsignacionCursoEmpleado", fields: [empleadoId], references: [id])
+  empleado     User      @relation("AsignacionCursoEmpleado", fields: [empleadoId], references: [id])
   fechaLimite  DateTime?
-  completado   Boolean  @default(false)
+  completado   Boolean   @default(false)
   completadoAt DateTime?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
 
   @@unique([cursoId, empleadoId], name: "curso_empleado_uniq")
   @@index([empleadoId])
@@ -1394,18 +1412,18 @@ model AsignacionCurso {
 /// Petición personalizada del empleado (carta, certificado, anticipo, etc.).
 /// Feature: `custom_requests`.
 model Peticion {
-  id              String    @id @default(cuid())
-  solicitanteId   String
-  solicitante     User      @relation("PeticionSolicitante", fields: [solicitanteId], references: [id])
-  tipo            String    // "certificado_empresa" | "anticipo" | "cambio_datos" | "otro"
-  titulo          String
-  descripcion     String
-  estado          String    @default("pendiente") // pendiente | en_proceso | resuelta | rechazada
-  respuesta       String?
-  gestorId        String?
-  gestor          User?     @relation("PeticionGestor", fields: [gestorId], references: [id])
-  resueltaAt      DateTime?
-  createdAt       DateTime  @default(now())
+  id            String    @id @default(cuid())
+  solicitanteId String
+  solicitante   User      @relation("PeticionSolicitante", fields: [solicitanteId], references: [id])
+  tipo          String // "certificado_empresa" | "anticipo" | "cambio_datos" | "otro"
+  titulo        String
+  descripcion   String
+  estado        String    @default("pendiente") // pendiente | en_proceso | resuelta | rechazada
+  respuesta     String?
+  gestorId      String?
+  gestor        User?     @relation("PeticionGestor", fields: [gestorId], references: [id])
+  resueltaAt    DateTime?
+  createdAt     DateTime  @default(now())
 
   @@index([solicitanteId])
   @@index([estado])
@@ -1446,15 +1464,15 @@ model Encuesta {
 }
 
 model RespuestaEncuesta {
-  id          String   @id @default(cuid())
-  encuestaId  String
-  encuesta    Encuesta @relation(fields: [encuestaId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  encuestaId String
+  encuesta   Encuesta @relation(fields: [encuestaId], references: [id], onDelete: Cascade)
   /// Null si la encuesta es anónima. Si la encuesta es nominal, FK al usuario.
-  userId      String?
-  user        User?    @relation("RespuestaEncuestaUser", fields: [userId], references: [id], onDelete: SetNull)
+  userId     String?
+  user       User?    @relation("RespuestaEncuestaUser", fields: [userId], references: [id], onDelete: SetNull)
   /// Array JSON: [{ preguntaIdx: number, valor: number | string }].
-  respuestas  Json
-  createdAt   DateTime @default(now())
+  respuestas Json
+  createdAt  DateTime @default(now())
 
   @@unique([encuestaId, userId], name: "encuesta_user_uniq")
   @@index([encuestaId])
@@ -1469,22 +1487,22 @@ model RespuestaEncuesta {
 /// Si `asignadoAId` es null, el objetivo es de empresa (afecta a toda
 /// la organización). Si tiene valor, es individual del usuario.
 model Objetivo {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   titulo      String
   descripcion String?
   asignadoAId String?
-  asignadoA   User?    @relation("ObjetivoAsignado", fields: [asignadoAId], references: [id])
+  asignadoA   User?     @relation("ObjetivoAsignado", fields: [asignadoAId], references: [id])
   /// Free text: "2026-Q1", "2026", "Mayo 2026", etc.
   periodo     String
   /// Free text con set conocido: "activo" | "completado" | "cancelado".
-  estado      String   @default("activo")
+  estado      String    @default("activo")
   /// 0-100. Avance manual del objetivo.
-  progreso    Int      @default(0)
+  progreso    Int       @default(0)
   creadoPorId String
-  creadoPor   User     @relation("ObjetivoCreado", fields: [creadoPorId], references: [id])
+  creadoPor   User      @relation("ObjetivoCreado", fields: [creadoPorId], references: [id])
   fechaCierre DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([asignadoAId])
   @@index([estado])
@@ -1492,58 +1510,58 @@ model Objetivo {
 }
 
 model FaceTemplate {
-  id                String   @id @default(cuid())
-  userId            String   @unique
-  user              User     @relation("FaceTemplateUser", fields: [userId], references: [id], onDelete: Cascade)
-  embeddingEnc      Bytes    @map("embedding_enc")
-  algoritmo         String   @default("face-api.js@0.22") // versión + librería
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation("FaceTemplateUser", fields: [userId], references: [id], onDelete: Cascade)
+  embeddingEnc     Bytes    @map("embedding_enc")
+  algoritmo        String   @default("face-api.js@0.22") // versión + librería
   // Consentimiento GDPR — registro inmutable del momento de la enrolación.
-  consentimientoAt  DateTime @default(now()) @map("consentimiento_at")
-  consentimientoIp  String?  @map("consentimiento_ip")
-  consentimientoUa  String?  @map("consentimiento_ua")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt      @map("updated_at")
+  consentimientoAt DateTime @default(now()) @map("consentimiento_at")
+  consentimientoIp String?  @map("consentimiento_ip")
+  consentimientoUa String?  @map("consentimiento_ua")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
-  verificaciones    FaceVerificacion[]
+  verificaciones FaceVerificacion[]
 }
 
 model FaceVerificacion {
-  id          String        @id @default(cuid())
-  templateId  String
-  template    FaceTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  id         String       @id @default(cuid())
+  templateId String
+  template   FaceTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   // Score de similitud cosine (0..1, más cerca de 1 = más parecido)
-  score       Float
+  score      Float
   // Resultado: match (>=umbral), no_match (<umbral), spoof (anti-spoof falló)
-  resultado   String
-  ip          String?
-  userAgent   String?       @map("user_agent")
+  resultado  String
+  ip         String?
+  userAgent  String?      @map("user_agent")
   // Si la verificación se asoció a un fichaje real (link débil — no FK
   // para no romper si el fichaje se borra/anonimiza).
-  fichajeId   String?       @map("fichaje_id")
-  createdAt   DateTime      @default(now()) @map("created_at")
+  fichajeId  String?      @map("fichaje_id")
+  createdAt  DateTime     @default(now()) @map("created_at")
 
   @@index([templateId])
   @@index([createdAt])
 }
 
 model Candidato {
-  id           String          @id @default(cuid())
-  ofertaId     String
-  oferta       OfertaTrabajo   @relation(fields: [ofertaId], references: [id], onDelete: Cascade)
-  nombre       String
-  apellidos    String
-  email        String
-  telefono     String?
-  cvUrl        String?         @map("cv_url")
-  linkedinUrl  String?         @map("linkedin_url")
-  notas        String?
-  estado       EstadoCandidato @default(recibido)
+  id          String          @id @default(cuid())
+  ofertaId    String
+  oferta      OfertaTrabajo   @relation(fields: [ofertaId], references: [id], onDelete: Cascade)
+  nombre      String
+  apellidos   String
+  email       String
+  telefono    String?
+  cvUrl       String?         @map("cv_url")
+  linkedinUrl String?         @map("linkedin_url")
+  notas       String?
+  estado      EstadoCandidato @default(recibido)
   // Quien lo creó (admin que añadió al candidato manualmente,
   // o null si llegó vía portal público de la oferta).
-  creadorId    String?
-  creador      User?           @relation("CandidatoCreador", fields: [creadorId], references: [id])
-  createdAt    DateTime        @default(now()) @map("created_at")
-  updatedAt    DateTime        @updatedAt      @map("updated_at")
+  creadorId   String?
+  creador     User?           @relation("CandidatoCreador", fields: [creadorId], references: [id])
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
 
   @@index([ofertaId])
   @@index([estado])
@@ -1555,39 +1573,39 @@ model Candidato {
 /// editables y workflow de cierre (BORRADOR → CERRADA → ENVIADA).
 /// Feature: `prenomina` (Pro+Enterprise).
 model Prenomina {
-  id                   String                @id @default(cuid())
-  periodo              String                // "YYYY-MM"
+  id                   String              @id @default(cuid())
+  periodo              String // "YYYY-MM"
   empleadoId           String
-  empleado             User                  @relation("PrenominaEmpleado", fields: [empleadoId], references: [id], onDelete: Cascade)
-  estado               EstadoPrenomina       @default(BORRADOR)
-  horasTrabajadas      Decimal               @default(0) @db.Decimal(7, 2)
-  horasOrdinarias      Decimal               @default(0) @db.Decimal(7, 2)
-  horasExtras          Decimal               @default(0) @db.Decimal(7, 2)
-  horasNocturnas       Decimal               @default(0) @db.Decimal(7, 2)
-  horasFestivas        Decimal               @default(0) @db.Decimal(7, 2)
-  diasTrabajados       Int                   @default(0)
-  diasAusenciaPagada   Int                   @default(0)
-  diasAusenciaNoPagada Int                   @default(0)
-  salarioBase          Decimal               @default(0) @db.Decimal(10, 2)
-  importeHorasExtras   Decimal               @default(0) @db.Decimal(10, 2)
-  importeNocturnidad   Decimal               @default(0) @db.Decimal(10, 2)
-  importeFestivos      Decimal               @default(0) @db.Decimal(10, 2)
-  importeConceptos     Decimal               @default(0) @db.Decimal(10, 2)
-  totalBruto           Decimal               @default(0) @db.Decimal(10, 2)
-  moneda               String                @default("EUR")
+  empleado             User                @relation("PrenominaEmpleado", fields: [empleadoId], references: [id], onDelete: Cascade)
+  estado               EstadoPrenomina     @default(BORRADOR)
+  horasTrabajadas      Decimal             @default(0) @db.Decimal(7, 2)
+  horasOrdinarias      Decimal             @default(0) @db.Decimal(7, 2)
+  horasExtras          Decimal             @default(0) @db.Decimal(7, 2)
+  horasNocturnas       Decimal             @default(0) @db.Decimal(7, 2)
+  horasFestivas        Decimal             @default(0) @db.Decimal(7, 2)
+  diasTrabajados       Int                 @default(0)
+  diasAusenciaPagada   Int                 @default(0)
+  diasAusenciaNoPagada Int                 @default(0)
+  salarioBase          Decimal             @default(0) @db.Decimal(10, 2)
+  importeHorasExtras   Decimal             @default(0) @db.Decimal(10, 2)
+  importeNocturnidad   Decimal             @default(0) @db.Decimal(10, 2)
+  importeFestivos      Decimal             @default(0) @db.Decimal(10, 2)
+  importeConceptos     Decimal             @default(0) @db.Decimal(10, 2)
+  totalBruto           Decimal             @default(0) @db.Decimal(10, 2)
+  moneda               String              @default("EUR")
   comentario           String?
   calculadaAt          DateTime?
   cerradaAt            DateTime?
   cerradaPorId         String?
-  cerradaPor           User?                 @relation("PrenominaCerrador", fields: [cerradaPorId], references: [id], onDelete: SetNull)
+  cerradaPor           User?               @relation("PrenominaCerrador", fields: [cerradaPorId], references: [id], onDelete: SetNull)
   enviadaAt            DateTime?
   enviadaPorId         String?
-  enviadaPor           User?                 @relation("PrenominaEnviador", fields: [enviadaPorId], references: [id], onDelete: SetNull)
-  enviadaCanal         String?               // "email", "manual", "sage", "a3"
-  enviadaDestinatario  String?               // email del gestor laboral
+  enviadaPor           User?               @relation("PrenominaEnviador", fields: [enviadaPorId], references: [id], onDelete: SetNull)
+  enviadaCanal         String? // "email", "manual", "sage", "a3"
+  enviadaDestinatario  String? // email del gestor laboral
   conceptos            PrenominaConcepto[]
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
 
   @@unique([periodo, empleadoId])
   @@index([periodo])
@@ -1599,15 +1617,15 @@ model Prenomina {
 /// comisión, plus, bonus, deducción o "otro"). Se suma a
 /// `Prenomina.importeConceptos` al guardar.
 model PrenominaConcepto {
-  id           String                 @id @default(cuid())
-  prenominaId  String
-  prenomina    Prenomina              @relation(fields: [prenominaId], references: [id], onDelete: Cascade)
-  tipo         TipoConceptoPrenomina
-  descripcion  String
-  cantidad     Decimal?               @db.Decimal(8, 2)
-  importe      Decimal                @db.Decimal(10, 2)
-  notas        String?
-  createdAt    DateTime               @default(now())
+  id          String                @id @default(cuid())
+  prenominaId String
+  prenomina   Prenomina             @relation(fields: [prenominaId], references: [id], onDelete: Cascade)
+  tipo        TipoConceptoPrenomina
+  descripcion String
+  cantidad    Decimal?              @db.Decimal(8, 2)
+  importe     Decimal               @db.Decimal(10, 2)
+  notas       String?
+  createdAt   DateTime              @default(now())
 
   @@index([prenominaId])
 }
@@ -1645,4 +1663,219 @@ model ValorCampoEmpleado {
 
   @@unique([userId, campoId])
   @@index([campoId])
+}
+
+// ─── Cierre de turno (plan Enterprise, feature `cierre_turno`) ─────────────────
+//
+// Control diario de ventas y caja. Cinco áreas apoyadas en estos modelos:
+// Cierre de turno (asistente diario), Objetivos, Arqueos, Conciliación e
+// informes de ventas. Nada de esto altera fichajes, turnos ni ausencias.
+//
+// Regla que atraviesa el módulo: NADA aquí puede impedir fichar. El registro
+// de jornada es una obligación legal (RD 8/2019) y no depende de que el
+// comercial haya cerrado su caja — lo que falte se reclama después.
+
+/// Catálogo de lo que se vende, editable por el OWNER e importable desde
+/// Excel. La tabla de ventas del cierre diario se pinta a partir de aquí.
+/// Los artículos no se borran (`activo = false`) para que el histórico de
+/// ventas siga siendo legible.
+model ArticuloVenta {
+  id        String  @id @default(cuid())
+  nombre    String
+  /// Agrupa filas en la tabla del cierre ("Telefonía", "Servicios"…).
+  categoria String?
+  orden     Int     @default(0)
+  activo    Boolean @default(true)
+
+  ventas    CierreTurnoVenta[]
+  objetivos ObjetivoVenta[]
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([activo, orden])
+}
+
+/// Un cierre por comercial y día. Nace como borrador al empezar el asistente
+/// y pasa a `completado` cuando confirma el último paso.
+model CierreTurno {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation("CierreTurnoEmpleado", fields: [userId], references: [id], onDelete: Cascade)
+  /// Sede en la que hizo el turno (la suya en el momento del cierre).
+  tiendaId String?
+  tienda   Tienda?  @relation(fields: [tiendaId], references: [id])
+  /// Día del turno, a medianoche (un cierre por persona y día).
+  fecha    DateTime @db.Date
+
+  /// "borrador" | "completado" | "revisado"
+  estado         String    @default("borrador")
+  /// El cuadro de texto del paso 1: qué ha hecho durante la jornada.
+  detalleJornada String?
+  /// Texto de la incidencia del paso 4. null = no hubo incidencia.
+  incidencia     String?
+  /// Cuándo confirmó el paso 4 (null mientras sea borrador).
+  completadoEn   DateTime?
+
+  ventas    CierreTurnoVenta[]
+  caja      CierreCaja?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@unique([userId, fecha])
+  @@index([tiendaId, fecha])
+  @@index([estado])
+}
+
+/// Cantidad vendida de un artículo en un cierre. `nombreArticulo` es una
+/// copia del enunciado en el momento del cierre: si luego se renombra el
+/// artículo, el histórico sigue contando lo que se vendió entonces.
+model CierreTurnoVenta {
+  id             String         @id @default(cuid())
+  cierreId       String
+  cierre         CierreTurno    @relation(fields: [cierreId], references: [id], onDelete: Cascade)
+  articuloId     String?
+  articulo       ArticuloVenta? @relation(fields: [articuloId], references: [id], onDelete: SetNull)
+  nombreArticulo String
+  cantidad       Int            @default(0)
+
+  @@unique([cierreId, articuloId])
+  @@index([articuloId])
+}
+
+/// Cierre de caja del paso 3. Uno por cierre de turno.
+///
+/// `tiendaId` y `fecha` se duplican aquí a propósito: permiten cuadrar por
+/// tienda y día sin pasar por el cierre, y dejan la puerta abierta a una
+/// caja compartida por tienda y turno (pendiente de decidir) sin rehacer
+/// las consultas de conciliación.
+model CierreCaja {
+  id       String      @id @default(cuid())
+  cierreId String      @unique
+  cierre   CierreTurno @relation(fields: [cierreId], references: [id], onDelete: Cascade)
+  tiendaId String?
+  fecha    DateTime    @db.Date
+
+  efectivo Decimal @default(0) @db.Decimal(10, 2)
+  tarjeta  Decimal @default(0) @db.Decimal(10, 2)
+
+  /// A partir de aquí el comercial NO puede modificarlo: solo un
+  /// administrador, y cada cambio queda en CierreCajaEdicion.
+  confirmadoEn DateTime?
+
+  adjuntos  CierreCajaAdjunto[]
+  ediciones CierreCajaEdicion[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([tiendaId, fecha])
+}
+
+/// Excel del stock y comprobantes del TPV que acompañan al cierre de caja.
+model CierreCajaAdjunto {
+  id           String     @id @default(cuid())
+  cajaId       String
+  caja         CierreCaja @relation(fields: [cajaId], references: [id], onDelete: Cascade)
+  /// "stock" (Excel de la tienda) | "tpv" (comprobante del datáfono)
+  tipo         String
+  nombre       String
+  mime         String
+  tamañoBytes Int        @default(0)
+  /// Contenido del fichero. Igual que en Documentos: se guarda en BD para
+  /// no depender de un almacén externo por tenant.
+  contenido    Bytes
+  createdAt    DateTime   @default(now())
+
+  @@index([cajaId, tipo])
+}
+
+/// Rastro de cada edición de un administrador sobre un cierre de caja ya
+/// confirmado. Sin esto, "solo lo pueden modificar los administradores" no
+/// sirve de nada el día que se discuta un descuadre.
+model CierreCajaEdicion {
+  id           String     @id @default(cuid())
+  cajaId       String
+  caja         CierreCaja @relation(fields: [cajaId], references: [id], onDelete: Cascade)
+  adminId      String
+  admin        User       @relation("CierreCajaEditor", fields: [adminId], references: [id])
+  /// "efectivo" | "tarjeta"
+  campo        String
+  valorAntes   Decimal    @db.Decimal(10, 2)
+  valorDespues Decimal    @db.Decimal(10, 2)
+  /// Obligatorio: por qué se corrige.
+  motivo       String
+  createdAt    DateTime   @default(now())
+
+  @@index([cajaId])
+  @@index([adminId])
+}
+
+/// Objetivo de venta de un mes. Es de un comercial O de una sede (uno de los
+/// dos, nunca ambos). `articuloId` vacío = objetivo total de unidades.
+///
+/// Distinto del modelo `Objetivo` (OKR con progreso manual), que se queda
+/// para lo que ya hacía: aquí hace falta un número comparable con las ventas.
+model ObjetivoVenta {
+  id         String         @id @default(cuid())
+  /// Mes en formato "YYYY-MM".
+  mes        String
+  userId     String?
+  user       User?          @relation("ObjetivoVentaComercial", fields: [userId], references: [id], onDelete: Cascade)
+  tiendaId   String?
+  tienda     Tienda?        @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+  articuloId String?
+  articulo   ArticuloVenta? @relation(fields: [articuloId], references: [id], onDelete: Cascade)
+  cantidad   Int            @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([mes, userId, tiendaId, articuloId])
+  @@index([mes])
+}
+
+/// Arqueo semanal: el efectivo que la tienda aparta para que lo recoja un
+/// superior. `efectivoCierres` guarda lo que sumaban los cierres diarios en
+/// el momento de declararlo, para que la diferencia quede congelada.
+model Arqueo {
+  id       String   @id @default(cuid())
+  tiendaId String
+  tienda   Tienda   @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+  /// Semana ISO en formato "YYYY-Www" (2026-W31).
+  semana   String
+  /// Primer y último día del periodo arqueado.
+  desde    DateTime @db.Date
+  hasta    DateTime @db.Date
+
+  efectivoDeclarado Decimal @default(0) @db.Decimal(10, 2)
+  efectivoCierres   Decimal @default(0) @db.Decimal(10, 2)
+
+  /// "pendiente" | "recogido"
+  estado        String    @default("pendiente")
+  recogidoPorId String?
+  recogidoPor   User?     @relation("ArqueoRecogidoPor", fields: [recogidoPorId], references: [id])
+  recogidoEn    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tiendaId, semana])
+  @@index([estado])
+}
+
+/// Movimientos del banco importados desde Excel, para cuadrar los cobros con
+/// datáfono. La conciliación compara estos importes con la suma de `tarjeta`
+/// de los cierres de caja, por tienda y día.
+model MovimientoBanco {
+  id          String   @id @default(cuid())
+  tiendaId    String?
+  tienda      Tienda?  @relation(fields: [tiendaId], references: [id], onDelete: SetNull)
+  fecha       DateTime @db.Date
+  importe     Decimal  @db.Decimal(10, 2)
+  concepto    String?
+  /// Referencia del movimiento en el extracto, para no importar dos veces.
+  referencia  String?
+  importadoEn DateTime @default(now())
+
+  @@unique([referencia])
+  @@index([tiendaId, fecha])
 }
