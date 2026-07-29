@@ -56,6 +56,22 @@ export function puedeEditarCaja(rol: string, confirmado: boolean, esPropio: bool
   return !confirmado && esPropio;
 }
 
+/**
+ * Día del cierre en zona Europe/Madrid, como "YYYY-MM-DD". Se usa la hora
+ * peninsular y no la del servidor: un cierre hecho a las 00:30 de Madrid
+ * pertenece a ese día, y con UTC caería en el anterior.
+ */
+export function diaMadrid(d: Date = new Date()): string {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Madrid",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const p = Object.fromEntries(fmt.formatToParts(d).map((x) => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
 /** Mes "YYYY-MM" de una fecha, en horario local. */
 export function mesDe(fecha: Date): string {
   const y = fecha.getFullYear();
@@ -111,4 +127,134 @@ export function pasosPendientes(cierre: {
 /** Un cierre está completo cuando no le falta ningún paso. */
 export function estaCompleto(cierre: Parameters<typeof pasosPendientes>[0]): boolean {
   return pasosPendientes(cierre).length === 0;
+}
+
+// ─── Validación del guardado (entrega 2) ──────────────────────────────────────
+//
+// Un cierre de caja es por comercial: cada uno declara lo que ha cobrado él.
+// Decidido con el cliente el 2026-07-30, y es lo que hace atribuible un
+// descuadre a una persona concreta.
+
+/** Tope por fichero adjunto. Un Excel de stock y unas fotos del TPV caben de sobra. */
+export const MAX_ADJUNTO_BYTES = 10 * 1024 * 1024;
+
+/** Lo que se acepta como Excel de stock o comprobante del datáfono. */
+export const MIMES_ADJUNTO = [
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "text/csv",
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+] as const;
+
+export type TipoAdjunto = "stock" | "tpv";
+
+export function adjuntoAceptado(mime: string, bytes: number): { ok: true } | { ok: false; error: string } {
+  if (!(MIMES_ADJUNTO as readonly string[]).includes(mime)) {
+    return { ok: false, error: "Formato no admitido: sube un Excel, un CSV, un PDF o una foto." };
+  }
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return { ok: false, error: "El archivo está vacío." };
+  }
+  if (bytes > MAX_ADJUNTO_BYTES) {
+    return { ok: false, error: "El archivo pasa de 10 MB. Comprímelo o súbelo por partes." };
+  }
+  return { ok: true };
+}
+
+export interface VentaEntrada {
+  articuloId?: unknown;
+  cantidad?: unknown;
+}
+
+export interface VentaNormalizada {
+  articuloId: string;
+  cantidad: number;
+}
+
+/**
+ * Normaliza las cantidades vendidas contra el catálogo activo.
+ *
+ * Descarta lo que no exista en el catálogo (un artículo desactivado a media
+ * jornada, o un id inventado) y las cantidades no válidas. Devuelve solo las
+ * filas con cantidad > 0: guardar ceros llenaría la tabla de ruido sin
+ * cambiar ningún total.
+ */
+export function normalizarVentas(
+  articulosActivos: { id: string; nombre: string }[],
+  entrada: VentaEntrada[] | undefined,
+): { ventas: VentaNormalizada[]; descartadas: number } {
+  const validos = new Map(articulosActivos.map((a) => [a.id, a.nombre]));
+  const vistos = new Set<string>();
+  const ventas: VentaNormalizada[] = [];
+  let descartadas = 0;
+
+  for (const fila of entrada ?? []) {
+    const id = typeof fila?.articuloId === "string" ? fila.articuloId : null;
+    const cantidad =
+      typeof fila?.cantidad === "number"
+        ? fila.cantidad
+        : typeof fila?.cantidad === "string"
+          ? Number.parseInt(fila.cantidad, 10)
+          : Number.NaN;
+
+    if (!id || !validos.has(id) || vistos.has(id)) {
+      descartadas += 1;
+      continue;
+    }
+    if (!Number.isInteger(cantidad) || cantidad < 0) {
+      descartadas += 1;
+      continue;
+    }
+    vistos.add(id);
+    if (cantidad > 0) ventas.push({ articuloId: id, cantidad });
+  }
+
+  return { ventas, descartadas };
+}
+
+/**
+ * Importe de caja: euros con dos decimales, nunca negativo. Acepta coma o
+ * punto porque en el móvil se escribe con coma.
+ */
+export function normalizarImporte(valor: unknown): { ok: true; importe: number } | { ok: false; error: string } {
+  const bruto =
+    typeof valor === "number"
+      ? valor
+      : typeof valor === "string"
+        ? Number.parseFloat(valor.replace(",", "."))
+        : Number.NaN;
+
+  if (!Number.isFinite(bruto)) return { ok: false, error: "Escribe un importe válido." };
+  if (bruto < 0) return { ok: false, error: "El importe no puede ser negativo." };
+  if (bruto > 1_000_000) return { ok: false, error: "Ese importe no parece correcto." };
+  return { ok: true, importe: Math.round(bruto * 100) / 100 };
+}
+
+/**
+ * Paso 4: si dice que hubo incidencia, hay que describirla. Un "sí" sin texto
+ * no sirve para nada a quien recibe el aviso.
+ */
+export function normalizarIncidencia(
+  hayIncidencia: unknown,
+  texto: unknown,
+): { ok: true; incidencia: string | null } | { ok: false; error: string } {
+  if (hayIncidencia !== true) return { ok: true, incidencia: null };
+  const t = typeof texto === "string" ? texto.trim() : "";
+  if (t.length < 5) {
+    return { ok: false, error: "Cuenta qué ha pasado (mínimo 5 caracteres)." };
+  }
+  return { ok: true, incidencia: t.slice(0, 4000) };
+}
+
+/**
+ * Motivo obligatorio cuando un administrador corrige una caja ya confirmada:
+ * es lo que hace útil el registro de la corrección.
+ */
+export function normalizarMotivoEdicion(valor: unknown): { ok: true; motivo: string } | { ok: false; error: string } {
+  const t = typeof valor === "string" ? valor.trim() : "";
+  if (t.length < 5) return { ok: false, error: "Indica por qué corriges el cierre (mínimo 5 caracteres)." };
+  return { ok: true, motivo: t.slice(0, 1000) };
 }

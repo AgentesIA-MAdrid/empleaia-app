@@ -11,6 +11,13 @@ import {
   esDescuadre,
   pasosPendientes,
   estaCompleto,
+  normalizarVentas,
+  normalizarImporte,
+  normalizarIncidencia,
+  normalizarMotivoEdicion,
+  adjuntoAceptado,
+  MAX_ADJUNTO_BYTES,
+  diaMadrid,
 } from "./core";
 
 describe("alcance por rol", () => {
@@ -144,5 +151,138 @@ describe("mes de una fecha", () => {
   it("formatea YYYY-MM", () => {
     expect(mesDe(new Date(2026, 6, 29))).toBe("2026-07");
     expect(mesDe(new Date(2026, 11, 1))).toBe("2026-12");
+  });
+});
+
+describe("normalizarVentas", () => {
+  const catalogo = [
+    { id: "a1", nombre: "Alta de fibra" },
+    { id: "a2", nombre: "Portabilidad" },
+  ];
+
+  it("acepta cantidades válidas y descarta los ceros", () => {
+    // Guardar ceros llena la tabla de filas que no cambian ningún total.
+    const r = normalizarVentas(catalogo, [
+      { articuloId: "a1", cantidad: 3 },
+      { articuloId: "a2", cantidad: 0 },
+    ]);
+    expect(r.ventas).toEqual([{ articuloId: "a1", cantidad: 3 }]);
+    expect(r.descartadas).toBe(0);
+  });
+
+  it("acepta cantidades escritas como texto", () => {
+    const r = normalizarVentas(catalogo, [{ articuloId: "a1", cantidad: "7" }]);
+    expect(r.ventas).toEqual([{ articuloId: "a1", cantidad: 7 }]);
+  });
+
+  it("descarta artículos que no están en el catálogo", () => {
+    const r = normalizarVentas(catalogo, [{ articuloId: "inventado", cantidad: 5 }]);
+    expect(r.ventas).toEqual([]);
+    expect(r.descartadas).toBe(1);
+  });
+
+  it("descarta cantidades negativas o decimales", () => {
+    const r = normalizarVentas(catalogo, [
+      { articuloId: "a1", cantidad: -2 },
+      { articuloId: "a2", cantidad: 1.5 },
+    ]);
+    expect(r.ventas).toEqual([]);
+    expect(r.descartadas).toBe(2);
+  });
+
+  it("ignora el segundo envío del mismo artículo", () => {
+    const r = normalizarVentas(catalogo, [
+      { articuloId: "a1", cantidad: 2 },
+      { articuloId: "a1", cantidad: 9 },
+    ]);
+    expect(r.ventas).toEqual([{ articuloId: "a1", cantidad: 2 }]);
+    expect(r.descartadas).toBe(1);
+  });
+
+  it("sin datos no revienta", () => {
+    expect(normalizarVentas(catalogo, undefined).ventas).toEqual([]);
+  });
+});
+
+describe("normalizarImporte", () => {
+  it("acepta euros con dos decimales", () => {
+    const r = normalizarImporte("1234.56");
+    expect(r).toEqual({ ok: true, importe: 1234.56 });
+  });
+
+  it("acepta la coma decimal del móvil", () => {
+    expect(normalizarImporte("87,40")).toEqual({ ok: true, importe: 87.4 });
+  });
+
+  it("redondea a céntimos", () => {
+    expect(normalizarImporte(10.999)).toEqual({ ok: true, importe: 11 });
+  });
+
+  it("rechaza negativos, texto y disparates", () => {
+    expect(normalizarImporte(-1).ok).toBe(false);
+    expect(normalizarImporte("hola").ok).toBe(false);
+    expect(normalizarImporte(9_999_999).ok).toBe(false);
+  });
+});
+
+describe("normalizarIncidencia", () => {
+  it("sin incidencia devuelve null", () => {
+    expect(normalizarIncidencia(false, "")).toEqual({ ok: true, incidencia: null });
+  });
+
+  it("con incidencia exige contar qué pasó", () => {
+    // Un "sí" sin texto no le sirve de nada a quien recibe el aviso.
+    expect(normalizarIncidencia(true, "").ok).toBe(false);
+    expect(normalizarIncidencia(true, "ups").ok).toBe(false);
+  });
+
+  it("con texto suficiente lo recorta y lo acepta", () => {
+    const r = normalizarIncidencia(true, "  Falta un terminal del expositor  ");
+    expect(r).toEqual({ ok: true, incidencia: "Falta un terminal del expositor" });
+  });
+});
+
+describe("adjuntos", () => {
+  const xlsx = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+  it("acepta Excel, PDF y fotos dentro del tamaño", () => {
+    expect(adjuntoAceptado(xlsx, 500_000).ok).toBe(true);
+    expect(adjuntoAceptado("image/jpeg", 2_000_000).ok).toBe(true);
+    expect(adjuntoAceptado("application/pdf", 100).ok).toBe(true);
+  });
+
+  it("rechaza formatos raros", () => {
+    expect(adjuntoAceptado("application/x-msdownload", 1000).ok).toBe(false);
+  });
+
+  it("rechaza vacíos y lo que pasa de 10 MB", () => {
+    expect(adjuntoAceptado(xlsx, 0).ok).toBe(false);
+    expect(adjuntoAceptado(xlsx, MAX_ADJUNTO_BYTES + 1).ok).toBe(false);
+  });
+});
+
+describe("motivo de la corrección de un administrador", () => {
+  it("es obligatorio y con contenido", () => {
+    expect(normalizarMotivoEdicion("").ok).toBe(false);
+    expect(normalizarMotivoEdicion("err").ok).toBe(false);
+    expect(normalizarMotivoEdicion("Contó mal el efectivo del cajón")).toEqual({
+      ok: true,
+      motivo: "Contó mal el efectivo del cajón",
+    });
+  });
+});
+
+describe("día del cierre en hora de Madrid", () => {
+  it("un cierre a las 00:30 de Madrid es de ese día, no del anterior", () => {
+    // 2026-07-30T00:30 en Madrid (CEST, +02:00) = 2026-07-29T22:30Z.
+    expect(diaMadrid(new Date("2026-07-29T22:30:00Z"))).toBe("2026-07-30");
+  });
+
+  it("a las 23:00 de Madrid sigue siendo el mismo día", () => {
+    expect(diaMadrid(new Date("2026-07-30T21:00:00Z"))).toBe("2026-07-30");
+  });
+
+  it("funciona igual en invierno (CET, +01:00)", () => {
+    expect(diaMadrid(new Date("2026-01-15T23:30:00Z"))).toBe("2026-01-16");
   });
 });

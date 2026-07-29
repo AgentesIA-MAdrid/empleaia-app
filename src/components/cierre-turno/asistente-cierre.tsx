@@ -1,18 +1,26 @@
 "use client";
 
 /**
- * Asistente diario de cierre de turno (4 pasos). Entrega 1: la navegación y la
- * tabla de ventas leen ya el catálogo real; el guardado del borrador, los
- * adjuntos, la comparación con objetivos y el aviso de incidencia llegan en la
- * entrega 2 y se avisa en pantalla para no prometer lo que aún no hace.
+ * Asistente diario de cierre de turno (4 pasos), con guardado real.
+ *
+ * Cada comercial cierra SU caja (decidido con el cliente el 2026-07-30): es lo
+ * que permite atribuir un descuadre a una persona. El borrador se guarda al
+ * avanzar de paso, así que cerrar el móvil a media faena no pierde el trabajo.
+ *
+ * Confirmar la caja es irreversible para el comercial: a partir de ahí solo un
+ * administrador puede corregirla, y queda registrado. Se avisa antes.
  *
  * El asistente NO condiciona el fichaje: se puede fichar la salida sin haber
  * cerrado (RD 8/2019, misma regla que el geofencing y el checklist de fichaje).
+ *
+ * Pendiente de la siguiente entrega: adjuntos (Excel de stock y comprobantes
+ * del TPV) y la comparación con objetivos del paso 2.
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, PackageOpen } from "lucide-react";
+import { AlertTriangle, CheckCircle2, PackageOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,17 +50,53 @@ export function AsistenteCierre() {
   const [tarjeta, setTarjeta] = useState("");
   const [hayIncidencia, setHayIncidencia] = useState<boolean | null>(null);
   const [incidencia, setIncidencia] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [cajaConfirmada, setCajaConfirmada] = useState(false);
+  const [cerrado, setCerrado] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     let cancelado = false;
     (async () => {
       try {
-        const res = await fetch("/api/articulos-venta");
-        if (!res.ok) return;
-        const data = (await res.json()) as { articulos: Articulo[]; catalogoVacio: boolean };
-        if (cancelado) return;
-        setArticulos(data.articulos ?? []);
-        setCatalogoVacio(Boolean(data.catalogoVacio));
+        const [resCat, resHoy] = await Promise.all([
+          fetch("/api/articulos-venta"),
+          fetch("/api/cierre-turno/hoy"),
+        ]);
+        if (resCat.ok) {
+          const data = (await resCat.json()) as { articulos: Articulo[]; catalogoVacio: boolean };
+          if (!cancelado) {
+            setArticulos(data.articulos ?? []);
+            setCatalogoVacio(Boolean(data.catalogoVacio));
+          }
+        }
+        // Recupera lo ya guardado hoy: cerrar el móvil no debe costar el trabajo.
+        if (resHoy.ok) {
+          const hoy = (await resHoy.json()) as {
+            existe: boolean;
+            cerrado?: boolean;
+            detalleJornada?: string;
+            incidencia?: string | null;
+            ventas?: { articuloId: string; cantidad: number }[];
+            caja?: { efectivo: number; tarjeta: number; confirmado: boolean } | null;
+          };
+          if (!cancelado && hoy.existe) {
+            setDetalle(hoy.detalleJornada ?? "");
+            setCantidades(
+              Object.fromEntries((hoy.ventas ?? []).map((v) => [v.articuloId, String(v.cantidad)])),
+            );
+            if (hoy.caja) {
+              setEfectivo(String(hoy.caja.efectivo));
+              setTarjeta(String(hoy.caja.tarjeta));
+              setCajaConfirmada(hoy.caja.confirmado);
+            }
+            if (hoy.incidencia) {
+              setHayIncidencia(true);
+              setIncidencia(hoy.incidencia);
+            }
+            setCerrado(Boolean(hoy.cerrado));
+          }
+        }
       } finally {
         if (!cancelado) setCargando(false);
       }
@@ -63,6 +107,100 @@ export function AsistenteCierre() {
   }, []);
 
   const indice = PASOS_CIERRE.indexOf(paso);
+
+  /** Guarda el paso 1. Se llama al avanzar: nadie tiene que acordarse de pulsar guardar. */
+  const guardarBorrador = async (): Promise<boolean> => {
+    setGuardando(true);
+    try {
+      const res = await fetch("/api/cierre-turno", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          detalleJornada: detalle,
+          ventas: Object.entries(cantidades)
+            .map(([articuloId, v]) => ({ articuloId, cantidad: parseInt(v, 10) || 0 }))
+            .filter((v) => v.cantidad > 0),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({ title: "No se pudo guardar", description: data.error ?? "Inténtalo de nuevo.", variant: "destructive" });
+        return false;
+      }
+      return true;
+    } catch {
+      toast({ title: "Sin conexión", description: "No se ha podido guardar. Revisa la cobertura.", variant: "destructive" });
+      return false;
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  /** Guarda la caja; con `confirmar` deja de ser modificable por el comercial. */
+  const guardarCaja = async (confirmar: boolean): Promise<boolean> => {
+    setGuardando(true);
+    try {
+      const res = await fetch("/api/cierre-turno/caja", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ efectivo: efectivo || 0, tarjeta: tarjeta || 0, confirmar }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({ title: "No se pudo guardar la caja", description: data.error ?? "Inténtalo de nuevo.", variant: "destructive" });
+        return false;
+      }
+      if (confirmar) {
+        setCajaConfirmada(true);
+        toast({ title: "Caja confirmada", description: "A partir de ahora solo un administrador puede corregirla." });
+      }
+      return true;
+    } catch {
+      toast({ title: "Sin conexión", description: "No se ha podido guardar la caja.", variant: "destructive" });
+      return false;
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  /** Paso 4: cierra el turno y, si hay incidencia, dispara el aviso. */
+  const cerrarTurno = async () => {
+    if (hayIncidencia === null) {
+      toast({ title: "Falta un dato", description: "Dinos si ha habido alguna incidencia.", variant: "destructive" });
+      return;
+    }
+    setGuardando(true);
+    try {
+      const res = await fetch("/api/cierre-turno/confirmar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hayIncidencia, incidencia }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({ title: "No se pudo cerrar", description: data.error ?? "Inténtalo de nuevo.", variant: "destructive" });
+        return;
+      }
+      setCerrado(true);
+      toast({
+        title: "Turno cerrado",
+        description: data.conIncidencia
+          ? "Tus responsables han recibido el aviso de la incidencia."
+          : "Todo registrado. Buen trabajo.",
+      });
+    } catch {
+      toast({ title: "Sin conexión", description: "No se ha podido cerrar el turno.", variant: "destructive" });
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  /** Avanzar guarda lo del paso actual antes de moverse. */
+  const siguiente = async () => {
+    if (paso === "ventas" && !(await guardarBorrador())) return;
+    if (paso === "caja" && !cajaConfirmada && !(await guardarCaja(false))) return;
+    setPaso(PASOS_CIERRE[Math.min(PASOS_CIERRE.length - 1, indice + 1)]);
+  };
   const totalUnidades = useMemo(
     () => Object.values(cantidades).reduce((n, v) => n + (parseInt(v, 10) || 0), 0),
     [cantidades],
@@ -98,13 +236,20 @@ export function AsistenteCierre() {
         ))}
       </ol>
 
-      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 flex items-start gap-2">
-        <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-        <span>
-          Estructura del módulo recién montada: por ahora lo que escribas aquí no se guarda.
-          El guardado, los adjuntos y los avisos entran en la siguiente entrega.
-        </span>
-      </div>
+      {cerrado ? (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 flex items-start gap-2">
+          <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>
+            Tu turno de hoy ya está cerrado. Si algo no cuadra, pídeselo a un administrador:
+            es el único que puede corregirlo, y queda registrado.
+          </span>
+        </div>
+      ) : cajaConfirmada ? (
+        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-slate-400" />
+          <span>Caja confirmada. Ya no puedes cambiar los importes; te queda cerrar el turno.</span>
+        </div>
+      ) : null}
 
       {paso === "ventas" && (
         <Card>
@@ -239,6 +384,7 @@ export function AsistenteCierre() {
                   value={efectivo}
                   onChange={(e) => setEfectivo(e.target.value)}
                   placeholder="0,00"
+                  disabled={cajaConfirmada || cerrado}
                 />
               </div>
               <div>
@@ -252,14 +398,22 @@ export function AsistenteCierre() {
                   value={tarjeta}
                   onChange={(e) => setTarjeta(e.target.value)}
                   placeholder="0,00"
+                  disabled={cajaConfirmada || cerrado}
                 />
               </div>
             </div>
             <p className="text-sm text-slate-500">
-              Aquí se adjuntarán el Excel del stock de la tienda y los comprobantes del TPV.
-              Una vez confirmado, el cierre de caja no se puede modificar: solo un
-              administrador, y queda registrado quién lo cambió y por qué.
+              Al confirmar, el cierre de caja queda cerrado: solo un administrador podrá
+              corregirlo, y quedará registrado quién lo cambió y por qué. Los adjuntos (Excel
+              del stock y comprobantes del TPV) llegan en la próxima entrega.
             </p>
+            {!cajaConfirmada && !cerrado && (
+              <div className="flex justify-end">
+                <Button variant="outline" disabled={guardando} onClick={() => void guardarCaja(true)}>
+                  {guardando ? "Guardando…" : "Confirmar cierre de caja"}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -315,12 +469,15 @@ export function AsistenteCierre() {
         >
           Atrás
         </Button>
-        <Button
-          disabled={indice === PASOS_CIERRE.length - 1}
-          onClick={() => setPaso(PASOS_CIERRE[Math.min(PASOS_CIERRE.length - 1, indice + 1)])}
-        >
-          Siguiente
-        </Button>
+        {indice === PASOS_CIERRE.length - 1 ? (
+          <Button disabled={guardando || cerrado} onClick={() => void cerrarTurno()}>
+            {cerrado ? "Turno cerrado" : guardando ? "Cerrando…" : "Cerrar turno"}
+          </Button>
+        ) : (
+          <Button disabled={guardando || cerrado} onClick={() => void siguiente()}>
+            {guardando ? "Guardando…" : "Siguiente"}
+          </Button>
+        )}
       </div>
     </div>
   );
