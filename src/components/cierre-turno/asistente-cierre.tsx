@@ -17,8 +17,8 @@
  * del TPV) y la comparación con objetivos del paso 2.
  */
 
-import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, PackageOpen } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, CheckCircle2, PackageOpen, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,6 +31,18 @@ interface Articulo {
   nombre: string;
   categoria: string | null;
 }
+
+type TipoAdjuntoUI = "stock" | "tpv";
+
+interface AdjuntoCierre {
+  id: string;
+  tipo: string;
+  nombre: string;
+  tamañoBytes: number;
+}
+
+const kb = (bytes: number) =>
+  bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
 const TITULOS: Record<PasoCierre, string> = {
   ventas: "Ventas del día",
@@ -51,6 +63,10 @@ export function AsistenteCierre() {
   const [hayIncidencia, setHayIncidencia] = useState<boolean | null>(null);
   const [incidencia, setIncidencia] = useState("");
   const [guardando, setGuardando] = useState(false);
+  const [adjuntos, setAdjuntos] = useState<AdjuntoCierre[]>([]);
+  const [subiendo, setSubiendo] = useState<TipoAdjuntoUI | null>(null);
+  const inputStock = useRef<HTMLInputElement>(null);
+  const inputTpv = useRef<HTMLInputElement>(null);
   const [cajaConfirmada, setCajaConfirmada] = useState(false);
   const [cerrado, setCerrado] = useState(false);
   const { toast } = useToast();
@@ -108,6 +124,7 @@ export function AsistenteCierre() {
 
   const indice = PASOS_CIERRE.indexOf(paso);
 
+
   /** Guarda el paso 1. Se llama al avanzar: nadie tiene que acordarse de pulsar guardar. */
   const guardarBorrador = async (): Promise<boolean> => {
     setGuardando(true);
@@ -162,6 +179,77 @@ export function AsistenteCierre() {
       setGuardando(false);
     }
   };
+
+  const cargarAdjuntos = useCallback(async () => {
+    try {
+      const res = await fetch("/api/cierre-turno/adjuntos");
+      if (!res.ok) return;
+      const data = (await res.json()) as { adjuntos: AdjuntoCierre[] };
+      setAdjuntos(data.adjuntos ?? []);
+    } catch {
+      /* sin conexión: la lista se queda como esté */
+    }
+  }, []);
+
+  /** Sube un archivo al cierre de caja. Requiere haber guardado los importes. */
+  const subirAdjunto = async (tipo: TipoAdjuntoUI, fichero: File) => {
+    setSubiendo(tipo);
+    try {
+      // Guarda los importes primero: el servidor exige que exista la caja.
+      if (!cajaConfirmada && !(await guardarCaja(false))) return;
+
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result));
+        fr.onerror = () => reject(new Error("No se ha podido leer el archivo"));
+        fr.readAsDataURL(fichero);
+      });
+
+      const res = await fetch("/api/cierre-turno/adjuntos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tipo,
+          nombre: fichero.name,
+          mime: fichero.type || "application/octet-stream",
+          contenidoBase64: base64,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({ title: "No se pudo adjuntar", description: data.error ?? "Inténtalo de nuevo.", variant: "destructive" });
+        return;
+      }
+      await cargarAdjuntos();
+      toast({ title: "Archivo adjuntado", description: fichero.name });
+    } catch (err) {
+      toast({
+        title: "Error al adjuntar",
+        description: err instanceof Error ? err.message : "Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubiendo(null);
+      if (inputStock.current) inputStock.current.value = "";
+      if (inputTpv.current) inputTpv.current.value = "";
+    }
+  };
+
+  const quitarAdjunto = async (id: string) => {
+    const res = await fetch(`/api/cierre-turno/adjuntos?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast({ title: "No se pudo quitar", description: data.error ?? "", variant: "destructive" });
+      return;
+    }
+    await cargarAdjuntos();
+  };
+
+  // Los adjuntos se cargan al llegar al paso de caja, no antes: en el móvil
+  // cada petición cuenta.
+  useEffect(() => {
+    if (paso === "caja") void cargarAdjuntos();
+  }, [paso, cargarAdjuntos]);
 
   /** Paso 4: cierra el turno y, si hay incidencia, dispara el aviso. */
   const cerrarTurno = async () => {
@@ -402,10 +490,81 @@ export function AsistenteCierre() {
                 />
               </div>
             </div>
+            {/* Adjuntos: se pueden seguir subiendo tras confirmar los importes,
+                porque los comprobantes del datáfono a veces salen después. */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-slate-800">Documentación del cierre</p>
+              <input
+                ref={inputStock}
+                type="file"
+                accept=".xlsx,.xls,.csv,application/pdf,image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void subirAdjunto("stock", f);
+                }}
+              />
+              <input
+                ref={inputTpv}
+                type="file"
+                accept=".pdf,image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void subirAdjunto("tpv", f);
+                }}
+              />
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={subiendo !== null || cerrado}
+                  onClick={() => inputStock.current?.click()}
+                >
+                  <Paperclip className="h-3.5 w-3.5 mr-1.5" />
+                  {subiendo === "stock" ? "Subiendo…" : "Excel del stock"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={subiendo !== null || cerrado}
+                  onClick={() => inputTpv.current?.click()}
+                >
+                  <Paperclip className="h-3.5 w-3.5 mr-1.5" />
+                  {subiendo === "tpv" ? "Subiendo…" : "Comprobante del TPV"}
+                </Button>
+              </div>
+
+              {adjuntos.length > 0 ? (
+                <ul className="divide-y divide-slate-100 rounded-md border border-slate-200">
+                  {adjuntos.map((a) => (
+                    <li key={a.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                      <span className="min-w-0">
+                        <span className="text-slate-400 text-xs uppercase tracking-wide mr-2">
+                          {a.tipo === "stock" ? "Stock" : "TPV"}
+                        </span>
+                        <span className="text-slate-800 break-all">{a.nombre}</span>
+                        <span className="text-slate-400 text-xs ml-2 tabular-nums">{kb(a.tamañoBytes)}</span>
+                      </span>
+                      {!cerrado && (
+                        <Button variant="ghost" size="sm" onClick={() => void quitarAdjunto(a.id)}>
+                          Quitar
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-slate-400">
+                  Sin archivos todavía. Admite Excel, CSV, PDF y fotos, hasta 10 MB cada uno.
+                </p>
+              )}
+            </div>
+
             <p className="text-sm text-slate-500">
-              Al confirmar, el cierre de caja queda cerrado: solo un administrador podrá
-              corregirlo, y quedará registrado quién lo cambió y por qué. Los adjuntos (Excel
-              del stock y comprobantes del TPV) llegan en la próxima entrega.
+              Al confirmar, los importes quedan cerrados: solo un administrador podrá
+              corregirlos, y quedará registrado quién lo cambió y por qué. Los archivos sí
+              puedes seguir añadiéndolos hasta que cierres el turno.
             </p>
             {!cajaConfirmada && !cerrado && (
               <div className="flex justify-end">
