@@ -60,6 +60,9 @@ export const FEATURE_COVERAGE: readonly CoverageEntry[] = [
   { endpointGlob: "cierre-turno/**/route.ts", featureKey: "cierre_turno", guard: "withFeature" },
   { endpointGlob: "articulos-venta/**/route.ts", featureKey: "cierre_turno", guard: "withFeature" },
   { endpointGlob: "objetivos-venta/**/route.ts", featureKey: "cierre_turno", guard: "withFeature" },
+  // Informe de ventas: pestaña dentro de /admin/informes, pero es del módulo
+  // Enterprise, no del análisis de asistencia (`informes_avanzados`).
+  { endpointGlob: "informes/ventas/route.ts", featureKey: "cierre_turno", guard: "withFeature" },
   { endpointGlob: "turnos/**/route.ts", featureKey: "turnos_publicacion", guard: "withFeature" },
   { endpointGlob: "ausencias/**/route.ts", featureKey: "ausencias_aprobacion", guard: "withFeature" },
   { endpointGlob: "onboarding/**/route.ts", featureKey: "onboarding_offboarding", guard: "withFeature" },
