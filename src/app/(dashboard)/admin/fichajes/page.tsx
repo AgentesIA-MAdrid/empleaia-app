@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   FileSpreadsheet, FileText, MapPin, Smartphone, Tablet, Globe, ScanFace, Search,
+  ClipboardCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FeatureGateClient } from "@/components/feature-gate-client";
@@ -36,6 +37,8 @@ interface FichajeDetalle {
   user: { id: string; nombre: string; apellidos: string; foto: string | null };
   tienda: { id: string; nombre: string; radio?: number | null } | null;
   tieneFoto?: boolean;
+  /** Comprobaciones confirmadas al fichar (checklist de entrada/salida). */
+  checklist?: { texto: string; marcado: boolean }[];
 }
 
 /** "34 m" / "1,2 km" — distancia del fichaje al centro de la sede. */
@@ -335,7 +338,7 @@ function AdminFichajesContent() {
                 <table className="w-full">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                      {["Fecha", "Hora", "Tipo", "Método", "Sede", "Localización", "Foto", "Nota"].map(h => (
+                      {["Fecha", "Hora", "Tipo", "Método", "Sede", "Localización", "Foto", "Comprobaciones", "Nota"].map(h => (
                         <th key={h} className={`text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3${(h === "Localización" || h === "Foto") ? " hidden md:table-cell" : ""}`}>{h}</th>
                       ))}
                     </tr>
@@ -420,6 +423,19 @@ function AdminFichajesContent() {
                                   loading="lazy"
                                 />
                               </a>
+                            ) : (
+                              <span className="text-slate-300 text-xs">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            {f.checklist && f.checklist.length > 0 ? (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700"
+                                title={f.checklist.map(c => `${c.marcado ? "✔" : "✘"} ${c.texto}`).join("\n")}
+                              >
+                                <ClipboardCheck className="h-3.5 w-3.5" />
+                                {f.checklist.filter(c => c.marcado).length}/{f.checklist.length}
+                              </span>
                             ) : (
                               <span className="text-slate-300 text-xs">—</span>
                             )}
