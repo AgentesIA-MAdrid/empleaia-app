@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Save, Plus, Trash2, Settings, Calendar, AlertTriangle, Bell,
-  Mail, Smartphone, RefreshCw, Eye, EyeOff, Check, X, Palette, Upload, Image,
+  Mail, Smartphone, RefreshCw, Eye, EyeOff, Check, X, Palette, Upload, Image, Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +45,9 @@ interface Configuracion {
   notifComunicados: boolean;
   notifDocumentos: boolean;
   notifFueraSede: boolean;
+  avisoCierresActivo: boolean;
+  avisoCierresHora: number;
+  avisoCierresZona: string;
   // Email
   emailActivo: boolean;
   emailHost: string;
@@ -166,6 +169,7 @@ function ConfiguracionPageInner() {
     notifAusencias: true, notifTurnos: true, notifTareas: true,
     notifFichajes: false, notifComunicados: true, notifDocumentos: true,
     notifFueraSede: true,
+    avisoCierresActivo: true, avisoCierresHora: 23, avisoCierresZona: "Europe/Madrid",
     emailActivo: false, emailHost: "", emailPort: 587, emailSecure: true,
     emailUser: "", emailPassword: "", emailFrom: "",
     pushActivo: false, pushVapidPublicKey: null,
@@ -246,6 +250,9 @@ function ConfiguracionPageInner() {
           notifComunicados: config.notifComunicados,
           notifDocumentos: config.notifDocumentos,
           notifFueraSede: config.notifFueraSede,
+          avisoCierresActivo: config.avisoCierresActivo,
+          avisoCierresHora: config.avisoCierresHora,
+          avisoCierresZona: config.avisoCierresZona,
           emailActivo: config.emailActivo,
           emailHost: config.emailHost,
           emailPort: config.emailPort,
@@ -612,6 +619,67 @@ function ConfiguracionPageInner() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Aviso de cierres sin terminar: hora local por cliente. Una hora
+              global mandaría el correo a media tarde a quien cierra a
+              medianoche, o antes de hora a un cliente en Canarias. */}
+          {tieneCierreTurno && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-[var(--primary)]" /> Cierres de turno sin terminar
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Toggle
+                  label="Avisarme cada día de quién no ha cerrado su turno"
+                  value={config.avisoCierresActivo}
+                  onChange={(v) => setConfig((c) => c && { ...c, avisoCierresActivo: v })}
+                />
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="aviso-hora">Hora del aviso</Label>
+                    <select
+                      id="aviso-hora"
+                      className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                      value={config.avisoCierresHora}
+                      disabled={!config.avisoCierresActivo}
+                      onChange={(e) =>
+                        setConfig((c) => c && { ...c, avisoCierresHora: Number(e.target.value) })
+                      }
+                    >
+                      {Array.from({ length: 24 }, (_, h) => (
+                        <option key={h} value={h}>
+                          {String(h).padStart(2, "0")}:00
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label htmlFor="aviso-zona">Zona horaria</Label>
+                    <select
+                      id="aviso-zona"
+                      className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                      value={config.avisoCierresZona}
+                      disabled={!config.avisoCierresActivo}
+                      onChange={(e) =>
+                        setConfig((c) => c && { ...c, avisoCierresZona: e.target.value })
+                      }
+                    >
+                      <option value="Europe/Madrid">Península y Baleares</option>
+                      <option value="Atlantic/Canary">Canarias</option>
+                    </select>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-400">
+                  El aviso sale a esta hora, en tu horario local, e incluye solo a quien tenía
+                  turno ese día. Si eliges una hora de madrugada, el resumen es de la jornada
+                  que acaba de terminar. Va un correo por sede a administración y al
+                  responsable de cada una.
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Email (Resend) */}
           <Card>

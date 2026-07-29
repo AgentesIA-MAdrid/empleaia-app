@@ -609,6 +609,19 @@ model ConfiguracionEmpresa {
   // `Tienda.radio` (200 m por defecto). Solo avisa: RD 8/2019 impide
   // rechazar el fichaje por ubicación.
   notifFueraSede              Boolean  @default(true)
+  /// Aviso diario de cierres de turno sin terminar (módulo Enterprise).
+  /// Se manda a la hora LOCAL del cliente: un cron horario recorre los
+  /// tenants y avisa solo a los que les toca en ese momento. Así una tienda
+  /// que cierra a medianoche o un cliente en Canarias no reciben el aviso a
+  /// media tarde con media plantilla aún trabajando.
+  avisoCierresActivo          Boolean  @default(true) @map("aviso_cierres_activo")
+  /// Hora local (0-23) a la que se manda el aviso.
+  avisoCierresHora            Int      @default(23) @map("aviso_cierres_hora")
+  /// Zona IANA del cliente. Canarias = Atlantic/Canary.
+  avisoCierresZona            String   @default("Europe/Madrid") @map("aviso_cierres_zona")
+  /// Último día ya avisado ("YYYY-MM-DD" en su zona). Evita duplicar el correo
+  /// si el cron se ejecuta dos veces dentro de la misma hora.
+  avisoCierresUltimoDia       String?  @map("aviso_cierres_ultimo_dia")
   emailActivo                 Boolean  @default(false)
   emailHost                   String?
   emailPort                   Int?
