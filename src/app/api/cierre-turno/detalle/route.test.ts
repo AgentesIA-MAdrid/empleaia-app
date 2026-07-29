@@ -106,10 +106,10 @@ describe("GET /api/cierre-turno/detalle", () => {
   it("un administrador no lleva filtro de alcance", async () => {
     sesion.user = { id: "u_owner", rol: "OWNER", tiendaId: null, name: "Owner" };
     await get("?id=c1");
-    const where = prismaMock.cierreTurno.findFirst.mock.calls[0]![0] as unknown as {
-      where: Record<string, unknown>;
-    };
-    expect(where.where).toEqual({ id: "c1" });
+    const [args] = prismaMock.cierreTurno.findFirst.mock.calls[0] as unknown as [
+      { where: Record<string, unknown> },
+    ];
+    expect(args.where).toEqual({ id: "c1" });
   });
 
   it("un id que no pasa el alcance devuelve 404, no un 403 que confirmaría que existe", async () => {
