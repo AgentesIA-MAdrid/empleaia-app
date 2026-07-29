@@ -14,7 +14,7 @@ import {
   ChevronDown, Sparkles, ShieldAlert, Network,
   Bot, ScanFace, Target, MessageSquare,
   Star, CreditCard, Building2, Send, GraduationCap,
-  Building, Boxes, MessageCircle, Calculator, Wallet,
+  Building, Boxes, MessageCircle, Calculator, Wallet, Scale,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -41,6 +41,13 @@ interface NavItem {
    * lleva a /admin/planes en lugar de a su href real.
    */
   feature?: string;
+  /**
+   * Con `feature` bloqueada, oculta el item en lugar de pintarlo con candado
+   * y enlace a /admin/planes. Es para módulos que aún se están construyendo:
+   * un candado invita al cliente a preguntar por algo que todavía no existe,
+   * mientras que el upsell normal sí quiere verse.
+   */
+  ocultarSiBloqueado?: boolean;
 }
 
 interface NavSection {
@@ -77,6 +84,16 @@ function getSidebarConfig(rol: string, pendingAusencias = 0): SidebarConfig {
             { label: "Turnos", href: "/admin/turnos", icon: Calendar, feature: "turnos_publicacion" },
             { label: "Bolsa de horas", href: "/admin/bolsa-horas", icon: Timer, feature: "bolsa_horas" },
             { label: "Tareas", href: "/admin/tareas", icon: CheckSquare, feature: "tareas" },
+          ],
+        },
+        {
+          key: "ventas",
+          label: "VENTAS Y CAJA",
+          items: [
+            { label: "Cierre de turno", href: "/admin/cierre-turno", icon: ClipboardList, feature: "cierre_turno", ocultarSiBloqueado: true },
+            { label: "Arqueos", href: "/admin/arqueos", icon: Wallet, feature: "cierre_turno", ocultarSiBloqueado: true },
+            { label: "Objetivos de venta", href: "/admin/objetivos-venta", icon: Target, feature: "cierre_turno", ocultarSiBloqueado: true },
+            { label: "Conciliación", href: "/admin/conciliacion", icon: Scale, feature: "cierre_turno", ocultarSiBloqueado: true },
           ],
         },
         {
@@ -175,6 +192,8 @@ function getSidebarConfig(rol: string, pendingAusencias = 0): SidebarConfig {
           items: [
             { label: "Documentos", href: "/manager/documentos", icon: FolderOpen },
             { label: "Informes", href: "/manager/informes", icon: BarChart3 },
+            { label: "Cierre de turno", href: "/manager/cierre-turno", icon: ClipboardList, feature: "cierre_turno", ocultarSiBloqueado: true },
+            { label: "Objetivos de venta", href: "/manager/objetivos-venta", icon: Target, feature: "cierre_turno", ocultarSiBloqueado: true },
           ],
         },
       ],
@@ -193,6 +212,14 @@ function getSidebarConfig(rol: string, pendingAusencias = 0): SidebarConfig {
           { label: "Mis Turnos", href: "/empleado/mis-turnos", icon: CalendarCheck },
           { label: "Mis Ausencias", href: "/empleado/mis-ausencias", icon: ClipboardList },
           { label: "Mis Tareas", href: "/empleado/tareas", icon: CheckSquare },
+        ],
+      },
+      {
+        key: "ventas",
+        label: "VENTAS Y CAJA",
+        items: [
+          { label: "Cierre de turno", href: "/empleado/cierre-turno", icon: ClipboardList, feature: "cierre_turno", ocultarSiBloqueado: true },
+          { label: "Arqueos", href: "/empleado/arqueos", icon: Wallet, feature: "cierre_turno", ocultarSiBloqueado: true },
         ],
       },
       {
@@ -449,6 +476,12 @@ export function Sidebar({
           {/* Sections */}
           {sections.map((section) => {
             const isSectionCollapsed = collapsedSections[section.key];
+            // Items realmente visibles: los que se ocultan cuando su módulo no
+            // está activo no deben dejar la cabecera de sección huérfana.
+            const visibles = section.items.filter(
+              (item) => !(item.ocultarSiBloqueado && isLocked(item.feature)),
+            );
+            if (visibles.length === 0) return null;
             return (
               <div key={section.key} className="mb-1">
                 {!collapsed && (
@@ -464,7 +497,7 @@ export function Sidebar({
                 )}
                 {!isSectionCollapsed && (
                   <div className="space-y-0.5">
-                    {section.items.map((item) => (
+                    {visibles.map((item) => (
                       <NavLink key={item.href} item={item} />
                     ))}
                   </div>

@@ -5,7 +5,7 @@
  *
  * Catálogo Fase 8 (estructura definitiva 3 planes empleaIA):
  *   - 3 planes (starter, pro, enterprise) con tagline + sortOrder.
- *   - 35 features (4 limits + 27 booleans + 4 quotas).
+ *   - 36 features (4 limits + 28 booleans + 4 quotas).
  *   - 105 plan_features (3 × 35) con valores explícitos por plan.
  *   - 45 reserved_slugs.
  *
@@ -83,6 +83,10 @@ const FEATURES: FeatureDef[] = [
   { key: "objetivos", name: "Gestión de objetivos (OKRs)", type: "boolean" },
   { key: "formacion", name: "Plataforma de formación (LMS)", type: "boolean" },
   { key: "informes_avanzados", name: "Informes y estadísticas avanzados", type: "boolean" },
+  // Cierre de turno: registro diario de ventas, cierre de caja, arqueos
+  // semanales, objetivos de venta y conciliación con el banco. Una sola
+  // llave para el módulo entero: las cinco áreas se activan juntas.
+  { key: "cierre_turno", name: "Cierre de turno, arqueos y conciliación", type: "boolean" },
 
   // ─── Booleans — finanzas (existentes en código, ahora con flag) ────────────
   { key: "prenomina", name: "Preparación de nóminas (prenómina)", type: "boolean" },
@@ -164,6 +168,7 @@ const PLAN_FEATURE_VALUES: Record<string, Record<string, PlanFeatureValue>> = {
     objetivos: false,
     formacion: true,
     informes_avanzados: true,
+    cierre_turno: false,
     // Finanzas
     prenomina: true,
     envio_nominas: true,
@@ -231,6 +236,7 @@ const PLAN_FEATURE_VALUES: Record<string, Record<string, PlanFeatureValue>> = {
     objetivos: true,
     formacion: true,
     informes_avanzados: true,
+    cierre_turno: false,
     // Finanzas
     prenomina: true,
     envio_nominas: true,
@@ -298,6 +304,7 @@ const PLAN_FEATURE_VALUES: Record<string, Record<string, PlanFeatureValue>> = {
     objetivos: true,
     formacion: true,
     informes_avanzados: true,
+    cierre_turno: true,
     // Finanzas
     prenomina: true,
     envio_nominas: true,
@@ -410,7 +417,7 @@ export async function seedMaster(prisma: PrismaClient): Promise<void> {
     });
   }
 
-  // 3. PlanFeatures (105 upserts: 3 planes × 35 features).
+  // 3. PlanFeatures (108 upserts: 3 planes × 36 features).
   for (const [planKey, featureValues] of Object.entries(PLAN_FEATURE_VALUES)) {
     const plan = await prisma.plan.findUniqueOrThrow({ where: { key: planKey } });
     for (const [featureKey, value] of Object.entries(featureValues)) {

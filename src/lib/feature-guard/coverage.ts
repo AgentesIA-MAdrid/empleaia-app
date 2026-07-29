@@ -55,6 +55,10 @@ export const FEATURE_COVERAGE: readonly CoverageEntry[] = [
   { endpointGlob: "__ui_gate__", featureKey: "fichaje_movil", guard: "hasFeature" },
   { endpointGlob: "__ui_gate__", featureKey: "fichaje_tablet", guard: "hasFeature" },
   { endpointGlob: "bolsa-horas/**/route.ts", featureKey: "bolsa_horas", guard: "withFeature" },
+  // cierre_turno: una sola llave para el módulo completo (cierre diario,
+  // objetivos de venta, arqueos y conciliación). Solo plan Enterprise.
+  { endpointGlob: "cierre-turno/**/route.ts", featureKey: "cierre_turno", guard: "withFeature" },
+  { endpointGlob: "articulos-venta/**/route.ts", featureKey: "cierre_turno", guard: "withFeature" },
   { endpointGlob: "turnos/**/route.ts", featureKey: "turnos_publicacion", guard: "withFeature" },
   { endpointGlob: "ausencias/**/route.ts", featureKey: "ausencias_aprobacion", guard: "withFeature" },
   { endpointGlob: "onboarding/**/route.ts", featureKey: "onboarding_offboarding", guard: "withFeature" },
