@@ -348,6 +348,12 @@ model User {
   /// temporal y no una cuenta cerrada: quien recoge el dinero está en la
   /// tienda y no puede quedarse sin poder firmar por teclear mal dos veces.
   pinRecogidaBloqueoHasta DateTime?        @map("pin_recogida_bloqueo_hasta")
+  /// Ve el módulo de cierre de turno aunque el cliente lo tenga EN RODAJE
+  /// (`ConfiguracionEmpresa.cierreTurnoEnRodaje`). Sirve para estrenarlo con
+  /// una persona concreta —la que se presta a probarlo en su tienda— sin
+  /// abrírselo a la plantilla y sin tener que hacerla administradora, que le
+  /// daría acceso a nóminas y al resto de la administración.
+  cierreTurnoPiloto    Boolean             @default(false) @map("cierre_turno_piloto")
   arqueosDeclarados    Arqueo[]            @relation("ArqueoDeclaradoPor")
 
   createdAt DateTime @default(now())
