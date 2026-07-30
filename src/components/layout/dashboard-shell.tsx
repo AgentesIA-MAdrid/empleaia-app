@@ -31,6 +31,8 @@ interface DashboardShellProps {
   user: SessionUser;
   branding?: Branding;
   trial?: TrialInfo | null;
+  /** Cierre de turno en rodaje: el menú del módulo solo se pinta a administración. */
+  cierreTurnoEnRodaje?: boolean;
 }
 
 function daysLeft(iso: string | null): number | null {
@@ -41,7 +43,13 @@ function daysLeft(iso: string | null): number | null {
   return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
 }
 
-export function DashboardShell({ children, user, branding, trial }: DashboardShellProps) {
+export function DashboardShell({
+  children,
+  user,
+  branding,
+  trial,
+  cierreTurnoEnRodaje = false,
+}: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
@@ -56,6 +64,7 @@ export function DashboardShell({ children, user, branding, trial }: DashboardShe
         isOpen={sidebarOpen}
         onToggle={toggleSidebar}
         pendingAusencias={0}
+        cierreTurnoEnRodaje={cierreTurnoEnRodaje}
       />
 
       {/* Main content area */}

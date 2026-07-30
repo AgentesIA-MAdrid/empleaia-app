@@ -634,6 +634,13 @@ model ConfiguracionEmpresa {
   /// euros (importe vendido) para cruzarlas con la caja. Apagado, el módulo
   /// solo cuenta unidades. Off por defecto: cada cliente decide.
   ventasPreciosActivos        Boolean  @default(false) @map("ventas_precios_activos")
+  /// El módulo de cierre de turno está EN RODAJE: solo lo ve administración.
+  /// Sirve para prepararlo (subir el catálogo, repartir los PIN de recogida,
+  /// fijar los objetivos del mes) antes de que le aparezca de golpe en el menú
+  /// a toda la plantilla. Arranca en `true`: contratar el módulo no debe
+  /// significar soltárselo al equipo sin avisar. Se abre desde
+  /// Configuración → Catálogo de ventas con un clic.
+  cierreTurnoEnRodaje         Boolean  @default(true) @map("cierre_turno_en_rodaje")
   /// A partir de qué diferencia (en euros) se considera descuadre en la
   /// conciliación. Por debajo es ruido de redondeo y llenar la pantalla de
   /// avisos de céntimos la vuelve inútil. Configurable porque no todos los

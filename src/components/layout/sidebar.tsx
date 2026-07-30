@@ -17,6 +17,7 @@ import {
   Building, Boxes, MessageCircle, Calculator, Wallet, Scale,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { moduloCierreVisibleEnMenu } from "@/lib/cierre-turno/visibilidad";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmpleaIALogo, EmpleaIASymbol } from "@/components/brand/empleaia-logo";
 import { NotificationsBell } from "@/components/layout/notifications-bell";
@@ -279,6 +280,13 @@ interface SidebarProps {
   pendingAusencias?: number;
   isOpen?: boolean;
   onToggle?: () => void;
+  /**
+   * Módulo de cierre de turno EN RODAJE: contratado, pero todavía sin abrir al
+   * equipo. Administración lo ve para prepararlo (catálogo, PIN de recogida,
+   * objetivos); al resto no se le pinta, para que no le aparezca en el menú una
+   * sección a medio configurar.
+   */
+  cierreTurnoEnRodaje?: boolean;
 }
 
 export function Sidebar({
@@ -287,6 +295,7 @@ export function Sidebar({
   pendingAusencias = 0,
   isOpen = true,
   onToggle,
+  cierreTurnoEnRodaje = false,
 }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -479,9 +488,19 @@ export function Sidebar({
             const isSectionCollapsed = collapsedSections[section.key];
             // Items realmente visibles: los que se ocultan cuando su módulo no
             // está activo no deben dejar la cabecera de sección huérfana.
-            const visibles = section.items.filter(
-              (item) => !(item.ocultarSiBloqueado && isLocked(item.feature)),
-            );
+            const visibles = section.items.filter((item) => {
+              // El módulo de cierre de turno tiene dos motivos distintos para
+              // no verse (sin contratar / contratado pero en rodaje) y la regla
+              // vive en `lib/cierre-turno/visibilidad.ts`, con tests.
+              if (item.feature === "cierre_turno") {
+                return moduloCierreVisibleEnMenu({
+                  rol: user.rol,
+                  bloqueada: isLocked(item.feature),
+                  enRodaje: cierreTurnoEnRodaje,
+                });
+              }
+              return !(item.ocultarSiBloqueado && isLocked(item.feature));
+            });
             if (visibles.length === 0) return null;
             return (
               <div key={section.key} className="mb-1">
