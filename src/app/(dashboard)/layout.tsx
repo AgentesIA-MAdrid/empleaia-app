@@ -31,13 +31,17 @@ async function DashboardLayout({
   // personales (DNI, teléfono, fecha de nacimiento) en el primer acceso.
   // El OWNER queda exento. Se consulta en BD para reflejar el estado real
   // (el JWT podría estar desactualizado tras completar el perfil).
+  // Acceso anticipado al módulo de cierre de turno mientras está en rodaje.
+  // Se lee en la misma consulta que el onboarding para no añadir otra.
+  let accesoAnticipadoCierre = false;
   if (sessionUser.rol === "EMPLEADO" || sessionUser.rol === "MANAGER") {
     const u = await prisma.user
       .findUnique({
         where: { id: sessionUser.id },
-        select: { perfilCompletado: true },
+        select: { perfilCompletado: true, cierreTurnoPiloto: true },
       })
       .catch(() => null);
+    accesoAnticipadoCierre = u?.cierreTurnoPiloto === true;
     if (u && !u.perfilCompletado) {
       redirect("/completar-perfil");
     }
@@ -89,6 +93,7 @@ async function DashboardLayout({
       }}
       trial={trial}
       cierreTurnoEnRodaje={enRodaje}
+      cierreTurnoAccesoAnticipado={accesoAnticipadoCierre}
     >
       {children}
       {process.env.NEXT_PUBLIC_BETA_FEEDBACK === "true" && <FeedbackButton />}

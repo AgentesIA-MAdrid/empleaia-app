@@ -25,6 +25,7 @@ import { Upload, FileSpreadsheet, Eye, EyeOff, Euro, Plus, Users } from "lucide-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 interface Articulo {
@@ -34,6 +35,15 @@ interface Articulo {
   orden: number;
   activo: boolean;
   precio: number | null;
+}
+
+/** Persona con acceso anticipado al módulo mientras está en rodaje. */
+interface PersonaPiloto {
+  id: string;
+  nombre: string;
+  rol: string;
+  sede: string | null;
+  acceso: boolean;
 }
 
 interface ResumenImportacion {
@@ -56,6 +66,9 @@ export function CatalogoVentasTab() {
   const [guardandoPrecios, setGuardandoPrecios] = useState(false);
   const [enRodaje, setEnRodaje] = useState(true);
   const [guardandoRodaje, setGuardandoRodaje] = useState(false);
+  const [personas, setPersonas] = useState<PersonaPiloto[]>([]);
+  const [pilotoElegido, setPilotoElegido] = useState("");
+  const [guardandoPiloto, setGuardandoPiloto] = useState<string | null>(null);
   const inputFichero = useRef<HTMLInputElement>(null);
 
   // Alta a mano.
@@ -82,9 +95,22 @@ export function CatalogoVentasTab() {
     }
   }, []);
 
+  /** Quién puede estrenar el módulo y quién ya lo tiene. */
+  const cargarPersonas = useCallback(async () => {
+    try {
+      const res = await fetch("/api/cierre-turno/pilotos");
+      if (!res.ok) return;
+      const data = (await res.json()) as { personas: PersonaPiloto[] };
+      setPersonas(data.personas ?? []);
+    } catch {
+      /* sin conexión: la lista se queda como esté */
+    }
+  }, []);
+
   useEffect(() => {
     void cargar();
-  }, [cargar]);
+    void cargarPersonas();
+  }, [cargar, cargarPersonas]);
 
   const subir = async (fichero: File) => {
     setSubiendo(true);
@@ -233,6 +259,42 @@ export function CatalogoVentasTab() {
     await cargar();
   };
 
+  /** Da o quita el acceso anticipado a una persona durante el rodaje. */
+  const cambiarPiloto = async (userId: string, acceso: boolean) => {
+    if (!userId) return;
+    setGuardandoPiloto(userId);
+    try {
+      const res = await fetch("/api/cierre-turno/pilotos", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, acceso }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({
+          title: "No se pudo guardar",
+          description: (data as { error?: string }).error ?? "",
+          variant: "destructive",
+        });
+        return;
+      }
+      const r = data as { nombre: string; avisoSinSede?: boolean };
+      toast({
+        title: acceso ? `${r.nombre} ya puede usarlo` : `${r.nombre} deja de verlo`,
+        description: acceso
+          ? r.avisoSinSede
+            ? "Ojo: no tiene sede asignada, así que su cierre no entrará en los cuadres y no podrá declarar arqueos. Asígnale una en Empleados."
+            : "Verá Cierre de turno y Arqueos en su menú al recargar la app."
+          : undefined,
+        variant: acceso && r.avisoSinSede ? "destructive" : undefined,
+      });
+      setPilotoElegido("");
+      await cargarPersonas();
+    } finally {
+      setGuardandoPiloto(null);
+    }
+  };
+
   /** Enciende o apaga los precios del catálogo (guardado inmediato). */
   const cambiarPreciosActivos = async (valor: boolean) => {
     setGuardandoPrecios(true);
@@ -292,6 +354,8 @@ export function CatalogoVentasTab() {
   };
 
   const activos = articulos.filter((a) => a.activo);
+  const pilotos = personas.filter((p) => p.acceso);
+  const candidatos = personas.filter((p) => !p.acceso);
 
   return (
     <div className="space-y-6">
@@ -337,6 +401,78 @@ export function CatalogoVentasTab() {
                   : "Volver a rodaje"}
             </Button>
           </div>
+
+          {/* Estrenarlo con una persona concreta. Solo tiene sentido mientras
+              esté en rodaje: abierto, ya lo ve todo el mundo. */}
+          {enRodaje && (
+            <div className="mt-4 pt-4 border-t border-amber-200/70">
+              <p className="text-sm font-medium text-slate-800">Estrenarlo con alguien del equipo</p>
+              <p className="text-xs text-slate-600 mt-1 max-w-xl">
+                Dale acceso a quien vaya a probarlo en su tienda. Solo verá Cierre de turno y
+                Arqueos: no toca nada de administración.
+              </p>
+
+              {pilotos.length > 0 && (
+                <ul className="mt-3 space-y-1.5">
+                  {pilotos.map((p) => (
+                    <li key={p.id} className="flex items-center justify-between gap-3 text-sm">
+                      <span>
+                        <span className="font-medium text-slate-800">{p.nombre}</span>
+                        <span className="text-slate-500">
+                          {" "}
+                          · {p.sede ?? "sin sede asignada"}
+                        </span>
+                        {!p.sede && (
+                          <span className="text-amber-700 text-xs block">
+                            Sin sede, su cierre no entra en los cuadres y no podrá declarar
+                            arqueos. Asígnale una en Empleados.
+                          </span>
+                        )}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={guardandoPiloto === p.id}
+                        onClick={() => void cambiarPiloto(p.id, false)}
+                      >
+                        Quitar acceso
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <div className="mt-3 flex items-end gap-2 flex-wrap">
+                <div>
+                  <Label htmlFor="piloto-nuevo" className="text-xs">
+                    Añadir a alguien
+                  </Label>
+                  <select
+                    id="piloto-nuevo"
+                    className="mt-1 w-64 rounded-md border border-slate-200 px-3 py-2 text-sm"
+                    value={pilotoElegido}
+                    onChange={(e) => setPilotoElegido(e.target.value)}
+                  >
+                    <option value="">Elige una persona…</option>
+                    {candidatos.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nombre}
+                        {p.sede ? ` · ${p.sede}` : " · sin sede"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!pilotoElegido || guardandoPiloto !== null}
+                  onClick={() => void cambiarPiloto(pilotoElegido, true)}
+                >
+                  Dar acceso
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

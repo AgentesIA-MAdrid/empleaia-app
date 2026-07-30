@@ -287,6 +287,11 @@ interface SidebarProps {
    * sección a medio configurar.
    */
   cierreTurnoEnRodaje?: boolean;
+  /**
+   * Esta persona estrena el módulo durante el rodaje
+   * (`User.cierreTurnoPiloto`): lo ve aunque el resto del equipo no.
+   */
+  cierreTurnoAccesoAnticipado?: boolean;
 }
 
 export function Sidebar({
@@ -296,6 +301,7 @@ export function Sidebar({
   isOpen = true,
   onToggle,
   cierreTurnoEnRodaje = false,
+  cierreTurnoAccesoAnticipado = false,
 }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -497,6 +503,7 @@ export function Sidebar({
                   rol: user.rol,
                   bloqueada: isLocked(item.feature),
                   enRodaje: cierreTurnoEnRodaje,
+                  accesoAnticipado: cierreTurnoAccesoAnticipado,
                 });
               }
               return !(item.ocultarSiBloqueado && isLocked(item.feature));
