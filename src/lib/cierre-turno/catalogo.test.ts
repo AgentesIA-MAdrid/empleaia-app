@@ -1,5 +1,55 @@
 import { describe, it, expect } from "vitest";
-import { construirCatalogo, parsearCSV, parsearPrecio, CATALOGO_MAX_FILAS } from "./catalogo";
+import {
+  construirCatalogo,
+  parsearCSV,
+  parsearPrecio,
+  claveArticulo,
+  normalizarNombreArticulo,
+  normalizarCategoriaArticulo,
+  CATALOGO_MAX_FILAS,
+  CATALOGO_NOMBRE_MAX,
+} from "./catalogo";
+
+describe("normalizarNombreArticulo", () => {
+  it("colapsa espacios y recorta", () => {
+    const r = normalizarNombreArticulo("  Alta   de   fibra  ");
+    expect(r).toEqual({ ok: true, nombre: "Alta de fibra" });
+  });
+
+  it("rechaza lo que no llega a nombre, y dice por qué", () => {
+    expect(normalizarNombreArticulo("")).toMatchObject({ ok: false });
+    expect(normalizarNombreArticulo(" a ")).toMatchObject({ ok: false });
+    expect(normalizarNombreArticulo(undefined)).toMatchObject({ ok: false });
+    expect(normalizarNombreArticulo(42)).toMatchObject({ ok: false });
+  });
+
+  it("rechaza nombres desmedidos", () => {
+    const r = normalizarNombreArticulo("x".repeat(CATALOGO_NOMBRE_MAX + 1));
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe("normalizarCategoriaArticulo", () => {
+  it("vacía es sin categoría, no cadena vacía", () => {
+    expect(normalizarCategoriaArticulo("   ")).toBeNull();
+    expect(normalizarCategoriaArticulo(undefined)).toBeNull();
+  });
+
+  it("recorta y colapsa espacios", () => {
+    expect(normalizarCategoriaArticulo("  Telefonía   móvil ")).toBe("Telefonía móvil");
+  });
+});
+
+describe("claveArticulo", () => {
+  it("da la misma clave cambien tildes, mayúsculas o espacios", () => {
+    expect(claveArticulo("Energía")).toBe(claveArticulo("  ENERGIA  "));
+    expect(claveArticulo("Alta de fibra")).toBe(claveArticulo("alta  de  FIBRA"));
+  });
+
+  it("distingue artículos que de verdad son distintos", () => {
+    expect(claveArticulo("Pospago")).not.toBe(claveArticulo("Prepago"));
+  });
+});
 
 describe("parsearCSV", () => {
   it("separa por comas", () => {
