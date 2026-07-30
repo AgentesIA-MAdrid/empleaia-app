@@ -44,7 +44,14 @@ async function DashboardLayout({
   }
 
   const branding = await prisma.configuracionEmpresa.findFirst({
-    select: { logo: true, appNombre: true, nombre: true },
+    select: {
+      logo: true,
+      appNombre: true,
+      nombre: true,
+      // Módulo de cierre de turno en rodaje: visible solo para administración
+      // mientras se prepara (catálogo, PIN de recogida, objetivos del mes).
+      cierreTurnoEnRodaje: true,
+    },
   }).catch(() => null);
 
   // Trial banner: si el tenant tiene una subscription en estado
@@ -68,6 +75,10 @@ async function DashboardLayout({
     // Sin contexto de tenant o BD caída → no banner, no romper layout.
   }
 
+  // Sin fila de configuración todavía, se asume rodaje: es el lado prudente
+  // (que no le aparezca a la plantilla algo aún sin configurar).
+  const enRodaje = branding?.cierreTurnoEnRodaje ?? true;
+
   return (
     <DashboardShell
       user={sessionUser}
@@ -77,6 +88,7 @@ async function DashboardLayout({
         nombre: branding?.nombre ?? null,
       }}
       trial={trial}
+      cierreTurnoEnRodaje={enRodaje}
     >
       {children}
       {process.env.NEXT_PUBLIC_BETA_FEEDBACK === "true" && <FeedbackButton />}

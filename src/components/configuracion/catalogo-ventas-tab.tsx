@@ -16,7 +16,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Upload, FileSpreadsheet, Eye, EyeOff, Euro } from "lucide-react";
+import { Upload, FileSpreadsheet, Eye, EyeOff, Euro, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -49,6 +49,8 @@ export function CatalogoVentasTab() {
   const [resumen, setResumen] = useState<ResumenImportacion | null>(null);
   const [preciosActivos, setPreciosActivos] = useState(false);
   const [guardandoPrecios, setGuardandoPrecios] = useState(false);
+  const [enRodaje, setEnRodaje] = useState(true);
+  const [guardandoRodaje, setGuardandoRodaje] = useState(false);
   const inputFichero = useRef<HTMLInputElement>(null);
 
   const cargar = useCallback(async () => {
@@ -56,9 +58,14 @@ export function CatalogoVentasTab() {
     try {
       const res = await fetch("/api/articulos-venta?todos=1");
       if (!res.ok) return;
-      const data = (await res.json()) as { articulos: Articulo[]; preciosActivos: boolean };
+      const data = (await res.json()) as {
+        articulos: Articulo[];
+        preciosActivos: boolean;
+        enRodaje: boolean;
+      };
       setArticulos(data.articulos ?? []);
       setPreciosActivos(Boolean(data.preciosActivos));
+      setEnRodaje(data.enRodaje !== false);
     } finally {
       setCargando(false);
     }
@@ -110,6 +117,43 @@ export function CatalogoVentasTab() {
     } finally {
       setSubiendo(false);
       if (inputFichero.current) inputFichero.current.value = "";
+    }
+  };
+
+  /**
+   * Abre el módulo al equipo (o lo vuelve a guardar en rodaje). Es el único
+   * ajuste de esta pantalla que cambia lo que ve toda la plantilla, así que
+   * pide confirmación antes.
+   */
+  const cambiarRodaje = async (nuevoEnRodaje: boolean) => {
+    if (!nuevoEnRodaje) {
+      const activos = articulos.filter((a) => a.activo).length;
+      const aviso =
+        activos === 0
+          ? "Todavía no has subido el catálogo de artículos: tu equipo verá el módulo, pero no podrá registrar ventas. ¿Abrirlo de todas formas?"
+          : "A partir de ahora todo tu equipo verá Cierre de turno y Arqueos en su menú. ¿Seguimos?";
+      if (!window.confirm(aviso)) return;
+    }
+    setGuardandoRodaje(true);
+    try {
+      const res = await fetch("/api/configuracion", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cierreTurnoEnRodaje: nuevoEnRodaje }),
+      });
+      if (!res.ok) {
+        toast({ title: "No se pudo guardar", variant: "destructive" });
+        return;
+      }
+      setEnRodaje(nuevoEnRodaje);
+      toast({
+        title: nuevoEnRodaje ? "Módulo en rodaje" : "Módulo abierto al equipo",
+        description: nuevoEnRodaje
+          ? "Solo lo ves tú y el resto de administradores."
+          : "Cierre de turno y Arqueos ya aparecen en el menú de tu equipo. Recarga su app si la tienen abierta.",
+      });
+    } finally {
+      setGuardandoRodaje(false);
     }
   };
 
@@ -183,6 +227,42 @@ export function CatalogoVentasTab() {
           como categoría para agrupar. El orden del archivo es el orden en el que la verán.
         </p>
       </div>
+
+      {/* Quién ve el módulo. Va primero porque es la decisión que más se nota:
+          el resto de esta pantalla solo afecta a cómo se registra la venta. */}
+      <Card className={enRodaje ? "border-amber-200 bg-amber-50/40" : undefined}>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <p className="text-sm font-medium text-slate-900 flex items-center gap-2">
+                {enRodaje ? (
+                  <EyeOff className="h-4 w-4 text-amber-600" />
+                ) : (
+                  <Users className="h-4 w-4 text-[var(--primary)]" />
+                )}
+                {enRodaje ? "En rodaje: solo lo veis administración" : "Abierto a todo el equipo"}
+              </p>
+              <p className="text-xs text-slate-600 mt-1 max-w-xl">
+                {enRodaje
+                  ? "Prepáralo con calma —sube el catálogo, reparte los PIN de recogida, fija los objetivos del mes— y ábrelo cuando esté listo. Mientras, tu equipo no ve nada nuevo en su menú."
+                  : "Tu equipo ve Cierre de turno y Arqueos en su menú. Puedes volver a guardarlo en rodaje si necesitas retocar algo."}
+              </p>
+            </div>
+            <Button
+              variant={enRodaje ? "default" : "outline"}
+              size="sm"
+              disabled={guardandoRodaje}
+              onClick={() => void cambiarRodaje(!enRodaje)}
+            >
+              {guardandoRodaje
+                ? "Guardando…"
+                : enRodaje
+                  ? "Abrir al equipo"
+                  : "Volver a rodaje"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="pt-4 pb-4 space-y-3">

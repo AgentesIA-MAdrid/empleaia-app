@@ -67,6 +67,8 @@ export const PUT = withTenant(async (request: NextRequest) => {
       // Precios en el catálogo de ventas: con esto encendido, el módulo lee
       // las ventas también en euros. Se cambia desde la pestaña Catálogo.
       "ventasPreciosActivos",
+      // Cierre de turno en rodaje: quién ve el módulo mientras se configura.
+      "cierreTurnoEnRodaje",
       "emailActivo", "emailHost", "emailPort", "emailSecure", "emailUser", "emailPassword", "emailFrom",
       "pushActivo", "pushVapidPublicKey",
       "colorPrimario", "colorSidebar",

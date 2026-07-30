@@ -41,7 +41,7 @@ export const GET = withTenant(
       }),
       prisma.configuracionEmpresa.findUnique({
         where: { id: "singleton" },
-        select: { ventasPreciosActivos: true },
+        select: { ventasPreciosActivos: true, cierreTurnoEnRodaje: true },
       }),
     ]);
 
@@ -51,6 +51,8 @@ export const GET = withTenant(
       articulos: articulos.map((a) => ({ ...a, precio: a.precio === null ? null : Number(a.precio) })),
       catalogoVacio: articulos.filter((a) => a.activo).length === 0,
       preciosActivos: cfg?.ventasPreciosActivos ?? false,
+      // Sin fila de configuración se asume rodaje (lado prudente).
+      enRodaje: cfg?.cierreTurnoEnRodaje ?? true,
     });
   }),
 );
