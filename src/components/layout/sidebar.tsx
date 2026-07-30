@@ -193,6 +193,7 @@ function getSidebarConfig(rol: string, pendingAusencias = 0): SidebarConfig {
             { label: "Documentos", href: "/manager/documentos", icon: FolderOpen },
             { label: "Informes", href: "/manager/informes", icon: BarChart3 },
             { label: "Cierre de turno", href: "/manager/cierre-turno", icon: ClipboardList, feature: "cierre_turno", ocultarSiBloqueado: true },
+            { label: "Arqueos", href: "/manager/arqueos", icon: Wallet, feature: "cierre_turno", ocultarSiBloqueado: true },
             { label: "Objetivos de venta", href: "/manager/objetivos-venta", icon: Target, feature: "cierre_turno", ocultarSiBloqueado: true },
           ],
         },

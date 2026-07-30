@@ -1,14 +1,11 @@
-import { AreaPendiente } from "@/components/cierre-turno/area-pendiente";
+import { PanelArqueos } from "@/components/cierre-turno/panel-arqueos";
 
+// Misma pantalla que en administración, limitada por el servidor a su sede.
 export default function EmpleadoArqueosPage() {
   return (
-    <AreaPendiente
+    <PanelArqueos
       titulo="Arqueos"
-      descripcion="Registra el efectivo que apartas cada semana para que lo recoja un superior."
-      entrega="entrega 4"
-      filtros={["Semana"]}
-      columnas={["Semana", "Efectivo apartado", "Estado", "Recogido por", "Fecha de recogida"]}
-      nota="Al registrarlo verás al lado lo que suman tus cierres diarios de esa semana, para que cualquier diferencia salte en el momento."
+      descripcion="Registra el efectivo que apartas cada semana para que lo recoja un superior. Al lado verás lo que suman tus cierres de esos días."
     />
   );
 }

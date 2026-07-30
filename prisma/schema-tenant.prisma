@@ -342,6 +342,13 @@ model User {
   /// Hash del PIN de recogida (bcrypt). NUNCA el PIN en claro. Se fija y se
   /// resetea desde administración; null = sin PIN, no puede firmar.
   pinRecogidaHash      String?             @map("pin_recogida_hash")
+  /// Fallos consecutivos de PIN. Se pone a 0 al acertar o al cambiarlo.
+  pinRecogidaIntentos  Int                 @default(0) @map("pin_recogida_intentos")
+  /// Hasta cuándo está bloqueada la firma por fallos seguidos. Es un bloqueo
+  /// temporal y no una cuenta cerrada: quien recoge el dinero está en la
+  /// tienda y no puede quedarse sin poder firmar por teclear mal dos veces.
+  pinRecogidaBloqueoHasta DateTime?        @map("pin_recogida_bloqueo_hasta")
+  arqueosDeclarados    Arqueo[]            @relation("ArqueoDeclaradoPor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -627,6 +634,16 @@ model ConfiguracionEmpresa {
   /// euros (importe vendido) para cruzarlas con la caja. Apagado, el módulo
   /// solo cuenta unidades. Off por defecto: cada cliente decide.
   ventasPreciosActivos        Boolean  @default(false) @map("ventas_precios_activos")
+  /// A partir de qué diferencia (en euros) se considera descuadre en la
+  /// conciliación. Por debajo es ruido de redondeo y llenar la pantalla de
+  /// avisos de céntimos la vuelve inútil. Configurable porque no todos los
+  /// negocios tienen la misma tolerancia.
+  descuadreUmbral             Decimal  @default(1.00) @map("descuadre_umbral") @db.Decimal(10, 2)
+  /// Cómo leer el Excel del banco de ESTE cliente: qué columna es la fecha,
+  /// el importe, el concepto y la referencia, y en qué formato viene la fecha.
+  /// Cada banco exporta distinto, así que el mapeo es del tenant y no del
+  /// producto. Forma: ver `MapeoBanco` en `src/lib/cierre-turno/banco.ts`.
+  bancoMapeo                  Json?    @map("banco_mapeo")
   emailActivo                 Boolean  @default(false)
   emailHost                   String?
   emailPort                   Int?
@@ -1871,11 +1888,23 @@ model Arqueo {
   efectivoDeclarado Decimal @default(0) @db.Decimal(10, 2)
   efectivoCierres   Decimal @default(0) @db.Decimal(10, 2)
 
+  /// Quién apartó el efectivo y cuándo lo declaró. El arqueo es de la tienda
+  /// (uno por semana), así que si lo declara otra persona esto refleja la
+  /// última: es a quien se le pregunta si algo no cuadra.
+  declaradoPorId String?
+  declaradoPor   User?     @relation("ArqueoDeclaradoPor", fields: [declaradoPorId], references: [id])
+  declaradoEn    DateTime?
+  /// Observaciones de quien lo declara ("faltan 20 € que puse de cambio").
+  notas          String?
+
   /// "pendiente" | "recogido"
   estado        String    @default("pendiente")
   recogidoPorId String?
   recogidoPor   User?     @relation("ArqueoRecogidoPor", fields: [recogidoPorId], references: [id])
   recogidoEn    DateTime?
+  /// Efectivo que se lleva quien recoge, si no es todo lo declarado (deja
+  /// fondo de caja, o el sobre no cuadra). Null = se lleva lo declarado.
+  efectivoRecogido Decimal? @db.Decimal(10, 2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
