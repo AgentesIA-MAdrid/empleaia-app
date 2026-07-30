@@ -622,6 +622,11 @@ model ConfiguracionEmpresa {
   /// Último día ya avisado ("YYYY-MM-DD" en su zona). Evita duplicar el correo
   /// si el cron se ejecuta dos veces dentro de la misma hora.
   avisoCierresUltimoDia       String?  @map("aviso_cierres_ultimo_dia")
+  /// Interruptor de precios del catálogo de ventas. Encendido, el catálogo
+  /// admite un precio por artículo y las ventas se pueden leer también en
+  /// euros (importe vendido) para cruzarlas con la caja. Apagado, el módulo
+  /// solo cuenta unidades. Off por defecto: cada cliente decide.
+  ventasPreciosActivos        Boolean  @default(false) @map("ventas_precios_activos")
   emailActivo                 Boolean  @default(false)
   emailHost                   String?
   emailPort                   Int?
@@ -1699,6 +1704,10 @@ model ArticuloVenta {
   categoria String?
   orden     Int     @default(0)
   activo    Boolean @default(true)
+  /// Precio de venta unitario. Solo se usa si el cliente enciende los precios
+  /// (`ConfiguracionEmpresa.ventasPreciosActivos`): hay clientes que solo
+  /// cuentan unidades y pedirles precios sería inventarse un dato.
+  precio    Decimal? @db.Decimal(10, 2)
 
   ventas    CierreTurnoVenta[]
   objetivos ObjetivoVenta[]

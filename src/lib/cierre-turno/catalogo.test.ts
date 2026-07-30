@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { construirCatalogo, parsearCSV, CATALOGO_MAX_FILAS } from "./catalogo";
+import { construirCatalogo, parsearCSV, parsearPrecio, CATALOGO_MAX_FILAS } from "./catalogo";
 
 describe("parsearCSV", () => {
   it("separa por comas", () => {
@@ -38,7 +38,9 @@ describe("construirCatalogo", () => {
       ["Alta de fibra", "Telefonía"],
     ]);
     expect(r.conCabecera).toBe(true);
-    expect(r.filas).toEqual([{ nombre: "Alta de fibra", categoria: "Telefonía", orden: 0 }]);
+    expect(r.filas).toEqual([
+      { nombre: "Alta de fibra", categoria: "Telefonía", orden: 0, precio: null },
+    ]);
   });
 
   it("reconoce encabezados sin tildes y en cualquier caja", () => {
@@ -109,5 +111,51 @@ describe("construirCatalogo", () => {
   it("con una sola columna, no inventa categoría", () => {
     const r = construirCatalogo([["Alta de fibra"]]);
     expect(r.filas[0]?.categoria).toBeNull();
+  });
+
+  it("importa la columna de precio cuando la hoja la nombra", () => {
+    const r = construirCatalogo([
+      ["Artículo", "Familia", "Precio"],
+      ["Alta de fibra", "Telefonía", "29,90 €"],
+      ["Portabilidad", "Móvil", ""],
+    ]);
+    expect(r.filas[0]?.precio).toBe(29.9);
+    expect(r.filas[1]?.precio).toBeNull();
+  });
+
+  it("sin cabecera de precio no adivina precios por posición", () => {
+    // Una segunda columna numérica sin cabecera se sigue tratando como
+    // categoría: inventar precios saldría carísimo el día que cuadren caja.
+    const r = construirCatalogo([["Alta de fibra", "29,90"]]);
+    expect(r.filas[0]?.precio).toBeNull();
+    expect(r.filas[0]?.categoria).toBe("29,90");
+  });
+});
+
+describe("parsearPrecio", () => {
+  it("acepta coma decimal, punto decimal y el símbolo del euro", () => {
+    expect(parsearPrecio("29,90")).toBe(29.9);
+    expect(parsearPrecio("29.90")).toBe(29.9);
+    expect(parsearPrecio(" 29,90 € ")).toBe(29.9);
+  });
+
+  it("entiende el punto como separador de miles cuando hay coma decimal", () => {
+    expect(parsearPrecio("1.234,50")).toBe(1234.5);
+  });
+
+  it("redondea a céntimos", () => {
+    expect(parsearPrecio("10,999")).toBe(11);
+  });
+
+  it("descarta lo que no es un precio", () => {
+    expect(parsearPrecio("")).toBeNull();
+    expect(parsearPrecio(undefined)).toBeNull();
+    expect(parsearPrecio("consultar")).toBeNull();
+    expect(parsearPrecio("-5")).toBeNull();
+    expect(parsearPrecio("99999999")).toBeNull();
+  });
+
+  it("cero es un precio válido: hay servicios gratis", () => {
+    expect(parsearPrecio("0")).toBe(0);
   });
 });

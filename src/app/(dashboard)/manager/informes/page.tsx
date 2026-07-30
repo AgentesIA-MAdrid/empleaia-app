@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { Download, FileSpreadsheet, FileText, BarChart2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FeatureGateClient } from "@/components/feature-gate-client";
+import { InformeVentas } from "@/components/cierre-turno/informe-ventas";
+import { useFeatures } from "@/lib/hooks/use-features";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +39,11 @@ interface Stats {
 
 export default function ManagerInformesPage() {
   const { toast } = useToast();
+  const { data: features } = useFeatures();
+  // La pestaña de Ventas es del módulo "Cierre de turno" (Enterprise).
+  const tieneVentas = features?.booleans?.cierre_turno === true;
+  /** Pestaña activa: asistencia (lo de siempre) o ventas. */
+  const [vista, setVista] = useState<"asistencia" | "ventas">("asistencia");
   const [fechaInicio, setFechaInicio] = useState(
     format(subDays(new Date(), 30), "yyyy-MM-dd")
   );
@@ -104,22 +111,58 @@ export default function ManagerInformesPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Informes</h1>
-          <p className="text-slate-500 text-sm mt-1">Análisis de asistencia de tu sede</p>
+          <p className="text-slate-500 text-sm mt-1">
+            {vista === "ventas"
+              ? "Qué ha vendido tu sede y si cuadra con la caja"
+              : "Análisis de asistencia de tu sede"}
+          </p>
         </div>
-        <div className="flex gap-2">
-          <FeatureGateClient feature="export_excel">
-            <Button variant="outline" disabled={exportando} onClick={() => handleExport("xlsx")}>
-              <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
-            </Button>
-          </FeatureGateClient>
-          <FeatureGateClient feature="export_pdf">
-            <Button variant="outline" disabled={exportando} onClick={() => handleExport("pdf")}>
-              <FileText className="h-4 w-4 mr-2" /> PDF
-            </Button>
-          </FeatureGateClient>
-        </div>
+        {vista === "asistencia" && (
+          <div className="flex gap-2">
+            <FeatureGateClient feature="export_excel">
+              <Button variant="outline" disabled={exportando} onClick={() => handleExport("xlsx")}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
+              </Button>
+            </FeatureGateClient>
+            <FeatureGateClient feature="export_pdf">
+              <Button variant="outline" disabled={exportando} onClick={() => handleExport("pdf")}>
+                <FileText className="h-4 w-4 mr-2" /> PDF
+              </Button>
+            </FeatureGateClient>
+          </div>
+        )}
       </div>
 
+      {/* El informe de ventas es la misma pregunta en otra unidad, así que va
+          como pestaña y no como pantalla aparte. El servidor lo limita a la
+          sede del coordinador. */}
+      {tieneVentas && (
+        <div className="flex gap-2 border-b border-slate-200">
+          {[
+            { key: "asistencia" as const, label: "Asistencia y horas" },
+            { key: "ventas" as const, label: "Ventas" },
+          ].map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setVista(t.key)}
+              aria-current={vista === t.key ? "page" : undefined}
+              className={
+                vista === t.key
+                  ? "px-3 py-2 text-sm font-semibold text-[var(--primary)] border-b-2 border-[var(--primary)] -mb-px"
+                  : "px-3 py-2 text-sm text-slate-500 hover:text-slate-800"
+              }
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {vista === "ventas" ? (
+        <InformeVentas />
+      ) : (
+        <>
       {/* Filtros */}
       <Card>
         <CardContent className="pt-4 pb-4">
@@ -251,6 +294,8 @@ export default function ManagerInformesPage() {
           )}
         </CardContent>
       </Card>
+        </>
+      )}
     </div>
   );
 }

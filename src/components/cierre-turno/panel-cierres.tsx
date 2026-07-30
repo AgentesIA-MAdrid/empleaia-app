@@ -9,9 +9,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { format } from "date-fns";
 import { AlertTriangle, CheckCircle2, CircleDashed } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DetalleCierre } from "@/components/cierre-turno/detalle-cierre";
 
 interface CierreFila {
   id: string;
@@ -31,6 +33,8 @@ export function PanelCierres({ titulo }: { titulo: string }) {
   const [fecha, setFecha] = useState(format(new Date(), "yyyy-MM-dd"));
   const [filas, setFilas] = useState<CierreFila[]>([]);
   const [cargando, setCargando] = useState(true);
+  /** Cierre abierto en el detalle (null = ninguno). */
+  const [detalleId, setDetalleId] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -117,7 +121,7 @@ export function PanelCierres({ titulo }: { titulo: string }) {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    {["Empleado", "Sede", "Estado", "Artículos", "Efectivo", "Tarjeta"].map((h) => (
+                    {["Empleado", "Sede", "Estado", "Artículos", "Efectivo", "Tarjeta", ""].map((h) => (
                       <th
                         key={h}
                         className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3"
@@ -150,6 +154,11 @@ export function PanelCierres({ titulo }: { titulo: string }) {
                       <td className="px-4 py-3 text-sm tabular-nums">{f.articulosVendidos}</td>
                       <td className="px-4 py-3 text-sm tabular-nums">{f.caja ? eur(f.caja.efectivo) : "—"}</td>
                       <td className="px-4 py-3 text-sm tabular-nums">{f.caja ? eur(f.caja.tarjeta) : "—"}</td>
+                      <td className="px-4 py-3 text-right">
+                        <Button variant="ghost" size="sm" onClick={() => setDetalleId(f.id)}>
+                          Ver detalle →
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -158,6 +167,10 @@ export function PanelCierres({ titulo }: { titulo: string }) {
           )}
         </CardContent>
       </Card>
+
+      {/* El detalle trae los archivos y la corrección de la caja; al corregir se
+          recarga el listado para que los totales de arriba no queden viejos. */}
+      <DetalleCierre cierreId={detalleId} onClose={() => setDetalleId(null)} onCorregido={cargar} />
     </div>
   );
 }

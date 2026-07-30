@@ -12,9 +12,6 @@
  *
  * El asistente NO condiciona el fichaje: se puede fichar la salida sin haber
  * cerrado (RD 8/2019, misma regla que el geofencing y el checklist de fichaje).
- *
- * Pendiente de la siguiente entrega: adjuntos (Excel de stock y comprobantes
- * del TPV) y la comparación con objetivos del paso 2.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -41,8 +38,30 @@ interface AdjuntoCierre {
   tamañoBytes: number;
 }
 
+/** Lo que devuelve `/api/cierre-turno/progreso` para el paso 2. */
+interface Progreso {
+  mes: string;
+  preciosActivos: boolean;
+  propio: { vendido: number; objetivo: number | null; consecucion: number | null };
+  sede: { vendido: number; objetivo: number | null; consecucion: number | null } | null;
+  porArticulo: {
+    articuloId: string;
+    nombre: string;
+    vendido: number;
+    objetivo: number | null;
+    importe: number | null;
+  }[];
+}
+
 const kb = (bytes: number) =>
   bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+
+const eur = (n: number) =>
+  new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n);
+
+/** Verde a partir del objetivo, ámbar cerca, rojo si va lejos. */
+const colorPct = (v: number | null) =>
+  v === null ? "text-slate-400" : v >= 100 ? "text-emerald-700 font-semibold" : v >= 80 ? "text-amber-600" : "text-rose-600";
 
 const TITULOS: Record<PasoCierre, string> = {
   ventas: "Ventas del día",
@@ -69,6 +88,8 @@ export function AsistenteCierre() {
   const inputTpv = useRef<HTMLInputElement>(null);
   const [cajaConfirmada, setCajaConfirmada] = useState(false);
   const [cerrado, setCerrado] = useState(false);
+  const [progreso, setProgreso] = useState<Progreso | null>(null);
+  const [cargandoProgreso, setCargandoProgreso] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -251,6 +272,32 @@ export function AsistenteCierre() {
     if (paso === "caja") void cargarAdjuntos();
   }, [paso, cargarAdjuntos]);
 
+  /**
+   * El progreso del mes se pide cada vez que se entra al paso 2, no una sola
+   * vez: si acaba de guardar las ventas de hoy en el paso 1, tiene que verlas
+   * ya contadas.
+   */
+  useEffect(() => {
+    if (paso !== "resultados") return;
+    let cancelado = false;
+    (async () => {
+      setCargandoProgreso(true);
+      try {
+        const res = await fetch("/api/cierre-turno/progreso");
+        if (!res.ok) return;
+        const data = (await res.json()) as Progreso;
+        if (!cancelado) setProgreso(data);
+      } catch {
+        /* sin conexión: se queda con lo último que tuviera */
+      } finally {
+        if (!cancelado) setCargandoProgreso(false);
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [paso]);
+
   /** Paso 4: cierra el turno y, si hay incidencia, dispara el aviso. */
   const cerrarTurno = async () => {
     if (hayIncidencia === null) {
@@ -424,35 +471,98 @@ export function AsistenteCierre() {
       {paso === "resultados" && (
         <Card>
           <CardContent className="pt-4 pb-4">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    {["", "Este mes", "Objetivo", "Consecución"].map((h) => (
-                      <th
-                        key={h}
-                        className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-3 py-2"
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {["Tú", "Tu sede"].map((quien) => (
-                    <tr key={quien} className="border-b border-slate-100 last:border-0">
-                      <td className="px-3 py-2 text-sm font-medium text-slate-800">{quien}</td>
-                      <td className="px-3 py-2 text-sm tabular-nums text-slate-400">—</td>
-                      <td className="px-3 py-2 text-sm tabular-nums text-slate-400">—</td>
-                      <td className="px-3 py-2 text-sm tabular-nums text-slate-400">—</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="text-xs text-slate-400 mt-3">
-              Se rellenará cuando existan objetivos del mes y ventas registradas.
-            </p>
+            {cargandoProgreso ? (
+              <div className="space-y-2">
+                {[1, 2].map((i) => (
+                  <div key={i} className="h-9 bg-slate-100 rounded animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        {["", "Este mes", "Objetivo", "Consecución"].map((h) => (
+                          <th
+                            key={h}
+                            className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-3 py-2"
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { quien: "Tú", dato: progreso?.propio ?? null },
+                        { quien: "Tu sede", dato: progreso?.sede ?? null },
+                      ].map(({ quien, dato }) => (
+                        <tr key={quien} className="border-b border-slate-100 last:border-0">
+                          <td className="px-3 py-2 text-sm font-medium text-slate-800">{quien}</td>
+                          <td className="px-3 py-2 text-sm tabular-nums">
+                            {dato ? dato.vendido : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-sm tabular-nums">
+                            {dato?.objetivo ?? "—"}
+                          </td>
+                          <td className={`px-3 py-2 text-sm tabular-nums ${colorPct(dato?.consecucion ?? null)}`}>
+                            {dato?.consecucion == null ? "—" : `${dato.consecucion} %`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Desglose propio: es donde el comercial ve qué le falta. */}
+                {(progreso?.porArticulo.length ?? 0) > 0 && (
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          {[
+                            "Tus ventas por artículo",
+                            "Este mes",
+                            "Objetivo",
+                            ...(progreso?.preciosActivos ? ["Importe"] : []),
+                          ].map((h) => (
+                            <th
+                              key={h}
+                              className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-3 py-2"
+                            >
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {progreso?.porArticulo.map((a) => (
+                          <tr key={a.articuloId} className="border-b border-slate-100 last:border-0">
+                            <td className="px-3 py-2 text-sm text-slate-800">{a.nombre}</td>
+                            <td className="px-3 py-2 text-sm tabular-nums">{a.vendido}</td>
+                            <td className="px-3 py-2 text-sm tabular-nums text-slate-500">
+                              {a.objetivo ?? "—"}
+                            </td>
+                            {progreso?.preciosActivos && (
+                              <td className="px-3 py-2 text-sm tabular-nums text-slate-500">
+                                {a.importe === null ? "—" : eur(a.importe)}
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                <p className="text-xs text-slate-400 mt-3">
+                  {progreso && progreso.propio.objetivo === null && progreso.sede?.objetivo == null
+                    ? "Tu empresa todavía no ha fijado objetivos para este mes. Aquí verás lo que llevas vendido."
+                    : "Cuenta lo registrado en tus cierres de este mes, incluido el de hoy si ya lo has guardado."}
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       )}

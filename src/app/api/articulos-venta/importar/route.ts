@@ -98,13 +98,26 @@ export const POST = withTenant(
         if (existente) {
           await tx.articuloVenta.update({
             where: { id: existente.id },
-            data: { categoria: fila.categoria, orden: fila.orden, activo: true },
+            data: {
+              categoria: fila.categoria,
+              orden: fila.orden,
+              activo: true,
+              // Sin columna de precio en la hoja no se borra el que ya hubiera:
+              // puede haberlo puesto a mano y una reimportación de nombres no
+              // debería llevárselo por delante.
+              ...(fila.precio !== null ? { precio: fila.precio } : {}),
+            },
           });
           idsEnFichero.push(existente.id);
           actualizados += 1;
         } else {
           const nuevo = await tx.articuloVenta.create({
-            data: { nombre: fila.nombre, categoria: fila.categoria, orden: fila.orden },
+            data: {
+              nombre: fila.nombre,
+              categoria: fila.categoria,
+              orden: fila.orden,
+              precio: fila.precio,
+            },
             select: { id: true },
           });
           idsEnFichero.push(nuevo.id);
@@ -126,6 +139,9 @@ export const POST = withTenant(
       ok: true,
       fichero: nombreFichero,
       conCabecera,
+      // La hoja traía precios: la pantalla lo usa para ofrecer encender el
+      // interruptor de precios si el cliente aún lo tiene apagado.
+      conPrecios: filas.some((f) => f.precio !== null),
       ...resumen,
       ignoradas: ignoradas.slice(0, 20),
       totalIgnoradas: ignoradas.length,

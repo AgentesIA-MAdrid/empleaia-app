@@ -17,6 +17,7 @@ import { subDays, format } from "date-fns";
 import { EmployeeAvatar } from "@/components/ui/employee-avatar";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { descargarCSVHorasPorCentro } from "@/lib/informes/horas-centro-csv";
+import { InformeVentas } from "@/components/cierre-turno/informe-ventas";
 
 /** Origen de las horas del informe por centro: fichadas o planificadas. */
 type OrigenHoras = "fichajes" | "cuadrante";
@@ -65,6 +66,10 @@ function AdminInformesContent() {
   // seguro en `tipo=resumen`. Si el hook falla, `features` se queda a null
   // y seguimos pidiendo: el backend es quien manda.
   const hasAdvanced = features == null || features.booleans?.informes_avanzados === true;
+  // La pestaña de Ventas es del módulo "Cierre de turno" (Enterprise). Sin la
+  // feature no se pinta: el endpoint responde 402 y una pestaña que siempre
+  // falla es peor que no tenerla.
+  const tieneVentas = features?.booleans?.cierre_turno === true;
 
   // Compatibilidad con los enlaces antiguos `?vista=fichajes` (cuando
   // Fichajes e Informes compartían página): llevan a la pantalla nueva.
@@ -81,6 +86,9 @@ function AdminInformesContent() {
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [tiendaId, setTiendaId] = useState<string>("todas");
   const [empleadoId, setEmpleadoId] = useState<string>("todos");
+
+  /** Pestaña activa: asistencia (lo de siempre) o ventas (módulo Enterprise). */
+  const [vista, setVista] = useState<"asistencia" | "ventas">("asistencia");
 
   const [datos, setDatos] = useState<ResumenEmpleado[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -249,44 +257,80 @@ function AdminInformesContent() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Informes</h1>
           <p className="text-slate-500 text-sm mt-1">
-            Análisis de asistencia y horas trabajadas
+            {vista === "ventas"
+              ? "Qué se ha vendido y si el dinero cuadra con la caja"
+              : "Análisis de asistencia y horas trabajadas"}
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button
-            variant="outline"
-            disabled={horasCargando !== null}
-            onClick={() => handleHorasPorCentro("fichajes")}
-          >
-            <BarChart2 className="h-4 w-4 mr-2" />
-            {horasCargando === "fichajes" ? "Generando…" : "Horas fichadas por centro"}
-          </Button>
-          {/* Mismo informe pero con las horas del cuadrante (planificadas).
-              Gateado por la feature de Turnos: sin ella el endpoint responde
-              402 y el botón no debe ni pintarse. */}
-          <FeatureGateClient feature="turnos_publicacion">
+        {vista === "asistencia" && (
+          <div className="flex gap-2 flex-wrap">
             <Button
               variant="outline"
               disabled={horasCargando !== null}
-              onClick={() => handleHorasPorCentro("cuadrante")}
+              onClick={() => handleHorasPorCentro("fichajes")}
             >
-              <CalendarRange className="h-4 w-4 mr-2" />
-              {horasCargando === "cuadrante" ? "Generando…" : "Horas del cuadrante por centro"}
+              <BarChart2 className="h-4 w-4 mr-2" />
+              {horasCargando === "fichajes" ? "Generando…" : "Horas fichadas por centro"}
             </Button>
-          </FeatureGateClient>
-          <FeatureGateClient feature="export_excel">
-            <Button variant="outline" disabled={exportando} onClick={() => handleExport("xlsx")}>
-              <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
-            </Button>
-          </FeatureGateClient>
-          <FeatureGateClient feature="export_pdf">
-            <Button variant="outline" disabled={exportando} onClick={() => handleExport("pdf")}>
-              <FileText className="h-4 w-4 mr-2" /> PDF
-            </Button>
-          </FeatureGateClient>
-        </div>
+            {/* Mismo informe pero con las horas del cuadrante (planificadas).
+                Gateado por la feature de Turnos: sin ella el endpoint responde
+                402 y el botón no debe ni pintarse. */}
+            <FeatureGateClient feature="turnos_publicacion">
+              <Button
+                variant="outline"
+                disabled={horasCargando !== null}
+                onClick={() => handleHorasPorCentro("cuadrante")}
+              >
+                <CalendarRange className="h-4 w-4 mr-2" />
+                {horasCargando === "cuadrante" ? "Generando…" : "Horas del cuadrante por centro"}
+              </Button>
+            </FeatureGateClient>
+            <FeatureGateClient feature="export_excel">
+              <Button variant="outline" disabled={exportando} onClick={() => handleExport("xlsx")}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel
+              </Button>
+            </FeatureGateClient>
+            <FeatureGateClient feature="export_pdf">
+              <Button variant="outline" disabled={exportando} onClick={() => handleExport("pdf")}>
+                <FileText className="h-4 w-4 mr-2" /> PDF
+              </Button>
+            </FeatureGateClient>
+          </div>
+        )}
       </div>
 
+      {/* Ventas es una pestaña y no una pantalla aparte porque es la misma
+          pregunta con otra unidad: aquí horas, allí unidades y euros. Solo
+          aparece con el módulo de cierre de turno contratado. */}
+      {tieneVentas && (
+        <div className="flex gap-2 border-b border-slate-200">
+          {(
+            [
+              { key: "asistencia" as const, label: "Asistencia y horas" },
+              { key: "ventas" as const, label: "Ventas" },
+            ]
+          ).map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setVista(t.key)}
+              aria-current={vista === t.key ? "page" : undefined}
+              className={
+                vista === t.key
+                  ? "px-3 py-2 text-sm font-semibold text-[var(--primary)] border-b-2 border-[var(--primary)] -mb-px"
+                  : "px-3 py-2 text-sm text-slate-500 hover:text-slate-800"
+              }
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {vista === "ventas" ? (
+        <InformeVentas sedes={tiendas} />
+      ) : (
+        <>
       <Card>
         <CardContent className="pt-4 pb-4">
           <div className="flex items-end gap-4 flex-wrap">
@@ -480,6 +524,8 @@ function AdminInformesContent() {
               )}
             </CardContent>
           </Card>
+        </>
+      )}
         </>
       )}
     </div>

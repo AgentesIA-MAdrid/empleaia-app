@@ -9,10 +9,14 @@
  *
  * Los artículos no se borran: se desactivan. Las ventas ya registradas con uno
  * de ellos tienen que seguir siendo legibles.
+ *
+ * Los precios son opcionales y van tras un interruptor: hay clientes que solo
+ * cuentan unidades vendidas. Encendido, el módulo puede leer las ventas en
+ * euros y cruzarlas con lo que hay en caja.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Upload, FileSpreadsheet, Eye, EyeOff } from "lucide-react";
+import { Upload, FileSpreadsheet, Eye, EyeOff, Euro } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,6 +28,7 @@ interface Articulo {
   categoria: string | null;
   orden: number;
   activo: boolean;
+  precio: number | null;
 }
 
 interface ResumenImportacion {
@@ -31,6 +36,7 @@ interface ResumenImportacion {
   actualizados: number;
   desactivados: number;
   conCabecera: boolean;
+  conPrecios: boolean;
   ignoradas: { fila: number; motivo: string }[];
   totalIgnoradas: number;
 }
@@ -41,6 +47,8 @@ export function CatalogoVentasTab() {
   const [cargando, setCargando] = useState(true);
   const [subiendo, setSubiendo] = useState(false);
   const [resumen, setResumen] = useState<ResumenImportacion | null>(null);
+  const [preciosActivos, setPreciosActivos] = useState(false);
+  const [guardandoPrecios, setGuardandoPrecios] = useState(false);
   const inputFichero = useRef<HTMLInputElement>(null);
 
   const cargar = useCallback(async () => {
@@ -48,8 +56,9 @@ export function CatalogoVentasTab() {
     try {
       const res = await fetch("/api/articulos-venta?todos=1");
       if (!res.ok) return;
-      const data = (await res.json()) as { articulos: Articulo[] };
+      const data = (await res.json()) as { articulos: Articulo[]; preciosActivos: boolean };
       setArticulos(data.articulos ?? []);
+      setPreciosActivos(Boolean(data.preciosActivos));
     } finally {
       setCargando(false);
     }
@@ -104,6 +113,50 @@ export function CatalogoVentasTab() {
     }
   };
 
+  /** Enciende o apaga los precios del catálogo (guardado inmediato). */
+  const cambiarPreciosActivos = async (valor: boolean) => {
+    setGuardandoPrecios(true);
+    try {
+      const res = await fetch("/api/configuracion", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ventasPreciosActivos: valor }),
+      });
+      if (!res.ok) {
+        toast({ title: "No se pudo guardar", variant: "destructive" });
+        return;
+      }
+      setPreciosActivos(valor);
+      toast({
+        title: valor ? "Precios activados" : "Precios desactivados",
+        description: valor
+          ? "Ahora puedes poner un precio a cada artículo y ver las ventas en euros."
+          : "El módulo vuelve a contar solo unidades. Los precios que hubieras puesto se conservan.",
+      });
+    } finally {
+      setGuardandoPrecios(false);
+    }
+  };
+
+  /** Guarda el precio de un artículo. Vacío = sin precio (no es cero euros). */
+  const guardarPrecio = async (a: Articulo, valor: string) => {
+    const limpio = valor.trim();
+    const res = await fetch("/api/articulos-venta", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: a.id, precio: limpio === "" ? null : limpio }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast({ title: "No se pudo guardar el precio", description: data.error ?? "", variant: "destructive" });
+      await cargar();
+      return;
+    }
+    setArticulos((prev) =>
+      prev.map((x) => (x.id === a.id ? { ...x, precio: (data as Articulo).precio ?? null } : x)),
+    );
+  };
+
   const cambiarActivo = async (a: Articulo) => {
     const res = await fetch("/api/articulos-venta", {
       method: "PATCH",
@@ -156,8 +209,41 @@ export function CatalogoVentasTab() {
           </div>
           <p className="text-xs text-slate-400">
             Al importar, lo que vuelva a aparecer se actualiza y lo que ya no esté se desactiva
-            —nunca se borra, para no romper el histórico de ventas.
+            —nunca se borra, para no romper el histórico de ventas. Si tu hoja tiene una columna
+            llamada <strong>Precio</strong> (o PVP), se importa también.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-4 pb-4 space-y-3">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-slate-900 flex items-center gap-2">
+                <Euro className="h-4 w-4 text-[var(--primary)]" /> Trabajar con precios
+              </p>
+              <p className="text-xs text-slate-500 mt-1 max-w-xl">
+                Enciéndelo si además de unidades quieres ver el importe vendido y poder cruzarlo
+                con el efectivo y la tarjeta de los cierres. Si tu equipo solo cuenta unidades,
+                déjalo apagado y no se te pedirá ningún precio.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={guardandoPrecios}
+              aria-pressed={preciosActivos}
+              onClick={() => void cambiarPreciosActivos(!preciosActivos)}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                preciosActivos ? "bg-[var(--primary)]" : "bg-slate-200"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  preciosActivos ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
         </CardContent>
       </Card>
 
@@ -173,6 +259,19 @@ export function CatalogoVentasTab() {
               {resumen.desactivados} desactivados
               {resumen.conCabecera ? " · la primera fila se ha tomado como encabezado" : ""}
             </p>
+            {resumen.conPrecios && !preciosActivos && (
+              <p className="text-slate-600">
+                La hoja traía precios y los hemos guardado, pero ahora mismo no se usan.
+                <Button
+                  variant="link"
+                  className="h-auto p-0 ml-1 align-baseline"
+                  disabled={guardandoPrecios}
+                  onClick={() => void cambiarPreciosActivos(true)}
+                >
+                  Activar los precios
+                </Button>
+              </p>
+            )}
             {resumen.totalIgnoradas > 0 && (
               <div>
                 <p className="text-amber-700">
@@ -209,14 +308,16 @@ export function CatalogoVentasTab() {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    {["#", "Artículo o servicio", "Categoría", "Estado", ""].map((h) => (
-                      <th
-                        key={h}
-                        className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3"
-                      >
-                        {h}
-                      </th>
-                    ))}
+                    {["#", "Artículo o servicio", "Categoría", ...(preciosActivos ? ["Precio"] : []), "Estado", ""].map(
+                      (h) => (
+                        <th
+                          key={h}
+                          className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3"
+                        >
+                          {h}
+                        </th>
+                      ),
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -228,6 +329,26 @@ export function CatalogoVentasTab() {
                       <td className="px-4 py-2.5 text-sm text-slate-400 tabular-nums">{i + 1}</td>
                       <td className="px-4 py-2.5 text-sm font-medium text-slate-800">{a.nombre}</td>
                       <td className="px-4 py-2.5 text-sm text-slate-500">{a.categoria ?? "—"}</td>
+                      {preciosActivos && (
+                        <td className="px-4 py-2.5">
+                          {/* Se guarda al salir del campo: rellenar precios es
+                              teclear en cadena, y un botón por fila sobra. */}
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className="w-28 text-right tabular-nums"
+                            defaultValue={a.precio ?? ""}
+                            placeholder="—"
+                            aria-label={`Precio de ${a.nombre}`}
+                            onBlur={(e) => {
+                              const nuevo = e.target.value.trim();
+                              const actual = a.precio === null ? "" : String(a.precio);
+                              if (nuevo !== actual) void guardarPrecio(a, nuevo);
+                            }}
+                          />
+                        </td>
+                      )}
                       <td className="px-4 py-2.5 text-sm">
                         {a.activo ? (
                           <span className="text-emerald-700">Activo</span>
