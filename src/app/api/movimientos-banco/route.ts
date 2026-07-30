@@ -238,11 +238,15 @@ export const POST = withTenant(
     });
 
     if (body.guardarMapeo === true) {
-      await prisma.configuracionEmpresa.update({
+      // `upsert` y no `update`: la fila singleton de configuración se crea de
+      // forma perezosa (la primera visita a Configuración), y un tenant que
+      // nunca ha entrado ahí no tiene por qué perder el mapeo.
+      await prisma.configuracionEmpresa.upsert({
         where: { id: "singleton" },
         // `as never`: el campo es Json y Prisma tipa el input de forma que no
         // acepta una interfaz nuestra directamente.
-        data: { bancoMapeo: mapeo as never },
+        create: { id: "singleton", bancoMapeo: mapeo as never },
+        update: { bancoMapeo: mapeo as never },
       });
     }
 

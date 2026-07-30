@@ -113,6 +113,9 @@ export const GET = withTenant(
     // Movimientos del banco sin sede asignada: no se pueden atribuir a una
     // tienda, así que se muestran aparte en vez de repartirlos a ojo.
     const bancoSinSede = bancoPorSede.get("") ?? { importe: 0, n: 0 };
+    // Lo mismo con las cajas de gente sin sede: si no se dijeran, el total de
+    // la pantalla no sumaría lo que hay en la BD y parecería que falta dinero.
+    const cajaSinSede = cajaPorSede.get("") ?? { efectivo: 0, tarjeta: 0, cajas: 0 };
 
     const filas = sedes.map((s) => {
       const caja = cajaPorSede.get(s.id) ?? { efectivo: 0, tarjeta: 0, cajas: 0 };
@@ -158,6 +161,7 @@ export const GET = withTenant(
       umbral,
       filas,
       bancoSinSede,
+      cajaSinSede,
       totales: {
         efectivoCierres: Math.round(suma((f) => f.efectivo.segunCierres) * 100) / 100,
         efectivoArqueos: Math.round(suma((f) => f.efectivo.segunArqueos) * 100) / 100,

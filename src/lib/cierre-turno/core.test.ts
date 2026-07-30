@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   alcanceSegunRol,
+  filtroSede,
   puedeVerObjetivos,
   puedeVerConciliacion,
   puedeFijarObjetivos,
@@ -284,5 +285,28 @@ describe("día del cierre en hora de Madrid", () => {
 
   it("funciona igual en invierno (CET, +01:00)", () => {
     expect(diaMadrid(new Date("2026-01-15T23:30:00Z"))).toBe("2026-01-16");
+  });
+});
+
+describe("filtroSede — por qué sede filtra cada rol", () => {
+  it("administración lo ve todo, y puede pedir una sede", () => {
+    expect(filtroSede("OWNER", null, null)).toEqual({ tipo: "todas" });
+    expect(filtroSede("OWNER", null, "t9")).toEqual({ tipo: "sede", tiendaId: "t9" });
+  });
+
+  it("el coordinador va atado a la suya aunque pida otra", () => {
+    expect(filtroSede("MANAGER", "t1", "t9")).toEqual({ tipo: "sede", tiendaId: "t1" });
+  });
+
+  it("un comercial, igual", () => {
+    expect(filtroSede("EMPLEADO", "t1", "t9")).toEqual({ tipo: "sede", tiendaId: "t1" });
+  });
+
+  it("con alcance de sede y SIN sede asignada no ve todas: no ve ninguna", () => {
+    // El bug que esto cierra: construir el where con
+    // `...(tiendaId ? { tiendaId } : {})` hace desaparecer el filtro con null,
+    // y esa persona termina viendo la caja de todas las tiendas.
+    expect(filtroSede("MANAGER", null, null)).toEqual({ tipo: "ninguna" });
+    expect(filtroSede("EMPLEADO", null, "t9")).toEqual({ tipo: "ninguna" });
   });
 });

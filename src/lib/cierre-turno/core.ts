@@ -31,6 +31,32 @@ export function alcanceSegunRol(rol: string): AlcanceCierre {
   return "propio";
 }
 
+/**
+ * Por qué sede filtrar una consulta del módulo.
+ *
+ * El caso que esto cierra: alguien con alcance de sede (coordinador, comercial)
+ * pero **sin sede asignada**. Si el filtro se construye con
+ * `...(tiendaId ? { tiendaId } : {})`, ese `null` hace desaparecer el filtro y
+ * la persona termina viendo la caja de todas las tiendas. Aquí ese caso es
+ * `"ninguna"`: no hay nada que enseñarle, que es distinto de "enséñale todo".
+ */
+export type FiltroSede =
+  | { tipo: "todas" }
+  | { tipo: "sede"; tiendaId: string }
+  | { tipo: "ninguna" };
+
+export function filtroSede(
+  rol: string,
+  tiendaPropia: string | null,
+  sedePedida?: string | null,
+): FiltroSede {
+  if (alcanceSegunRol(rol) === "todos") {
+    return sedePedida ? { tipo: "sede", tiendaId: sedePedida } : { tipo: "todas" };
+  }
+  // El resto va atado a su sede aunque pida otra por querystring.
+  return tiendaPropia ? { tipo: "sede", tiendaId: tiendaPropia } : { tipo: "ninguna" };
+}
+
 /** Áreas que solo ven coordinadores y administradores. */
 export function puedeVerObjetivos(rol: string): boolean {
   return rol === "OWNER" || rol === "MANAGER";

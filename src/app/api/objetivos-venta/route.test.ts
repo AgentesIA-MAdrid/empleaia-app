@@ -137,6 +137,20 @@ describe("GET /api/objetivos-venta", () => {
     );
   });
 
+  it("un coordinador SIN sede asignada no ve las ventas de todas las tiendas", async () => {
+    // El bug que esto cierra: con `tiendaId` null el filtro desaparecía del
+    // where y el coordinador terminaba viendo la caja de toda la empresa.
+    sesion.user = { id: "u_jefe", rol: "MANAGER", tiendaId: null, name: "Jefe" };
+    const res = await get();
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { filas: unknown[]; sinSede: boolean };
+    expect(data.sinSede).toBe(true);
+    expect(data.filas).toEqual([]);
+    // Y no se ha consultado nada de la BD del tenant.
+    expect(prismaMock.cierreTurno.findMany).not.toHaveBeenCalled();
+    expect(prismaMock.user.findMany).not.toHaveBeenCalled();
+  });
+
   it("administración puede escribir", async () => {
     const res = await get();
     expect(res.status).toBe(200);

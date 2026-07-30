@@ -20,7 +20,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
-import { diaMadrid, puedeFijarObjetivos, puedeVerObjetivos } from "@/lib/cierre-turno/core";
+import { diaMadrid, filtroSede, puedeFijarObjetivos, puedeVerObjetivos } from "@/lib/cierre-turno/core";
 import {
   ambitoDe,
   normalizarCantidadObjetivo,
@@ -77,8 +77,25 @@ export const GET = withTenant(
     const ambito: AmbitoObjetivo = url.searchParams.get("ambito") === "sede" ? "sede" : "comercial";
     const articuloId = url.searchParams.get("articuloId") || null;
 
-    // El coordinador va atado a su sede aunque pida otra.
-    const sedeFiltro = s.rol === "OWNER" ? url.searchParams.get("tiendaId") || null : s.tiendaId;
+    // El coordinador va atado a su sede aunque pida otra. Sin sede asignada no
+    // ve todas las sedes: no ve ninguna (ver `filtroSede`).
+    const filtro = filtroSede(s.rol, s.tiendaId, url.searchParams.get("tiendaId"));
+    if (filtro.tipo === "ninguna") {
+      return NextResponse.json({
+        mes,
+        ambito,
+        articuloId,
+        soloLectura: true,
+        preciosActivos: false,
+        articulos: [],
+        sedes: [],
+        filas: [],
+        objetivosDelMes: [],
+        resumen: { objetivo: 0, vendido: 0, conObjetivo: 0 },
+        sinSede: true,
+      });
+    }
+    const sedeFiltro = filtro.tipo === "sede" ? filtro.tiendaId : null;
 
     const [objetivos, ventas, articulos, sedes, personas, preciosOn] = await Promise.all([
       prisma.objetivoVenta.findMany({
