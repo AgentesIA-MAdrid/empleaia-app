@@ -240,6 +240,19 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
             {ambito === "sede" &&
               " El objetivo de una sede se compara con lo que vende la sede completa, no con la suma de los de su equipo."}
           </p>
+          {/* Sin catálogo, "Sobre" solo ofrece unidades totales: hay que decir
+              dónde se definen los productos, o el objetivo por producto parece
+              que no existe. */}
+          {!soloLectura && (datos?.articulos.length ?? 0) === 0 && (
+            <p className="text-xs text-amber-700 mt-2">
+              Todavía no tienes productos en el catálogo, así que solo puedes fijar objetivos de
+              unidades totales. Añádelos en{" "}
+              <a href="/admin/configuracion?tab=catalogo" className="underline font-medium">
+                Configuración → Catálogo de ventas
+              </a>{" "}
+              (pospago, fibra, renove…) y podrás fijar un objetivo por producto.
+            </p>
+          )}
         </CardContent>
       </Card>
 

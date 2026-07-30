@@ -86,6 +86,39 @@ function detectarCabecera(primera: string[]): {
 }
 
 /**
+ * Clave con la que dos artículos se consideran el mismo: sin tildes, sin
+ * mayúsculas y sin espacios de más. Se usa para no crear "Energía" y "energia"
+ * como dos filas distintas, ni al importar ni al añadir a mano.
+ */
+export function claveArticulo(nombre: string): string {
+  return normalizar(nombre.replace(/\s+/g, " "));
+}
+
+/**
+ * Nombre de artículo tal y como se guarda cuando se escribe a mano (el
+ * importador tiene su propio recorte por fila). Devuelve el motivo del rechazo
+ * en vez de un booleano: es el texto que ve quien lo está escribiendo.
+ */
+export function normalizarNombreArticulo(
+  bruto: unknown,
+): { ok: true; nombre: string } | { ok: false; error: string } {
+  const nombre = typeof bruto === "string" ? bruto.trim().replace(/\s+/g, " ") : "";
+  if (nombre.length < 2) {
+    return { ok: false, error: "Escribe el nombre del artículo (al menos 2 letras)." };
+  }
+  if (nombre.length > CATALOGO_NOMBRE_MAX) {
+    return { ok: false, error: `El nombre pasa de ${CATALOGO_NOMBRE_MAX} caracteres.` };
+  }
+  return { ok: true, nombre };
+}
+
+/** Categoría escrita a mano: vacía es "sin categoría", no una cadena vacía. */
+export function normalizarCategoriaArticulo(bruto: unknown): string | null {
+  const c = typeof bruto === "string" ? bruto.trim().replace(/\s+/g, " ") : "";
+  return c ? c.slice(0, 80) : null;
+}
+
+/**
  * Precio de una celda de Excel. Acepta "12,50", "12.50", "12,50 €" y miles
  * con punto ("1.234,50"): las hojas de precios españolas vienen así.
  * Devuelve null si no hay número aprovechable, y nunca un negativo.
