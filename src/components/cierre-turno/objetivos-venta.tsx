@@ -65,6 +65,8 @@ interface Respuesta {
   filas: Fila[];
   objetivosDelMes: ObjetivoDelMes[];
   resumen: { objetivo: number; vendido: number; conObjetivo: number };
+  /** El servidor no ha podido acotar por sede: esta persona no tiene ninguna. */
+  sinSede?: boolean;
 }
 
 const eur = (n: number) =>
@@ -279,6 +281,11 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
                 <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />
               ))}
             </div>
+          ) : datos?.sinSede ? (
+            <p className="text-center py-10 text-slate-500 text-sm max-w-md mx-auto">
+              No tienes ninguna sede asignada, así que no hay objetivos que consultar. Pídele a
+              administración que te asigne tu punto de venta.
+            </p>
           ) : (datos?.filas.length ?? 0) === 0 ? (
             <p className="text-center py-10 text-slate-400 text-sm">
               {ambito === "sede"

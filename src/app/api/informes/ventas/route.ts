@@ -20,7 +20,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
-import { alcanceSegunRol, diaMadrid } from "@/lib/cierre-turno/core";
+import { alcanceSegunRol, diaMadrid, filtroSede } from "@/lib/cierre-turno/core";
 import { importeVendido } from "@/lib/cierre-turno/objetivos";
 import {
   preciosActivos as leerPreciosActivos,
@@ -68,8 +68,32 @@ export const GET = withTenant(
       return NextResponse.json({ error: "El periodo no puede pasar de un año." }, { status: 400 });
     }
 
-    // El coordinador no puede ampliar el alcance por querystring.
-    const tiendaId = alcance === "sede" ? tiendaPropia : url.searchParams.get("tiendaId") || null;
+    // El coordinador no puede ampliar el alcance por querystring, y sin sede
+    // asignada no ve todas las sedes: no ve ninguna (ver `filtroSede`).
+    const filtro = filtroSede(rol, tiendaPropia, url.searchParams.get("tiendaId"));
+    if (filtro.tipo === "ninguna") {
+      return NextResponse.json({
+        desde: desdeStr,
+        hasta: hastaStr,
+        alcance,
+        preciosActivos: false,
+        porArticulo: [],
+        porComercial: [],
+        porSede: [],
+        totales: {
+          unidades: 0,
+          importe: null,
+          unidadesSinPrecio: 0,
+          cierres: 0,
+          cajas: 0,
+          efectivo: 0,
+          tarjeta: 0,
+          caja: 0,
+        },
+        sinSede: true,
+      });
+    }
+    const tiendaId = filtro.tipo === "sede" ? filtro.tiendaId : null;
     const userId = url.searchParams.get("userId") || null;
 
     const [ventas, articulos, personas, sedes, caja, preciosOn, cierres] = await Promise.all([

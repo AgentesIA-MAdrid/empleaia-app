@@ -49,6 +49,7 @@ interface Conciliacion {
   umbral: number;
   filas: Fila[];
   bancoSinSede: { importe: number; n: number };
+  cajaSinSede: { efectivo: number; tarjeta: number; cajas: number };
   totales: {
     efectivoCierres: number;
     efectivoArqueos: number;
@@ -367,6 +368,18 @@ export function PanelConciliacion() {
               </CardContent>
             </Card>
           ))}
+
+          {(datos?.cajaSinSede.cajas ?? 0) > 0 && (
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 flex items-start gap-2">
+              <HelpCircle className="h-4 w-4 mt-0.5 shrink-0 text-slate-400" />
+              <span>
+                Hay {datos?.cajaSinSede.cajas} cierres de caja de gente sin sede asignada
+                ({eur(datos?.cajaSinSede.efectivo ?? 0)} en efectivo y{" "}
+                {eur(datos?.cajaSinSede.tarjeta ?? 0)} con tarjeta) que no aparecen en ninguna fila
+                de arriba. Asigna sede a esas personas en Empleados para que entren en los cuadres.
+              </span>
+            </div>
+          )}
 
           {(datos?.bancoSinSede.n ?? 0) > 0 && (
             <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 flex items-start gap-2">

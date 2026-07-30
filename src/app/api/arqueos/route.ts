@@ -22,7 +22,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
-import { diferenciaArqueo, esDescuadre } from "@/lib/cierre-turno/core";
+import { diferenciaArqueo, esDescuadre, filtroSede } from "@/lib/cierre-turno/core";
 import {
   normalizarEfectivoArqueo,
   normalizarSemana,
@@ -62,8 +62,23 @@ export const GET = withTenant(
     const semana = semanaOk.semana;
     const { desde, hasta } = rangoSemanaISO(semana);
 
-    // Solo administración elige sede; el resto va atado a la suya.
-    const tiendaFiltro = s.rol === "OWNER" ? url.searchParams.get("tiendaId") || null : s.tiendaId;
+    // Solo administración elige sede; el resto va atado a la suya. Y quien
+    // tiene alcance de sede pero ninguna asignada NO ve todas: no ve ninguna.
+    const filtro = filtroSede(s.rol, s.tiendaId, url.searchParams.get("tiendaId"));
+    if (filtro.tipo === "ninguna") {
+      return NextResponse.json({
+        semana,
+        semanaTexto: semanaLegible(semana),
+        desde: desde.toISOString().slice(0, 10),
+        hasta: hasta.toISOString().slice(0, 10),
+        umbral: await umbralDescuadre(prisma),
+        yo: { rol: s.rol, puedeRecoger: false, tienePin: false },
+        autorizados: [],
+        filas: [],
+        sinSede: true,
+      });
+    }
+    const tiendaFiltro = filtro.tipo === "sede" ? filtro.tiendaId : null;
 
     const [arqueos, sedes, porSede, umbral, quien] = await Promise.all([
       prisma.arqueo.findMany({

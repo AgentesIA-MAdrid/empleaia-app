@@ -1,4 +1,4 @@
-# Handoff — estado del proyecto a 2026-07-28
+# Handoff — estado del proyecto a 2026-07-30
 
 Documento para retomar el trabajo desde otra cuenta de Claude (o
 máquina). Resume lo que hay en marcha, decisiones recientes y
@@ -73,7 +73,104 @@ Producción ya corre desde esta rama vía Dokploy.
   `withTenant`, pages usan `withTenantPage`, no `fetch` interno entre
   rutas, etc.).
 
-## 4.hoy. Lo último que hicimos (sesión 2026-07-28)
+## 4.hoy. Lo último que hicimos (sesión 2026-07-29 → 30): módulo "Cierre de turno" COMPLETO
+
+Las 4 entregas del módulo están en `feature/saas-migration` y
+desplegadas. **Invisible para los clientes**: la feature `cierre_turno`
+está declarada solo en el plan Enterprise (`prisma/seeds/master.ts`) y
+**NO** sembrada en la BD de producción, así que ninguna pantalla se ve.
+El menú usa `ocultarSiBloqueado` para no pintar candados de algo que
+todavía no se vende.
+
+PRs de esta sesión: **#92** (entrega 3) y **#93** (entrega 4). Antes:
+#85 a #91 (entregas 1 y 2).
+
+### Qué hay, por entrega
+
+1. **Entrega 1-2 (ya estaban)** — 9 tablas + `puede_recoger_efectivo` /
+   `pin_recogida_hash` en `User`; asistente diario de 4 pasos con
+   guardado real; caja inmutable al confirmar; corrección por
+   administrador con motivo y rastro en `CierreCajaEdicion`; correo de
+   incidencia; adjuntos (10 MB: Excel/CSV/PDF/foto); catálogo importable
+   desde Excel o CSV; cron `/api/cron/cierres-incompletos` (uno para
+   todo el SaaS, corre cada hora, cada cliente elige su hora local y
+   zona en Configuración → Notificaciones; ya programado en Dokploy
+   `0 * * * *`).
+2. **Entrega 3 (PR #92)** — objetivos de venta reales: se fijan por mes,
+   para un comercial o una sede, sobre unidades totales o un artículo.
+   `/admin/objetivos-venta` escribe, `/manager/objetivos-venta` es la
+   misma pantalla en lectura y limitada a su sede. El paso 2 del
+   asistente ("Cómo vas") ya trae datos. Informe de ventas como
+   **pestaña** de `/admin/informes` y `/manager/informes` (por artículo,
+   comercial y sede, más el cruce con la caja). Detalle del cierre para
+   administración, con adjuntos descargables y corrección de la caja.
+   Precios en el catálogo tras un interruptor por cliente
+   (`ventasPreciosActivos`).
+3. **Entrega 4 (PR #93)** — arqueos semanales por sede y semana ISO, con
+   recogida firmada por PIN (bcrypt, bloqueo temporal de 15 min tras 5
+   fallos, gestión de autorizados y PIN desde la propia pantalla) y
+   correo-resguardo. Conciliación con los dos cuadres (efectivo vs
+   arqueos, tarjeta vs banco), umbral de descuadre configurable
+   (`descuadreUmbral`, 1 € por defecto) e importador de movimientos
+   bancarios **con mapeo de columnas por cliente** (`bancoMapeo`).
+
+### Decisiones que no hay que reabrir
+
+- **Cada comercial cierra SU caja**, no una por tienda y turno: es lo
+  que permite atribuir un descuadre a una persona.
+- **Nada del módulo puede impedir fichar** (RD 8/2019), igual que el
+  geofencing estricto y el checklist de fichaje.
+- **Inmutable con rastro**: no basta impedir editar; hay que registrar
+  quién, cuándo, qué valor había antes y por qué.
+- **Todo configurable por cliente**: catálogo, precios, formato del
+  Excel del banco, quién recoge efectivo, hora del aviso, umbral de
+  descuadre. Si algo varía entre clientes, va como configuración del
+  tenant y no como constante del producto.
+- **Distinguir "descuadre" de "falta el dato"**: sin arqueo declarado o
+  sin extracto importado no se marca descuadre. Marcarlo sería un falso
+  positivo garantizado y la pantalla dejaría de creerse.
+
+### Trampas encontradas (evitan bugs silenciosos)
+
+- **`upsert` sobre una unique con NULLs no dedupe.** `ObjetivoVenta`
+  tiene `@@unique([mes, userId, tiendaId, articuloId])` y tres de esos
+  campos son opcionales; en Postgres dos NULL no son iguales, así que el
+  upsert iría creando duplicados. Se usa `findFirst` + `update`/`create`
+  en transacción (ver `src/app/api/objetivos-venta/route.ts`).
+- **Importación bancaria idempotente**: si el extracto no trae
+  referencia se genera una determinista del propio movimiento (fecha +
+  importe + concepto + sede). Volver a subir el mismo fichero —que es lo
+  que siempre pasa— no duplica nada.
+- **Congelar lo comparado**: al firmar una recogida se guarda
+  `efectivoCierres`. Si mañana se corrige un cierre de esa semana, lo
+  que se firmó aquel día no cambia.
+- **Alcance en la consulta, no después**: `/api/cierre-turno/detalle`
+  filtra por rol dentro del `where` y devuelve **404, no 403**, cuando
+  el id queda fuera de alcance (un 403 confirmaría que existe).
+
+### Lógica pura y tests
+
+`src/lib/cierre-turno/`: `core`, `catalogo`, `catalogo-excel`,
+`vigilancia`, `objetivos`, `arqueos`, `banco` (+ `ventas-queries`,
+`caja-queries`, `notify`). **594 tests** en el repo (479 al empezar la
+sesión). Migraciones de tenant nuevas, todas idempotentes y probadas dos
+veces contra el Postgres local: `20260730120000_ventas_precios` y
+`20260730160000_arqueos_conciliacion`.
+
+### Cómo activarlo en un cliente
+
+Sembrar la feature `cierre_turno` para su plan/tenant en
+`master.plan_features` / `master.tenant_features` (hoy no está sembrada
+en ningún sitio de producción). En cuanto exista con `value = true`, el
+menú "VENTAS Y CAJA" aparece solo.
+
+### Pendiente del módulo
+
+- Probarlo end-to-end con datos reales de un cliente (mobileshop es el
+  candidato) antes de venderlo.
+- Precio del plan Enterprise con el módulo: sin decidir.
+
+## 4.ayer. Sesión 2026-07-28
 
 Tres tickets de Mobileshop + limpieza de PRs y de vulnerabilidades.
 Todo mergeado a `feature/saas-migration` y desplegado (deploys `done`,

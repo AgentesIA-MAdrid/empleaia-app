@@ -49,8 +49,10 @@ export const GET = withTenant(
         select: { id: true, mes: true, userId: true, tiendaId: true, articuloId: true, cantidad: true },
       }),
       // Las ventas de toda la sede: hacen falta para el total de la tienda, y
-      // las propias son un subconjunto.
-      ventasAgregadas(prisma, { mes, tiendaId }),
+      // las propias son un subconjunto. Sin sede asignada se piden solo las
+      // suyas: con `tiendaId: null` el filtro desaparecería y traeríamos las
+      // ventas de toda la empresa para nada.
+      ventasAgregadas(prisma, tiendaId ? { mes, tiendaId } : { mes, userId }),
       prisma.articuloVenta.findMany({
         where: { activo: true },
         select: { id: true, nombre: true, precio: true },

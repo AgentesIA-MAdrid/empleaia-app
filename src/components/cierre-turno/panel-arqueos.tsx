@@ -48,6 +48,8 @@ interface Respuesta {
   yo: { rol: string; puedeRecoger: boolean; tienePin: boolean };
   autorizados: { id: string; nombre: string; conPin: boolean }[];
   filas: FilaArqueo[];
+  /** El servidor no ha podido acotar por sede: esta persona no tiene ninguna. */
+  sinSede?: boolean;
 }
 
 const eur = (n: number) =>
@@ -252,6 +254,15 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
             {[1, 2].map((i) => (
               <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />
             ))}
+          </CardContent>
+        </Card>
+      ) : datos?.sinSede ? (
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <p className="text-center py-8 text-slate-500 text-sm max-w-md mx-auto">
+              No tienes ninguna sede asignada, así que no hay efectivo que arquear. Pídele a
+              administración que te asigne tu punto de venta.
+            </p>
           </CardContent>
         </Card>
       ) : (datos?.filas.length ?? 0) === 0 ? (
