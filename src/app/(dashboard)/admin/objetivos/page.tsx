@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Target, Plus, Trash2, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Target, Plus, Trash2, CheckCircle2, XCircle, Loader2, TrendingUp } from "lucide-react";
+import { useFeatures } from "@/lib/hooks/use-features";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,6 +42,12 @@ const ESTADO_CLS: Record<Objetivo["estado"], string> = {
 
 export default function ObjetivosPage() {
   const { toast } = useToast();
+  // Esta pantalla son objetivos de avance manual. Quien busca "cuántas altas
+  // lleva cada comercial" quiere la otra, y llegaba aquí por el nombre; el
+  // aviso solo se pinta si el módulo de ventas está contratado, igual que el
+  // menú, para no ofrecer lo que no se puede abrir.
+  const { data: features } = useFeatures();
+  const tieneVentas = features?.booleans?.cierre_turno === true;
   const [objetivos, setObjetivos] = useState<Objetivo[]>([]);
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [loading, setLoading] = useState(true);
@@ -160,6 +168,28 @@ export default function ObjetivosPage() {
           <Plus className="h-4 w-4 mr-1.5" /> Nuevo objetivo
         </Button>
       </div>
+
+      {tieneVentas && (
+        <Card className="border-[var(--primary)]/20 bg-[var(--primary)]/5">
+          <CardContent className="py-4 flex items-start gap-3">
+            <TrendingUp className="h-5 w-5 text-[var(--primary)] shrink-0 mt-0.5" />
+            <div className="text-sm text-slate-700">
+              <p>
+                ¿Buscas los objetivos de venta por producto (pospago, fibra, renove…)? Se fijan
+                por comercial y por punto de venta en{" "}
+                <Link href="/admin/objetivos-venta" className="font-semibold text-[var(--primary)] underline">
+                  Objetivos de venta
+                </Link>
+                , y se comparan solos con lo que el equipo registra al cerrar el turno.
+              </p>
+              <p className="text-slate-500 mt-1">
+                Los productos sobre los que fijar objetivo se definen en Configuración →
+                Catálogo de ventas.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
