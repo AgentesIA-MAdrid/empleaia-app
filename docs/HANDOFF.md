@@ -157,12 +157,44 @@ sesión). Migraciones de tenant nuevas, todas idempotentes y probadas dos
 veces contra el Postgres local: `20260730120000_ventas_precios` y
 `20260730160000_arqueos_conciliacion`.
 
+### Interruptor "en rodaje" (PR #96)
+
+`ConfiguracionEmpresa.cierreTurnoEnRodaje` arranca en **true**: al
+contratar el módulo lo ve solo administración, para que pueda subir el
+catálogo, repartir los PIN de recogida y fijar los objetivos antes de que
+le aparezca en el menú a toda la plantilla. Se abre con un botón en
+Configuración → Catálogo de ventas.
+
+Es una regla de **menú**, no un permiso: las rutas siguen accesibles
+(el proxy solo filtra `/admin` y `/manager`), así que un administrador
+puede probar el asistente del comercial —que vive bajo `/empleado`—
+antes de abrirlo. El gate real sigue siendo `withFeature`. La regla vive
+en `src/lib/cierre-turno/visibilidad.ts` con tests.
+
+Nació de un caso real: al activar la feature en mobileshop, los 36
+empleados de Neksus vieron aparecer "VENTAS Y CAJA" sin catálogo subido.
+
 ### Cómo activarlo en un cliente
 
-Sembrar la feature `cierre_turno` para su plan/tenant en
-`master.plan_features` / `master.tenant_features` (hoy no está sembrada
-en ningún sitio de producción). En cuanto exista con `value = true`, el
-menú "VENTAS Y CAJA" aparece solo.
+Tres inserts en `master` y un reinicio de la app:
+
+1. `master.features` — la fila `cierre_turno`. Sin ella, `hasFeature`
+   hace fail-closed (402) aunque el tenant la tenga.
+2. `master.plan_features` — `(enterprise, cierre_turno, true)`.
+3. `master.tenant_features` — `(slug, cierre_turno, true, 'plan')`.
+
+**El catálogo de features se cachea por proceso sin TTL**
+(`_featureCatalog`), así que hay que reiniciar:
+`docker service update --force empleaia-empleaiaapp-apdwzc`.
+Verificación rápida sin sesión: `/api/cierre-turno` pasa de **402** a
+**401**.
+
+Hecho el 2026-07-30 para **mobileshop**. Al activarlo se le **apagó el
+aviso diario** de cierres incompletos (`aviso_cierres_activo = false`):
+tienen 36 turnos publicados al día y a las 23:00 los 3 OWNER habrían
+recibido un correo diciendo que 36 personas no han cerrado su turno, sin
+que nadie hubiera usado aún el módulo. Se reactiva desde Configuración →
+Notificaciones cuando el equipo lo use.
 
 ### Pendiente del módulo
 
