@@ -10,8 +10,9 @@
  * (pospago, fibra, renove, prepago, energía…) no debería tener que montar una
  * hoja de cálculo para empezar.
  *
- * PATCH /api/articulos-venta — retoca un artículo (nombre, categoría, orden,
- * precio, si cuenta para los objetivos) o lo desactiva. Solo administración.
+ * PATCH /api/articulos-venta — retoca un artículo (nombre, categoría,
+ * subcategoría, orden, precio, si cuenta para los objetivos) o lo desactiva.
+ * Solo administración.
  * Nunca se borra: las ventas ya registradas con él tienen que seguir siendo
  * legibles.
  *
@@ -43,6 +44,7 @@ const CAMPOS_ARTICULO = {
   id: true,
   nombre: true,
   categoria: true,
+  subcategoria: true,
   orden: true,
   activo: true,
   precio: true,
@@ -109,6 +111,7 @@ export const POST = withTenant(
     const body = (await req.json().catch(() => null)) as {
       nombre?: unknown;
       categoria?: unknown;
+      subcategoria?: unknown;
       precio?: unknown;
     } | null;
     if (!body) return NextResponse.json({ error: "Datos no válidos" }, { status: 400 });
@@ -116,6 +119,8 @@ export const POST = withTenant(
     const nombreOk = normalizarNombreArticulo(body.nombre);
     if (!nombreOk.ok) return NextResponse.json({ error: nombreOk.error }, { status: 400 });
     const categoria = normalizarCategoriaArticulo(body.categoria);
+    // Mismas reglas que la categoría: es el segundo nivel del mismo árbol.
+    const subcategoria = normalizarCategoriaArticulo(body.subcategoria);
 
     let precio: number | null = null;
     if (body.precio !== undefined && body.precio !== null && body.precio !== "") {
@@ -141,7 +146,13 @@ export const POST = withTenant(
         // artículo.
         const revivido = await tx.articuloVenta.update({
           where: { id: existente.id },
-          data: { nombre: nombreOk.nombre, categoria, activo: true, ...(precio !== null ? { precio } : {}) },
+          data: {
+            nombre: nombreOk.nombre,
+            categoria,
+            subcategoria,
+            activo: true,
+            ...(precio !== null ? { precio } : {}),
+          },
           select: CAMPOS_ARTICULO,
         });
         return { estado: "reactivado" as const, articulo: revivido };
@@ -155,7 +166,7 @@ export const POST = withTenant(
       // comercial ve la tabla, y lo nuevo se añade abajo.
       const orden = previos.reduce((max, p) => Math.max(max, p.orden), -1) + 1;
       const nuevo = await tx.articuloVenta.create({
-        data: { nombre: nombreOk.nombre, categoria, orden, precio },
+        data: { nombre: nombreOk.nombre, categoria, subcategoria, orden, precio },
         select: CAMPOS_ARTICULO,
       });
       return { estado: "creado" as const, articulo: nuevo };
@@ -190,6 +201,7 @@ export const PATCH = withTenant(
       id?: unknown;
       nombre?: unknown;
       categoria?: unknown;
+      subcategoria?: unknown;
       orden?: unknown;
       activo?: unknown;
       precio?: unknown;
@@ -202,6 +214,7 @@ export const PATCH = withTenant(
     const data: {
       nombre?: string;
       categoria?: string | null;
+      subcategoria?: string | null;
       orden?: number;
       activo?: boolean;
       precio?: number | null;
@@ -225,6 +238,9 @@ export const PATCH = withTenant(
     }
     if (body.categoria !== undefined) {
       data.categoria = normalizarCategoriaArticulo(body.categoria);
+    }
+    if (body.subcategoria !== undefined) {
+      data.subcategoria = normalizarCategoriaArticulo(body.subcategoria);
     }
     if (typeof body.orden === "number" && Number.isInteger(body.orden) && body.orden >= 0) {
       data.orden = body.orden;

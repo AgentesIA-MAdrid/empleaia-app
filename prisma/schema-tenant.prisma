@@ -1745,6 +1745,11 @@ model ArticuloVenta {
   /// Agrupa filas en la tabla del cierre ("Telefonía", "Servicios"…) y es el
   /// grupo sobre el que se pueden fijar objetivos (`ObjetivoVenta.categoria`).
   categoria String?
+  /// Segundo nivel dentro de la categoría ("Pospago" dentro de "Telefonía").
+  /// Solo ordena y agrupa el catálogo —en Configuración y en la tabla del
+  /// cierre—; los objetivos se siguen fijando sobre la categoría, que es el
+  /// nivel con el que trabaja el cliente al marcar cifras.
+  subcategoria String?
   orden     Int     @default(0)
   activo    Boolean @default(true)
   /// Precio de venta unitario. Solo se usa si el cliente enciende los precios

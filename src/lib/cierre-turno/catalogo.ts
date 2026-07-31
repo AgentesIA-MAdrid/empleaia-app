@@ -15,11 +15,27 @@
 /** Nombres de columna que reconocemos, normalizados (sin tildes ni mayúsculas). */
 const CABECERAS_NOMBRE = ["nombre", "articulo", "artículo", "servicio", "producto", "concepto", "descripcion", "descripción"];
 const CABECERAS_CATEGORIA = ["categoria", "categoría", "familia", "grupo", "tipo", "seccion", "sección"];
+const CABECERAS_SUBCATEGORIA = [
+  "subcategoria",
+  "subcategoría",
+  "sub categoria",
+  "sub categoría",
+  "subfamilia",
+  "sub familia",
+  "subgrupo",
+  "sub grupo",
+  "subtipo",
+  "sub tipo",
+  "subseccion",
+  "subsección",
+];
 const CABECERAS_PRECIO = ["precio", "pvp", "importe", "tarifa", "coste", "euros"];
 
 export interface FilaCatalogo {
   nombre: string;
   categoria: string | null;
+  /** Segundo nivel dentro de la categoría, si la hoja traía esa columna. */
+  subcategoria: string | null;
   orden: number;
   /** Precio unitario, si la hoja traía una columna de precio. */
   precio: number | null;
@@ -54,10 +70,12 @@ function detectarCabecera(primera: string[]): {
   esCabecera: boolean;
   colNombre: number;
   colCategoria: number;
+  colSubcategoria: number;
   colPrecio: number;
 } {
   let colNombre = 0;
   let colCategoria = -1;
+  let colSubcategoria = -1;
   let colPrecio = -1;
   let esCabecera = false;
 
@@ -65,6 +83,11 @@ function detectarCabecera(primera: string[]): {
     const c = normalizar(celda ?? "");
     if (CABECERAS_NOMBRE.includes(c)) {
       colNombre = i;
+      esCabecera = true;
+    } else if (CABECERAS_SUBCATEGORIA.includes(c)) {
+      // Antes que la categoría: "subfamilia" no puede acabar leyéndose como
+      // "familia" si algún día las listas se solapan.
+      colSubcategoria = i;
       esCabecera = true;
     } else if (CABECERAS_CATEGORIA.includes(c)) {
       colCategoria = i;
@@ -76,13 +99,14 @@ function detectarCabecera(primera: string[]): {
   });
 
   // Sin encabezado reconocible: primera columna el nombre y, si hay una
-  // segunda con texto, se toma como categoría. El precio NO se adivina por
-  // posición: cobrar por una columna mal interpretada sería peor que no
-  // importarla, y el cliente siempre puede poner "Precio" en la cabecera.
+  // segunda con texto, se toma como categoría. Ni el precio ni la
+  // subcategoría se adivinan por posición: una columna mal interpretada
+  // (un precio colado como subcategoría, o al revés) es peor que no
+  // importarla, y el cliente siempre puede poner el encabezado.
   if (!esCabecera && primera.length > 1 && (primera[1] ?? "").trim()) {
     colCategoria = 1;
   }
-  return { esCabecera, colNombre, colCategoria, colPrecio };
+  return { esCabecera, colNombre, colCategoria, colSubcategoria, colPrecio };
 }
 
 /**
@@ -112,7 +136,10 @@ export function normalizarNombreArticulo(
   return { ok: true, nombre };
 }
 
-/** Categoría escrita a mano: vacía es "sin categoría", no una cadena vacía. */
+/**
+ * Categoría —o subcategoría, mismas reglas— escrita a mano: vacía es "sin
+ * categoría", no una cadena vacía.
+ */
 export function normalizarCategoriaArticulo(bruto: unknown): string | null {
   const c = typeof bruto === "string" ? bruto.trim().replace(/\s+/g, " ") : "";
   return c ? c.slice(0, 80) : null;
@@ -132,6 +159,78 @@ export function moverEnOrden(ids: string[], id: string, direccion: -1 | 1): stri
   nuevos[desde] = ids[hasta];
   nuevos[hasta] = ids[desde];
   return nuevos;
+}
+
+/** Lo mínimo que necesita una fila para poder agruparse por sus dos niveles. */
+export interface ArticuloAgrupable {
+  categoria: string | null;
+  subcategoria: string | null;
+}
+
+export interface SubgrupoCatalogo<T> {
+  /** null = artículos de la categoría que no están en ninguna subcategoría. */
+  subcategoria: string | null;
+  articulos: T[];
+}
+
+export interface GrupoCatalogo<T> {
+  /** null = artículos sueltos, sin categoría. */
+  categoria: string | null;
+  subgrupos: SubgrupoCatalogo<T>[];
+}
+
+/** Clave con la que dos categorías (o subcategorías) son la misma. */
+function claveGrupo(valor: string | null): string {
+  return valor ? normalizar(valor.replace(/\s+/g, " ")) : "";
+}
+
+/**
+ * Ordena el catálogo en sus dos niveles —categoría y, dentro, subcategoría—
+ * respetando el orden que traen los artículos: el primero de cada grupo marca
+ * dónde va el grupo, y dentro de él cada artículo mantiene su posición.
+ *
+ * Se agrupa por la categoría normalizada (sin tildes ni mayúsculas) pero se
+ * muestra la primera forma escrita: "Telefonía" y "telefonia" son el mismo
+ * grupo, que es lo que espera quien las tecleó en dos ratos distintos.
+ *
+ * No reordena por orden alfabético a propósito: el orden del catálogo lo
+ * coloca administración con las flechas y es el que ve el comercial.
+ */
+export function agruparCatalogo<T extends ArticuloAgrupable>(articulos: T[]): GrupoCatalogo<T>[] {
+  const grupos: GrupoCatalogo<T>[] = [];
+  const porCategoria = new Map<string, GrupoCatalogo<T>>();
+  // Un índice de subcategorías por categoría, y no uno global: la misma
+  // subcategoría ("Móvil") puede colgar de dos categorías distintas y son
+  // bloques distintos.
+  const subgruposDe = new Map<GrupoCatalogo<T>, Map<string, SubgrupoCatalogo<T>>>();
+
+  for (const articulo of articulos) {
+    const claveCat = claveGrupo(articulo.categoria);
+    let grupo = porCategoria.get(claveCat);
+    if (!grupo) {
+      grupo = { categoria: articulo.categoria?.trim() || null, subgrupos: [] };
+      porCategoria.set(claveCat, grupo);
+      subgruposDe.set(grupo, new Map());
+      grupos.push(grupo);
+    }
+    const indiceSub = subgruposDe.get(grupo) as Map<string, SubgrupoCatalogo<T>>;
+
+    const claveSub = claveGrupo(articulo.subcategoria);
+    let subgrupo = indiceSub.get(claveSub);
+    if (!subgrupo) {
+      subgrupo = { subcategoria: articulo.subcategoria?.trim() || null, articulos: [] };
+      indiceSub.set(claveSub, subgrupo);
+      grupo.subgrupos.push(subgrupo);
+    }
+    subgrupo.articulos.push(articulo);
+  }
+
+  return grupos;
+}
+
+/** El catálogo agrupado, otra vez en una sola lista y en ese mismo orden. */
+export function aplanarCatalogo<T extends ArticuloAgrupable>(grupos: GrupoCatalogo<T>[]): T[] {
+  return grupos.flatMap((g) => g.subgrupos.flatMap((s) => s.articulos));
 }
 
 /**
@@ -195,7 +294,9 @@ export function construirCatalogo(matriz: string[][]): ResultadoImportacion {
   const ignoradas: { fila: number; motivo: string }[] = [];
   if (matriz.length === 0) return { filas: [], ignoradas, conCabecera: false };
 
-  const { esCabecera, colNombre, colCategoria, colPrecio } = detectarCabecera(matriz[0] ?? []);
+  const { esCabecera, colNombre, colCategoria, colSubcategoria, colPrecio } = detectarCabecera(
+    matriz[0] ?? [],
+  );
   const cuerpo = esCabecera ? matriz.slice(1) : matriz;
   const desplazamiento = esCabecera ? 2 : 1; // nº de fila real en la hoja
 
@@ -232,9 +333,13 @@ export function construirCatalogo(matriz: string[][]): ResultadoImportacion {
 
     const categoria =
       colCategoria >= 0 ? ((celdas[colCategoria] ?? "").trim().replace(/\s+/g, " ") || null) : null;
+    const subcategoria =
+      colSubcategoria >= 0
+        ? ((celdas[colSubcategoria] ?? "").trim().replace(/\s+/g, " ") || null)
+        : null;
     const precio = colPrecio >= 0 ? parsearPrecio(celdas[colPrecio]) : null;
 
-    filas.push({ nombre, categoria, orden: filas.length, precio });
+    filas.push({ nombre, categoria, subcategoria, orden: filas.length, precio });
   });
 
   return { filas, ignoradas, conCabecera: esCabecera };

@@ -136,7 +136,27 @@ describe("POST /api/articulos-venta", () => {
     expect(res.status).toBe(201);
     expect(prismaMock.articuloVenta.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: { nombre: "Pospago", categoria: "Telefonía", orden: 5, precio: null },
+        data: {
+          nombre: "Pospago",
+          categoria: "Telefonía",
+          subcategoria: null,
+          orden: 5,
+          precio: null,
+        },
+      }),
+    );
+  });
+
+  it("guarda la subcategoría con las mismas reglas que la categoría", async () => {
+    const res = await post({
+      nombre: "Pospago 20GB",
+      categoria: " Telefonía ",
+      subcategoria: "  Móvil   pospago ",
+    });
+    expect(res.status).toBe(201);
+    expect(prismaMock.articuloVenta.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ categoria: "Telefonía", subcategoria: "Móvil pospago" }),
       }),
     );
   });
@@ -146,7 +166,7 @@ describe("POST /api/articulos-venta", () => {
     expect(res.status).toBe(201);
     expect(prismaMock.articuloVenta.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: { nombre: "Pospago", categoria: null, orden: 0, precio: null },
+        data: { nombre: "Pospago", categoria: null, subcategoria: null, orden: 0, precio: null },
       }),
     );
   });
@@ -174,7 +194,7 @@ describe("POST /api/articulos-venta", () => {
     expect(prismaMock.articuloVenta.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "art_1" },
-        data: { nombre: "renove", categoria: "Terminales", activo: true },
+        data: { nombre: "renove", categoria: "Terminales", subcategoria: null, activo: true },
       }),
     );
     expect(await res.json()).toMatchObject({ reactivado: true });
@@ -226,6 +246,22 @@ describe("PATCH /api/articulos-venta", () => {
     expect(res.status).toBe(200);
     expect(prismaMock.articuloVenta.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { categoria: null } }),
+    );
+  });
+
+  it("mover un artículo de subcategoría guarda solo ese campo", async () => {
+    const res = await patch({ id: "art_1", subcategoria: " Móvil " });
+    expect(res.status).toBe(200);
+    expect(prismaMock.articuloVenta.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { subcategoria: "Móvil" } }),
+    );
+  });
+
+  it("vaciar la subcategoría la saca del subgrupo, no la deja en blanco", async () => {
+    const res = await patch({ id: "art_1", subcategoria: "" });
+    expect(res.status).toBe(200);
+    expect(prismaMock.articuloVenta.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { subcategoria: null } }),
     );
   });
 });

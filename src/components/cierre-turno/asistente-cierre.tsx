@@ -14,7 +14,7 @@
  * cerrado (RD 8/2019, misma regla que el geofencing y el checklist de fichaje).
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, PackageOpen, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -22,11 +22,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PASOS_CIERRE, type PasoCierre } from "@/lib/cierre-turno/core";
+import { agruparCatalogo } from "@/lib/cierre-turno/catalogo";
 
 interface Articulo {
   id: string;
   nombre: string;
   categoria: string | null;
+  /** Segundo nivel dentro de la categoría ("Pospago" dentro de "Telefonía"). */
+  subcategoria: string | null;
 }
 
 type TipoAdjuntoUI = "stock" | "tpv";
@@ -349,6 +352,8 @@ export function AsistenteCierre() {
     () => Object.values(cantidades).reduce((n, v) => n + (parseInt(v, 10) || 0), 0),
     [cantidades],
   );
+  /** El catálogo en sus dos niveles, en el orden que le ha dado administración. */
+  const grupos = useMemo(() => agruparCatalogo(articulos), [articulos]);
 
   return (
     <div className="p-6 space-y-6 max-w-3xl">
@@ -427,27 +432,60 @@ export function AsistenteCierre() {
                     </tr>
                   </thead>
                   <tbody>
-                    {articulos.map((a) => (
-                      <tr key={a.id} className="border-b border-slate-100 last:border-0">
-                        <td className="px-3 py-2 text-sm text-slate-800">
-                          {a.nombre}
-                          {a.categoria && (
-                            <span className="text-slate-400 text-xs ml-2">{a.categoria}</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2">
-                          <Input
-                            type="number"
-                            min="0"
-                            className="text-right tabular-nums"
-                            value={cantidades[a.id] ?? ""}
-                            onChange={(e) =>
-                              setCantidades((c) => ({ ...c, [a.id]: e.target.value }))
-                            }
-                            placeholder="0"
-                          />
-                        </td>
-                      </tr>
+                    {/* Agrupado por categoría y subcategoría, tal y como lo ha
+                        colocado administración en Configuración: en un catálogo
+                        largo, buscar el artículo en una lista corrida al final
+                        del turno es lo que hace que se rellene a ojo. */}
+                    {grupos.map((grupo) => (
+                      <Fragment key={`cat-${grupo.categoria ?? "__sin__"}`}>
+                        {/* Si la empresa no usa categorías, el catálogo es una
+                            lista corrida y no hay nada que encabezar; en cuanto
+                            hay alguna, lo que se quedó fuera se ve como "Otros"
+                            en vez de aparecer suelto sin explicación. */}
+                        {(grupo.categoria || grupos.length > 1) && (
+                          <tr className="bg-slate-50 border-y border-slate-200">
+                            <td
+                              colSpan={2}
+                              className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600"
+                            >
+                              {grupo.categoria ?? "Otros"}
+                            </td>
+                          </tr>
+                        )}
+                        {grupo.subgrupos.map((sub) => (
+                          <Fragment
+                            key={`sub-${grupo.categoria ?? "__sin__"}-${sub.subcategoria ?? "__sin__"}`}
+                          >
+                            {sub.subcategoria && (
+                              <tr className="border-b border-slate-100">
+                                <td
+                                  colSpan={2}
+                                  className="px-3 py-1 pl-6 text-xs font-medium text-slate-500"
+                                >
+                                  {sub.subcategoria}
+                                </td>
+                              </tr>
+                            )}
+                            {sub.articulos.map((a) => (
+                              <tr key={a.id} className="border-b border-slate-100 last:border-0">
+                                <td className="px-3 py-2 text-sm text-slate-800">{a.nombre}</td>
+                                <td className="px-3 py-2">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    className="text-right tabular-nums"
+                                    value={cantidades[a.id] ?? ""}
+                                    onChange={(e) =>
+                                      setCantidades((c) => ({ ...c, [a.id]: e.target.value }))
+                                    }
+                                    placeholder="0"
+                                  />
+                                </td>
+                              </tr>
+                            ))}
+                          </Fragment>
+                        ))}
+                      </Fragment>
                     ))}
                   </tbody>
                   <tfoot>
