@@ -36,6 +36,8 @@ import {
   COLUMNA_TOTAL,
   PREFIJO_SUBGRUPO,
   ambitoDe,
+  fuenteDe,
+  type FuenteObjetivo,
   columnaDeObjetivo,
   columnaSubgrupo,
   cuentaParaObjetivos,
@@ -80,6 +82,11 @@ export interface SujetoPlantilla {
   ambito: AmbitoObjetivo;
   id: string;
   nombre: string;
+  /**
+   * De quién es la cifra de esa fila. Un punto de venta baja DOS veces: la del
+   * objetivo de la empresa y la del que impone el operador (ticket 5d8b21c7).
+   */
+  fuente?: FuenteObjetivo;
 }
 
 /** Objetivo a aplicar tras leer la hoja. `cantidad` 0 = quitar el objetivo. */
@@ -90,6 +97,8 @@ export interface CambioObjetivo {
   /** Grupo de productos del objetivo (subcategoría) y su categoría. */
   subcategoria: string | null;
   categoria: string | null;
+  /** Quién impone la cifra: la empresa o el operador. */
+  fuente: FuenteObjetivo;
   cantidad: number;
   /** Solo para poder explicarlo en el resumen. */
   sujeto: string;
@@ -108,12 +117,19 @@ export interface LecturaPlantilla {
   columnasIgnoradas: { columna: string; motivo: string }[];
 }
 
-/** Ámbito tal y como se escribe en la hoja. */
-export function textoAmbito(ambito: AmbitoObjetivo): string {
-  if (ambito === "sede") return "Sede";
+/**
+ * Ámbito tal y como se escribe en la hoja. El objetivo del operador se
+ * distingue en esta misma columna: la tienda baja dos veces y lo único que
+ * cambia entre las dos filas es de quién es la cifra.
+ */
+export function textoAmbito(ambito: AmbitoObjetivo, fuente: FuenteObjetivo = "propio"): string {
+  if (ambito === "sede") return fuente === "tmt" ? TEXTO_AMBITO_TMT : "Sede";
   if (ambito === "grupo") return "Grupo";
   return "Comercial";
 }
+
+/** Cómo se titula la fila del objetivo del operador. */
+export const TEXTO_AMBITO_TMT = "TMT punto de venta";
 
 /** Quita tildes, espacios de sobra y pasa a minúsculas (igual que `catalogo.ts`). */
 function normalizar(s: string): string {
@@ -142,6 +158,19 @@ const TITULOS_TOTAL = ["unidades totales", "total", "totales", "unidades"];
 const AMBITO_COMERCIAL = ["comercial", "empleado", "vendedor", "persona"];
 const AMBITO_SEDE = ["sede", "punto de venta", "tienda"];
 const AMBITO_GRUPO = ["grupo", "grupo de objetivos", "equipo"];
+/**
+ * Fila del objetivo del operador. Se aceptan varias formas de escribirlo porque
+ * la hoja la rehace gente a mano y "TMT" a secas es como lo llaman ellos.
+ */
+const AMBITO_SEDE_TMT = [
+  "tmt punto de venta",
+  "tmt",
+  "punto de venta (tmt)",
+  "sede (tmt)",
+  "sede tmt",
+  "tmt sede",
+  "tmt tienda",
+];
 
 /**
  * Columnas de objetivos de la plantilla: unidades totales, un grupo por
@@ -209,15 +238,24 @@ export function filasPlantilla(
   for (const o of objetivos) {
     const ambito = ambitoDe(o);
     if (!ambito) continue;
-    porClave.set(`${ambito}|${sujetoDeObjetivo(o)}|${columnaDeObjetivo(o)}`, o.cantidad);
+    // La fuente entra en la clave: el objetivo del operador y el de la empresa
+    // son de la misma tienda y la misma columna, y sin ella una fila se llevaría
+    // la cifra de la otra.
+    porClave.set(
+      `${fuenteDe(o)}|${ambito}|${sujetoDeObjetivo(o)}|${columnaDeObjetivo(o)}`,
+      o.cantidad,
+    );
   }
 
-  return sujetos.map((s) => [
-    textoAmbito(s.ambito),
-    s.nombre,
-    s.id,
-    ...columnas.map((c) => porClave.get(`${s.ambito}|${s.id}|${c.id}`) ?? ""),
-  ]);
+  return sujetos.map((s) => {
+    const fuente = s.fuente ?? "propio";
+    return [
+      textoAmbito(s.ambito, fuente),
+      s.nombre,
+      s.id,
+      ...columnas.map((c) => porClave.get(`${fuente}|${s.ambito}|${s.id}|${c.id}`) ?? ""),
+    ];
+  });
 }
 
 /**
@@ -407,6 +445,11 @@ export function interpretarPlantillaObjetivos(
     // El id manda sobre el nombre: es lo que evita confundir a dos personas que
     // se llaman igual. El ámbito de la hoja solo se usa cuando hay que buscar
     // por nombre, porque el id ya dice si es una persona o una tienda.
+    //
+    // La FUENTE, en cambio, sale siempre del texto del ámbito: la misma tienda
+    // baja en dos filas —su objetivo y el que le impone el operador— con el
+    // mismo id, y lo único que las distingue es lo que diga esta columna.
+    const fuenteFila: FuenteObjetivo = AMBITO_SEDE_TMT.includes(ambitoHoja) ? "tmt" : "propio";
     const conocido = idHoja ? porId.get(idHoja) : undefined;
     let ambito: AmbitoObjetivo;
     let sujetoId: string;
@@ -425,12 +468,14 @@ export function interpretarPlantillaObjetivos(
         continue;
       }
       if (AMBITO_COMERCIAL.includes(ambitoHoja)) ambito = "comercial";
-      else if (AMBITO_SEDE.includes(ambitoHoja)) ambito = "sede";
+      else if (AMBITO_SEDE.includes(ambitoHoja) || AMBITO_SEDE_TMT.includes(ambitoHoja))
+        ambito = "sede";
       else if (AMBITO_GRUPO.includes(ambitoHoja)) ambito = "grupo";
       else {
         ignoradas.push({
           fila: numeroFila,
-          motivo: 'La columna Ámbito tiene que decir "Comercial", "Sede" o "Grupo".',
+          motivo:
+            'La columna Ámbito tiene que decir "Comercial", "Sede", "TMT punto de venta" o "Grupo".',
         });
         continue;
       }
@@ -459,7 +504,10 @@ export function interpretarPlantillaObjetivos(
       // Casilla vacía: se deja como está. Para quitar un objetivo se escribe 0.
       if (!bruto) continue;
 
-      const clave = `${ambito}|${sujetoId}|${columna.id}`;
+      // La fuente entra en la clave de duplicados: la misma tienda con el mismo
+      // grupo puede salir dos veces, una por juego de objetivos, y eso no es un
+      // duplicado.
+      const clave = `${fuenteFila}|${ambito}|${sujetoId}|${columna.id}`;
       if (vistos.has(clave)) {
         ignoradas.push({
           fila: numeroFila,
@@ -491,6 +539,7 @@ export function interpretarPlantillaObjetivos(
         // La categoría ya no identifica un grupo: el objetivo es de la
         // subcategoría entera (ticket 528694fa).
         categoria: null,
+        fuente: fuenteFila,
         cantidad: cantidad.cantidad,
         sujeto,
         columna: columna.titulo,

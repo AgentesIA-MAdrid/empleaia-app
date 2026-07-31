@@ -441,3 +441,60 @@ describe("viaje completo por un .xlsx de verdad", () => {
     ]);
   });
 });
+
+describe("el objetivo del operador en la hoja (ticket 5d8b21c7)", () => {
+  const SEDE_PROPIA = { ambito: "sede" as const, id: "t1", nombre: "Centro" };
+  const SEDE_TMT = { ...SEDE_PROPIA, fuente: "tmt" as const };
+
+  it("cada punto de venta baja dos veces, y cada fila lleva su cifra", () => {
+    const columnas = columnasPlantilla(catalogo);
+    const filas = filasPlantilla([SEDE_PROPIA, SEDE_TMT], columnas, [
+      objetivo({ id: "o_propio", tiendaId: "t1", ...HOGAR, cantidad: 10 }),
+      objetivo({ id: "o_tmt", tiendaId: "t1", ...HOGAR, fuente: "tmt", cantidad: 15 }),
+    ]);
+    // [Ámbito, nombre, id, unidades totales, grupo Hogar]
+    expect(filas[0]).toEqual(["Sede", "Centro", "t1", "", 10]);
+    expect(filas[1]).toEqual(["TMT punto de venta", "Centro", "t1", "", 15]);
+  });
+
+  it("la fila del operador se lee como suya, aunque el id sea el de la tienda", () => {
+    const r = interpretarPlantillaObjetivos(
+      [
+        ["Ámbito", "Comercial o punto de venta", "Id", "Unidades totales", "Grupo: Hogar"],
+        ["Sede", "Centro", "t1", "", "10"],
+        ["TMT punto de venta", "Centro", "t1", "", "15"],
+      ],
+      ctx,
+    );
+    expect(r.ignoradas).toEqual([]);
+    expect(r.cambios).toEqual([
+      expect.objectContaining({ ambito: "sede", sujetoId: "t1", fuente: "propio", cantidad: 10 }),
+      expect.objectContaining({ ambito: "sede", sujetoId: "t1", fuente: "tmt", cantidad: 15 }),
+    ]);
+  });
+
+  it("la misma tienda en las dos filas no es un duplicado", () => {
+    const r = interpretarPlantillaObjetivos(
+      [
+        ["Ámbito", "Comercial o punto de venta", "Id", "Grupo: Hogar"],
+        ["Sede", "Centro", "t1", "10"],
+        ["TMT", "Centro", "t1", "15"],
+      ],
+      ctx,
+    );
+    expect(r.cambios).toHaveLength(2);
+    expect(r.ignoradas).toEqual([]);
+  });
+
+  it("un ámbito que no se entiende dice las cuatro opciones", () => {
+    const r = interpretarPlantillaObjetivos(
+      [
+        ["Ámbito", "Comercial o punto de venta", "Id", "Grupo: Hogar"],
+        ["Vete a saber", "Centro", "", "10"],
+      ],
+      ctx,
+    );
+    expect(r.cambios).toHaveLength(0);
+    expect(r.ignoradas[0].motivo).toContain("TMT punto de venta");
+  });
+});

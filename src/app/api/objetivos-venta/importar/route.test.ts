@@ -145,9 +145,9 @@ describe("POST /api/objetivos-venta/importar", () => {
     expect(data.creados).toBe(3);
     expect(prismaMock.objetivoVenta.createMany).toHaveBeenCalledWith({
       data: [
-        { mes: "2026-07", userId: "u_ana", tiendaId: null, grupoId: null, articuloId: null, categoria: null, subcategoria: null, cantidad: 40 },
-        { mes: "2026-07", userId: "u_ana", tiendaId: null, grupoId: null, articuloId: null, categoria: null, subcategoria: "Hogar", cantidad: 12 },
-        { mes: "2026-07", userId: null, tiendaId: "t1", grupoId: null, articuloId: null, categoria: null, subcategoria: null, cantidad: 90 },
+        { mes: "2026-07", userId: "u_ana", tiendaId: null, grupoId: null, articuloId: null, categoria: null, subcategoria: null, fuente: "propio", cantidad: 40 },
+        { mes: "2026-07", userId: "u_ana", tiendaId: null, grupoId: null, articuloId: null, categoria: null, subcategoria: "Hogar", fuente: "propio", cantidad: 12 },
+        { mes: "2026-07", userId: null, tiendaId: "t1", grupoId: null, articuloId: null, categoria: null, subcategoria: null, fuente: "propio", cantidad: 90 },
       ],
     });
   });
@@ -171,6 +171,7 @@ describe("POST /api/objetivos-venta/importar", () => {
           articuloId: null,
           categoria: null,
           subcategoria: null,
+          fuente: "propio",
           cantidad: 200,
         },
       ],
