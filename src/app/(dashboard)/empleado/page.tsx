@@ -17,6 +17,8 @@ import {
   XCircle,
   ScanFace,
   ClipboardCheck,
+  ClipboardList,
+  ChevronRight,
   X as XIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -64,6 +66,17 @@ interface ChecklistItem {
 }
 
 type RespuestaChecklist = { itemId: string; marcado: boolean };
+
+/**
+ * Acceso al módulo de cierre de turno para quien está mirando la pantalla de
+ * fichaje, más cómo lleva el cierre de hoy. Lo resuelve el servidor en
+ * `/api/cierre-turno/acceso` con la misma regla que el menú.
+ */
+interface AccesoCierre {
+  visible: boolean;
+  empezado: boolean;
+  cerrado: boolean;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -176,6 +189,10 @@ export default function EmpleadoPage() {
   // Estado fichaje
   const [estado, setEstado] = useState<EstadoFichaje>("sin_fichar");
   const [minutosHoy, setMinutosHoy] = useState(0);
+  // ¿Ha fichado ya la entrada hoy? Es la condición para ofrecerle el cierre de
+  // turno: antes de empezar la jornada no hay nada que cerrar. Sigue valiendo
+  // tras la salida, que es cuando muchos rematan la caja.
+  const [entradaHoy, setEntradaHoy] = useState(false);
   const [tiendaNombre, setTiendaNombre] = useState<string | null>(null);
   const [fichajesHoy, setFichajesHoy] = useState<FichajeRegistro[]>([]);
   const [loadingEstado, setLoadingEstado] = useState(true);
@@ -207,6 +224,10 @@ export default function EmpleadoPage() {
   // Confirmaciones ya hechas, en espera de que termine el Face ID.
   const [respuestasChecklist, setRespuestasChecklist] = useState<RespuestaChecklist[] | null>(null);
 
+  // Cierre de turno: si el cliente tiene el módulo y a esta persona le toca
+  // verlo, se le ofrece bajo el cuadro de fichaje.
+  const [accesoCierre, setAccesoCierre] = useState<AccesoCierre | null>(null);
+
   // Fetch estado
   const fetchEstado = useCallback(async () => {
     try {
@@ -223,6 +244,7 @@ export default function EmpleadoPage() {
       }
 
       setMinutosHoy(data.minutosHoy ?? 0);
+      setEntradaHoy(data.horaEntrada != null);
 
       if (data.ultimoFichaje?.tienda?.nombre) {
         setTiendaNombre(data.ultimoFichaje.tienda.nombre);
@@ -263,11 +285,25 @@ export default function EmpleadoPage() {
     }
   }, []);
 
+  // ¿Se le ofrece el cierre de turno? Lo decide el servidor: plan del cliente,
+  // rodaje del módulo y acceso anticipado. Un 402 (sin módulo contratado) o un
+  // fallo dejan la pantalla como estaba, sin botón.
+  const fetchAccesoCierre = useCallback(async () => {
+    try {
+      const res = await fetch("/api/cierre-turno/acceso");
+      if (!res.ok) return;
+      setAccesoCierre((await res.json()) as AccesoCierre);
+    } catch {
+      // silent — el fichaje no depende de esto.
+    }
+  }, []);
+
   useEffect(() => {
     fetchEstado();
     fetchFichajesHoy();
     void fetchChecklist();
-  }, [fetchEstado, fetchFichajesHoy, fetchChecklist]);
+    void fetchAccesoCierre();
+  }, [fetchEstado, fetchFichajesHoy, fetchChecklist, fetchAccesoCierre]);
 
   // Política de Face ID del tenant + ¿el usuario tiene template?
   useEffect(() => {
@@ -876,6 +912,46 @@ export default function EmpleadoPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Cierre de turno — solo con el módulo contratado, para quien ya lo
+          tiene abierto y una vez ha fichado la entrada: antes de empezar la
+          jornada no hay ventas ni caja que cerrar. Es un acceso, no un
+          requisito: no condiciona el fichaje (RD 8/2019). */}
+      {accesoCierre?.visible && entradaHoy && (
+        <Card>
+          <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex-1 min-w-0">
+              <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                <ClipboardList className="h-4 w-4 text-[var(--primary)] shrink-0" />
+                Cierre de turno
+              </h2>
+              <p className="text-sm text-slate-500 mt-1">
+                {accesoCierre.cerrado
+                  ? "Ya has cerrado tu turno de hoy. Puedes repasar lo que registraste."
+                  : accesoCierre.empezado
+                    ? "Tienes el cierre de hoy empezado. Continúa donde lo dejaste."
+                    : "Registra las ventas del día, mira cómo vas de objetivos y cierra tu caja."}
+              </p>
+            </div>
+            <Link
+              href="/empleado/cierre-turno"
+              className={cn(
+                "inline-flex items-center justify-center gap-2 rounded-lg px-5 h-11 text-sm font-semibold shrink-0 transition-colors",
+                accesoCierre.cerrado
+                  ? "border border-slate-200 text-slate-700 hover:bg-slate-50"
+                  : "bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white",
+              )}
+            >
+              {accesoCierre.cerrado
+                ? "Ver mi cierre"
+                : accesoCierre.empezado
+                  ? "Continuar el cierre"
+                  : "Cierre de turno"}
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Today's fichajes list */}
       {fichajesHoy.length > 0 && (
