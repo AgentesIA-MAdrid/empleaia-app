@@ -74,15 +74,49 @@ describe("evaluarHorarioTurno", () => {
   });
 
   it("turno de noche: la madrugada siguiente sigue siendo su turno", () => {
-    const noche: TurnoDia = { horaInicio: "22:00", horaFin: "06:00", offsetDias: -1 };
+    // Noches consecutivas: el de ayer 22:00–06:00 y otro igual hoy.
+    const turnos: TurnoDia[] = [
+      { horaInicio: "22:00", horaFin: "06:00", offsetDias: -1 },
+      { horaInicio: "22:00", horaFin: "06:00", offsetDias: 0 },
+    ];
     // 05:30 de hoy = dentro del turno que empezó ayer a las 22:00.
-    expect(evaluarHorarioTurno({ turnos: [noche], ahoraMin: hhmmToMin("05:30"), margenMin: 15 }).estado)
+    expect(evaluarHorarioTurno({ turnos, ahoraMin: hhmmToMin("05:30"), margenMin: 15 }).estado)
       .toBe("dentro");
-    const r = evaluarHorarioTurno({ turnos: [noche], ahoraMin: hhmmToMin("07:00"), margenMin: 15 });
+    const r = evaluarHorarioTurno({ turnos, ahoraMin: hhmmToMin("07:00"), margenMin: 15 });
     expect(r.estado).toBe("fuera");
     if (r.estado !== "fuera") return;
     expect(r.motivo).toBe("despues");
+    // Se ajusta al fin del turno que venía de ayer: las 06:00 de HOY.
+    expect(r.turno.offsetDias).toBe(-1);
+    expect(r.ajusteMin).toBe(hhmmToMin("06:00"));
     expect(minToHHMM(r.ajusteMin)).toBe("06:00");
+  });
+
+  it("sin turno hoy no comprueba nada, aunque haya turno ayer o mañana", () => {
+    // El turno de ayer/mañana solo está en la lista por los turnos que cruzan
+    // medianoche: si hoy no hay cuadrante, no puede rechazar el fichaje.
+    const ayer: TurnoDia = { horaInicio: "09:00", horaFin: "17:00", offsetDias: -1 };
+    const manana: TurnoDia = { horaInicio: "09:00", horaFin: "17:00", offsetDias: 1 };
+    expect(evaluarHorarioTurno({ turnos: [ayer], ahoraMin: hhmmToMin("09:50"), margenMin: 15 }))
+      .toEqual({ estado: "sin_turno" });
+    expect(evaluarHorarioTurno({ turnos: [manana], ahoraMin: hhmmToMin("09:50"), margenMin: 15 }))
+      .toEqual({ estado: "sin_turno" });
+    expect(evaluarHorarioTurno({ turnos: [ayer, manana], ahoraMin: hhmmToMin("21:00"), margenMin: 15 }))
+      .toEqual({ estado: "sin_turno" });
+  });
+
+  it("el turno de ayer que ya terminó no decide el ajuste de hoy", () => {
+    const turnos: TurnoDia[] = [
+      { horaInicio: "09:00", horaFin: "17:00", offsetDias: -1 },
+      { horaInicio: "09:00", horaFin: "17:00", offsetDias: 0 },
+    ];
+    const r = evaluarHorarioTurno({ turnos, ahoraMin: hhmmToMin("07:00"), margenMin: 15 });
+    expect(r.estado).toBe("fuera");
+    if (r.estado !== "fuera") return;
+    // Se ajusta al inicio del turno de hoy, no al fin del de ayer.
+    expect(r.motivo).toBe("antes");
+    expect(r.turno.offsetDias).toBe(0);
+    expect(r.ajusteMin).toBe(hhmmToMin("09:00"));
   });
 
   it("turno de mañana: fichar de madrugada queda 'antes'", () => {

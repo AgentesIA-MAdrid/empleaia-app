@@ -296,8 +296,8 @@ export const POST = withTenant(async (request: NextRequest) => {
     // registro de la jornada (RD 8/2019). El empleado puede pedir desde la
     // ventana emergente que se registre ajustado a su turno, y eso crea una
     // SolicitudFichaje clase "fuera_horario" que aprueba un responsable.
-    // Solo se comprueba si el empleado tiene turno PUBLICADO: sin cuadrante
-    // no hay con qué comparar. Se hace antes del checklist y de Face ID para
+    // Solo se comprueba si el empleado tiene turno PUBLICADO hoy: sin cuadrante
+    // de hoy no hay con qué comparar. Se hace antes del checklist y de Face ID para
     // no gastar el token de verificación en un intento que se va a rechazar.
     if (cfg?.exigirFichajeEnHorario) {
       const ev = await evaluarFichajeEnHorario(prisma, {
