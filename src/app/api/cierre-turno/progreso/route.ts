@@ -66,9 +66,13 @@ export const GET = withTenant(
     const ventasPropias = ventas.filter((v) => v.userId === userId);
     const ventasSede = tiendaId ? ventas : ventasPropias;
 
-    const propio = progresoDe(objetivos, ventasPropias, { ambito: "comercial", id: userId });
+    // Los ids del catálogo activo acotan qué objetivos por producto suman en el
+    // total cuando administración no ha fijado uno de unidades totales.
+    const articuloIds = articulos.map((a) => a.id);
+
+    const propio = progresoDe(objetivos, ventasPropias, { ambito: "comercial", id: userId }, articuloIds);
     const sede = tiendaId
-      ? progresoDe(objetivos, ventasSede, { ambito: "sede", id: tiendaId })
+      ? progresoDe(objetivos, ventasSede, { ambito: "sede", id: tiendaId }, articuloIds)
       : null;
 
     // Desglose por artículo del propio comercial: es donde ve qué le falta.

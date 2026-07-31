@@ -8,6 +8,10 @@
  * Reglas del modelo, para no repetirlas en cada pantalla:
  *  - Un objetivo es de UN comercial o de UNA sede, nunca de los dos.
  *  - Sin `articuloId`, el objetivo es de unidades totales (todo el catálogo).
+ *    Si no se ha fijado a mano, sale de sumar los de cada producto: quien
+ *    rellena la parrilla producto a producto espera que el total cuadre con lo
+ *    que ha puesto, no un total aparte que se queda a cero (ver
+ *    `objetivoTotalDe`).
  *  - El objetivo de una sede se compara con lo que vendió la sede completa,
  *    no con la suma de los objetivos de sus comerciales: son dos formas de
  *    apretar y el cliente usa la que quiere en cada momento.
@@ -187,12 +191,54 @@ export function vendidoDeSujeto(
 /** Columna de "unidades totales" en la matriz: el objetivo sin artículo. */
 export const COLUMNA_TOTAL = "";
 
+/**
+ * Objetivo de unidades totales de un sujeto: el que se haya fijado a mano y,
+ * si no hay ninguno, la suma de los que tenga producto a producto.
+ *
+ * El motivo: quien rellena la parrilla por producto (pospago, fibra…) da por
+ * hecho que el total es la suma de lo que ha escrito. Pedirle además un total
+ * aparte hacía que las cifras de arriba y el pie de la tabla enseñaran un 0 (o
+ * un número que no cuadraba con la fila) teniendo la parrilla llena.
+ *
+ * Si el total sí está fijado, manda ese: es lo que ha puesto la persona, y
+ * además significa "vende esto de lo que sea", incluso de lo que no tiene
+ * columna propia.
+ *
+ * `articuloIds` acota qué productos suman (los del catálogo activo, que son las
+ * columnas que se ven). Sin él suman todos los objetivos de artículo.
+ */
+export function objetivoTotalDe(
+  objetivosDelSujeto: ObjetivoFila[],
+  articuloIds?: string[],
+): { cantidad: number | null; derivado: boolean } {
+  const fijado = objetivosDelSujeto.find((o) => o.articuloId === null);
+  if (fijado) return { cantidad: fijado.cantidad, derivado: false };
+
+  let suma = 0;
+  let hay = false;
+  for (const o of objetivosDelSujeto) {
+    if (o.articuloId === null) continue;
+    if (articuloIds && !articuloIds.includes(o.articuloId)) continue;
+    suma += o.cantidad;
+    hay = true;
+  }
+  // Sin ningún objetivo por producto no se devuelve 0: "sin objetivo" y
+  // "objetivo de cero unidades" no son lo mismo (ver `progresoDe`).
+  return hay ? { cantidad: suma, derivado: true } : { cantidad: null, derivado: false };
+}
+
 /** Una casilla de la matriz: el objetivo fijado y cómo va. */
 export interface CeldaObjetivo {
   objetivoId: string | null;
   objetivo: number | null;
   vendido: number;
   consecucion: number | null;
+  /**
+   * Solo en la columna de unidades totales: el objetivo no está fijado a mano,
+   * es la suma de los de cada producto. La casilla se sigue pudiendo escribir
+   * para poner un total distinto.
+   */
+  derivado?: boolean;
 }
 
 /** Una fila de la matriz: un comercial (o una sede) con una casilla por columna. */
@@ -252,23 +298,31 @@ export function construirMatriz(
   const vendidos = indexarVentas(ventas, ambito);
 
   const porClave = new Map<string, ObjetivoFila>();
+  const porSujeto = new Map<string, ObjetivoFila[]>();
   for (const o of objetivos) {
     if (ambitoDe(o) !== ambito) continue;
     const sujetoId = (ambito === "comercial" ? o.userId : o.tiendaId) as string;
     porClave.set(`${sujetoId}|${o.articuloId ?? COLUMNA_TOTAL}`, o);
+    const suyos = porSujeto.get(sujetoId);
+    if (suyos) suyos.push(o);
+    else porSujeto.set(sujetoId, [o]);
   }
 
   const columnas = [COLUMNA_TOTAL, ...articuloIds];
   return sujetos.map((s) => {
+    // Unidades totales: lo fijado a mano o, si no hay, la suma de los productos.
+    const total = objetivoTotalDe(porSujeto.get(s.id) ?? [], articuloIds);
     const celdas: Record<string, CeldaObjetivo> = {};
     for (const col of columnas) {
       const o = porClave.get(`${s.id}|${col}`) ?? null;
       const vendido = vendidos.get(`${s.id}|${col}`) ?? 0;
+      const objetivo = col === COLUMNA_TOTAL ? total.cantidad : (o?.cantidad ?? null);
       celdas[col] = {
         objetivoId: o?.id ?? null,
-        objetivo: o?.cantidad ?? null,
+        objetivo,
         vendido,
-        consecucion: o ? pct(vendido, o.cantidad) : null,
+        consecucion: objetivo === null ? null : pct(vendido, objetivo),
+        ...(col === COLUMNA_TOTAL && total.derivado ? { derivado: true } : {}),
       };
     }
     return { sujetoId: s.id, sujeto: s.nombre, sede: s.sede ?? null, celdas };
@@ -333,15 +387,18 @@ export function progresoDe(
   objetivos: ObjetivoFila[],
   ventas: VentaAgregada[],
   sujeto: { ambito: AmbitoObjetivo; id: string },
+  articuloIds?: string[],
 ): ProgresoPaso2 {
   const vendido = vendidoDeSujeto(ventas, sujeto, null);
-  // Solo cuenta el objetivo de unidades totales: mezclarlo con los de un
-  // artículo concreto daría un "objetivo" que no significa nada.
-  const suyo = objetivos.find(
+  // El objetivo de unidades totales, con la misma regla que la parrilla de
+  // administración: el fijado a mano y, si no hay, la suma de los de cada
+  // producto. Así lo que administración escribe producto a producto se ve aquí
+  // en vez de un "sin objetivo".
+  const suyos = objetivos.filter(
     (o) =>
-      o.articuloId === null &&
+      ambitoDe(o) === sujeto.ambito &&
       (sujeto.ambito === "comercial" ? o.userId === sujeto.id : o.tiendaId === sujeto.id),
   );
-  const objetivo = suyo?.cantidad ?? null;
+  const { cantidad: objetivo } = objetivoTotalDe(suyos, articuloIds);
   return { vendido, objetivo, consecucion: objetivo === null ? null : pct(vendido, objetivo) };
 }

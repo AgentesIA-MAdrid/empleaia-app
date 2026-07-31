@@ -198,9 +198,10 @@ export const GET = withTenant(
       totalesComerciales,
       totalesSedes,
       objetivosDelMes: todos,
-      // Las tarjetas de arriba siguen midiendo lo de siempre: el objetivo de
-      // unidades totales de los comerciales. Lo de cada producto y lo de cada
-      // sede se lee en el pie de su tabla, que es donde tiene sentido sumarlo.
+      // Las tarjetas de arriba miden el objetivo de unidades totales de los
+      // comerciales: el fijado a mano o, donde no lo haya, la suma de sus
+      // objetivos por producto (`objetivoTotalDe`). Lo de cada producto y lo de
+      // cada sede se lee en el pie de su tabla, que es donde tiene sentido.
       resumen: {
         objetivo: totalesComerciales[COLUMNA_TOTAL]?.objetivo ?? 0,
         vendido: totalesComerciales[COLUMNA_TOTAL]?.vendido ?? 0,

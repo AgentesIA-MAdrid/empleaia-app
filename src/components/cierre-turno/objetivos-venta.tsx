@@ -13,6 +13,10 @@
  *
  * La primera columna de cada parrilla es "Unidades totales" (el objetivo sin
  * producto), que es el que ve el comercial en el paso 2 de su cierre de turno.
+ * Si se deja en blanco vale la suma de los objetivos de cada producto de esa
+ * fila: quien rellena producto a producto espera que el total cuadre con lo que
+ * ha escrito, no un total aparte que se queda a cero. Escribir un número ahí
+ * manda sobre la suma.
  *
  * Cada casilla se guarda al salir del campo. Poner 0 quita el objetivo: es lo
  * que la gente hace de forma natural para "quitar esto", y pedirle un botón de
@@ -50,6 +54,8 @@ interface Celda {
   objetivo: number | null;
   vendido: number;
   consecucion: number | null;
+  /** Unidades totales sin fijar a mano: el objetivo es la suma de los productos. */
+  derivado?: boolean;
 }
 
 interface FilaMatriz {
@@ -93,6 +99,16 @@ interface Respuesta {
 }
 
 const CELDA_VACIA: Celda = { objetivoId: null, objetivo: null, vendido: 0, consecucion: null };
+
+/**
+ * Lo que hay escrito a mano en la casilla. Un objetivo de unidades totales
+ * derivado (la suma de los productos) NO se escribe en el campo: se enseña de
+ * fondo, para que se vea de dónde sale y para que borrarlo no signifique nada.
+ */
+function valorFijado(celda: Celda): string {
+  if (celda.derivado || celda.objetivo === null) return "";
+  return String(celda.objetivo);
+}
 
 const eur = (n: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n);
@@ -201,10 +217,16 @@ function TablaObjetivos({
                     </td>
                     {columnas.map((c) => {
                       const celda = f.celdas[c.id] ?? CELDA_VACIA;
+                      const fijado = valorFijado(celda);
                       return (
                         <td key={c.id || "total"} className="px-3 py-2.5 align-top">
                           {soloLectura ? (
-                            <span className="text-sm tabular-nums">{celda.objetivo ?? "—"}</span>
+                            <span
+                              className={`text-sm tabular-nums ${celda.derivado ? "text-slate-500" : ""}`}
+                              title={celda.derivado ? "Suma de los objetivos por producto" : undefined}
+                            >
+                              {celda.objetivo ?? "—"}
+                            </span>
                           ) : (
                             <Input
                               // La clave lleva el mes: sin ella, al cambiar de mes
@@ -215,14 +237,20 @@ function TablaObjetivos({
                               min="0"
                               step="1"
                               className="w-20 h-9 text-right tabular-nums"
-                              defaultValue={celda.objetivo ?? ""}
-                              placeholder="—"
+                              defaultValue={fijado}
+                              // El total derivado va de fondo: se ve la cifra que
+                              // cuenta sin convertirla en un objetivo escrito.
+                              placeholder={celda.derivado ? String(celda.objetivo) : "—"}
+                              title={
+                                celda.derivado
+                                  ? "Suma de los objetivos por producto. Escribe un número para fijar otro total."
+                                  : undefined
+                              }
                               disabled={guardando === `${f.sujetoId}|${c.id}`}
                               aria-label={`Objetivo de ${c.nombre} para ${f.sujeto}`}
                               onBlur={(e) => {
                                 const nuevo = e.target.value.trim();
-                                const actual = celda.objetivo === null ? "" : String(celda.objetivo);
-                                if (nuevo !== actual) onGuardar(f, c.id, nuevo);
+                                if (nuevo !== fijado) onGuardar(f, c.id, nuevo);
                               }}
                             />
                           )}
@@ -389,6 +417,12 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
             sedes son independientes: el de una sede se compara con lo que vende la sede completa,
             no con la suma de los de su equipo.
           </p>
+          <p className="text-xs text-slate-400 mt-2 max-w-3xl">
+            <strong className="font-medium text-slate-500">Unidades totales</strong> es la suma de
+            lo que pongas producto a producto en esa fila (aparece en gris). Si quieres otro total
+            —por ejemplo, para contar también lo que no tiene columna propia— escríbelo encima y
+            manda el tuyo; bórralo y vuelve a mandar la suma.
+          </p>
           {/* Sin catálogo solo hay columna de unidades totales: hay que decir
               dónde se definen los productos, o el objetivo por producto parece
               que no existe. */}
@@ -435,8 +469,9 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
         ))}
       </div>
       <p className="text-xs text-slate-400 -mt-3">
-        Estas cuatro cifras resumen el objetivo de unidades totales de los comerciales. El total de
-        cada producto y el de las sedes están al pie de su tabla.
+        Estas cuatro cifras resumen el objetivo de unidades totales de los comerciales (el que
+        pongas a mano o, si no, la suma de sus productos). El total de cada producto y el de las
+        sedes están al pie de su tabla.
       </p>
 
       {cargando ? (
