@@ -3,9 +3,14 @@
  *
  * El cliente quiere que no se pueda fichar antes ni después del turno
  * publicado. Doctrina igual que el geofencing estricto del ticket #61: se
- * bloquea el camino fácil, NUNCA el registro de la jornada (RD 8/2019). El
- * intento rechazado se convierte en una `SolicitudFichaje` de clase
- * "fuera_horario" con la hora ajustada al turno, que aprueba un responsable.
+ * bloquea el camino fácil, NUNCA el registro de la jornada (RD 8/2019).
+ *
+ * Qué pasa con el intento rechazado (ticket 9e4c2f10): la app le enseña la hora
+ * a la que se ajustaría y, si acepta, el fichaje se registra en el momento con
+ * esa hora —sin que nadie tenga que aprobarlo— y con la hora real del intento
+ * anotada en el propio fichaje. Antes se abría una `SolicitudFichaje` de clase
+ * "fuera_horario"; ese camino sigue existiendo para resolver las que ya se
+ * crearon, pero la app no crea ninguna nueva.
  *
  * Reglas:
  *  - Solo se comprueba si el tenant activó `exigirFichajeEnHorario`.
