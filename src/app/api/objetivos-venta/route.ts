@@ -34,6 +34,8 @@ import { withFeature } from "@/lib/feature-guard/with-feature";
 import { diaMadrid, filtroSede, puedeFijarObjetivos, puedeVerObjetivos } from "@/lib/cierre-turno/core";
 import {
   ambitoDe,
+  fuenteDe,
+  type FuenteObjetivo,
   anotarVentas,
   columnaSubgrupo,
   COLUMNA_TOTAL,
@@ -115,9 +117,11 @@ export const GET = withTenant(
         excluidos: [],
         filasComerciales: [],
         filasSedes: [],
+        filasSedesTmt: [],
         filasGrupos: [],
         totalesComerciales: {},
         totalesSedes: {},
+        totalesSedesTmt: {},
         totalesGrupos: {},
         objetivosDelMes: [],
         resumen: { objetivo: 0, vendido: 0, conObjetivo: 0 },
@@ -137,6 +141,7 @@ export const GET = withTenant(
           tiendaId: true,
           grupoId: true,
           articuloId: true,
+          fuente: true,
           categoria: true,
           subcategoria: true,
           cantidad: true,
@@ -239,6 +244,18 @@ export const GET = withTenant(
       ventas,
       paraObjetivos,
     );
+    // El objetivo que impone el operador para cada punto de venta: misma tabla
+    // que la de sedes, otra vara de medir (ticket 5d8b21c7). Se compara con las
+    // mismas ventas.
+    const filasSedesTmt = construirMatriz(
+      "sede",
+      sedes.map((t) => ({ id: t.id, nombre: t.nombre })),
+      articuloIds,
+      objetivos,
+      ventas,
+      paraObjetivos,
+      "tmt",
+    );
     // Tercera tabla: los grupos de objetivos del cliente (TMT, televenta…). El
     // subtítulo de cada fila dice de qué está hecho el grupo, que es lo que
     // permite entender su cifra sin abrir la ficha.
@@ -287,6 +304,9 @@ export const GET = withTenant(
           sujeto: nombre,
           articulo: o.articuloId ? (nombreArticulo.get(o.articuloId) ?? "Artículo retirado") : null,
           grupo: grupoProductos ? etiquetaSubgrupo(grupoProductos) : null,
+          // De quién es la cifra: sin esto, en la lista de todos los objetivos
+          // del mes el del operador y el de la empresa parecerían duplicados.
+          fuente: fuenteDe(o),
           objetivo: o.cantidad,
           vendido,
           consecucion: pct(vendido, o.cantidad),
@@ -303,6 +323,7 @@ export const GET = withTenant(
 
     const totalesComerciales = totalesMatriz(filasComerciales, articuloIds, subgrupos);
     const totalesSedes = totalesMatriz(filasSedes, articuloIds, subgrupos);
+    const totalesSedesTmt = totalesMatriz(filasSedesTmt, articuloIds, subgrupos);
     const totalesGrupos = totalesMatriz(filasGrupos, articuloIds, subgrupos);
     // Objetivo propio de la coordinadora: el de su zona (ticket 73). Solo tiene
     // sentido con alcance limitado a sus sedes; para administración, la cifra
@@ -334,9 +355,11 @@ export const GET = withTenant(
       excluidos: articulos.filter((a) => !cuentaParaObjetivos(a)).map((a) => a.nombre),
       filasComerciales,
       filasSedes,
+      filasSedesTmt,
       filasGrupos,
       totalesComerciales,
       totalesSedes,
+      totalesSedesTmt,
       totalesGrupos,
       objetivosDelMes: todos,
       objetivoPropio: esCoordinacion
@@ -373,6 +396,8 @@ export const PUT = withTenant(
       articuloId?: unknown;
       subcategoria?: unknown;
       categoria?: unknown;
+      /** "tmt" = la cifra que impone el operador. Por omisión, la de la empresa. */
+      fuente?: unknown;
       cantidad?: unknown;
     } | null;
     if (!body) return NextResponse.json({ error: "Datos no válidos" }, { status: 400 });
@@ -384,6 +409,15 @@ export const PUT = withTenant(
 
     const ambito: AmbitoObjetivo =
       body.ambito === "sede" ? "sede" : body.ambito === "grupo" ? "grupo" : "comercial";
+    // El objetivo del operador es solo de punto de venta: es lo que él impone,
+    // tienda a tienda (ticket 5d8b21c7).
+    const fuente: FuenteObjetivo = body.fuente === "tmt" ? "tmt" : "propio";
+    if (fuente === "tmt" && ambito !== "sede") {
+      return NextResponse.json(
+        { error: "El objetivo del operador (TMT) es de un punto de venta." },
+        { status: 400 },
+      );
+    }
     if (typeof body.sujetoId !== "string" || !body.sujetoId) {
       return NextResponse.json({ error: "Falta a quién es el objetivo." }, { status: 400 });
     }
@@ -470,6 +504,9 @@ export const PUT = withTenant(
       // Sin categoría: dejó de identificar un grupo, y dejarla rellena
       // partiría en dos el objetivo de una misma subcategoría.
       categoria: null,
+      // La fuente identifica el objetivo: sin ella, fijar el del operador
+      // pisaría el de la empresa de esa misma tienda.
+      fuente,
     };
 
     // No se usa `upsert` sobre la clave única (mes, userId, tiendaId,

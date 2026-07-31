@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   agruparProductosPorNombre,
   ambitoDe,
+  fuenteDe,
   anotarVentas,
   columnaSubgrupo,
   subgruposDelCatalogo,
@@ -899,5 +900,49 @@ describe("evaluacionDeArticulo — el distintivo del catálogo (ticket cd804fa2)
       objetivos([], [POSPAGO]),
     );
     expect(r.modo).toBe("total");
+  });
+});
+
+describe("objetivos del operador (TMT) — ticket 5d8b21c7", () => {
+  const CATALOGO_FFTH = [
+    { id: "fibra", categoria: "Particular", subcategoria: "FFTH", cuentaParaObjetivos: true },
+  ];
+  const VENTAS = anotarVentas(
+    [{ userId: "ana", tiendaId: "t1", articuloId: "fibra", cantidad: 9 }],
+    CATALOGO_FFTH,
+  );
+  const SEDES = [{ id: "t1", nombre: "Centro" }];
+  const OBJETIVOS: ObjetivoFila[] = [
+    { id: "o_propio", mes: "2026-07", userId: null, tiendaId: "t1", articuloId: null, subcategoria: "FFTH", cantidad: 10 },
+    { id: "o_tmt", mes: "2026-07", userId: null, tiendaId: "t1", articuloId: null, subcategoria: "FFTH", fuente: "tmt", cantidad: 15 },
+  ];
+  const COL_FFTH = columnaSubgrupo({ subcategoria: "FFTH" });
+
+  it("la parrilla de la empresa solo enseña las cifras de la empresa", () => {
+    const filas = construirMatriz("sede", SEDES, [], OBJETIVOS, VENTAS, CATALOGO_FFTH);
+    expect(filas[0].celdas[COL_FFTH].objetivo).toBe(10);
+    expect(filas[0].celdas[COL_FFTH].consecucion).toBe(90);
+  });
+
+  it("la del operador enseña las suyas, contra las MISMAS ventas", () => {
+    const filas = construirMatriz("sede", SEDES, [], OBJETIVOS, VENTAS, CATALOGO_FFTH, "tmt");
+    expect(filas[0].celdas[COL_FFTH].objetivo).toBe(15);
+    expect(filas[0].celdas[COL_FFTH].vendido).toBe(9);
+    expect(filas[0].celdas[COL_FFTH].consecucion).toBe(60);
+  });
+
+  it("un objetivo sin fuente es de la empresa (los de siempre)", () => {
+    expect(fuenteDe({})).toBe("propio");
+    expect(fuenteDe({ fuente: null })).toBe("propio");
+    expect(fuenteDe({ fuente: "tmt" })).toBe("tmt");
+  });
+
+  it("las unidades totales de cada parrilla suman solo sus propios grupos", () => {
+    // Sin total escrito a mano, cada juego deriva el suyo: 10 la empresa, 15 el
+    // operador. Si se mezclaran, las dos enseñarían 25.
+    const propio = construirMatriz("sede", SEDES, [], OBJETIVOS, VENTAS, CATALOGO_FFTH);
+    const tmt = construirMatriz("sede", SEDES, [], OBJETIVOS, VENTAS, CATALOGO_FFTH, "tmt");
+    expect(propio[0].celdas[""].objetivo).toBe(10);
+    expect(tmt[0].celdas[""].objetivo).toBe(15);
   });
 });

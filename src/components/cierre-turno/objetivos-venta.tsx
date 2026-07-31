@@ -162,10 +162,13 @@ interface Respuesta {
   excluidos: string[];
   filasComerciales: FilaMatriz[];
   filasSedes: FilaMatriz[];
+  /** El objetivo que impone el operador a cada tienda (ticket 5d8b21c7). */
+  filasSedesTmt: FilaMatriz[];
   /** Una fila por grupo de objetivos del cliente (TMT, televenta…). */
   filasGrupos: FilaMatriz[];
   totalesComerciales: Record<string, TotalColumna>;
   totalesSedes: Record<string, TotalColumna>;
+  totalesSedesTmt: Record<string, TotalColumna>;
   totalesGrupos: Record<string, TotalColumna>;
   objetivosDelMes: ObjetivoDelMes[];
   resumen: { objetivo: number; vendido: number; conObjetivo: number };
@@ -314,6 +317,7 @@ function TablaObjetivos({
   mostrarSede,
   mes,
   guardando,
+  fuente = "propio",
   onGuardar,
 }: {
   titulo: string;
@@ -328,6 +332,13 @@ function TablaObjetivos({
   mostrarSede: boolean;
   mes: string;
   guardando: string | null;
+  /**
+   * De quién son las cifras de esta parrilla. Solo se usa para las claves de
+   * React y del "guardando": dos parrillas de las mismas tiendas comparten
+   * `sujetoId` y `columna`, y sin la fuente teclear en una bloquearía la
+   * casilla de la otra.
+   */
+  fuente?: "propio" | "tmt";
   onGuardar: (fila: FilaMatriz, columna: Columna, valor: string) => void;
 }) {
   return (
@@ -393,7 +404,7 @@ function TablaObjetivos({
                               // La clave lleva el mes: sin ella, al cambiar de mes
                               // el campo (no controlado) seguiría enseñando la
                               // cifra del mes anterior.
-                              key={`${mes}|${f.sujetoId}|${c.id}`}
+                              key={`${fuente}|${mes}|${f.sujetoId}|${c.id}`}
                               type="number"
                               min="0"
                               step="1"
@@ -407,7 +418,7 @@ function TablaObjetivos({
                                   ? "Suma de los objetivos por producto. Escribe un número para fijar otro total."
                                   : undefined
                               }
-                              disabled={guardando === `${f.sujetoId}|${c.id}`}
+                              disabled={guardando === `${fuente}|${f.sujetoId}|${c.id}`}
                               aria-label={`Objetivo de ${c.nombre} para ${f.sujeto}`}
                               onBlur={(e) => {
                                 const nuevo = e.target.value.trim();
@@ -493,14 +504,24 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
   }, [cargar]);
 
   /** Guarda (o borra, con 0) el objetivo de una casilla. */
-  const guardar = async (ambito: Ambito, fila: FilaMatriz, columna: Columna, valor: string) => {
+  const guardar = async (
+    ambito: Ambito,
+    fila: FilaMatriz,
+    columna: Columna,
+    valor: string,
+    // "tmt" = la cifra que impone el operador para esa tienda. Va en su propia
+    // parrilla y no pisa la de la empresa (ticket 5d8b21c7).
+    fuente: "propio" | "tmt" = "propio",
+  ) => {
     const limpio = valor.trim();
     const cantidad = limpio === "" ? 0 : Number.parseInt(limpio, 10);
     if (!Number.isInteger(cantidad) || cantidad < 0) {
       toast({ title: "Objetivo no válido", description: "Escribe un número entero de unidades.", variant: "destructive" });
       return;
     }
-    setGuardando(`${fila.sujetoId}|${columna.id}`);
+    // La clave del guardado lleva la fuente: si no, teclear en la parrilla del
+    // operador bloquearía la casilla equivalente de la de la empresa.
+    setGuardando(`${fuente}|${fila.sujetoId}|${columna.id}`);
     // La columna dice de qué es el objetivo: unidades totales, un grupo de
     // productos (una subcategoría) o un producto suelto.
     try {
@@ -513,6 +534,7 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
           sujetoId: fila.sujetoId,
           articuloId: columna.grupo || columna.id === COLUMNA_TOTAL ? null : columna.id,
           subcategoria: columna.grupo?.subcategoria ?? null,
+          fuente,
           cantidad,
         }),
       });
@@ -909,6 +931,24 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
             mes={mes}
             guardando={guardando}
             onGuardar={(fila, columna, valor) => void guardar("sede", fila, columna, valor)}
+          />
+
+          {/* La vara del operador: mismas tiendas, mismas ventas, otras cifras. */}
+          <TablaObjetivos
+            titulo="TMT punto de venta"
+            descripcion="El objetivo que impone el operador a cada tienda. Se compara con las mismas ventas que el vuestro, pero es una cifra aparte: la de arriba la ponéis vosotros, esta la manda el operador."
+            icono={<Building2 className="h-4 w-4 text-amber-600" />}
+            etiquetaSujeto="Punto de venta"
+            vacio="No hay puntos de venta activos."
+            columnas={columnas}
+            filas={datos?.filasSedesTmt ?? []}
+            totales={datos?.totalesSedesTmt ?? {}}
+            soloLectura={soloLectura}
+            mostrarSede={false}
+            mes={mes}
+            guardando={guardando}
+            fuente="tmt"
+            onGuardar={(fila, columna, valor) => void guardar("sede", fila, columna, valor, "tmt")}
           />
 
           {/* Los grupos del cliente (TMT, televenta…). Sin ninguno dado de alta

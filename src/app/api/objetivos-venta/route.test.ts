@@ -490,6 +490,8 @@ describe("PUT /api/objetivos-venta", () => {
         articuloId: null,
         categoria: null,
         subcategoria: null,
+        // La fuente también: el objetivo del operador no pisa el de la empresa.
+        fuente: "propio",
       },
       select: { id: true },
     });
@@ -502,6 +504,7 @@ describe("PUT /api/objetivos-venta", () => {
         articuloId: null,
         categoria: null,
         subcategoria: null,
+        fuente: "propio",
         cantidad: 10,
       },
       select: { id: true, cantidad: true },
@@ -552,6 +555,7 @@ describe("PUT /api/objetivos-venta", () => {
         articuloId: null,
         categoria: null,
         subcategoria: null,
+        fuente: "propio",
         cantidad: 200,
       },
       select: { id: true, cantidad: true },
@@ -591,6 +595,7 @@ describe("PUT /api/objetivos-venta", () => {
         articuloId: null,
         subcategoria: "Hogar",
         categoria: null,
+        fuente: "propio",
         cantidad: 25,
       },
       select: { id: true, cantidad: true },
@@ -614,6 +619,40 @@ describe("PUT /api/objetivos-venta", () => {
         data: expect.objectContaining({ subcategoria: "Hogar", categoria: null }),
       }),
     );
+  });
+
+  it("el objetivo del operador (TMT) no pisa el de la empresa", async () => {
+    // Misma tienda, mismo grupo, mismo mes: son dos objetivos distintos y el
+    // findFirst tiene que buscar con la fuente puesta (ticket 5d8b21c7).
+    const res = await put({
+      mes: "2026-07",
+      ambito: "sede",
+      sujetoId: "t1",
+      subcategoria: "Hogar",
+      fuente: "tmt",
+      cantidad: 30,
+    });
+    expect(res.status).toBe(200);
+    expect(prismaMock.objetivoVenta.findFirst).toHaveBeenCalledWith({
+      where: expect.objectContaining({ tiendaId: "t1", subcategoria: "Hogar", fuente: "tmt" }),
+      select: { id: true },
+    });
+    expect(prismaMock.objetivoVenta.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ fuente: "tmt", cantidad: 30 }),
+      select: { id: true, cantidad: true },
+    });
+  });
+
+  it("el del operador es solo de punto de venta", async () => {
+    const res = await put({
+      mes: "2026-07",
+      ambito: "comercial",
+      sujetoId: "u_ana",
+      fuente: "tmt",
+      cantidad: 30,
+    });
+    expect(res.status).toBe(400);
+    expect(prismaMock.objetivoVenta.create).not.toHaveBeenCalled();
   });
 
   it("un grupo que no está en el catálogo se rechaza", async () => {
