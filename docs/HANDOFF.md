@@ -73,6 +73,30 @@ Producción ya corre desde esta rama vía Dokploy.
   `withTenant`, pages usan `withTenantPage`, no `fetch` interno entre
   rutas, etc.).
 
+## 4.hoy-oct. "Cómo vas" suma los productos con el mismo nombre (ticket 7dd7ac00, 2026-07-31)
+
+El cliente lo pidió así: *"los productos con el mismo nombre, aunque
+tengan distinta categoría, se sumarán para informar al empleado de cómo
+va su objetivo individual y por sede"* (una Fibra 1 GB de Particular + 2
+de Empresa = 3 en pantalla).
+
+- Paso 2 del asistente (`/empleado/cierre-turno`): la tabla *Tus ventas
+  por artículo* deja de tener una fila por artículo del catálogo y pasa
+  a tener una por **nombre**. Se suman unidades, objetivos e importe; la
+  consecución se recalcula sobre la suma. Lógica pura
+  `agruparProductosPorNombre` en `src/lib/cierre-turno/objetivos.ts`
+  (con tests), aplicada en `GET /api/cierre-turno/progreso`.
+- Los nombres se comparan con `claveArticulo({ nombre })` — la misma
+  clave del catálogo: sin tildes, sin mayúsculas y sin espacios de más.
+- Las cifras de arriba (**Tú** y **Tu sede**) no cambian: son unidades
+  totales y ya sumaban todo el catálogo, así que el ticket ya se cumplía
+  ahí. Tampoco cambia el catálogo ni el paso 1: siguen siendo productos
+  distintos, con su precio, su orden y sus objetivos.
+- Los objetivos por grupo (`porGrupo`) siguen siendo por subcategoría
+  (ver 4.hoy-sep): son otra cosa, no se agrupan por nombre.
+- Sin comprobación en caliente: no se levantó entorno. Al mergear, mirar
+  con datos reales de `mobileshop` un catálogo con nombres repetidos.
+
 ## 4.hoy-sep. Los objetivos de grupo pasan a ser por SUBCATEGORÍA (ticket 234c6b0f, 2026-07-31)
 
 Continuación del cd804fa2. El cliente lo corrigió así: *"las categorías

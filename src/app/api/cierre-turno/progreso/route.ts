@@ -14,6 +14,12 @@
  * el progreso, y si le han puesto objetivos por grupo de productos —cada grupo
  * es una subcategoría del catálogo— vienen en `porGrupo` (tickets 714c76dd y
  * 234c6b0f).
+ *
+ * En el desglose por producto, los que se llaman igual van en una sola fila con
+ * las unidades sumadas aunque el catálogo los tenga en categorías distintas
+ * (ticket 7dd7ac00): al comercial se le pide "vende 3 fibras", no "3 fibras de
+ * particular", y las cifras de arriba —las suyas y las de su sede— ya las
+ * cuentan juntas.
  */
 
 import { auth } from "@/lib/auth";
@@ -24,6 +30,7 @@ import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
 import { diaMadrid } from "@/lib/cierre-turno/core";
 import {
+  agruparProductosPorNombre,
   anotarVentas,
   cuentaParaObjetivos,
   esDelSubgrupo,
@@ -118,31 +125,36 @@ export const GET = withTenant(
       ? progresoDe(objetivos, ventasSede, { ambito: "sede", id: tiendaId }, articuloIds, paraObjetivos)
       : null;
 
-    // Desglose por artículo del propio comercial: es donde ve qué le falta.
-    const porArticulo = articulos
-      .map((a) => {
-        const vendido = vendidoDeSujeto(ventasPropias, { ambito: "comercial", id: userId }, a.id);
-        const objetivo =
-          objetivos.find((o) => o.userId === userId && o.articuloId === a.id)?.cantidad ?? null;
-        return {
-          articuloId: a.id,
-          nombre: a.nombre,
-          vendido,
-          objetivo,
-          consecucion:
-            objetivo && objetivo > 0 ? Math.round((vendido / objetivo) * 1000) / 10 : null,
-          importe:
-            preciosOn && a.precio !== null
-              ? Math.round(vendido * Number(a.precio) * 100) / 100
-              : null,
-          // Lo vendido de un producto excluido no suma en el objetivo de arriba;
-          // se dice en la fila para que las dos cifras no parezcan reñidas.
-          cuentaParaObjetivos: cuentaParaObjetivos(a),
-        };
-      })
-      // Solo lo que aporta información: con objetivo o con ventas. Una lista de
-      // 80 artículos a cero no dice nada a nadie.
-      .filter((f) => f.vendido > 0 || f.objetivo !== null);
+    // Desglose por artículo del propio comercial: es donde ve qué le falta. Los
+    // productos que se llaman igual en categorías distintas van en una sola
+    // fila con las unidades sumadas (ticket 7dd7ac00).
+    const porArticulo = agruparProductosPorNombre(
+      articulos
+        .map((a) => {
+          const vendido = vendidoDeSujeto(ventasPropias, { ambito: "comercial", id: userId }, a.id);
+          const objetivo =
+            objetivos.find((o) => o.userId === userId && o.articuloId === a.id)?.cantidad ?? null;
+          return {
+            articuloId: a.id,
+            nombre: a.nombre,
+            vendido,
+            objetivo,
+            consecucion:
+              objetivo && objetivo > 0 ? Math.round((vendido / objetivo) * 1000) / 10 : null,
+            importe:
+              preciosOn && a.precio !== null
+                ? Math.round(vendido * Number(a.precio) * 100) / 100
+                : null,
+            // Lo vendido de un producto excluido no suma en el objetivo de arriba;
+            // se dice en la fila para que las dos cifras no parezcan reñidas.
+            cuentaParaObjetivos: cuentaParaObjetivos(a),
+            productos: 1,
+          };
+        })
+        // Solo lo que aporta información: con objetivo o con ventas. Una lista de
+        // 80 artículos a cero no dice nada a nadie.
+        .filter((f) => f.vendido > 0 || f.objetivo !== null),
+    );
 
     // Desglose por grupo: si administración le ha puesto objetivos de grupo, es
     // ahí donde los ve (en la tabla de artículos no aparecen).
