@@ -8,6 +8,8 @@ import {
   normalizarCategoriaArticulo,
   CATALOGO_MAX_FILAS,
   CATALOGO_NOMBRE_MAX,
+  moverEnOrden,
+  validarOrdenCatalogo,
 } from "./catalogo";
 
 describe("normalizarNombreArticulo", () => {
@@ -207,5 +209,59 @@ describe("parsearPrecio", () => {
 
   it("cero es un precio válido: hay servicios gratis", () => {
     expect(parsearPrecio("0")).toBe(0);
+  });
+});
+
+describe("moverEnOrden", () => {
+  const ids = ["a", "b", "c"];
+
+  it("sube un artículo una posición", () => {
+    expect(moverEnOrden(ids, "c", -1)).toEqual(["a", "c", "b"]);
+  });
+
+  it("baja un artículo una posición", () => {
+    expect(moverEnOrden(ids, "a", 1)).toEqual(["b", "a", "c"]);
+  });
+
+  it("no se sale por los extremos ni toca la lista original", () => {
+    expect(moverEnOrden(ids, "a", -1)).toBeNull();
+    expect(moverEnOrden(ids, "c", 1)).toBeNull();
+    expect(ids).toEqual(["a", "b", "c"]);
+  });
+
+  it("un id que no está en la lista no mueve nada", () => {
+    expect(moverEnOrden(ids, "z", -1)).toBeNull();
+  });
+});
+
+describe("validarOrdenCatalogo", () => {
+  it("acepta el catálogo entero en otro orden", () => {
+    expect(validarOrdenCatalogo(["c", "a", "b"], ["a", "b", "c"])).toEqual({
+      ok: true,
+      ids: ["c", "a", "b"],
+    });
+  });
+
+  it("rechaza lo que no es una lista de ids", () => {
+    expect(validarOrdenCatalogo("a,b", ["a", "b"])).toMatchObject({ ok: false, estado: "malformado" });
+    expect(validarOrdenCatalogo([1, 2], ["a", "b"])).toMatchObject({ ok: false, estado: "malformado" });
+    expect(validarOrdenCatalogo(["a", "a"], ["a", "b"])).toMatchObject({
+      ok: false,
+      estado: "malformado",
+    });
+  });
+
+  it("si falta o sobra un artículo, el orden viene de una pantalla desfasada", () => {
+    // Otra pestaña ha añadido o desactivado algo mientras se ordenaba: guardar
+    // esta lista dejaría al artículo nuevo con la posición de otro.
+    expect(validarOrdenCatalogo(["a"], ["a", "b"])).toMatchObject({ ok: false, estado: "desfasado" });
+    expect(validarOrdenCatalogo(["a", "b", "c"], ["a", "b"])).toMatchObject({
+      ok: false,
+      estado: "desfasado",
+    });
+    expect(validarOrdenCatalogo(["a", "z"], ["a", "b"])).toMatchObject({
+      ok: false,
+      estado: "desfasado",
+    });
   });
 });
