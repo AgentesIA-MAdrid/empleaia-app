@@ -15,9 +15,9 @@
  *   marcados con `cuentaParaObjetivos` (tickets 714c76dd y 234c6b0f).
  *
  * PUT  /api/objetivos-venta — fija (o borra, con cantidad 0) un objetivo de un
- *   producto (`articuloId`), de un grupo de productos (`subcategoria` +
- *   `categoria`) o de unidades totales, para un comercial, una sede o un grupo
- *   de objetivos.
+ *   grupo de productos (`subcategoria`) o de unidades totales, para un
+ *   comercial, una sede o un grupo de objetivos. Producto a producto ya no:
+ *   el objetivo va sobre el grupo y sus productos se suman (ticket 528694fa).
  * DELETE /api/objetivos-venta?id=… — quita un objetivo.
  *
  * Quién ve qué: administración toda la empresa, coordinación solo su sede y en
@@ -195,11 +195,15 @@ export const GET = withTenant(
     const precios = new Map(articulos.map((a) => [a.id, a.precio === null ? null : Number(a.precio)]));
     const nombreSede = new Map(sedes.map((t) => [t.id, t.nombre]));
 
-    // Las columnas de la parrilla son los productos que cuentan para objetivos y
-    // los grupos que forman. Los excluidos se siguen vendiendo y se siguen
-    // viendo en el cierre; aquí solo se dice quién los ha dejado fuera.
+    // Las columnas de la parrilla son los GRUPOS de productos (las
+    // subcategorías del catálogo), no los productos: el objetivo se fija por
+    // grupo y las ventas de sus productos se suman para cumplirlo (ticket
+    // 528694fa). El catálogo entra igualmente, para saber qué grupos hay y para
+    // decir qué productos ha dejado fuera administración.
     const paraObjetivos = articulos.filter((a) => cuentaParaObjetivos(a));
-    const articuloIds = paraObjetivos.map((a) => a.id);
+    // Sin columnas de producto: `[]` deja la matriz en unidades totales + un
+    // grupo por subcategoría.
+    const articuloIds: string[] = [];
     const subgrupos = subgruposDelCatalogo(paraObjetivos);
     // Grupos de objetivos que puede ver quien mira: administración todos, y
     // coordinación solo los que caen enteros dentro de sus sedes (si no, la
@@ -383,19 +387,26 @@ export const PUT = withTenant(
     if (typeof body.sujetoId !== "string" || !body.sujetoId) {
       return NextResponse.json({ error: "Falta a quién es el objetivo." }, { status: 400 });
     }
-    const articuloId = typeof body.articuloId === "string" && body.articuloId ? body.articuloId : null;
+    // Un objetivo ya no se pone sobre un producto suelto (ticket 528694fa): se
+    // pone sobre su grupo, y las ventas de todos los productos del grupo lo
+    // empujan. Se rechaza en vez de guardarlo, para que no queden objetivos
+    // invisibles en una parrilla que ya no tiene esa columna.
+    if (typeof body.articuloId === "string" && body.articuloId) {
+      return NextResponse.json(
+        {
+          error:
+            "Los objetivos se fijan por grupo de productos, no producto a producto. Usa la columna del grupo (FFTH, Pospago…).",
+        },
+        { status: 400 },
+      );
+    }
+    const articuloId: string | null = null;
     // Grupo de productos: la subcategoría del catálogo, tal cual se guardó
     // allí. La categoría NO forma parte del grupo (ticket 528694fa): un
     // objetivo de "FFTH" lo empujan los productos de FFTH de todas las
     // categorías. Si llega una categoría, se ignora.
     const subcategoria = normalizarCategoriaArticulo(body.subcategoria);
     const categoriaRecibida = normalizarCategoriaArticulo(body.categoria);
-    if (articuloId && subcategoria) {
-      return NextResponse.json(
-        { error: "Un objetivo es de un producto o de un grupo, no de los dos." },
-        { status: 400 },
-      );
-    }
     // La categoría no es un nivel con objetivo: sola no vale (se avisa en vez de
     // guardar una fila que mediría otra cosa) y acompañando a una subcategoría
     // se ignora, porque el grupo es la subcategoría entera.
@@ -408,8 +419,8 @@ export const PUT = withTenant(
         { status: 400 },
       );
     }
-    // Comprobar que el destinatario y el artículo existen: un objetivo de un id
-    // inventado no se vería en ninguna pantalla y quedaría de basura en la tabla.
+    // Comprobar que el destinatario existe: un objetivo de un id inventado no se
+    // vería en ninguna pantalla y quedaría de basura en la tabla.
     if (ambito === "comercial") {
       const existe = await prisma.user.findUnique({ where: { id: body.sujetoId }, select: { id: true } });
       if (!existe) return NextResponse.json({ error: "Ese empleado no existe." }, { status: 404 });
@@ -427,24 +438,6 @@ export const PUT = withTenant(
       if (!existe.activo) {
         return NextResponse.json(
           { error: "Ese grupo está desactivado. Actívalo para fijarle objetivos." },
-          { status: 400 },
-        );
-      }
-    }
-    if (articuloId) {
-      const existe = await prisma.articuloVenta.findUnique({
-        where: { id: articuloId },
-        select: { id: true, nombre: true, cuentaParaObjetivos: true },
-      });
-      if (!existe) return NextResponse.json({ error: "Ese artículo no existe." }, { status: 404 });
-      // Un objetivo sobre un producto que el propio cliente ha dejado fuera de
-      // los objetivos no se podría cumplir de forma coherente con el resto de
-      // cifras: mejor decirlo que guardarlo y que no cuadre.
-      if (!existe.cuentaParaObjetivos) {
-        return NextResponse.json(
-          {
-            error: `"${existe.nombre}" está marcado como que no cuenta para los objetivos. Cámbialo en Configuración → Catálogo de ventas.`,
-          },
           { status: 400 },
         );
       }

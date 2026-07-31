@@ -75,12 +75,12 @@ const objetivo = (o: Partial<ObjetivoFila>): ObjetivoFila => ({
 });
 
 describe("columnasPlantilla", () => {
-  it("lleva unidades totales, un grupo por subcategoría y un producto por artículo", () => {
+  it("lleva unidades totales y un grupo por subcategoría, sin columnas de producto", () => {
+    // Ticket 528694fa: los objetivos se fijan por grupo. La hoja es la parrilla
+    // en Excel, así que tampoco lleva columna por producto.
     expect(columnasPlantilla(catalogo).map((c) => c.titulo)).toEqual([
       "Unidades totales",
       "Grupo: Hogar",
-      "Alta de fibra",
-      "Portabilidad",
     ]);
   });
 
@@ -91,24 +91,24 @@ describe("columnasPlantilla", () => {
     expect(ids).not.toContain(columnaSubgrupo(FUNDAS));
   });
 
-  it("dos artículos que se llaman igual llevan detrás dónde están", () => {
-    const titulos = columnasPlantilla([
-      { id: "art_1", nombre: "Renove", categoria: "Telefonía", cuentaParaObjetivos: true },
-      { id: "art_2", nombre: "Renove", categoria: "Energía", cuentaParaObjetivos: true },
+  it("solo hay una columna por subcategoría, aunque tenga varios productos", () => {
+    const columnas = columnasPlantilla([
       {
-        id: "art_3",
-        nombre: "Renove",
-        categoria: "Telefonía",
-        subcategoria: "Pospago",
+        id: "art_1",
+        nombre: "Fibra 1 GB",
+        categoria: "Particular",
+        subcategoria: "FFTH",
         cuentaParaObjetivos: true,
       },
-      { id: "art_4", nombre: "Portabilidad", categoria: "Telefonía", cuentaParaObjetivos: true },
-    ]).map((c) => c.titulo);
-    expect(titulos).toContain("Renove (Telefonía)");
-    expect(titulos).toContain("Renove (Energía)");
-    expect(titulos).toContain("Renove (Telefonía → Pospago)");
-    // El que no se repite se queda con su nombre a secas.
-    expect(titulos).toContain("Portabilidad");
+      {
+        id: "art_2",
+        nombre: "Fibra General",
+        categoria: "Empresa",
+        subcategoria: "FFTH",
+        cuentaParaObjetivos: true,
+      },
+    ]);
+    expect(columnas.map((c) => c.titulo)).toEqual(["Unidades totales", "Grupo: FFTH"]);
   });
 });
 
@@ -116,23 +116,22 @@ describe("filasPlantilla", () => {
   it("rellena cada casilla con el objetivo fijado de ese sujeto y esa columna", () => {
     const columnas = columnasPlantilla(catalogo);
     const filas = filasPlantilla(sujetos, columnas, [
-      objetivo({ id: "o1", userId: "u_ana", articuloId: "art_fibra", cantidad: 12 }),
       objetivo({ id: "o2", userId: "u_ana", ...HOGAR, cantidad: 20 }),
       objetivo({ id: "o3", tiendaId: "t1", cantidad: 90 }),
     ]);
 
-    // [Ámbito, nombre, id, totales, grupo, fibra, portabilidad]
-    expect(filas[0]).toEqual(["Comercial", "Ana García", "u_ana", "", 20, 12, ""]);
-    expect(filas[1]).toEqual(["Sede", "Centro", "t1", 90, "", "", ""]);
+    // [Ámbito, nombre, id, unidades totales, grupo Hogar]
+    expect(filas[0]).toEqual(["Comercial", "Ana García", "u_ana", "", 20]);
+    expect(filas[1]).toEqual(["Sede", "Centro", "t1", 90, ""]);
   });
 
   it("no mezcla los objetivos de la sede con los del comercial", () => {
     const columnas = columnasPlantilla(catalogo);
     const filas = filasPlantilla(sujetos, columnas, [
-      objetivo({ id: "o1", tiendaId: "t1", articuloId: "art_fibra", cantidad: 50 }),
+      objetivo({ id: "o1", tiendaId: "t1", ...HOGAR, cantidad: 50 }),
     ]);
-    expect(filas[0][5]).toBe(""); // el comercial sigue sin objetivo de fibra
-    expect(filas[1][5]).toBe(50);
+    expect(filas[0][4]).toBe(""); // el comercial sigue sin objetivo del grupo
+    expect(filas[1][4]).toBe(50);
   });
 });
 
@@ -152,18 +151,13 @@ describe("parsearCantidadPlantilla", () => {
 });
 
 describe("interpretarPlantillaObjetivos", () => {
-  const cabecera = [
-    "Ámbito",
-    "Comercial o punto de venta",
-    "Id",
-    "Unidades totales",
-    "Grupo: Hogar",
-    "Alta de fibra",
-  ];
+  // La hoja de hoy: unidades totales y un grupo por subcategoría. La columna
+  // "Alta de fibra" es de una hoja antigua y ahora se ignora (ticket 528694fa).
+  const cabecera = ["Ámbito", "Comercial o punto de venta", "Id", "Unidades totales", "Grupo: Hogar"];
 
   it("lee la hoja tal cual baja y devuelve los objetivos a fijar", () => {
     const r = interpretarPlantillaObjetivos(
-      [["Mes", "2026-07"], cabecera, ["Comercial", "Ana García", "u_ana", "40", "20", "12"]],
+      [["Mes", "2026-07"], cabecera, ["Comercial", "Ana García", "u_ana", "40", "20"]],
       ctx,
     );
     expect(r.cabeceraEncontrada).toBe(true);
@@ -171,22 +165,35 @@ describe("interpretarPlantillaObjetivos", () => {
     expect(r.cambios).toEqual([
       expect.objectContaining({ ambito: "comercial", sujetoId: "u_ana", articuloId: null, categoria: null, cantidad: 40 }),
       expect.objectContaining({ ...HOGAR, articuloId: null, cantidad: 20 }),
-      expect.objectContaining({ articuloId: "art_fibra", categoria: null, cantidad: 12 }),
     ]);
   });
 
   it("una casilla vacía no toca nada y el 0 quita el objetivo", () => {
     const r = interpretarPlantillaObjetivos(
-      [cabecera, ["Comercial", "Ana García", "u_ana", "", "", "0"]],
+      [cabecera, ["Comercial", "Ana García", "u_ana", "", "0"]],
       ctx,
     );
     expect(r.cambios).toHaveLength(1);
-    expect(r.cambios[0]).toMatchObject({ articuloId: "art_fibra", cantidad: 0 });
+    expect(r.cambios[0]).toMatchObject({ ...HOGAR, cantidad: 0 });
+  });
+
+  it("una columna de producto de una hoja antigua se ignora y dice dónde va la cifra", () => {
+    const r = interpretarPlantillaObjetivos(
+      [
+        ["Ámbito", "Comercial o punto de venta", "Id", "Alta de fibra"],
+        ["Comercial", "Ana García", "u_ana", "12"],
+      ],
+      ctx,
+    );
+    expect(r.cambios).toHaveLength(0);
+    expect(r.columnasIgnoradas).toEqual([
+      { columna: "Alta de fibra", motivo: 'Los objetivos se fijan por grupo: pon la cifra en la columna "Grupo: Hogar".' },
+    ]);
   });
 
   it("el id manda sobre el nombre y sobre el ámbito escrito", () => {
     const r = interpretarPlantillaObjetivos(
-      [cabecera, ["Comercial", "Nombre viejo", "t1", "90", "", ""]],
+      [cabecera, ["Comercial", "Nombre viejo", "t1", "90", ""]],
       ctx,
     );
     expect(r.cambios[0]).toMatchObject({ ambito: "sede", sujetoId: "t1", cantidad: 90 });
@@ -207,8 +214,8 @@ describe("interpretarPlantillaObjetivos", () => {
     const r = interpretarPlantillaObjetivos(
       [
         cabecera,
-        ["Comercial", "Quien sea", "", "10", "", ""],
-        ["Comercial", "Ana García", "u_ana", "40", "", ""],
+        ["Comercial", "Quien sea", "", "10", ""],
+        ["Comercial", "Ana García", "u_ana", "40", ""],
       ],
       ctx,
     );
@@ -230,7 +237,19 @@ describe("interpretarPlantillaObjetivos", () => {
     expect(r.columnasIgnoradas[1].motivo).toContain("no cuenta");
   });
 
-  it("casa las columnas de dos artículos que se llaman igual por su categoría", () => {
+  it("una columna de producto ya no casa: los objetivos van por grupo", () => {
+    const r = interpretarPlantillaObjetivos(
+      [
+        ["Ámbito", "Comercial o punto de venta", "Id", "Portabilidad"],
+        ["Comercial", "Ana García", "u_ana", "4"],
+      ],
+      ctx,
+    );
+    expect(r.cambios).toHaveLength(0);
+    expect(r.columnasIgnoradas[0].motivo).toContain("por grupo");
+  });
+
+  it("las columnas de artículo se ignoran, se llamen como se llamen", () => {
     const conRepetidos = {
       ...ctx,
       articulos: [
@@ -245,13 +264,9 @@ describe("interpretarPlantillaObjetivos", () => {
       ],
       conRepetidos,
     );
-    expect(r.cambios).toEqual([
-      expect.objectContaining({ sujetoId: "u_ana", articuloId: "art_ene", cantidad: 7 }),
-    ]);
-    // La columna a secas sigue sin poder casarse: son dos artículos.
-    expect(r.columnasIgnoradas).toEqual([
-      { columna: "Renove", motivo: "Hay dos artículos con ese nombre en el catálogo." },
-    ]);
+    // Ninguna cifra entra: los objetivos se fijan por grupo (ticket 528694fa).
+    expect(r.cambios).toHaveLength(0);
+    expect(r.columnasIgnoradas.map((c) => c.columna)).toEqual(["Renove (Energía)", "Renove"]);
   });
 
   it("la misma subcategoría en dos categorías es un solo grupo, y se casa por su nombre", () => {
@@ -311,7 +326,7 @@ describe("interpretarPlantillaObjetivos", () => {
 
   it("una cantidad que no es un número entero se cuenta como casilla ignorada", () => {
     const r = interpretarPlantillaObjetivos(
-      [cabecera, ["Comercial", "Ana García", "u_ana", "muchas", "", "12"]],
+      [cabecera, ["Comercial", "Ana García", "u_ana", "muchas", "12"]],
       ctx,
     );
     expect(r.cambios).toHaveLength(1);
@@ -349,7 +364,7 @@ describe("grupos de objetivos en la plantilla (ticket ff5ab304)", () => {
       columnas,
       [objetivo({ id: "o1", grupoId: "g_tmt", cantidad: 200 })],
     );
-    expect(filas[2]).toEqual(["Grupo", "TMT", "g_tmt", 200, "", "", ""]);
+    expect(filas[2]).toEqual(["Grupo", "TMT", "g_tmt", 200, ""]);
     // Y no se cuela en las filas de los otros ámbitos.
     expect(filas[0][3]).toBe("");
     expect(filas[1][3]).toBe("");
@@ -357,7 +372,7 @@ describe("grupos de objetivos en la plantilla (ticket ff5ab304)", () => {
 
   it("lee una fila de grupo por su id", () => {
     const r = interpretarPlantillaObjetivos(
-      [cabecera, ["Grupo", "TMT", "g_tmt", "200", "80", ""]],
+      [cabecera, ["Grupo", "TMT", "g_tmt", "200", "80"]],
       ctxConGrupos,
     );
     expect(r.cambios).toEqual([
@@ -402,7 +417,7 @@ describe("viaje completo por un .xlsx de verdad", () => {
       [...sujetos, { ambito: "grupo" as const, id: "g_tmt", nombre: "TMT" }],
       columnas,
       [
-        objetivo({ id: "o1", userId: "u_ana", articuloId: "art_fibra", cantidad: 12 }),
+        objetivo({ id: "o1", userId: "u_ana", ...HOGAR, cantidad: 12 }),
         objetivo({ id: "o2", tiendaId: "t1", cantidad: 90 }),
         objetivo({ id: "o3", grupoId: "g_tmt", cantidad: 200 }),
       ],
@@ -420,7 +435,7 @@ describe("viaje completo por un .xlsx de verdad", () => {
     expect(r.ignoradas).toEqual([]);
     expect(r.columnasIgnoradas).toEqual([]);
     expect(r.cambios).toEqual([
-      expect.objectContaining({ ambito: "comercial", sujetoId: "u_ana", articuloId: "art_fibra", cantidad: 12 }),
+      expect.objectContaining({ ambito: "comercial", sujetoId: "u_ana", ...HOGAR, articuloId: null, cantidad: 12 }),
       expect.objectContaining({ ambito: "sede", sujetoId: "t1", articuloId: null, categoria: null, cantidad: 90 }),
       expect.objectContaining({ ambito: "grupo", sujetoId: "g_tmt", articuloId: null, categoria: null, cantidad: 200 }),
     ]);

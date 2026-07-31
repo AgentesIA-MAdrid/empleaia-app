@@ -631,9 +631,9 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
   };
 
   const soloLectura = datos?.soloLectura ?? true;
-  // Unidades totales siempre delante: es el objetivo "de todo" y el que ve el
-  // comercial en su cierre. Después los grupos, que es como el cliente piensa
-  // los objetivos, y al final el catálogo en su orden de configuración.
+  // Unidades totales delante —es el objetivo "de todo" y el que ve el comercial
+  // en su cierre— y detrás un grupo por subcategoría, que es como el cliente
+  // piensa los objetivos.
   const columnas = useMemo<Columna[]>(
     () => [
       { id: COLUMNA_TOTAL, nombre: "Unidades totales", detalle: null },
@@ -645,13 +645,9 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
         detalle: "Grupo de productos",
         grupo: g,
       })),
-      ...(datos?.articulos ?? []).map((a) => ({
-        id: a.id,
-        nombre: a.nombre,
-        // Dónde está el producto, que es lo que distingue dos que se llaman
-        // igual en bloques distintos.
-        detalle: [a.categoria, a.subcategoria].filter(Boolean).join(" → ") || null,
-      })),
+      // Sin columnas de producto: el objetivo se fija por grupo y las ventas de
+      // sus productos lo empujan (ticket 528694fa). El detalle producto a
+      // producto vive en el catálogo y en el seguimiento diario.
     ],
     [datos],
   );
@@ -724,22 +720,19 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
           </p>
           <p className="text-xs text-slate-400 mt-2 max-w-3xl">
             <strong className="font-medium text-slate-500">Unidades totales</strong> es la suma de
-            lo que pongas por grupo y por producto suelto en esa fila (aparece en gris). Si quieres
-            otro total —por ejemplo, para contar también lo que no tiene columna propia— escríbelo
-            encima y manda el tuyo; bórralo y vuelve a mandar la suma.
+            lo que pongas grupo a grupo en esa fila (aparece en gris). Si quieres otro total —por
+            ejemplo, para contar también lo que no tiene columna propia— escríbelo encima y manda el
+            tuyo; bórralo y vuelve a mandar la suma.
           </p>
           <p className="text-xs text-slate-400 mt-2 max-w-3xl">
-            Cada objetivo puede ir de dos formas: sobre un{" "}
-            <strong className="font-medium text-slate-500">producto suelto</strong> o sobre un{" "}
-            <strong className="font-medium text-slate-500">grupo de productos</strong> (las columnas
-            grises, una por subcategoría del catálogo). Tu equipo sigue registrando cada producto por
-            separado; para el objetivo de grupo se suman las unidades de todos los productos de esa
-            subcategoría, cuelguen de la categoría que cuelguen: si tienes FFTH en Particular y en
+            Los objetivos se fijan por{" "}
+            <strong className="font-medium text-slate-500">grupo de productos</strong>: una columna
+            por subcategoría del catálogo (FFTH, Pospago, Terminales…). Tu equipo sigue registrando
+            cada producto por separado, y para el objetivo del grupo se suman las unidades de todos
+            sus productos, cuelguen de la categoría que cuelguen: si tienes FFTH en Particular y en
             Empresa, las dos empujan el mismo objetivo de FFTH. Las categorías no llevan objetivo
             propio —organizan el catálogo, filtran los informes y las elige tu equipo al registrar
-            la venta. Si un producto
-            ya tiene objetivo propio dentro de un grupo con objetivo, no se suma dos veces en las
-            unidades totales: manda el del grupo.
+            la venta.
           </p>
           {/* Lo que el cliente ha dejado fuera a propósito. Sin decirlo, un
               producto sin columna parece un fallo del catálogo. */}
@@ -767,8 +760,8 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
                 <a href="/admin/configuracion?tab=catalogo" className="underline font-medium">
                   Configuración → Catálogo de ventas
                 </a>{" "}
-                (pospago, fibra, renove…) y aparecerá una columna por producto y otra por cada
-                subcategoría.
+                (pospago, fibra, renove…) agrupados por subcategoría, y aparecerá una columna por
+                cada subcategoría.
               </p>
             )}
         </CardContent>

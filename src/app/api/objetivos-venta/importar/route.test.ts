@@ -94,7 +94,9 @@ function csv(filas: string[][]): string {
   return filas.map((f) => f.join(";")).join("\n");
 }
 
-const CABECERA = ["Ámbito", "Comercial o punto de venta", "Id", "Unidades totales", "Alta de fibra"];
+// La hoja de hoy: unidades totales y un grupo por subcategoría, sin columnas de
+// producto (ticket 528694fa).
+const CABECERA = ["Ámbito", "Comercial o punto de venta", "Id", "Unidades totales", "Grupo: Hogar"];
 
 async function importar(contenido: string, mes = "2026-07") {
   const { POST } = await import("./route");
@@ -144,7 +146,7 @@ describe("POST /api/objetivos-venta/importar", () => {
     expect(prismaMock.objetivoVenta.createMany).toHaveBeenCalledWith({
       data: [
         { mes: "2026-07", userId: "u_ana", tiendaId: null, grupoId: null, articuloId: null, categoria: null, subcategoria: null, cantidad: 40 },
-        { mes: "2026-07", userId: "u_ana", tiendaId: null, grupoId: null, articuloId: "art_fibra", categoria: null, subcategoria: null, cantidad: 12 },
+        { mes: "2026-07", userId: "u_ana", tiendaId: null, grupoId: null, articuloId: null, categoria: null, subcategoria: "Hogar", cantidad: 12 },
         { mes: "2026-07", userId: null, tiendaId: "t1", grupoId: null, articuloId: null, categoria: null, subcategoria: null, cantidad: 90 },
       ],
     });
@@ -178,16 +180,16 @@ describe("POST /api/objetivos-venta/importar", () => {
   it("una casilla vacía no borra el objetivo que hubiera; el 0 sí lo quita", async () => {
     objetivosExistentes.push(
       { id: "obj_total", userId: "u_ana", tiendaId: null, articuloId: null, categoria: null, subcategoria: null, cantidad: 40 },
-      { id: "obj_fibra", userId: "u_ana", tiendaId: null, articuloId: "art_fibra", categoria: null, subcategoria: null, cantidad: 12 },
+      { id: "obj_hogar", userId: "u_ana", tiendaId: null, articuloId: null, categoria: null, subcategoria: "Hogar", cantidad: 12 },
     );
     const res = await importar(csv([CABECERA, ["Comercial", "Ana García", "u_ana", "", "0"]]));
     expect(res.status).toBe(200);
     const data = (await res.json()) as { borrados: number; creados: number };
     expect(data.borrados).toBe(1);
     expect(data.creados).toBe(0);
-    // Solo se borra el de fibra (el 0). El total, que venía en blanco, sigue.
+    // Solo se borra el del grupo (el 0). El total, que venía en blanco, sigue.
     expect(prismaMock.objetivoVenta.deleteMany).toHaveBeenCalledWith({
-      where: { id: { in: ["obj_fibra"] } },
+      where: { id: { in: ["obj_hogar"] } },
     });
   });
 
