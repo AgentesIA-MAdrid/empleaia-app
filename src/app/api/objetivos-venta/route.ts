@@ -9,13 +9,15 @@
  *   objetivo del mes, lo vendido y la consecución. Los objetivos personales,
  *   los de la sede y los del grupo son distintos y van en tablas separadas.
  *
- *   Un grupo de productos es la categoría del catálogo, y solo cuentan para los
- *   objetivos —de grupo y de unidades totales— los artículos marcados con
- *   `cuentaParaObjetivos` (ticket 714c76dd).
+ *   Un grupo de productos es la SUBCATEGORÍA del catálogo —con su categoría,
+ *   que es lo que distingue dos subcategorías que se llamen igual—, y solo
+ *   cuentan para los objetivos —de grupo y de unidades totales— los artículos
+ *   marcados con `cuentaParaObjetivos` (tickets 714c76dd y 234c6b0f).
  *
  * PUT  /api/objetivos-venta — fija (o borra, con cantidad 0) un objetivo de un
- *   producto (`articuloId`), de un grupo de productos (`categoria`) o de
- *   unidades totales, para un comercial, una sede o un grupo de objetivos.
+ *   producto (`articuloId`), de un grupo de productos (`subcategoria` +
+ *   `categoria`) o de unidades totales, para un comercial, una sede o un grupo
+ *   de objetivos.
  * DELETE /api/objetivos-venta?id=… — quita un objetivo.
  *
  * Quién ve qué: administración toda la empresa, coordinación solo su sede y en
@@ -33,13 +35,16 @@ import { diaMadrid, filtroSede, puedeFijarObjetivos, puedeVerObjetivos } from "@
 import {
   ambitoDe,
   anotarVentas,
-  categoriasDelCatalogo,
+  columnaSubgrupo,
   COLUMNA_TOTAL,
   construirMatriz,
   cuentaParaObjetivos,
+  etiquetaSubgrupo,
   normalizarCantidadObjetivo,
   normalizarMes,
   objetivoDeCoordinacion,
+  subgrupoDeObjetivo,
+  subgruposDelCatalogo,
   sujetoDeObjetivo,
   totalesMatriz,
   vendidoDeSujeto,
@@ -106,7 +111,7 @@ export const GET = withTenant(
         soloLectura: true,
         preciosActivos: false,
         articulos: [],
-        categorias: [],
+        subgrupos: [],
         excluidos: [],
         filasComerciales: [],
         filasSedes: [],
@@ -133,6 +138,7 @@ export const GET = withTenant(
           grupoId: true,
           articuloId: true,
           categoria: true,
+          subcategoria: true,
           cantidad: true,
         },
       }),
@@ -143,6 +149,7 @@ export const GET = withTenant(
           id: true,
           nombre: true,
           categoria: true,
+          subcategoria: true,
           precio: true,
           cuentaParaObjetivos: true,
         },
@@ -193,7 +200,7 @@ export const GET = withTenant(
     // viendo en el cierre; aquí solo se dice quién los ha dejado fuera.
     const paraObjetivos = articulos.filter((a) => cuentaParaObjetivos(a));
     const articuloIds = paraObjetivos.map((a) => a.id);
-    const categorias = categoriasDelCatalogo(paraObjetivos);
+    const subgrupos = subgruposDelCatalogo(paraObjetivos);
     // Grupos de objetivos que puede ver quien mira: administración todos, y
     // coordinación solo los que caen enteros dentro de sus sedes (si no, la
     // consecución saldría recortada y sería mentira).
@@ -259,11 +266,12 @@ export const GET = withTenant(
         // Un objetivo de alguien que ya no está (o de otra sede, para el
         // coordinador) no se pinta: no es suyo ni puede hacer nada con él.
         if (!nombre) return null;
+        const grupoProductos = subgrupoDeObjetivo(o);
         const vendido = vendidoDeSujeto(
           ventas,
           { ambito: amb, id: sujetoId },
           o.articuloId,
-          o.categoria,
+          grupoProductos,
         );
         // Importe solo si el cliente trabaja con precios Y el objetivo es de un
         // artículo concreto con precio: sumar euros de artículos distintos con
@@ -274,7 +282,7 @@ export const GET = withTenant(
           ambito: amb,
           sujeto: nombre,
           articulo: o.articuloId ? (nombreArticulo.get(o.articuloId) ?? "Artículo retirado") : null,
-          grupo: o.categoria,
+          grupo: grupoProductos ? etiquetaSubgrupo(grupoProductos) : null,
           objetivo: o.cantidad,
           vendido,
           consecucion: pct(vendido, o.cantidad),
@@ -289,9 +297,9 @@ export const GET = withTenant(
           (a.articulo ?? "").localeCompare(b.articulo ?? "", "es"),
       );
 
-    const totalesComerciales = totalesMatriz(filasComerciales, articuloIds, categorias);
-    const totalesSedes = totalesMatriz(filasSedes, articuloIds, categorias);
-    const totalesGrupos = totalesMatriz(filasGrupos, articuloIds, categorias);
+    const totalesComerciales = totalesMatriz(filasComerciales, articuloIds, subgrupos);
+    const totalesSedes = totalesMatriz(filasSedes, articuloIds, subgrupos);
+    const totalesGrupos = totalesMatriz(filasGrupos, articuloIds, subgrupos);
     // Objetivo propio de la coordinadora: el de su zona (ticket 73). Solo tiene
     // sentido con alcance limitado a sus sedes; para administración, la cifra
     // equivalente ya es el pie de la tabla de sedes.
@@ -306,9 +314,18 @@ export const GET = withTenant(
         id: a.id,
         nombre: a.nombre,
         categoria: a.categoria,
+        subcategoria: a.subcategoria,
         precio: a.precio === null ? null : Number(a.precio),
       })),
-      categorias,
+      // Los grupos de productos sobre los que se puede fijar objetivo: cada
+      // subcategoría del catálogo, con su columna ya resuelta para que la
+      // pantalla no tenga que componerla.
+      subgrupos: subgrupos.map((g) => ({
+        id: columnaSubgrupo(g),
+        categoria: g.categoria,
+        subcategoria: g.subcategoria,
+        etiqueta: etiquetaSubgrupo(g),
+      })),
       // Los que administración ha dejado fuera, para poder decirlo en pantalla
       // en vez de que parezca que se han perdido del catálogo.
       excluidos: articulos.filter((a) => !cuentaParaObjetivos(a)).map((a) => a.nombre),
@@ -351,6 +368,7 @@ export const PUT = withTenant(
       ambito?: unknown;
       sujetoId?: unknown;
       articuloId?: unknown;
+      subcategoria?: unknown;
       categoria?: unknown;
       cantidad?: unknown;
     } | null;
@@ -367,11 +385,26 @@ export const PUT = withTenant(
       return NextResponse.json({ error: "Falta a quién es el objetivo." }, { status: 400 });
     }
     const articuloId = typeof body.articuloId === "string" && body.articuloId ? body.articuloId : null;
-    // Grupo de productos: la categoría del catálogo, tal cual se guardó allí.
+    // Grupo de productos: la subcategoría del catálogo, tal cual se guardó
+    // allí, con la categoría de la que cuelga (la misma subcategoría puede
+    // colgar de dos categorías y son dos grupos distintos).
+    const subcategoria = normalizarCategoriaArticulo(body.subcategoria);
     const categoria = normalizarCategoriaArticulo(body.categoria);
-    if (articuloId && categoria) {
+    if (articuloId && subcategoria) {
       return NextResponse.json(
         { error: "Un objetivo es de un producto o de un grupo, no de los dos." },
+        { status: 400 },
+      );
+    }
+    // La categoría por sí sola ya no es un grupo con objetivo: es organización
+    // del catálogo y dato de informes (ticket 234c6b0f). Se dice en vez de
+    // guardar una fila que no mediría nada.
+    if (categoria && !subcategoria) {
+      return NextResponse.json(
+        {
+          error:
+            "Los objetivos de grupo se fijan sobre una subcategoría, no sobre la categoría entera.",
+        },
         { status: 400 },
       );
     }
@@ -417,11 +450,11 @@ export const PUT = withTenant(
         );
       }
     }
-    if (categoria) {
+    if (subcategoria) {
       // El grupo tiene que existir en el catálogo activo y tener algún producto
       // que cuente: si no, sería un objetivo que nadie puede cumplir.
       const hay = await prisma.articuloVenta.findFirst({
-        where: { activo: true, categoria, cuentaParaObjetivos: true },
+        where: { activo: true, categoria, subcategoria, cuentaParaObjetivos: true },
         select: { id: true },
       });
       if (!hay) {
@@ -442,6 +475,7 @@ export const PUT = withTenant(
       grupoId: ambito === "grupo" ? body.sujetoId : null,
       articuloId,
       categoria,
+      subcategoria,
     };
 
     // No se usa `upsert` sobre la clave única (mes, userId, tiendaId,

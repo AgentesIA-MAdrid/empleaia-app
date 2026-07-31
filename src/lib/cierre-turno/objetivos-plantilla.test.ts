@@ -22,13 +22,35 @@ import {
   parsearCantidadPlantilla,
   type ArticuloPlantilla,
 } from "./objetivos-plantilla";
-import type { ObjetivoFila } from "./objetivos";
+import { columnaSubgrupo, type ObjetivoFila } from "./objetivos";
 
 const catalogo: ArticuloPlantilla[] = [
-  { id: "art_fibra", nombre: "Alta de fibra", categoria: "Telefonía", cuentaParaObjetivos: true },
-  { id: "art_movil", nombre: "Portabilidad", categoria: "Telefonía", cuentaParaObjetivos: true },
-  { id: "art_funda", nombre: "Funda", categoria: "Accesorios", cuentaParaObjetivos: false },
+  {
+    id: "art_fibra",
+    nombre: "Alta de fibra",
+    categoria: "Telefonía",
+    subcategoria: "Hogar",
+    cuentaParaObjetivos: true,
+  },
+  {
+    id: "art_movil",
+    nombre: "Portabilidad",
+    categoria: "Telefonía",
+    subcategoria: "Hogar",
+    cuentaParaObjetivos: true,
+  },
+  {
+    id: "art_funda",
+    nombre: "Funda",
+    categoria: "Accesorios",
+    subcategoria: "Fundas",
+    cuentaParaObjetivos: false,
+  },
 ];
+
+/** El grupo con objetivo es la subcategoría (ticket 234c6b0f). */
+const HOGAR = { categoria: "Telefonía", subcategoria: "Hogar" };
+const FUNDAS = { categoria: "Accesorios", subcategoria: "Fundas" };
 
 const ctx = {
   comerciales: [{ id: "u_ana", nombre: "Ana García" }],
@@ -56,7 +78,7 @@ describe("columnasPlantilla", () => {
   it("lleva unidades totales, un grupo por categoría y un producto por artículo", () => {
     expect(columnasPlantilla(catalogo).map((c) => c.titulo)).toEqual([
       "Unidades totales",
-      "Grupo: Telefonía",
+      "Grupo: Telefonía → Hogar",
       "Alta de fibra",
       "Portabilidad",
     ]);
@@ -66,7 +88,7 @@ describe("columnasPlantilla", () => {
     const ids = columnasPlantilla(catalogo).map((c) => c.id);
     expect(ids).not.toContain("art_funda");
     // Y su grupo tampoco: no queda ningún producto que lo empuje.
-    expect(ids).not.toContain("cat:Accesorios");
+    expect(ids).not.toContain(columnaSubgrupo(FUNDAS));
   });
 
   it("dos artículos que se llaman igual llevan detrás dónde están", () => {
@@ -95,7 +117,7 @@ describe("filasPlantilla", () => {
     const columnas = columnasPlantilla(catalogo);
     const filas = filasPlantilla(sujetos, columnas, [
       objetivo({ id: "o1", userId: "u_ana", articuloId: "art_fibra", cantidad: 12 }),
-      objetivo({ id: "o2", userId: "u_ana", categoria: "Telefonía", cantidad: 20 }),
+      objetivo({ id: "o2", userId: "u_ana", ...HOGAR, cantidad: 20 }),
       objetivo({ id: "o3", tiendaId: "t1", cantidad: 90 }),
     ]);
 
@@ -135,7 +157,7 @@ describe("interpretarPlantillaObjetivos", () => {
     "Comercial o punto de venta",
     "Id",
     "Unidades totales",
-    "Grupo: Telefonía",
+    "Grupo: Telefonía → Hogar",
     "Alta de fibra",
   ];
 
@@ -148,7 +170,7 @@ describe("interpretarPlantillaObjetivos", () => {
     expect(r.mes).toBe("2026-07");
     expect(r.cambios).toEqual([
       expect.objectContaining({ ambito: "comercial", sujetoId: "u_ana", articuloId: null, categoria: null, cantidad: 40 }),
-      expect.objectContaining({ categoria: "Telefonía", articuloId: null, cantidad: 20 }),
+      expect.objectContaining({ ...HOGAR, articuloId: null, cantidad: 20 }),
       expect.objectContaining({ articuloId: "art_fibra", categoria: null, cantidad: 12 }),
     ]);
   });
@@ -232,6 +254,47 @@ describe("interpretarPlantillaObjetivos", () => {
     ]);
   });
 
+  it("casa el grupo por su nombre pelado y, si se repite, pide la categoría delante", () => {
+    const conRepetidos = {
+      ...ctx,
+      articulos: [
+        {
+          id: "art_tel",
+          nombre: "Renove móvil",
+          categoria: "Telefonía",
+          subcategoria: "Renove",
+          cuentaParaObjetivos: true,
+        },
+        {
+          id: "art_ene",
+          nombre: "Renove luz",
+          categoria: "Energía",
+          subcategoria: "Renove",
+          cuentaParaObjetivos: true,
+        },
+      ],
+    };
+    const r = interpretarPlantillaObjetivos(
+      [
+        ["Ámbito", "Comercial o punto de venta", "Id", "Grupo: Energía → Renove", "Grupo: Renove"],
+        ["Comercial", "Ana García", "u_ana", "7", "3"],
+      ],
+      conRepetidos,
+    );
+    expect(r.cambios).toEqual([
+      expect.objectContaining({
+        sujetoId: "u_ana",
+        articuloId: null,
+        categoria: "Energía",
+        subcategoria: "Renove",
+        cantidad: 7,
+      }),
+    ]);
+    expect(r.columnasIgnoradas).toEqual([
+      { columna: "Grupo: Renove", motivo: expect.stringContaining("dos subcategorías") },
+    ]);
+  });
+
   it("una cantidad que no es un número entero se cuenta como casilla ignorada", () => {
     const r = interpretarPlantillaObjetivos(
       [cabecera, ["Comercial", "Ana García", "u_ana", "muchas", "", "12"]],
@@ -261,7 +324,7 @@ describe("grupos de objetivos en la plantilla (ticket ff5ab304)", () => {
     "Comercial, punto de venta o grupo",
     "Id",
     "Unidades totales",
-    "Grupo: Telefonía",
+    "Grupo: Telefonía → Hogar",
     "Alta de fibra",
   ];
 
@@ -285,7 +348,7 @@ describe("grupos de objetivos en la plantilla (ticket ff5ab304)", () => {
     );
     expect(r.cambios).toEqual([
       expect.objectContaining({ ambito: "grupo", sujetoId: "g_tmt", cantidad: 200 }),
-      expect.objectContaining({ ambito: "grupo", categoria: "Telefonía", cantidad: 80 }),
+      expect.objectContaining({ ambito: "grupo", ...HOGAR, cantidad: 80 }),
     ]);
   });
 

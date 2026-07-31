@@ -8,7 +8,7 @@
  *                       o el último día si el mes ya está cerrado)
  *   ?tiendaId=…         un punto de venta
  *   ?userId=…           un comercial
- *   ?concepto=          qué se sigue: "" (unidades totales), "cat:<grupo>" o
+ *   ?concepto=          qué se sigue: "" (unidades totales), "sub:<grupo>" o
  *                       el id de un artículo
  *
  * Devuelve, con esos filtros: una fila por comercial y otra tanda por sede con
@@ -35,10 +35,11 @@ import { withFeature } from "@/lib/feature-guard/with-feature";
 import { diaMadrid, filtroSede, puedeVerObjetivos } from "@/lib/cierre-turno/core";
 import {
   anotarVentas,
-  categoriasDelCatalogo,
-  columnaCategoria,
+  columnaSubgrupo,
   cuentaParaObjetivos,
+  etiquetaSubgrupo,
   normalizarMes,
+  subgruposDelCatalogo,
 } from "@/lib/cierre-turno/objetivos";
 import {
   construirSeguimiento,
@@ -115,6 +116,7 @@ export const GET = withTenant(
           tiendaId: true,
           articuloId: true,
           categoria: true,
+          subcategoria: true,
           cantidad: true,
         },
       }),
@@ -125,7 +127,13 @@ export const GET = withTenant(
       ventasPorDia(prisma, { desde, hasta, tiendaIds: sedesFiltro }),
       prisma.articuloVenta.findMany({
         where: { activo: true },
-        select: { id: true, nombre: true, categoria: true, cuentaParaObjetivos: true },
+        select: {
+          id: true,
+          nombre: true,
+          categoria: true,
+          subcategoria: true,
+          cuentaParaObjetivos: true,
+        },
         orderBy: [{ orden: "asc" }, { nombre: "asc" }],
       }),
       prisma.tienda.findMany({
@@ -154,8 +162,8 @@ export const GET = withTenant(
 
     const paraObjetivos = articulos.filter((a) => cuentaParaObjetivos(a));
     const articuloIds = paraObjetivos.map((a) => a.id);
-    const categorias = categoriasDelCatalogo(paraObjetivos);
-    const concepto = normalizarConcepto(url.searchParams.get("concepto"), paraObjetivos, categorias);
+    const subgrupos = subgruposDelCatalogo(paraObjetivos);
+    const concepto = normalizarConcepto(url.searchParams.get("concepto"), paraObjetivos, subgrupos);
     // Las ventas se anotan con el catálogo COMPLETO: es lo que permite saber
     // que una venta es de un producto excluido y no sumarla en el total.
     const ventas = anotarVentas(ventasBrutas, articulos);
@@ -213,10 +221,10 @@ export const GET = withTenant(
       // que cuenta para objetivos (los excluidos no tienen objetivo posible).
       conceptos: [
         { id: "", tipo: "total" as const, etiqueta: "Unidades totales" },
-        ...categorias.map((c) => ({
-          id: columnaCategoria(c),
+        ...subgrupos.map((g) => ({
+          id: columnaSubgrupo(g),
           tipo: "grupo" as const,
-          etiqueta: c,
+          etiqueta: etiquetaSubgrupo(g),
         })),
         ...paraObjetivos.map((a) => ({ id: a.id, tipo: "articulo" as const, etiqueta: a.nombre })),
       ],

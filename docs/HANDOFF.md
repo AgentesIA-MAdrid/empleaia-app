@@ -73,13 +73,59 @@ Producción ya corre desde esta rama vía Dokploy.
   `withTenant`, pages usan `withTenantPage`, no `fetch` interno entre
   rutas, etc.).
 
+## 4.hoy-sep. Los objetivos de grupo pasan a ser por SUBCATEGORÍA (ticket 234c6b0f, 2026-07-31)
+
+Continuación del cd804fa2. El cliente lo corrigió así: *"las categorías
+no cuentan como tal para objetivos, pero es un dato que tenemos que
+recoger para los informes. Necesito la opción de que los objetivos
+puntúen como subcategoría o como producto individual"*. O sea, el nivel
+de agrupación con el que se puntúa un objetivo deja de ser la
+**categoría** y pasa a ser la **subcategoría**; la categoría se queda
+como organización del catálogo y dato de informes.
+
+- **Modelo**: `ObjetivoVenta.subcategoria` (nuevo) + `categoria` (que ya
+  estaba) forman el grupo. Los dos, porque la misma subcategoría
+  ("Pospago") puede colgar de dos categorías distintas y son dos grupos
+  distintos —la misma regla que el catálogo (ticket b4afccf5)—. La
+  unique pasa a `@@unique([mes, userId, tiendaId, grupoId, articuloId,
+  categoria, subcategoria], map: "ObjetivoVenta_mes_destinatario_producto_key")`.
+  Migración `20260731200000_objetivos_por_subcategoria`.
+- **Los objetivos por categoría que hubiera se BORRAN** en la migración
+  (`DELETE ... WHERE categoria IS NOT NULL AND subcategoria IS NULL`).
+  Autorizado por el cliente ("si hay cifras insertadas, elimínalas"). No
+  se convierten: una categoría no es ninguna de sus subcategorías. Al
+  desplegar hay que **avisar de que se vuelvan a fijar** los objetivos de
+  grupo (en prod solo `mobileshop` tiene catálogo con objetivos).
+- **Columnas**: `columnaSubgrupo({categoria, subcategoria})` →
+  `"sub:<categoria><subcategoria>"` sustituye a `columnaCategoria`
+  / `"cat:<categoria>"` en la parrilla, en el seguimiento
+  (`?concepto=`), en la plantilla Excel y en el distintivo del catálogo.
+  `etiquetaSubgrupo` es cómo se escribe en pantalla y en la hoja
+  ("Telefonía → Pospago").
+- **API**: `PUT /api/objetivos-venta` acepta `subcategoria` + `categoria`
+  y **rechaza con 400** una `categoria` sin `subcategoria` (ya no es un
+  grupo con objetivo). `GET` devuelve `subgrupos: [{id, categoria,
+  subcategoria, etiqueta}]` en vez de `categorias: string[]`.
+  `GET /api/articulos-venta?todos=1` devuelve `objetivosDelMes.subgrupos`
+  (columnas) en vez de `.categorias`.
+- **La plantilla Excel** titula el grupo "Grupo: Telefonía → Pospago" y
+  al importar casa también por el nombre pelado ("Grupo: Pospago") si no
+  hay dos subcategorías que se llamen igual; si las hay, deja la columna
+  fuera y lo dice.
+- Los artículos **sin subcategoría** no pertenecen a ningún grupo: solo
+  se les puede poner objetivo propio, y si no, suman en unidades totales.
+  Es lo que ve el administrador en el distintivo del catálogo.
+- Sin comprobación en caliente: no se levantó entorno. Al mergear,
+  repasar con datos reales la parrilla de `mobileshop` (ancho de tabla
+  con muchas subcategorías) y el desplegable del seguimiento.
+
 ## 4.hoy-sex. Distintivo de cómo se evalúa cada producto (ticket cd804fa2, 2026-07-31)
 
 Configuración → **Catálogo de ventas** tiene una columna nueva, *Cómo se
 evalúa*, con una etiqueta por artículo: **Objetivo propio** (alguien
 tiene la cifra puesta sobre ese producto), **Grupo: X** (la cifra está
-sobre su categoría), **Unidades totales** (solo suma en el total) o **No
-cuenta** (`cuentaParaObjetivos = false`). Sin ella había que ir a la
+sobre su subcategoría, ver 4.hoy-sep), **Unidades totales** (solo suma en
+el total) o **No cuenta** (`cuentaParaObjetivos = false`). Sin ella había que ir a la
 parrilla de objetivos y leerla columna a columna para saber con qué se
 mide cada producto.
 
@@ -88,17 +134,14 @@ mide cada producto.
   interruptor de "cuenta para objetivos": si alguien lo fijó, se
   persigue (misma regla que `vendidoPara`).
 - `GET /api/articulos-venta?todos=1` devuelve además `objetivosDelMes`
-  (`{ mes, articuloIds, categorias }`) con los objetivos de cantidad > 0
+  (`{ mes, articuloIds, subgrupos }`) con los objetivos de cantidad > 0
   del **mes en curso** (`diaMadrid()`), de cualquier ámbito. Sin
   `?todos=1` —el cierre del comercial— no se hace la consulta.
-- Sin cambios de modelo ni migración. El distintivo mira el mes en curso;
-  la pantalla lo dice ("mira los objetivos de julio de 2026") y no lleva
-  selector de mes: el catálogo no es una pantalla mensual.
-- Ojo con el vocabulario: el cliente lo pidió como "por producto o por
-  subcategoría", pero los objetivos por grupo siguen siendo por
-  **categoría** (primer nivel), como se decidió en el ticket 2d327b98.
-  Si algún día se fijan objetivos por subcategoría, esta función y el
-  GET son los dos sitios a tocar.
+- El distintivo mira el mes en curso; la pantalla lo dice ("mira los
+  objetivos de julio de 2026") y no lleva selector de mes: el catálogo no
+  es una pantalla mensual.
+- El vocabulario quedó cerrado en el ticket 234c6b0f (4.hoy-sep): el
+  grupo con objetivo es la **subcategoría**, no la categoría.
 
 ## 4.hoy-qui. Catálogo de ventas en dos niveles (ticket 2d327b98, 2026-07-31)
 

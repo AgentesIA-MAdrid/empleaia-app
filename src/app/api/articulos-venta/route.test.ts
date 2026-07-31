@@ -18,6 +18,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { columnaSubgrupo } from "@/lib/cierre-turno/objetivos";
 
 const sesion = {
   user: { id: "u_owner", rol: "OWNER", tiendaId: null as string | null, name: "Owner" },
@@ -33,6 +34,11 @@ type ArticuloFila = {
 };
 
 let existentes: ArticuloFila[] = [];
+let objetivosDelMes: {
+  articuloId: string | null;
+  categoria: string | null;
+  subcategoria: string | null;
+}[] = [];
 
 const prismaMock = {
   articuloVenta: {
@@ -59,6 +65,9 @@ const prismaMock = {
       ...data,
     })),
   },
+  // Objetivos del mes: lo que el GET con ?todos=1 usa para el distintivo de
+  // cómo se evalúa cada producto.
+  objetivoVenta: { findMany: vi.fn(async () => objetivosDelMes) },
   configuracionEmpresa: { findUnique: vi.fn(async () => ({ ventasPreciosActivos: false })) },
   $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prismaMock)),
 };
@@ -122,6 +131,7 @@ async function patch(body: Record<string, unknown>) {
 beforeEach(async () => {
   vi.clearAllMocks();
   existentes = [];
+  objetivosDelMes = [];
   sesion.user = { id: "u_owner", rol: "OWNER", tiendaId: null, name: "Owner" };
   const { _setFeatureCatalogForTest } = await import("@/lib/tenant/features");
   _setFeatureCatalogForTest(["cierre_turno"]);
@@ -355,5 +365,41 @@ describe("PATCH /api/articulos-venta", () => {
     expect(prismaMock.articuloVenta.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { subcategoria: null } }),
     );
+  });
+});
+
+async function get(query = "") {
+  const { GET } = await import("./route");
+  const { NextRequest } = await import("next/server");
+  return GET(new NextRequest(`http://acme.localhost:3000/api/articulos-venta${query}`));
+}
+
+describe("GET /api/articulos-venta?todos=1 — el distintivo de cómo se evalúa", () => {
+  it("dice sobre qué productos y sobre qué subcategorías hay objetivo este mes", async () => {
+    existentes = [
+      { id: "art_1", nombre: "Pospago", categoria: "Telefonía", subcategoria: "Móvil", activo: true, orden: 0 },
+    ];
+    objetivosDelMes = [
+      { articuloId: "art_1", categoria: null, subcategoria: null },
+      // El grupo con objetivo es la subcategoría, con su categoría delante:
+      // "Móvil" de Telefonía y "Móvil" de Energía son dos grupos.
+      { articuloId: null, categoria: "Telefonía", subcategoria: "Móvil" },
+    ];
+    const res = await get("?todos=1");
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as {
+      objetivosDelMes: { articuloIds: string[]; subgrupos: string[] };
+    };
+    expect(data.objetivosDelMes.articuloIds).toEqual(["art_1"]);
+    expect(data.objetivosDelMes.subgrupos).toEqual([
+      columnaSubgrupo({ categoria: "Telefonía", subcategoria: "Móvil" }),
+    ]);
+  });
+
+  it("sin ?todos=1 no se consultan los objetivos ni se manda la clave", async () => {
+    const res = await get();
+    const data = (await res.json()) as { objetivosDelMes?: unknown };
+    expect(data.objetivosDelMes).toBeUndefined();
+    expect(prismaMock.objetivoVenta.findMany).not.toHaveBeenCalled();
   });
 });

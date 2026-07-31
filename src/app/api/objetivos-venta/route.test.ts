@@ -18,6 +18,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { columnaSubgrupo } from "@/lib/cierre-turno/objetivos";
 
 const sesion = {
   user: { id: "u_owner", rol: "OWNER", tiendaId: null as string | null, name: "Owner" },
@@ -31,6 +32,7 @@ const objetivosExistentes: {
   grupoId?: string | null;
   articuloId: string | null;
   categoria?: string | null;
+  subcategoria?: string | null;
   cantidad: number;
 }[] = [];
 
@@ -48,6 +50,7 @@ const catalogo = [
     id: "art_fibra",
     nombre: "Alta de fibra",
     categoria: "Telefonía",
+    subcategoria: "Hogar",
     precio: null,
     cuentaParaObjetivos: true,
   },
@@ -55,10 +58,18 @@ const catalogo = [
     id: "art_funda",
     nombre: "Funda",
     categoria: "Accesorios",
+    subcategoria: "Fundas",
     precio: null,
     cuentaParaObjetivos: false,
   },
 ];
+
+/**
+ * El grupo de productos con objetivo es la subcategoría, con su categoría
+ * delante para no confundir dos que se llamen igual (ticket 234c6b0f).
+ */
+const HOGAR = { categoria: "Telefonía", subcategoria: "Hogar" };
+const COLUMNA_HOGAR = columnaSubgrupo(HOGAR);
 
 const prismaMock = {
   objetivoVenta: {
@@ -271,8 +282,8 @@ describe("GET /api/objetivos-venta", () => {
     expect(Object.keys(data.filasComerciales[0].celdas).sort()).toEqual([
       "",
       "art_fibra",
-      "cat:Telefonía",
-    ]);
+      COLUMNA_HOGAR,
+    ].sort());
     expect(data.filasComerciales[0].celdas["art_fibra"].objetivo).toBe(12);
     // El objetivo personal no aparece en la tabla de sedes: son objetivos distintos.
     expect(data.filasSedes.map((f) => f.sujetoId)).toEqual(["t1"]);
@@ -384,19 +395,21 @@ describe("GET /api/objetivos-venta", () => {
     const res = await get("?mes=2026-07");
     const data = (await res.json()) as {
       articulos: { id: string }[];
-      categorias: string[];
+      subgrupos: { id: string; etiqueta: string }[];
       excluidos: string[];
       filasComerciales: { celdas: Record<string, unknown> }[];
     };
     // "Accesorios" no sale: su único producto no cuenta para objetivos.
-    expect(data.categorias).toEqual(["Telefonía"]);
+    expect(data.subgrupos).toEqual([
+      { id: COLUMNA_HOGAR, categoria: "Telefonía", subcategoria: "Hogar", etiqueta: "Telefonía → Hogar" },
+    ]);
     expect(data.articulos.map((a) => a.id)).toEqual(["art_fibra"]);
     expect(data.excluidos).toEqual(["Funda"]);
     expect(Object.keys(data.filasComerciales[0].celdas).sort()).toEqual([
       "",
       "art_fibra",
-      "cat:Telefonía",
-    ]);
+      COLUMNA_HOGAR,
+    ].sort());
   });
 
   it("lo vendido de un producto excluido no suma en el grupo ni en el total", async () => {
@@ -415,7 +428,7 @@ describe("GET /api/objetivos-venta", () => {
     };
     const celdas = data.filasComerciales[0].celdas;
     expect(celdas[""].vendido).toBe(4);
-    expect(celdas["cat:Telefonía"].vendido).toBe(4);
+    expect(celdas[COLUMNA_HOGAR].vendido).toBe(4);
     // El producto excluido no tiene columna, pero su venta tampoco se ha
     // colado en la de unidades totales.
     expect(celdas["art_funda"]).toBeUndefined();
@@ -429,7 +442,7 @@ describe("GET /api/objetivos-venta", () => {
         userId: "u_ana",
         tiendaId: null,
         articuloId: null,
-        categoria: "Telefonía",
+        ...HOGAR,
         cantidad: 20,
       },
       {
@@ -449,7 +462,7 @@ describe("GET /api/objetivos-venta", () => {
     // 20 del grupo, no 32: la fibra ya está dentro de "Telefonía".
     expect(data.filasComerciales[0].celdas[""].objetivo).toBe(20);
     expect(data.filasComerciales[0].celdas[""].derivado).toBe(true);
-    expect(data.filasComerciales[0].celdas["cat:Telefonía"].objetivo).toBe(20);
+    expect(data.filasComerciales[0].celdas[COLUMNA_HOGAR].objetivo).toBe(20);
   });
 });
 
@@ -473,6 +486,7 @@ describe("PUT /api/objetivos-venta", () => {
         grupoId: null,
         articuloId: null,
         categoria: null,
+        subcategoria: null,
       },
       select: { id: true },
     });
@@ -484,6 +498,7 @@ describe("PUT /api/objetivos-venta", () => {
         grupoId: null,
         articuloId: null,
         categoria: null,
+        subcategoria: null,
         cantidad: 10,
       },
       select: { id: true, cantidad: true },
@@ -533,6 +548,7 @@ describe("PUT /api/objetivos-venta", () => {
         grupoId: "g_tmt",
         articuloId: null,
         categoria: null,
+        subcategoria: null,
         cantidad: 200,
       },
       select: { id: true, cantidad: true },
@@ -557,7 +573,7 @@ describe("PUT /api/objetivos-venta", () => {
       mes: "2026-07",
       ambito: "comercial",
       sujetoId: "u_ana",
-      categoria: "Telefonía",
+      ...HOGAR,
       cantidad: 25,
     });
     expect(res.status).toBe(200);
@@ -568,7 +584,7 @@ describe("PUT /api/objetivos-venta", () => {
         tiendaId: null,
         grupoId: null,
         articuloId: null,
-        categoria: "Telefonía",
+        ...HOGAR,
         cantidad: 25,
       },
       select: { id: true, cantidad: true },
@@ -581,10 +597,25 @@ describe("PUT /api/objetivos-venta", () => {
       mes: "2026-07",
       ambito: "comercial",
       sujetoId: "u_ana",
-      categoria: "Inventado",
+      categoria: "Telefonía",
+      subcategoria: "Inventado",
       cantidad: 5,
     });
     expect(res.status).toBe(404);
+  });
+
+  it("no deja fijar un objetivo sobre la categoría entera (ticket 234c6b0f)", async () => {
+    // Las categorías organizan el catálogo y salen en los informes, pero el
+    // grupo que puntúa es la subcategoría.
+    const res = await put({
+      mes: "2026-07",
+      ambito: "comercial",
+      sujetoId: "u_ana",
+      categoria: "Telefonía",
+      cantidad: 25,
+    });
+    expect(res.status).toBe(400);
+    expect(prismaMock.objetivoVenta.create).not.toHaveBeenCalled();
   });
 
   it("no deja mezclar producto y grupo en el mismo objetivo", async () => {
@@ -593,7 +624,7 @@ describe("PUT /api/objetivos-venta", () => {
       ambito: "comercial",
       sujetoId: "u_ana",
       articuloId: "art_fibra",
-      categoria: "Telefonía",
+      ...HOGAR,
       cantidad: 5,
     });
     expect(res.status).toBe(400);

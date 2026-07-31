@@ -31,9 +31,15 @@
  *
  * Cada fila lleva además un distintivo de cómo se evalúa el artículo este mes
  * (ticket cd804fa2): un objetivo puede ir sobre el producto o sobre su
- * categoría, y desde aquí no había forma de saber cuál de las dos cosas le está
- * pasando a cada uno sin ir a la parrilla de objetivos a mirarlo columna a
+ * subcategoría, y desde aquí no había forma de saber cuál de las dos cosas le
+ * está pasando a cada uno sin ir a la parrilla de objetivos a mirarlo columna a
  * columna. Lo decide `evaluacionDeArticulo` con los objetivos que trae el GET.
+ *
+ * El grupo con el que se puntúa un objetivo es la **subcategoría**, no la
+ * categoría (ticket 234c6b0f): el equipo sigue registrando producto a producto
+ * y las unidades de los productos de la subcategoría se suman para dar la cifra
+ * que se compara con el objetivo. La categoría organiza el catálogo y es un
+ * dato de informes.
  */
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -55,7 +61,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { agruparCatalogo, aplanarCatalogo, moverEnOrden } from "@/lib/cierre-turno/catalogo";
-import { evaluacionDeArticulo, type EvaluacionArticulo } from "@/lib/cierre-turno/objetivos";
+import {
+  etiquetaSubgrupo,
+  evaluacionDeArticulo,
+  type EvaluacionArticulo,
+} from "@/lib/cierre-turno/objetivos";
 
 interface Articulo {
   id: string;
@@ -72,14 +82,15 @@ interface Articulo {
 
 /**
  * Sobre qué hay objetivos puestos este mes: los ids de los productos que se
- * persiguen uno a uno y las categorías que se persiguen enteras. Es lo que
- * distingue "este artículo tiene su propia cifra" de "este suma en la de su
- * grupo", que desde el catálogo no se veía.
+ * persiguen uno a uno y los grupos —subcategorías— que se persiguen enteros
+ * (como columna, `columnaSubgrupo`). Es lo que distingue "este artículo tiene
+ * su propia cifra" de "este suma en la de su grupo", que desde el catálogo no
+ * se veía.
  */
 interface ObjetivosDelMes {
   mes: string;
   articuloIds: string[];
-  categorias: string[];
+  subgrupos: string[];
 }
 
 /** "Julio de 2026" a partir de "2026-07", como en la pantalla de objetivos. */
@@ -118,11 +129,13 @@ function distintivoEvaluacion(e: EvaluacionArticulo): {
         "Se vende y se registra igual, pero sus unidades no suman en ningún objetivo (interruptor «Cuenta para objetivos» apagado).",
     };
   }
-  if (e.modo === "grupo") {
+  if (e.modo === "grupo" && e.grupo) {
     return {
-      texto: `Grupo: ${e.categoria}`,
+      texto: `Grupo: ${e.grupo.subcategoria}`,
       variante: "secondary",
-      detalle: `No tiene cifra propia: sus unidades empujan el objetivo del grupo "${e.categoria}" y el de unidades totales.`,
+      detalle: `No tiene cifra propia: sus unidades se suman con las del resto de "${etiquetaSubgrupo(
+        e.grupo,
+      )}" y esa suma es la que se compara con el objetivo del grupo (y con el de unidades totales).`,
     };
   }
   return {
@@ -139,7 +152,7 @@ function DistintivoEvaluacion({
   objetivos,
 }: {
   articulo: Articulo;
-  objetivos: { articuloIds: ReadonlySet<string>; categorias: ReadonlySet<string> };
+  objetivos: { articuloIds: ReadonlySet<string>; subgrupos: ReadonlySet<string> };
 }) {
   const d = distintivoEvaluacion(evaluacionDeArticulo(articulo, objetivos));
   return (
@@ -467,7 +480,7 @@ export function CatalogoVentasTab() {
   /**
    * Decide si el artículo cuenta para los objetivos de venta. Apagado, se sigue
    * vendiendo y registrando en el cierre igual: lo único que cambia es que sus
-   * unidades no empujan el objetivo de unidades totales ni el de su categoría.
+   * unidades no empujan el objetivo de unidades totales ni el de su subcategoría.
    */
   const cambiarCuentaObjetivos = async (a: Articulo) => {
     const valor = !a.cuentaParaObjetivos;
@@ -488,7 +501,7 @@ export function CatalogoVentasTab() {
     toast({
       title: valor ? `"${a.nombre}" cuenta para los objetivos` : `"${a.nombre}" ya no cuenta`,
       description: valor
-        ? "Sus unidades vuelven a sumar en el objetivo de unidades totales y en el de su categoría."
+        ? "Sus unidades vuelven a sumar en el objetivo de unidades totales y en el de su subcategoría."
         : "Se sigue vendiendo y registrando igual, pero sus unidades no suman en ningún objetivo.",
     });
   };
@@ -587,7 +600,7 @@ export function CatalogoVentasTab() {
   const objetivosFijados = useMemo(
     () => ({
       articuloIds: new Set(objetivosDelMes?.articuloIds ?? []),
-      categorias: new Set(objetivosDelMes?.categorias ?? []),
+      subgrupos: new Set(objetivosDelMes?.subgrupos ?? []),
     }),
     [objetivosDelMes],
   );
@@ -623,7 +636,7 @@ export function CatalogoVentasTab() {
           artículos empujan los objetivos y cuáles no. La columna{" "}
           <strong className="font-medium text-slate-600">Cómo se evalúa</strong> te dice de un
           vistazo con qué se le mide a cada uno este mes: con su propia cifra o con la de su
-          categoría.
+          subcategoría, que son las dos formas de poner un objetivo.
         </p>
       </div>
 
@@ -743,10 +756,11 @@ export function CatalogoVentasTab() {
             </p>
             <p className="text-xs text-slate-500 mt-1 max-w-xl">
               Escribe cada concepto que vendéis: pospago, fibra, renove, prepago, energía… La
-              categoría es opcional: agrupa los artículos en la tabla del cierre y es el grupo
-              sobre el que puedes fijar un objetivo (Telefonía, Servicios…). La subcategoría
-              afina dentro de ella (Telefonía → Pospago) cuando el catálogo se hace largo. Se
-              quedan puestas al añadir, para que puedas meter un bloque entero seguido. Puedes
+              categoría es opcional: agrupa los artículos en la tabla del cierre y es un dato para
+              los informes (Telefonía, Servicios…). La subcategoría afina dentro de ella
+              (Telefonía → Pospago) y es el grupo sobre el que puedes fijar un objetivo: se suman
+              las unidades de todos sus productos. Se quedan puestas al añadir, para que puedas
+              meter un bloque entero seguido. Puedes
               repetir el mismo nombre en categorías o subcategorías distintas —un &quot;Renove&quot; de
               Telefonía y otro de Energía son dos productos—; lo único que no se puede es
               repetirlo dentro del mismo bloque.
@@ -966,7 +980,8 @@ export function CatalogoVentasTab() {
                   mira los objetivos de {nombreDelMes(objetivosDelMes.mes).toLowerCase()}:{" "}
                   <strong className="font-medium text-slate-600">Objetivo propio</strong> si alguien
                   persigue ese producto, <strong className="font-medium text-slate-600">Grupo</strong>{" "}
-                  si la cifra está puesta sobre su categoría entera y{" "}
+                  si la cifra está puesta sobre su subcategoría entera —se suman las unidades de
+                  todos sus productos— y{" "}
                   <strong className="font-medium text-slate-600">Unidades totales</strong> si solo
                   suma en el total. Se cambia en Objetivos de venta.
                 </p>
@@ -1123,7 +1138,7 @@ export function CatalogoVentasTab() {
                                   aria-label={`${a.nombre} cuenta para los objetivos`}
                                   title={
                                     a.cuentaParaObjetivos
-                                      ? "Sus unidades suman en el objetivo de unidades totales y en el de su categoría."
+                                      ? "Sus unidades suman en el objetivo de unidades totales y en el de su subcategoría."
                                       : "Se sigue vendiendo, pero sus unidades no suman en ningún objetivo."
                                   }
                                   onClick={() => void cambiarCuentaObjetivos(a)}

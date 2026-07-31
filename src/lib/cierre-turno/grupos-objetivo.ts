@@ -10,8 +10,8 @@
  * cómo se resume su composición—, para poder probarlas sin Prisma, igual que
  * `objetivos.ts`.
  *
- * No confundir con el *grupo de productos* (`ObjetivoVenta.categoria`), que es
- * de qué va el objetivo y no a quién va dirigido.
+ * No confundir con el *grupo de productos* (`ObjetivoVenta.subcategoria`), que
+ * es de qué va el objetivo y no a quién va dirigido.
  */
 
 import type { GrupoObjetivoResumen } from "./objetivos";
