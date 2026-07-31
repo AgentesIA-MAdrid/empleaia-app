@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   agruparCatalogo,
   aplanarCatalogo,
+  articulosConNombreAmbiguo,
   construirCatalogo,
   parsearCSV,
   parsearPrecio,
@@ -353,6 +354,63 @@ describe("agruparCatalogo", () => {
       "Pospago",
       "Luz",
     ]);
+  });
+});
+
+describe("articulosConNombreAmbiguo", () => {
+  const art = (
+    id: string,
+    nombre: string,
+    categoria: string | null,
+    subcategoria: string | null = null,
+  ) => ({ id, nombre, categoria, subcategoria });
+
+  it("marca los dos artículos que solo distingue la subcategoría", () => {
+    const ambiguos = articulosConNombreAmbiguo(
+      agruparCatalogo([
+        art("1", "Renove", "Telefonía", "Pospago"),
+        art("2", "Renove", "Telefonía", "Prepago"),
+        art("3", "Fibra", "Telefonía", "Fijo"),
+      ]),
+    );
+    expect([...ambiguos].sort()).toEqual(["1", "2"]);
+  });
+
+  it("no marca nada cuando cada nombre es único en su categoría", () => {
+    const ambiguos = articulosConNombreAmbiguo(
+      agruparCatalogo([
+        art("1", "Fibra", "Telefonía", "Fijo"),
+        art("2", "Pospago", "Telefonía", "Móvil"),
+      ]),
+    );
+    expect(ambiguos.size).toBe(0);
+  });
+
+  it("el mismo nombre en otra categoría no es ambiguo: la categoría ya lo dice", () => {
+    const ambiguos = articulosConNombreAmbiguo(
+      agruparCatalogo([
+        art("1", "Renove", "Telefonía", "Pospago"),
+        art("2", "Renove", "Energía", "Luz"),
+      ]),
+    );
+    expect(ambiguos.size).toBe(0);
+  });
+
+  it("dos formas de escribir el mismo nombre también chocan", () => {
+    const ambiguos = articulosConNombreAmbiguo(
+      agruparCatalogo([
+        art("1", "Energía  verde", "Energía", "Luz"),
+        art("2", "energia verde", "Energía", "Gas"),
+      ]),
+    );
+    expect(ambiguos.size).toBe(2);
+  });
+
+  it("los artículos sin categoría se comparan entre ellos", () => {
+    const ambiguos = articulosConNombreAmbiguo(
+      agruparCatalogo([art("1", "Extra", null, "A"), art("2", "Extra", null, "B")]),
+    );
+    expect([...ambiguos].sort()).toEqual(["1", "2"]);
   });
 });
 
