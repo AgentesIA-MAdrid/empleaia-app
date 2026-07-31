@@ -77,6 +77,7 @@ export const GET = withTenant(
           articuloId: true,
           categoria: true,
           subcategoria: true,
+          fuente: true,
           cantidad: true,
         },
       }),
@@ -140,6 +141,15 @@ export const GET = withTenant(
         nombre: `${p.nombre} ${p.apellidos}`.trim(),
       })),
       ...sedes.map((t) => ({ ambito: "sede" as const, id: t.id, nombre: t.nombre })),
+      // Cada punto de venta baja una segunda vez con el objetivo que le impone
+      // el operador (ticket 5d8b21c7): mismas columnas, otra cifra. Van juntas
+      // al final para que se vea de un golpe la vara del operador.
+      ...sedes.map((t) => ({
+        ambito: "sede" as const,
+        id: t.id,
+        nombre: t.nombre,
+        fuente: "tmt" as const,
+      })),
       ...grupos.map((g) => ({ ambito: "grupo" as const, id: g.id, nombre: g.nombre })),
     ];
 

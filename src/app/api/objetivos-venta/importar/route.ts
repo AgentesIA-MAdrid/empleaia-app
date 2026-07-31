@@ -24,7 +24,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
 import { puedeFijarObjetivos } from "@/lib/cierre-turno/core";
-import { normalizarMes } from "@/lib/cierre-turno/objetivos";
+import { fuenteDe, normalizarMes, type FuenteObjetivo } from "@/lib/cierre-turno/objetivos";
 import { interpretarPlantillaObjetivos } from "@/lib/cierre-turno/objetivos-plantilla";
 import { leerHojaExcel } from "@/lib/cierre-turno/catalogo-excel";
 import { parsearCSV } from "@/lib/cierre-turno/catalogo";
@@ -40,6 +40,7 @@ function clave(o: {
   articuloId: string | null;
   categoria: string | null;
   subcategoria: string | null;
+  fuente?: FuenteObjetivo | null;
 }): string {
   return [
     o.userId ?? "",
@@ -48,6 +49,9 @@ function clave(o: {
     o.articuloId ?? "",
     o.categoria ?? "",
     o.subcategoria ?? "",
+    // Sin la fuente, la fila del operador se compararía con el objetivo de la
+    // empresa de esa misma tienda y una pisaría a la otra (ticket 5d8b21c7).
+    fuenteDe(o),
   ].join("|");
 }
 
@@ -187,6 +191,7 @@ export const POST = withTenant(
         articuloId: true,
         categoria: true,
         subcategoria: true,
+        fuente: true,
         cantidad: true,
       },
     });
@@ -204,6 +209,7 @@ export const POST = withTenant(
       articuloId: string | null;
       categoria: string | null;
       subcategoria: string | null;
+      fuente: FuenteObjetivo;
       cantidad: number;
     }[] = [];
     const aActualizar: { id: string; cantidad: number }[] = [];
@@ -218,6 +224,7 @@ export const POST = withTenant(
         articuloId: c.articuloId,
         categoria: c.categoria,
         subcategoria: c.subcategoria,
+        fuente: c.fuente,
       };
       const previo = porClave.get(clave(fila));
       if (c.cantidad === 0) {
