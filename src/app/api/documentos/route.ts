@@ -44,7 +44,29 @@ export const GET = withTenant(withFeature("documentos", async (req: NextRequest)
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ documentos });
+    // Qué documentos tienen una copia SELLADA firmada por quien mira. Se
+    // pregunta aparte y sin traer el PDF: la copia sellada es un data URL de
+    // cientos de KB y aquí solo hace falta saber si existe (ticket 6b0f74d2).
+    //
+    // Con eso, el empleado que ya ha firmado descarga su copia firmada y deja
+    // de ver la preliminar: tener las dos a la vista invita a guardar y reenviar
+    // la que no vale.
+    const firmadosPorMi = new Set(
+      (
+        await prisma.firma.findMany({
+          where: {
+            userId,
+            documentoFirmadoUrl: { not: null },
+            documentoId: { in: documentos.map((d) => d.id) },
+          },
+          select: { documentoId: true },
+        })
+      ).map((f) => f.documentoId),
+    );
+
+    return NextResponse.json({
+      documentos: documentos.map((d) => ({ ...d, firmadoPorMi: firmadosPorMi.has(d.id) })),
+    });
   } catch {
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }

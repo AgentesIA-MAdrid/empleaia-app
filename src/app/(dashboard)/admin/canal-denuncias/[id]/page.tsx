@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ShieldAlert, ArrowLeft } from "lucide-react";
 import { withTenantPage } from "@/lib/tenant/with-tenant-page";
 import { prismaApp } from "@/lib/prisma";
+import { fechaHoraEnZona } from "@/lib/fechas/zona";
 import {
   CATEGORIA_LABEL,
   ESTADO_LABEL,
@@ -18,6 +19,15 @@ interface Props extends Record<string, unknown> {
 
 async function DenunciaDetallePage({ params }: Props) {
   const { id } = await params;
+  // Estas páginas se renderizan en el SERVIDOR, que va en UTC: sin la zona del
+  // cliente las horas de los comentarios saldrían dos horas antes de las que
+  // marcó el reloj (ticket 3c91f0ab).
+  const zonaCliente = (
+    await prismaApp.configuracionEmpresa.findUnique({
+      where: { id: "singleton" },
+      select: { zonaHoraria: true },
+    })
+  )?.zonaHoraria;
   const denuncia = await prismaApp.denuncia.findUnique({
     where: { id },
     include: {
@@ -177,7 +187,7 @@ async function DenunciaDetallePage({ params }: Props) {
                     <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted,#94A3B8)] mb-1">
                       <span className="font-medium capitalize">{c.autorRole}</span>
                       <span>·</span>
-                      <span>{new Date(c.createdAt).toLocaleString("es-ES")}</span>
+                      <span>{fechaHoraEnZona(c.createdAt, zonaCliente)}</span>
                       {c.esInterno && (
                         <span className="ml-auto rounded-full bg-amber-200 px-2 py-0.5 text-amber-900">
                           Interno

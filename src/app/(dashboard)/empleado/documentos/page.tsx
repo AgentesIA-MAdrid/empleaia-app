@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { FolderOpen, FileText, Download, Upload, Loader2, PencilLine, FileCheck } from "lucide-react";
+import { FolderOpen, FileText, Download, Upload, Loader2, PencilLine, FileCheck, FileSignature } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,11 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { isSafeDocUrl, openDocInNewTab, downloadDoc } from "@/lib/documentos/url";
+import { descargarFirmadoConCertificado } from "@/lib/documentos/certificado";
 import { normalizarCampos, type CampoPlantilla } from "@/lib/documentos/campos";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
-interface Documento { id: string; nombre: string; descripcion?: string; url?: string; tipo: string; createdAt: string; subidoPor?: { nombre: string; apellidos: string } | null; campos?: unknown; camposRespuestas?: unknown; documentoRellenoUrl?: string | null; }
+interface Documento { id: string; nombre: string; descripcion?: string; url?: string; tipo: string; createdAt: string; subidoPor?: { nombre: string; apellidos: string } | null; campos?: unknown; camposRespuestas?: unknown; documentoRellenoUrl?: string | null; /** Ya lo he firmado y hay copia sellada: es la única que se puede descargar. */ firmadoPorMi?: boolean; }
 
 // ¿El documento tiene campos que el empleado debe rellenar?
 function camposDe(doc: Documento): CampoPlantilla[] {
@@ -37,7 +38,45 @@ export default function EmpleadoDocumentosPage() {
   const [documentos, setDocumentos] = useState<Documento[]>([]);
   const [loading, setLoading] = useState(true);
   const [subiendo, setSubiendo] = useState(false);
+  const [descargandoId, setDescargandoId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  /**
+   * Descarga su copia FIRMADA: el documento sellado seguido del acta probatoria
+   * (fecha, hash, IP, navegador), en un único PDF. Es la misma descarga que ve
+   * administración, y la única que se le ofrece de un documento que ya ha
+   * firmado: la versión preliminar deja de estar a mano para que no se guarde
+   * ni se reenvíe la que no vale (ticket 6b0f74d2).
+   */
+  const descargarFirmado = async (doc: Documento) => {
+    setDescargandoId(doc.id);
+    try {
+      const r = await fetch(`/api/firmas?documentoId=${doc.id}`);
+      // El endpoint ya acota al propio usuario cuando quien pregunta no es
+      // gestión, así que la primera firma es la suya.
+      const firma = r.ok ? ((await r.json()).firmas ?? [])[0] : null;
+      if (!firma?.documentoFirmadoUrl) {
+        toast({ variant: "destructive", title: "No se encontró tu copia firmada de este documento" });
+        return;
+      }
+      await descargarFirmadoConCertificado(firma.documentoFirmadoUrl, {
+        documentoNombre: doc.nombre,
+        firmanteNombre:
+          firma.firmanteNombre ||
+          `${firma.user?.nombre ?? ""} ${firma.user?.apellidos ?? ""}`.trim(),
+        firmadoEn: firma.firmadoEn,
+        documentHash: firma.documentHash,
+        ip: firma.ip,
+        userAgent: firma.userAgent,
+        firmanteDni: firma.firmanteDni,
+        firmaImagen: firma.firmaImagen,
+      });
+    } catch {
+      toast({ variant: "destructive", title: "No se pudo descargar tu documento firmado" });
+    } finally {
+      setDescargandoId(null);
+    }
+  };
+
   // Rellenar campos de un documento que llegó desde una plantilla.
   const [rellenando, setRellenando] = useState<Documento | null>(null);
   const [respuestas, setRespuestas] = useState<string[]>([]);
@@ -147,10 +186,31 @@ export default function EmpleadoDocumentosPage() {
                   <PencilLine className="h-4 w-4 mr-1.5" /> {relleno ? "Editar" : "Rellenar"}
                 </Button>
               )}
-              {isSafeDocUrl(doc.documentoRellenoUrl) && (
-                <button type="button" onClick={() => downloadDoc(doc.documentoRellenoUrl, `${doc.nombre} (con mis datos).pdf`)} title="Descargar con mis datos" className="p-2 text-slate-400 hover:text-emerald-600"><FileCheck className="h-4 w-4" /></button>
+              {/* Ya firmado: la copia sellada es la única que se descarga. La
+                  preliminar se retira a propósito —tener las dos a mano invita a
+                  guardar y reenviar la que no vale (ticket 6b0f74d2). */}
+              {doc.firmadoPorMi ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={descargandoId === doc.id}
+                  onClick={() => void descargarFirmado(doc)}
+                >
+                  {descargandoId === doc.id ? (
+                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <FileSignature className="h-4 w-4 mr-1.5" />
+                  )}
+                  Descargar firmado
+                </Button>
+              ) : (
+                <>
+                  {isSafeDocUrl(doc.documentoRellenoUrl) && (
+                    <button type="button" onClick={() => downloadDoc(doc.documentoRellenoUrl, `${doc.nombre} (con mis datos).pdf`)} title="Descargar con mis datos" className="p-2 text-slate-400 hover:text-emerald-600"><FileCheck className="h-4 w-4" /></button>
+                  )}
+                  {isSafeDocUrl(doc.url) && <button type="button" onClick={() => openDocInNewTab(doc.url)} title="Abrir documento" className="p-2 text-slate-400 hover:text-[var(--primary)]"><Download className="h-4 w-4" /></button>}
+                </>
               )}
-              {isSafeDocUrl(doc.url) && <button type="button" onClick={() => openDocInNewTab(doc.url)} title="Abrir documento" className="p-2 text-slate-400 hover:text-[var(--primary)]"><Download className="h-4 w-4" /></button>}
             </div>
             );
           })}
