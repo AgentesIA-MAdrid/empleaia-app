@@ -3,8 +3,8 @@
  * servicios desde un Excel o un CSV. Solo administración.
  *
  * Qué hace con lo que ya había:
- *  - Un artículo que vuelve a aparecer se actualiza (categoría y orden) y se
- *    reactiva si estaba desactivado.
+ *  - Un artículo que vuelve a aparecer se actualiza (categoría, subcategoría y
+ *    orden) y se reactiva si estaba desactivado.
  *  - Uno que ya no aparece NO se borra: se marca inactivo. Borrarlo se llevaría
  *    por delante la trazabilidad de las ventas ya registradas con él.
  *
@@ -100,6 +100,7 @@ export const POST = withTenant(
             where: { id: existente.id },
             data: {
               categoria: fila.categoria,
+              subcategoria: fila.subcategoria,
               orden: fila.orden,
               activo: true,
               // Sin columna de precio en la hoja no se borra el que ya hubiera:
@@ -115,6 +116,7 @@ export const POST = withTenant(
             data: {
               nombre: fila.nombre,
               categoria: fila.categoria,
+              subcategoria: fila.subcategoria,
               orden: fila.orden,
               precio: fila.precio,
             },

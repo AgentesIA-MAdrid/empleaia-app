@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  agruparCatalogo,
+  aplanarCatalogo,
   construirCatalogo,
   parsearCSV,
   parsearPrecio,
@@ -91,7 +93,7 @@ describe("construirCatalogo", () => {
     ]);
     expect(r.conCabecera).toBe(true);
     expect(r.filas).toEqual([
-      { nombre: "Alta de fibra", categoria: "Telefonía", orden: 0, precio: null },
+      { nombre: "Alta de fibra", categoria: "Telefonía", subcategoria: null, orden: 0, precio: null },
     ]);
   });
 
@@ -181,6 +183,93 @@ describe("construirCatalogo", () => {
     const r = construirCatalogo([["Alta de fibra", "29,90"]]);
     expect(r.filas[0]?.precio).toBeNull();
     expect(r.filas[0]?.categoria).toBe("29,90");
+  });
+
+  it("importa la subcategoría cuando la hoja nombra la columna", () => {
+    const r = construirCatalogo([
+      ["Artículo", "Categoría", "Subcategoría"],
+      ["Alta de fibra", "Telefonía", "Fijo"],
+      ["Pospago 20GB", "Telefonía", "Móvil"],
+    ]);
+    expect(r.filas[0]).toMatchObject({ categoria: "Telefonía", subcategoria: "Fijo" });
+    expect(r.filas[1]).toMatchObject({ categoria: "Telefonía", subcategoria: "Móvil" });
+  });
+
+  it("reconoce la subcategoría escrita de otras formas, y no la confunde con la categoría", () => {
+    const r = construirCatalogo([
+      ["Nombre", "Subfamilia", "Familia"],
+      ["Alta de fibra", "Fijo", "Telefonía"],
+    ]);
+    expect(r.filas[0]).toMatchObject({ categoria: "Telefonía", subcategoria: "Fijo" });
+  });
+
+  it("sin columna de subcategoría no la adivina por posición", () => {
+    // Una tercera columna sin encabezado puede ser cualquier cosa (un precio,
+    // una referencia): colarla como subcategoría partiría el catálogo en
+    // grupos de uno.
+    const r = construirCatalogo([["Alta de fibra", "Telefonía", "29,90"]]);
+    expect(r.filas[0]?.subcategoria).toBeNull();
+  });
+});
+
+describe("agruparCatalogo", () => {
+  const art = (nombre: string, categoria: string | null, subcategoria: string | null = null) => ({
+    nombre,
+    categoria,
+    subcategoria,
+  });
+
+  it("agrupa por categoría y, dentro, por subcategoría", () => {
+    const grupos = agruparCatalogo([
+      art("Fibra", "Telefonía", "Fijo"),
+      art("Pospago", "Telefonía", "Móvil"),
+      art("Portabilidad", "Telefonía", "Móvil"),
+      art("Luz", "Energía"),
+    ]);
+    expect(grupos).toHaveLength(2);
+    expect(grupos[0]?.categoria).toBe("Telefonía");
+    expect(grupos[0]?.subgrupos.map((s) => s.subcategoria)).toEqual(["Fijo", "Móvil"]);
+    expect(grupos[0]?.subgrupos[1]?.articulos.map((a) => a.nombre)).toEqual([
+      "Pospago",
+      "Portabilidad",
+    ]);
+    expect(grupos[1]?.categoria).toBe("Energía");
+  });
+
+  it("junta los artículos de un mismo grupo aunque estén repartidos por la lista", () => {
+    const grupos = agruparCatalogo([
+      art("Fibra", "Telefonía"),
+      art("Luz", "Energía"),
+      art("Pospago", "Telefonía"),
+    ]);
+    expect(grupos.map((g) => g.categoria)).toEqual(["Telefonía", "Energía"]);
+    expect(grupos[0]?.subgrupos[0]?.articulos.map((a) => a.nombre)).toEqual(["Fibra", "Pospago"]);
+  });
+
+  it("no crea grupos gemelos por tildes o mayúsculas", () => {
+    const grupos = agruparCatalogo([art("Fibra", "Telefonía"), art("Pospago", "telefonia")]);
+    expect(grupos).toHaveLength(1);
+    // Se muestra la primera forma escrita.
+    expect(grupos[0]?.categoria).toBe("Telefonía");
+  });
+
+  it("lo que no tiene categoría o subcategoría se queda en su propio bloque", () => {
+    const grupos = agruparCatalogo([art("Suelto", null), art("Fibra", "Telefonía", "Fijo")]);
+    expect(grupos[0]?.categoria).toBeNull();
+    expect(grupos[0]?.subgrupos[0]?.subcategoria).toBeNull();
+  });
+
+  it("aplanado devuelve todos los artículos, en el orden de la tabla", () => {
+    const articulos = [
+      art("Fibra", "Telefonía"),
+      art("Luz", "Energía"),
+      art("Pospago", "Telefonía"),
+    ];
+    expect(aplanarCatalogo(agruparCatalogo(articulos)).map((a) => a.nombre)).toEqual([
+      "Fibra",
+      "Pospago",
+      "Luz",
+    ]);
   });
 });
 

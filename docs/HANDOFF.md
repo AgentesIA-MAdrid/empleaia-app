@@ -73,6 +73,38 @@ Producción ya corre desde esta rama vía Dokploy.
   `withTenant`, pages usan `withTenantPage`, no `fetch` interno entre
   rutas, etc.).
 
+## 4.hoy-qui. Catálogo de ventas en dos niveles (ticket 2d327b98, 2026-07-31)
+
+`ArticuloVenta` tiene un campo nuevo, **`subcategoria`** (migración
+`20260731180000_catalogo_subcategoria`, `ADD COLUMN IF NOT EXISTS`), que
+es el segundo nivel dentro de `categoria`. Alcance:
+
+- Configuración → **Catálogo de ventas**: columna editable nueva, campo
+  en el alta a mano (categoría y subcategoría se quedan puestas entre
+  altas) y la tabla se pinta **agrupada** por categoría → subcategoría,
+  con un `<datalist>` de los valores ya usados para no crear
+  "Telefonia"/"Telefonía".
+- Paso 1 del cierre de turno: la misma agrupación, con cabeceras.
+- Importador Excel/CSV: columna `Subcategoría` (o Subfamilia, Subgrupo,
+  Subtipo…). **No** se adivina por posición, igual que el precio.
+- `POST`/`PATCH /api/articulos-venta` aceptan el campo con las mismas
+  reglas que la categoría (`normalizarCategoriaArticulo`).
+
+Dos decisiones a no reabrir sin pedirlo:
+
+- Los **objetivos de venta siguen siendo por categoría**
+  (`ObjetivoVenta.categoria`). Fijar objetivos a nivel de subcategoría
+  es otra pieza (ámbito nuevo en la parrilla, en la plantilla Excel y en
+  el seguimiento) y el ticket no la pedía.
+- Las flechas de orden mueven **dentro del bloque**, y el PUT de
+  `/api/articulos-venta/orden` recibe el orden de la tabla ya agrupada:
+  lo guardado acaba siendo exactamente lo que se ve. Sacar un artículo
+  de su bloque es cambiarle la categoría.
+
+Agrupar es lógica pura en `agruparCatalogo`/`aplanarCatalogo`
+(`src/lib/cierre-turno/catalogo.ts`, con tests): agrupa por el valor
+normalizado y muestra la primera forma escrita.
+
 ## 4.hoy-qua. Objetivos de venta: dos subáreas (ticket e6515e63, 2026-07-31)
 
 `/admin/objetivos-venta` (y su gemela `/manager/objetivos-venta`) ya no

@@ -10,6 +10,14 @@
  * recoloca con las flechas de cada fila: dando de alta a mano, todo cae al
  * final, y lo que se vende a diario tiene que quedar arriba.
  *
+ * El catálogo se organiza en dos niveles —categoría y, dentro, subcategoría—
+ * porque un solo nivel se queda corto en cuanto hay treinta artículos:
+ * "Telefonía" acaba siendo una lista tan larga como la de partida. Los dos son
+ * texto libre y opcionales; lo que no tiene categoría se agrupa aparte ("Sin
+ * categoría"), y el sitio de cada bloque lo marca su primer artículo. Las
+ * flechas mueven el artículo dentro de su bloque: sacarlo de ahí es cambiarle
+ * la categoría, no bajarlo a empujones.
+ *
  * Añadir a mano existe porque el caso corriente son cuatro o cinco conceptos
  * (pospago, fibra, renove, prepago, energía): pedir un Excel para eso es pedir
  * que no se empiece. El importador sigue siendo el camino del catálogo largo.
@@ -22,7 +30,7 @@
  * euros y cruzarlas con lo que hay en caja.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Upload,
   FileSpreadsheet,
@@ -39,12 +47,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { moverEnOrden } from "@/lib/cierre-turno/catalogo";
+import { agruparCatalogo, aplanarCatalogo, moverEnOrden } from "@/lib/cierre-turno/catalogo";
 
 interface Articulo {
   id: string;
   nombre: string;
   categoria: string | null;
+  /** Segundo nivel dentro de la categoría ("Pospago" dentro de "Telefonía"). */
+  subcategoria: string | null;
   orden: number;
   activo: boolean;
   precio: number | null;
@@ -90,6 +100,7 @@ export function CatalogoVentasTab() {
   // Alta a mano.
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [nuevaCategoria, setNuevaCategoria] = useState("");
+  const [nuevaSubcategoria, setNuevaSubcategoria] = useState("");
   const [nuevoPrecio, setNuevoPrecio] = useState("");
   const [creando, setCreando] = useState(false);
 
@@ -224,6 +235,7 @@ export function CatalogoVentasTab() {
         body: JSON.stringify({
           nombre: nuevoNombre,
           categoria: nuevaCategoria,
+          subcategoria: nuevaSubcategoria,
           precio: nuevoPrecio.trim() || null,
         }),
       });
@@ -242,8 +254,11 @@ export function CatalogoVentasTab() {
           ? "Ya existía desactivado y vuelve a estar disponible con su histórico."
           : `"${(data as Articulo).nombre}" ya se puede registrar en el cierre de turno.`,
       });
+      // La categoría y la subcategoría se quedan puestas: los artículos se dan
+      // de alta por bloques ("ahora todo lo de Telefonía → Pospago"), y
+      // volverlas a teclear en cada alta es lo que acaba en dos grupos casi
+      // iguales escritos distinto.
       setNuevoNombre("");
-      setNuevaCategoria("");
       setNuevoPrecio("");
       await cargar();
     } catch {
@@ -253,8 +268,12 @@ export function CatalogoVentasTab() {
     }
   };
 
-  /** Guarda el nombre o la categoría de un artículo ya existente. */
-  const guardarCampo = async (a: Articulo, campo: "nombre" | "categoria", valor: string) => {
+  /** Guarda el nombre, la categoría o la subcategoría de un artículo ya existente. */
+  const guardarCampo = async (
+    a: Articulo,
+    campo: "nombre" | "categoria" | "subcategoria",
+    valor: string,
+  ) => {
     const res = await fetch("/api/articulos-venta", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -385,14 +404,18 @@ export function CatalogoVentasTab() {
   };
 
   /**
-   * Sube o baja un artículo una posición. La tabla se recoloca en pantalla al
-   * instante y se manda el orden completo al servidor: colocar el catálogo son
-   * varios clics seguidos y esperar al servidor entre uno y otro se nota.
-   * Si el guardado falla, la lista vuelve a como estaba.
+   * Sube o baja un artículo una posición dentro de su bloque. La tabla se
+   * recoloca en pantalla al instante y se manda el orden completo al servidor:
+   * colocar el catálogo son varios clics seguidos y esperar al servidor entre
+   * uno y otro se nota. Si el guardado falla, la lista vuelve a como estaba.
+   *
+   * El orden que se manda es el de la tabla ya agrupada, no el bruto que hay
+   * guardado: así lo que se guarda es exactamente lo que se está viendo, y el
+   * comercial ve el catálogo igual de ordenado en el cierre.
    */
   const mover = async (a: Articulo, direccion: -1 | 1) => {
     const nuevosIds = moverEnOrden(
-      articulos.map((x) => x.id),
+      ordenados.map((x) => x.id),
       a.id,
       direccion,
     );
@@ -446,16 +469,54 @@ export function CatalogoVentasTab() {
   const pilotos = personas.filter((p) => p.acceso);
   const candidatos = personas.filter((p) => !p.acceso);
 
+  // La tabla se pinta agrupada por categoría y subcategoría; `ordenados` es esa
+  // misma lista en plano, que es la que numera las filas y la que se manda al
+  // reordenar.
+  const grupos = useMemo(() => agruparCatalogo(articulos), [articulos]);
+  const ordenados = useMemo(() => aplanarCatalogo(grupos), [grupos]);
+  const posiciones = useMemo(
+    () => new Map(ordenados.map((a, i) => [a.id, i + 1])),
+    [ordenados],
+  );
+
+  // Sugerencias para no acabar con "Telefonia" y "Telefonía" como dos grupos.
+  const categoriasUsadas = useMemo(
+    () => [...new Set(articulos.map((a) => a.categoria).filter((c): c is string => Boolean(c)))].sort(),
+    [articulos],
+  );
+  const subcategoriasUsadas = useMemo(
+    () =>
+      [...new Set(articulos.map((a) => a.subcategoria).filter((c): c is string => Boolean(c)))].sort(),
+    [articulos],
+  );
+
+  const numColumnas = preciosActivos ? 8 : 7;
+
   return (
     <div className="space-y-6">
+      {/* Sugerencias de los dos niveles, compartidas por el alta y por cada
+          fila: teclear otra vez "Telefonía" es como nacen los grupos gemelos. */}
+      <datalist id="catalogo-categorias">
+        {categoriasUsadas.map((c) => (
+          <option key={c} value={c} />
+        ))}
+      </datalist>
+      <datalist id="catalogo-subcategorias">
+        {subcategoriasUsadas.map((c) => (
+          <option key={c} value={c} />
+        ))}
+      </datalist>
+
       <div>
         <h2 className="text-lg font-semibold text-slate-900">Catálogo de ventas</h2>
         <p className="text-sm text-slate-500 mt-1 max-w-2xl">
           La lista de artículos y servicios que tu equipo registra al cerrar el turno, y sobre
           la que se fijan los objetivos de venta por comercial y por sede. Añádelos aquí uno a
-          uno, o súbelos de golpe desde Excel o CSV si tienes muchos. Con las flechas de cada
-          fila los colocas en el orden que quieras: es el mismo que verá tu equipo, y con el
-          interruptor{" "}
+          uno, o súbelos de golpe desde Excel o CSV si tienes muchos. Organízalos en{" "}
+          <strong className="font-medium text-slate-600">categorías y subcategorías</strong> para
+          que no sea una lista interminable: se agrupan así tanto aquí como en el cierre de
+          turno. Con las flechas de cada fila los colocas en el orden que quieras dentro de su
+          bloque: es el mismo que verá tu equipo, y con el interruptor{" "}
           <strong className="font-medium text-slate-600">Cuenta para objetivos</strong> eliges qué
           artículos empujan los objetivos y cuáles no.
         </p>
@@ -578,7 +639,9 @@ export function CatalogoVentasTab() {
             <p className="text-xs text-slate-500 mt-1 max-w-xl">
               Escribe cada concepto que vendéis: pospago, fibra, renove, prepago, energía… La
               categoría es opcional: agrupa los artículos en la tabla del cierre y es el grupo
-              sobre el que puedes fijar un objetivo (Telefonía, Servicios…).
+              sobre el que puedes fijar un objetivo (Telefonía, Servicios…). La subcategoría
+              afina dentro de ella (Telefonía → Pospago) cuando el catálogo se hace largo. Se
+              quedan puestas al añadir, para que puedas meter un bloque entero seguido.
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-3">
@@ -605,12 +668,30 @@ export function CatalogoVentasTab() {
               <Input
                 id="catalogo-nueva-categoria"
                 className="mt-1"
+                list="catalogo-categorias"
                 value={nuevaCategoria}
                 onChange={(e) => setNuevaCategoria(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void crear();
                 }}
                 placeholder="Telefonía"
+                maxLength={80}
+              />
+            </div>
+            <div className="flex-1 min-w-[10rem]">
+              <label htmlFor="catalogo-nueva-subcategoria" className="text-xs text-slate-500">
+                Subcategoría (opcional)
+              </label>
+              <Input
+                id="catalogo-nueva-subcategoria"
+                className="mt-1"
+                list="catalogo-subcategorias"
+                value={nuevaSubcategoria}
+                onChange={(e) => setNuevaSubcategoria(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void crear();
+                }}
+                placeholder="Pospago"
                 maxLength={80}
               />
             </div>
@@ -666,7 +747,9 @@ export function CatalogoVentasTab() {
             </span>
           </div>
           <p className="text-xs text-slate-400">
-            Basta una columna con el nombre, y si añades una segunda se usa como categoría. Al
+            Basta una columna con el nombre, y si añades una segunda se usa como categoría. Para
+            traer también las subcategorías, ponle a esa columna el encabezado{" "}
+            <strong>Subcategoría</strong> (o Subfamilia, Subgrupo). Al
             importar, lo que vuelva a aparecer se actualiza y lo que ya no esté se desactiva
             —incluido lo que hayas añadido a mano y no figure en la hoja—, nunca se borra, para
             no romper el histórico de ventas. Si tu hoja tiene una columna llamada{" "}
@@ -774,6 +857,7 @@ export function CatalogoVentasTab() {
                       "#",
                       "Artículo o servicio",
                       "Categoría",
+                      "Subcategoría",
                       ...(preciosActivos ? ["Precio"] : []),
                       "Cuenta para objetivos",
                       "Estado",
@@ -791,135 +875,200 @@ export function CatalogoVentasTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {articulos.map((a, i) => (
-                    <tr
-                      key={a.id}
-                      className={`border-b border-slate-100 last:border-0 ${a.activo ? "" : "opacity-50"}`}
-                    >
-                      <td className="px-4 py-2.5 text-sm text-slate-400 tabular-nums">{i + 1}</td>
-                      <td className="px-4 py-2.5">
-                        {/* Igual que el precio: se guarda al salir del campo.
-                            La `key` lleva el valor guardado para que, si el
-                            servidor lo rechaza o lo normaliza, la casilla se
-                            repinte con lo que hay en la base de datos. */}
-                        <Input
-                          key={`nombre-${a.id}-${a.nombre}`}
-                          className="min-w-[10rem] font-medium"
-                          defaultValue={a.nombre}
-                          maxLength={120}
-                          aria-label={`Nombre de ${a.nombre}`}
-                          onBlur={(e) => {
-                            const nuevo = e.target.value.trim();
-                            if (nuevo !== a.nombre) void guardarCampo(a, "nombre", nuevo);
-                          }}
-                        />
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <Input
-                          key={`categoria-${a.id}-${a.categoria ?? ""}`}
-                          className="min-w-[8rem]"
-                          defaultValue={a.categoria ?? ""}
-                          placeholder="—"
-                          maxLength={80}
-                          aria-label={`Categoría de ${a.nombre}`}
-                          onBlur={(e) => {
-                            const nuevo = e.target.value.trim();
-                            if (nuevo !== (a.categoria ?? "")) void guardarCampo(a, "categoria", nuevo);
-                          }}
-                        />
-                      </td>
-                      {preciosActivos && (
-                        <td className="px-4 py-2.5">
-                          {/* Se guarda al salir del campo: rellenar precios es
-                              teclear en cadena, y un botón por fila sobra. */}
-                          <Input
-                            key={`precio-${a.id}-${a.precio ?? ""}`}
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            className="w-28 text-right tabular-nums"
-                            defaultValue={a.precio ?? ""}
-                            placeholder="—"
-                            aria-label={`Precio de ${a.nombre}`}
-                            onBlur={(e) => {
-                              const nuevo = e.target.value.trim();
-                              const actual = a.precio === null ? "" : String(a.precio);
-                              if (nuevo !== actual) void guardarPrecio(a, nuevo);
-                            }}
-                          />
-                        </td>
+                  {/* Una cabecera por categoría y, dentro, otra por
+                      subcategoría: es la misma organización que ve el comercial
+                      en el cierre, así que lo que se coloca aquí se reconoce
+                      allí. Los artículos sin subcategoría cuelgan directamente
+                      de su categoría, sin una fila "Sin subcategoría" de por
+                      medio que solo haría ruido. */}
+                  {grupos.map((grupo) => (
+                    <Fragment key={`cat-${grupo.categoria ?? "__sin__"}`}>
+                      {/* Sin categorías, el catálogo es una lista corrida y no
+                          hay nada que encabezar: quien todavía no las use no
+                          gana nada con una fila "Sin categoría" arriba. */}
+                      {(grupo.categoria || grupos.length > 1) && (
+                        <tr className="bg-slate-50/80 border-y border-slate-200">
+                          <td
+                            colSpan={numColumnas}
+                            className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600"
+                          >
+                            {grupo.categoria ?? "Sin categoría"}
+                          </td>
+                        </tr>
                       )}
-                      {/* Interruptor por artículo: hay conceptos que se venden
-                          pero no se persiguen, y sumarlos infla la consecución
-                          de quien tiene el objetivo puesto sobre otra cosa. */}
-                      <td className="px-4 py-2.5">
-                        <button
-                          type="button"
-                          aria-pressed={a.cuentaParaObjetivos}
-                          aria-label={`${a.nombre} cuenta para los objetivos`}
-                          title={
-                            a.cuentaParaObjetivos
-                              ? "Sus unidades suman en el objetivo de unidades totales y en el de su categoría."
-                              : "Se sigue vendiendo, pero sus unidades no suman en ningún objetivo."
-                          }
-                          onClick={() => void cambiarCuentaObjetivos(a)}
-                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                            a.cuentaParaObjetivos ? "bg-[var(--primary)]" : "bg-slate-200"
-                          }`}
+                      {grupo.subgrupos.map((sub) => (
+                        <Fragment
+                          key={`sub-${grupo.categoria ?? "__sin__"}-${sub.subcategoria ?? "__sin__"}`}
                         >
-                          <span
-                            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                              a.cuentaParaObjetivos ? "translate-x-5" : "translate-x-1"
-                            }`}
-                          />
-                        </button>
-                      </td>
-                      <td className="px-4 py-2.5 text-sm">
-                        {a.activo ? (
-                          <span className="text-emerald-700">Activo</span>
-                        ) : (
-                          <span className="text-slate-500">Desactivado</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                        {/* Las flechas colocan el catálogo después de haberlo
-                            dado de alta: el orden de esta tabla es el que ve el
-                            comercial al cerrar el turno. */}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          disabled={guardandoOrden || i === 0}
-                          aria-label={`Subir ${a.nombre}`}
-                          title="Subir"
-                          onClick={() => void mover(a, -1)}
-                        >
-                          <ChevronUp className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          disabled={guardandoOrden || i === articulos.length - 1}
-                          aria-label={`Bajar ${a.nombre}`}
-                          title="Bajar"
-                          onClick={() => void mover(a, 1)}
-                        >
-                          <ChevronDown className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => void cambiarActivo(a)}>
-                          {a.activo ? (
-                            <>
-                              <EyeOff className="h-3.5 w-3.5 mr-1.5" /> Desactivar
-                            </>
-                          ) : (
-                            <>
-                              <Eye className="h-3.5 w-3.5 mr-1.5" /> Reactivar
-                            </>
+                          {sub.subcategoria && (
+                            <tr className="border-b border-slate-100">
+                              <td
+                                colSpan={numColumnas}
+                                className="px-4 py-1.5 pl-8 text-xs font-medium text-slate-500"
+                              >
+                                {sub.subcategoria}
+                              </td>
+                            </tr>
                           )}
-                        </Button>
-                      </td>
-                    </tr>
+                          {sub.articulos.map((a, j) => (
+                            <tr
+                              key={a.id}
+                              className={`border-b border-slate-100 last:border-0 ${a.activo ? "" : "opacity-50"}`}
+                            >
+                              <td className="px-4 py-2.5 text-sm text-slate-400 tabular-nums">
+                                {posiciones.get(a.id)}
+                              </td>
+                              <td className="px-4 py-2.5">
+                                {/* Igual que el precio: se guarda al salir del campo.
+                                    La `key` lleva el valor guardado para que, si el
+                                    servidor lo rechaza o lo normaliza, la casilla se
+                                    repinte con lo que hay en la base de datos. */}
+                                <Input
+                                  key={`nombre-${a.id}-${a.nombre}`}
+                                  className="min-w-[10rem] font-medium"
+                                  defaultValue={a.nombre}
+                                  maxLength={120}
+                                  aria-label={`Nombre de ${a.nombre}`}
+                                  onBlur={(e) => {
+                                    const nuevo = e.target.value.trim();
+                                    if (nuevo !== a.nombre) void guardarCampo(a, "nombre", nuevo);
+                                  }}
+                                />
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <Input
+                                  key={`categoria-${a.id}-${a.categoria ?? ""}`}
+                                  className="min-w-[8rem]"
+                                  list="catalogo-categorias"
+                                  defaultValue={a.categoria ?? ""}
+                                  placeholder="—"
+                                  maxLength={80}
+                                  aria-label={`Categoría de ${a.nombre}`}
+                                  onBlur={(e) => {
+                                    const nuevo = e.target.value.trim();
+                                    if (nuevo !== (a.categoria ?? "")) void guardarCampo(a, "categoria", nuevo);
+                                  }}
+                                />
+                              </td>
+                              <td className="px-4 py-2.5">
+                                {/* Cambiar la subcategoría recoloca la fila en cuanto
+                                    se recarga la lista: la tabla está agrupada por
+                                    estos dos campos. */}
+                                <Input
+                                  key={`subcategoria-${a.id}-${a.subcategoria ?? ""}`}
+                                  className="min-w-[8rem]"
+                                  list="catalogo-subcategorias"
+                                  defaultValue={a.subcategoria ?? ""}
+                                  placeholder="—"
+                                  maxLength={80}
+                                  aria-label={`Subcategoría de ${a.nombre}`}
+                                  onBlur={(e) => {
+                                    const nuevo = e.target.value.trim();
+                                    if (nuevo !== (a.subcategoria ?? "")) {
+                                      void guardarCampo(a, "subcategoria", nuevo);
+                                    }
+                                  }}
+                                />
+                              </td>
+                              {preciosActivos && (
+                                <td className="px-4 py-2.5">
+                                  {/* Se guarda al salir del campo: rellenar precios es
+                                      teclear en cadena, y un botón por fila sobra. */}
+                                  <Input
+                                    key={`precio-${a.id}-${a.precio ?? ""}`}
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    className="w-28 text-right tabular-nums"
+                                    defaultValue={a.precio ?? ""}
+                                    placeholder="—"
+                                    aria-label={`Precio de ${a.nombre}`}
+                                    onBlur={(e) => {
+                                      const nuevo = e.target.value.trim();
+                                      const actual = a.precio === null ? "" : String(a.precio);
+                                      if (nuevo !== actual) void guardarPrecio(a, nuevo);
+                                    }}
+                                  />
+                                </td>
+                              )}
+                              {/* Interruptor por artículo: hay conceptos que se venden
+                                  pero no se persiguen, y sumarlos infla la consecución
+                                  de quien tiene el objetivo puesto sobre otra cosa. */}
+                              <td className="px-4 py-2.5">
+                                <button
+                                  type="button"
+                                  aria-pressed={a.cuentaParaObjetivos}
+                                  aria-label={`${a.nombre} cuenta para los objetivos`}
+                                  title={
+                                    a.cuentaParaObjetivos
+                                      ? "Sus unidades suman en el objetivo de unidades totales y en el de su categoría."
+                                      : "Se sigue vendiendo, pero sus unidades no suman en ningún objetivo."
+                                  }
+                                  onClick={() => void cambiarCuentaObjetivos(a)}
+                                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                                    a.cuentaParaObjetivos ? "bg-[var(--primary)]" : "bg-slate-200"
+                                  }`}
+                                >
+                                  <span
+                                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                                      a.cuentaParaObjetivos ? "translate-x-5" : "translate-x-1"
+                                    }`}
+                                  />
+                                </button>
+                              </td>
+                              <td className="px-4 py-2.5 text-sm">
+                                {a.activo ? (
+                                  <span className="text-emerald-700">Activo</span>
+                                ) : (
+                                  <span className="text-slate-500">Desactivado</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                                {/* Las flechas colocan el catálogo después de haberlo
+                                    dado de alta: el orden de esta tabla es el que ve el
+                                    comercial al cerrar el turno. Se mueve dentro del
+                                    bloque —sacar un artículo de su categoría es cambiar
+                                    su categoría, no bajarlo a empujones—, así que en el
+                                    primero y el último del bloque no hay a dónde ir. */}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  disabled={guardandoOrden || j === 0}
+                                  aria-label={`Subir ${a.nombre}`}
+                                  title="Subir"
+                                  onClick={() => void mover(a, -1)}
+                                >
+                                  <ChevronUp className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  disabled={guardandoOrden || j === sub.articulos.length - 1}
+                                  aria-label={`Bajar ${a.nombre}`}
+                                  title="Bajar"
+                                  onClick={() => void mover(a, 1)}
+                                >
+                                  <ChevronDown className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => void cambiarActivo(a)}>
+                                  {a.activo ? (
+                                    <>
+                                      <EyeOff className="h-3.5 w-3.5 mr-1.5" /> Desactivar
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Eye className="h-3.5 w-3.5 mr-1.5" /> Reactivar
+                                    </>
+                                  )}
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </Fragment>
+                      ))}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
