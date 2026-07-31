@@ -85,6 +85,14 @@ export interface GrupoObjetivoResumen {
   tiendaIds: string[];
 }
 
+/**
+ * Lo mismo, pero sin colapsar el día: es lo que necesita el seguimiento diario
+ * ("¿cuándo nos hemos descolgado?"). `fecha` es el día del cierre, "YYYY-MM-DD".
+ */
+export interface VentaDia extends VentaAgregada {
+  fecha: string;
+}
+
 /** Lo que los objetivos necesitan saber de cada artículo del catálogo. */
 export interface ArticuloObjetivo {
   id: string;
@@ -112,11 +120,14 @@ export function cuentaParaObjetivos(a: ArticuloObjetivo): boolean {
  * del grupo, y cae UNA sola vez aunque lo sean los dos: si no, un grupo que
  * lleve una tienda y a su gente contaría el doble.
  */
-export function anotarVentas(
-  ventas: VentaAgregada[],
+export function anotarVentas<T extends VentaAgregada>(
+  ventas: T[],
   articulos: ArticuloObjetivo[],
   grupos: GrupoObjetivoResumen[] = [],
-): VentaAgregada[] {
+  // Genérica a propósito: el seguimiento diario anota ventas que llevan además
+  // la fecha y la sede del cierre, y necesita recuperarlas con esos campos
+  // intactos. Devolver `VentaAgregada[]` los borraba del tipo.
+): (T & VentaAgregada)[] {
   const porId = new Map(articulos.map((a) => [a.id, a]));
   const miembros = grupos.map((g) => ({
     id: g.id,

@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { descargarCSV } from "@/lib/informes/csv-descarga";
 
 type Agrupacion = "articulo" | "comercial" | "sede";
 
@@ -94,24 +95,6 @@ function hoyMadrid(): string {
       .map((x) => [x.type, x.value]),
   );
   return `${p.year}-${p.month}-${p.day}`;
-}
-
-/** CSV con punto y coma y coma decimal: es lo que abre Excel en España. */
-function descargarCSV(nombre: string, cabeceras: string[], filas: (string | number | null)[][]) {
-  const celda = (v: string | number | null) => {
-    if (v === null) return "";
-    if (typeof v === "number") return String(v).replace(".", ",");
-    return /[";\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-  };
-  const texto = [cabeceras.join(";"), ...filas.map((f) => f.map(celda).join(";"))].join("\n");
-  // BOM para que Excel respete las tildes.
-  const blob = new Blob([`﻿${texto}`], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = nombre;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 export function InformeVentas({ sedes = [] }: { sedes?: { id: string; nombre: string }[] }) {

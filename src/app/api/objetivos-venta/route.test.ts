@@ -401,7 +401,9 @@ describe("GET /api/objetivos-venta", () => {
 
   it("lo vendido de un producto excluido no suma en el grupo ni en el total", async () => {
     prismaMock.cierreTurno.findMany.mockResolvedValue([
-      { id: "c1", userId: "u_ana", tiendaId: "t1" },
+      // `fecha` la lee la consulta de ventas para poder dar el día a día
+      // (`ventasPorDia`), aunque a los objetivos del mes les dé igual.
+      { id: "c1", userId: "u_ana", tiendaId: "t1", fecha: new Date("2026-07-10T00:00:00Z") },
     ]);
     prismaMock.cierreTurnoVenta.groupBy.mockResolvedValue([
       { cierreId: "c1", articuloId: "art_fibra", _sum: { cantidad: 4 } },

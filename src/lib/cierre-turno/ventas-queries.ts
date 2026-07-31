@@ -14,7 +14,7 @@
  */
 
 import type { PrismaClient } from "@/generated/prisma-tenant/client";
-import { rangoMes, type VentaAgregada } from "@/lib/cierre-turno/objetivos";
+import { rangoMes, type VentaAgregada, type VentaDia } from "@/lib/cierre-turno/objetivos";
 
 export interface FiltroVentas {
   /** Mes "YYYY-MM". Alternativa a desde/hasta. */
@@ -37,22 +37,47 @@ export interface FiltroVentas {
 function ventanaDe(f: FiltroVentas): { desde: Date; hasta: Date } {
   if (f.mes) return rangoMes(f.mes);
   if (f.desde && f.hasta) return { desde: f.desde, hasta: f.hasta };
-  throw new Error("ventasAgregadas necesita un mes o un rango de fechas");
+  throw new Error("La lectura de ventas necesita un mes o un rango de fechas");
 }
 
-/**
- * Ventas agrupadas por comercial, sede y artículo.
- *
- * Se agrupa por `CierreTurnoVenta.cierreId` no: la sede y el comercial viven en
- * `CierreTurno`, así que hace falta el join. Prisma no agrupa por campos de la
- * relación, de modo que se agrupa por cierre y se resuelve la sede con un
- * segundo `findMany` de cierres (una fila por comercial y día, mucho menos
- * volumen que las ventas).
- */
+/** Ventas del periodo agrupadas por comercial, sede y artículo. */
 export async function ventasAgregadas(
   prisma: PrismaClient,
   filtro: FiltroVentas,
 ): Promise<VentaAgregada[]> {
+  // Se colapsan las filas del mismo (comercial, sede, artículo): un comercial
+  // vende el mismo artículo muchos días del mes y a los objetivos les da igual
+  // el día. Quien sí necesita el día es el seguimiento (`ventasPorDia`).
+  const acc = new Map<string, VentaAgregada>();
+  for (const v of await ventasPorDia(prisma, filtro)) {
+    const clave = `${v.userId}|${v.tiendaId ?? ""}|${v.articuloId ?? ""}`;
+    const previo = acc.get(clave);
+    if (previo) previo.cantidad += v.cantidad;
+    else
+      acc.set(clave, {
+        userId: v.userId,
+        tiendaId: v.tiendaId,
+        articuloId: v.articuloId,
+        cantidad: v.cantidad,
+      });
+  }
+  return [...acc.values()];
+}
+
+/**
+ * Lo mismo, pero conservando el día del cierre: es lo que necesita el
+ * seguimiento diario de objetivos (`/api/objetivos-venta/seguimiento`) para
+ * enseñar el día a día y el acumulado frente al objetivo repartido.
+ *
+ * Se agrupa por `CierreTurnoVenta.cierreId` porque la sede, el comercial y el
+ * día viven en `CierreTurno` y Prisma no agrupa por campos de la relación: se
+ * agrupa por cierre y se resuelven con un segundo `findMany` de cierres (una
+ * fila por comercial y día, mucho menos volumen que las ventas).
+ */
+export async function ventasPorDia(
+  prisma: PrismaClient,
+  filtro: FiltroVentas,
+): Promise<VentaDia[]> {
   const { desde, hasta } = ventanaDe(filtro);
 
   const cierres = await prisma.cierreTurno.findMany({
@@ -71,7 +96,7 @@ export async function ventasAgregadas(
         : {}),
       ...(filtro.userId ? { userId: filtro.userId } : {}),
     },
-    select: { id: true, userId: true, tiendaId: true },
+    select: { id: true, userId: true, tiendaId: true, fecha: true },
   });
   if (cierres.length === 0) return [];
 
@@ -83,19 +108,23 @@ export async function ventasAgregadas(
     _sum: { cantidad: true },
   });
 
-  // Se colapsan las filas del mismo (comercial, sede, artículo): un comercial
-  // vende el mismo artículo muchos días del mes y a los objetivos les da igual
-  // el día.
-  const acc = new Map<string, VentaAgregada>();
+  // Se colapsan las filas del mismo (día, comercial, sede, artículo): una misma
+  // persona puede tener más de un cierre el mismo día (jornada partida) y el
+  // seguimiento cuenta el día, no el cierre.
+  const acc = new Map<string, VentaDia>();
   for (const f of filas) {
     const c = porCierre.get(f.cierreId);
     if (!c) continue;
-    const clave = `${c.userId}|${c.tiendaId ?? ""}|${f.articuloId ?? ""}`;
+    // `fecha` es un DATE a medianoche UTC: el recorte a 10 caracteres da el día
+    // tal cual se guardó, sin que la zona horaria lo mueva.
+    const fecha = c.fecha.toISOString().slice(0, 10);
+    const clave = `${fecha}|${c.userId}|${c.tiendaId ?? ""}|${f.articuloId ?? ""}`;
     const previo = acc.get(clave);
     const cantidad = f._sum.cantidad ?? 0;
     if (previo) previo.cantidad += cantidad;
     else
       acc.set(clave, {
+        fecha,
         userId: c.userId,
         tiendaId: c.tiendaId,
         articuloId: f.articuloId,
