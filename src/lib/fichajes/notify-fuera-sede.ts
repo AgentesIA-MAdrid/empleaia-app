@@ -48,6 +48,9 @@ export async function notifyFichajeFueraSede(f: FichajeFueraSedeCtx): Promise<vo
           colorPrimario: true,
           colorSidebar: true,
           logo: true,
+          // Para escribir la hora del fichaje como la lee el cliente, no en la
+          // del servidor (ticket 3c91f0ab).
+          zonaHoraria: true,
         },
       })
       .catch(() => null);
@@ -96,6 +99,7 @@ export async function notifyFichajeFueraSede(f: FichajeFueraSedeCtx): Promise<vo
               colorPrimario,
               colorSidebar,
               logo,
+              zonaHoraria: cfg?.zonaHoraria ?? null,
             }),
           ),
         ),

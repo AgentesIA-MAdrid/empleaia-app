@@ -107,6 +107,14 @@ export const POST = withTenant(async (
         nombre,
         dni,
         fecha: firmadoEn,
+        // El sello va impreso en el documento: la hora tiene que ser la del
+        // reloj de quien firma, no la del servidor (ticket 3c91f0ab).
+        zonaHoraria: (
+          await prismaApp.configuracionEmpresa.findUnique({
+            where: { id: "singleton" },
+            select: { zonaHoraria: true },
+          })
+        )?.zonaHoraria,
       });
     } catch (err) {
       console.error("[firmar] fallo al estampar el documento:", err);
