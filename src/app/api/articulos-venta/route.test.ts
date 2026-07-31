@@ -392,7 +392,7 @@ describe("GET /api/articulos-venta?todos=1 — el distintivo de cómo se evalúa
     };
     expect(data.objetivosDelMes.articuloIds).toEqual(["art_1"]);
     expect(data.objetivosDelMes.subgrupos).toEqual([
-      columnaSubgrupo({ categoria: "Telefonía", subcategoria: "Móvil" }),
+      columnaSubgrupo({ subcategoria: "Móvil" }),
     ]);
   });
 

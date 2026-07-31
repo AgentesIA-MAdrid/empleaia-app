@@ -30,10 +30,10 @@
  * las de cada producto: son las dos formas de fijar un objetivo, por grupo o
  * por producto individual (ticket 234c6b0f). Un objetivo de grupo se cumple
  * sumando lo vendido de los productos de esa subcategoría que cuentan para
- * objetivos; los que administración ha marcado como que no cuentan
- * (Configuración → Catálogo de ventas) no tienen columna y sus unidades no
- * suman en ningún objetivo (ticket 714c76dd). La categoría organiza el catálogo
- * y sale en los informes, pero ya no es un nivel con objetivo propio.
+ * objetivos —de todas las categorías: "Empresa → FFTH" y "Particular → FFTH"
+ * empujan el mismo objetivo de FFTH (ticket 528694fa)—; los que administración
+ * ha marcado como que no cuentan (Configuración → Catálogo de ventas) no tienen
+ * columna y sus unidades no suman en ningún objetivo (ticket 714c76dd).
  *
  * Cada casilla se guarda al salir del campo. Poner 0 quita el objetivo: es lo
  * que la gente hace de forma natural para "quitar esto", y pedirle un botón de
@@ -78,7 +78,6 @@ interface Articulo {
  */
 interface Subgrupo {
   id: string;
-  categoria: string | null;
   subcategoria: string;
   etiqueta: string;
 }
@@ -503,7 +502,7 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
     }
     setGuardando(`${fila.sujetoId}|${columna.id}`);
     // La columna dice de qué es el objetivo: unidades totales, un grupo de
-    // productos (una subcategoría, con su categoría) o un producto suelto.
+    // productos (una subcategoría) o un producto suelto.
     try {
       const res = await fetch("/api/objetivos-venta", {
         method: "PUT",
@@ -514,7 +513,6 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
           sujetoId: fila.sujetoId,
           articuloId: columna.grupo || columna.id === COLUMNA_TOTAL ? null : columna.id,
           subcategoria: columna.grupo?.subcategoria ?? null,
-          categoria: columna.grupo?.categoria ?? null,
           cantidad,
         }),
       });
@@ -642,9 +640,9 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
       ...(datos?.subgrupos ?? []).map((g) => ({
         id: g.id,
         nombre: g.subcategoria,
-        // Debajo, de qué categoría es ese grupo: dos categorías pueden tener
-        // una subcategoría con el mismo nombre y son dos columnas distintas.
-        detalle: g.categoria ? `Grupo · ${g.categoria}` : "Grupo de productos",
+        // Una columna por subcategoría y ya está: la categoría (Particular,
+        // Empresa) no parte el objetivo, sus productos suman todos aquí.
+        detalle: "Grupo de productos",
         grupo: g,
       })),
       ...(datos?.articulos ?? []).map((a) => ({
@@ -736,8 +734,10 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
             <strong className="font-medium text-slate-500">grupo de productos</strong> (las columnas
             grises, una por subcategoría del catálogo). Tu equipo sigue registrando cada producto por
             separado; para el objetivo de grupo se suman las unidades de todos los productos de esa
-            subcategoría. Debajo del nombre de la columna verás de qué categoría es. Las categorías
-            no llevan objetivo propio: organizan el catálogo y salen en los informes. Si un producto
+            subcategoría, cuelguen de la categoría que cuelguen: si tienes FFTH en Particular y en
+            Empresa, las dos empujan el mismo objetivo de FFTH. Las categorías no llevan objetivo
+            propio —organizan el catálogo, filtran los informes y las elige tu equipo al registrar
+            la venta. Si un producto
             ya tiene objetivo propio dentro de un grupo con objetivo, no se suma dos veces en las
             unidades totales: manda el del grupo.
           </p>

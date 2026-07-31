@@ -35,8 +35,8 @@ const catalogo = [
   },
 ];
 
-/** El grupo con objetivo es la subcategoría (ticket 234c6b0f). */
-const COLUMNA_HOGAR = columnaSubgrupo({ categoria: "Telefonía", subcategoria: "Hogar" });
+/** El grupo con objetivo es la subcategoría, sin la categoría (ticket 528694fa). */
+const COLUMNA_HOGAR = columnaSubgrupo({ subcategoria: "Hogar" });
 
 const prismaMock = {
   objetivoVenta: {
