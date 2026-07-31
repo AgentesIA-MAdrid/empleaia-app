@@ -17,6 +17,10 @@
  *
  * Las pestañas se pintan como en `/admin/informes`, que es el otro sitio del
  * producto donde una pantalla tiene dos vistas del mismo dato.
+ *
+ * Con `mostrarCierreDia`, arriba a la derecha aparece además el botón de cierre
+ * de día, que abre el asistente completo en una ventana emergente sin sacar a
+ * nadie de esta pantalla.
  */
 
 import { useState } from "react";
@@ -27,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ObjetivosVenta } from "@/components/cierre-turno/objetivos-venta";
 import { SeguimientoObjetivos } from "@/components/cierre-turno/seguimiento-objetivos";
+import { BotonCierreDia } from "@/components/cierre-turno/boton-cierre-dia";
 
 type Subarea = "definicion" | "seguimiento";
 
@@ -57,18 +62,37 @@ function mesDesplazado(mes: string, meses: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-export function ObjetivosVentaArea({ titulo, descripcion }: { titulo: string; descripcion: string }) {
+export function ObjetivosVentaArea({
+  titulo,
+  descripcion,
+  mostrarCierreDia = false,
+}: {
+  titulo: string;
+  descripcion: string;
+  /** Botón de cierre de día en la cabecera (administración). */
+  mostrarCierreDia?: boolean;
+}) {
   const [mes, setMes] = useState(mesActual());
   const [subarea, setSubarea] = useState<Subarea>("definicion");
+  /** Sube al guardar algo en el cierre de día: remonta el seguimiento para que
+   *  lo recién registrado se vea contado. La definición no la toca, porque un
+   *  cierre no cambia los objetivos y remontarla perdería lo que se esté
+   *  editando. */
+  const [recargaSeguimiento, setRecargaSeguimiento] = useState(0);
 
   const hoy = mesActual();
   const etiqueta = mes === hoy ? "Mes en curso" : mes < hoy ? "Mes cerrado" : "Mes por venir";
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">{titulo}</h1>
-        <p className="text-slate-500 text-sm mt-1 max-w-2xl">{descripcion}</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">{titulo}</h1>
+          <p className="text-slate-500 text-sm mt-1 max-w-2xl">{descripcion}</p>
+        </div>
+        {mostrarCierreDia && (
+          <BotonCierreDia onCambios={() => setRecargaSeguimiento((n) => n + 1)} />
+        )}
       </div>
 
       {/* El mes que se está mirando, arriba del todo y para las dos subáreas:
@@ -144,7 +168,11 @@ export function ObjetivosVentaArea({ titulo, descripcion }: { titulo: string; de
         ))}
       </div>
 
-      {subarea === "definicion" ? <ObjetivosVenta mes={mes} /> : <SeguimientoObjetivos mes={mes} />}
+      {subarea === "definicion" ? (
+        <ObjetivosVenta mes={mes} />
+      ) : (
+        <SeguimientoObjetivos key={recargaSeguimiento} mes={mes} />
+      )}
     </div>
   );
 }
