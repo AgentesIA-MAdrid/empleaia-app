@@ -56,6 +56,8 @@ interface Progreso {
     nombre: string;
     vendido: number;
     objetivo: number | null;
+    /** null cuando no hay objetivo del artículo: no hay nada que cumplir. */
+    consecucion: number | null;
     importe: number | null;
     /** false = lo vendido de este artículo no suma en los objetivos. */
     cuentaParaObjetivos: boolean;
@@ -75,9 +77,14 @@ const kb = (bytes: number) =>
 const eur = (n: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n);
 
-/** Verde a partir del objetivo, ámbar cerca, rojo si va lejos. */
+/**
+ * Verde al llegar al objetivo, rojo mientras no se llegue. Sin tramo ámbar a
+ * propósito, igual que la parrilla de definición y el seguimiento
+ * (`objetivos-venta.tsx`): un ámbar al 95 % se lee como "va bien" cuando el
+ * objetivo sigue sin cumplirse.
+ */
 const colorPct = (v: number | null) =>
-  v === null ? "text-slate-400" : v >= 100 ? "text-emerald-700 font-semibold" : v >= 80 ? "text-amber-600" : "text-rose-600";
+  v === null ? "text-slate-400" : v >= 100 ? "text-emerald-700 font-semibold" : "text-rose-600";
 
 const TITULOS: Record<PasoCierre, string> = {
   ventas: "Ventas del día",
@@ -650,7 +657,16 @@ export function AsistenteCierre({
                                 </span>
                               )}
                             </td>
-                            <td className="px-3 py-2 text-sm tabular-nums">{a.vendido}</td>
+                            {/* Con objetivo por artículo, lo vendido se lee con
+                                el mismo criterio que el resto: rojo mientras no
+                                se llegue, verde al cumplirlo. */}
+                            <td
+                              className={`px-3 py-2 text-sm tabular-nums ${
+                                a.consecucion === null ? "" : colorPct(a.consecucion)
+                              }`}
+                            >
+                              {a.vendido}
+                            </td>
                             <td className="px-3 py-2 text-sm tabular-nums text-slate-500">
                               {a.objetivo ?? "—"}
                             </td>
