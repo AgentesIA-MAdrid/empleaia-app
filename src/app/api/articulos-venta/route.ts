@@ -11,8 +11,13 @@
  * hoja de cálculo para empezar.
  *
  * PATCH /api/articulos-venta — retoca un artículo (nombre, categoría, orden,
- * precio) o lo desactiva. Solo administración. Nunca se borra: las ventas ya
- * registradas con él tienen que seguir siendo legibles.
+ * precio, si cuenta para los objetivos) o lo desactiva. Solo administración.
+ * Nunca se borra: las ventas ya registradas con él tienen que seguir siendo
+ * legibles.
+ *
+ * `cuentaParaObjetivos` decide si sus unidades empujan los objetivos de
+ * unidades totales y los del grupo (su categoría). Apagarlo no lo quita del
+ * cierre: se sigue vendiendo y registrando igual (ticket 714c76dd).
  *
  * El precio es opcional y solo se usa si el cliente enciende los precios
  * (`ventasPreciosActivos`); el GET devuelve ese interruptor para que la
@@ -41,6 +46,7 @@ const CAMPOS_ARTICULO = {
   orden: true,
   activo: true,
   precio: true,
+  cuentaParaObjetivos: true,
 } as const;
 
 /** Solo administración toca el catálogo; el resto lo consulta. */
@@ -187,6 +193,7 @@ export const PATCH = withTenant(
       orden?: unknown;
       activo?: unknown;
       precio?: unknown;
+      cuentaParaObjetivos?: unknown;
     } | null;
     if (!body || typeof body.id !== "string") {
       return NextResponse.json({ error: "Datos no válidos" }, { status: 400 });
@@ -198,6 +205,7 @@ export const PATCH = withTenant(
       orden?: number;
       activo?: boolean;
       precio?: number | null;
+      cuentaParaObjetivos?: boolean;
     } = {};
     if (body.nombre !== undefined) {
       const nombreOk = normalizarNombreArticulo(body.nombre);
@@ -222,6 +230,9 @@ export const PATCH = withTenant(
       data.orden = body.orden;
     }
     if (typeof body.activo === "boolean") data.activo = body.activo;
+    if (typeof body.cuentaParaObjetivos === "boolean") {
+      data.cuentaParaObjetivos = body.cuentaParaObjetivos;
+    }
     // Vaciar el campo en la pantalla borra el precio (queda "sin precio"), no
     // lo pone a cero: cero es un artículo gratis, y no es lo mismo.
     if (body.precio !== undefined) {

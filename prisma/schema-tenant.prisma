@@ -1738,7 +1738,8 @@ model ValorCampoEmpleado {
 model ArticuloVenta {
   id        String  @id @default(cuid())
   nombre    String
-  /// Agrupa filas en la tabla del cierre ("Telefonía", "Servicios"…).
+  /// Agrupa filas en la tabla del cierre ("Telefonía", "Servicios"…) y es el
+  /// grupo sobre el que se pueden fijar objetivos (`ObjetivoVenta.categoria`).
   categoria String?
   orden     Int     @default(0)
   activo    Boolean @default(true)
@@ -1746,6 +1747,12 @@ model ArticuloVenta {
   /// (`ConfiguracionEmpresa.ventasPreciosActivos`): hay clientes que solo
   /// cuentan unidades y pedirles precios sería inventarse un dato.
   precio    Decimal? @db.Decimal(10, 2)
+  /// Sus unidades empujan los objetivos de unidades totales y los de su grupo.
+  /// Apagado, el artículo se sigue vendiendo y registrando en el cierre pero no
+  /// cuenta para ningún objetivo: en casi todos los catálogos hay conceptos que
+  /// no se persiguen (accesorios, altas de cortesía) y sumarlos infla la
+  /// consecución de quien tiene el objetivo puesto sobre otra cosa.
+  cuentaParaObjetivos Boolean @default(true)
 
   ventas    CierreTurnoVenta[]
   objetivos ObjetivoVenta[]
@@ -1884,12 +1891,16 @@ model ObjetivoVenta {
   tienda     Tienda?        @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
   articuloId String?
   articulo   ArticuloVenta? @relation(fields: [articuloId], references: [id], onDelete: Cascade)
+  /// Objetivo de un grupo de productos: la categoría del catálogo
+  /// (`ArticuloVenta.categoria`). Excluyente con `articuloId`: un objetivo es
+  /// de un producto, de un grupo o de unidades totales (los dos a null).
+  categoria  String?
   cantidad   Int            @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([mes, userId, tiendaId, articuloId])
+  @@unique([mes, userId, tiendaId, articuloId, categoria])
   @@index([mes])
 }
 

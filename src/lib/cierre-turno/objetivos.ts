@@ -7,6 +7,12 @@
  *
  * Reglas del modelo, para no repetirlas en cada pantalla:
  *  - Un objetivo es de UN comercial o de UNA sede, nunca de los dos.
+ *  - Un objetivo es de un producto (`articuloId`), de un grupo de productos
+ *    (`categoria`, la del catálogo) o de unidades totales (los dos a null).
+ *  - Un producto marcado como que no cuenta para objetivos
+ *    (`ArticuloVenta.cuentaParaObjetivos = false`) se sigue vendiendo y
+ *    registrando, pero sus unidades no empujan ni el objetivo de unidades
+ *    totales ni el de su grupo: el cliente decide qué se persigue.
  *  - Sin `articuloId`, el objetivo es de unidades totales (todo el catálogo).
  *    Si no se ha fijado a mano, sale de sumar los de cada producto: quien
  *    rellena la parrilla producto a producto espera que el total cuadre con lo
@@ -26,6 +32,8 @@ export interface ObjetivoFila {
   userId: string | null;
   tiendaId: string | null;
   articuloId: string | null;
+  /** Objetivo de un grupo de productos (la categoría del catálogo). */
+  categoria?: string | null;
   cantidad: number;
 }
 
@@ -34,12 +42,77 @@ export interface ObjetivoFila {
  * sede del cierre (la que tenía el comercial ese día), no la actual del
  * empleado: si alguien cambia de tienda a mitad de mes, lo vendido se queda
  * donde se vendió.
+ *
+ * `categoria` y `cuentaParaObjetivos` los rellena `anotarVentas` con el
+ * catálogo: sin ellos la venta cuenta para todo, que es como se comportaba el
+ * módulo antes de los objetivos por grupo.
  */
 export interface VentaAgregada {
   userId: string;
   tiendaId: string | null;
   articuloId: string | null;
   cantidad: number;
+  /** Grupo del artículo vendido. null = sin grupo o artículo ya retirado. */
+  categoria?: string | null;
+  /** false = el artículo está marcado como que no cuenta para objetivos. */
+  cuentaParaObjetivos?: boolean;
+}
+
+/** Lo que los objetivos necesitan saber de cada artículo del catálogo. */
+export interface ArticuloObjetivo {
+  id: string;
+  categoria: string | null;
+  /** Por omisión cuenta: es el valor por defecto de la columna. */
+  cuentaParaObjetivos?: boolean;
+}
+
+/** ¿Este artículo empuja los objetivos de unidades totales y de su grupo? */
+export function cuentaParaObjetivos(a: ArticuloObjetivo): boolean {
+  return a.cuentaParaObjetivos !== false;
+}
+
+/**
+ * Marca cada venta con el grupo de su artículo y con si ese artículo cuenta
+ * para los objetivos. Se hace una vez, al leer las ventas, para que el resto de
+ * funciones sigan siendo puras y no tengan que arrastrar el catálogo.
+ *
+ * Una venta de un artículo que ya no está en el catálogo activo se queda sin
+ * grupo y contando: se vendió algo, aunque ya no sepamos qué (misma regla que
+ * `vendidoPara` con `articuloId` null).
+ */
+export function anotarVentas(
+  ventas: VentaAgregada[],
+  articulos: ArticuloObjetivo[],
+): VentaAgregada[] {
+  const porId = new Map(articulos.map((a) => [a.id, a]));
+  return ventas.map((v) => {
+    const a = v.articuloId ? porId.get(v.articuloId) : undefined;
+    return {
+      ...v,
+      categoria: a?.categoria ?? null,
+      cuentaParaObjetivos: a ? cuentaParaObjetivos(a) : true,
+    };
+  });
+}
+
+/**
+ * Columna de un grupo en la matriz. Lleva prefijo para no chocar con los ids de
+ * artículo (cuids, que nunca llevan ":") ni con la columna de unidades totales.
+ */
+export const PREFIJO_CATEGORIA = "cat:";
+
+export function columnaCategoria(categoria: string): string {
+  return `${PREFIJO_CATEGORIA}${categoria}`;
+}
+
+/** Grupos del catálogo (categorías con al menos un artículo que cuenta), en su orden. */
+export function categoriasDelCatalogo(articulos: ArticuloObjetivo[]): string[] {
+  const vistas: string[] = [];
+  for (const a of articulos) {
+    if (!a.categoria || !cuentaParaObjetivos(a)) continue;
+    if (!vistas.includes(a.categoria)) vistas.push(a.categoria);
+  }
+  return vistas;
 }
 
 export interface FilaConsecucion {
@@ -117,17 +190,27 @@ export function ambitoDe(o: {
 
 /**
  * Unidades que cuentan para un objetivo: las del comercial o las de la sede, y
- * si el objetivo es de un artículo concreto, solo las de ese artículo.
+ * si el objetivo es de un artículo concreto, solo las de ese artículo; si es de
+ * un grupo, solo las de los artículos de ese grupo.
  *
  * Las ventas cuyo artículo se borró del catálogo (`articuloId = null`) suman en
- * los objetivos de unidades totales pero no en los de un artículo: se vendió
- * algo, aunque ya no sepamos qué.
+ * los objetivos de unidades totales pero no en los de un artículo ni en los de
+ * un grupo: se vendió algo, aunque ya no sepamos qué.
+ *
+ * Los artículos marcados como que no cuentan para objetivos quedan fuera del
+ * objetivo de unidades totales y del de su grupo (ver `anotarVentas`). Un
+ * objetivo puesto sobre ese artículo concreto sí mide sus ventas: si alguien lo
+ * fijó, es que lo persigue.
  */
 export function vendidoPara(objetivo: ObjetivoFila, ventas: VentaAgregada[]): number {
   return ventas.reduce((total, v) => {
     if (objetivo.userId && v.userId !== objetivo.userId) return total;
     if (objetivo.tiendaId && v.tiendaId !== objetivo.tiendaId) return total;
-    if (objetivo.articuloId && v.articuloId !== objetivo.articuloId) return total;
+    if (objetivo.articuloId) {
+      return v.articuloId === objetivo.articuloId ? total + v.cantidad : total;
+    }
+    if (v.cuentaParaObjetivos === false) return total;
+    if (objetivo.categoria && (v.categoria ?? null) !== objetivo.categoria) return total;
     return total + v.cantidad;
   }, 0);
 }
@@ -174,6 +257,7 @@ export function vendidoDeSujeto(
   ventas: VentaAgregada[],
   sujeto: { ambito: AmbitoObjetivo; id: string },
   articuloId: string | null,
+  categoria: string | null = null,
 ): number {
   return vendidoPara(
     {
@@ -182,6 +266,7 @@ export function vendidoDeSujeto(
       userId: sujeto.ambito === "comercial" ? sujeto.id : null,
       tiendaId: sujeto.ambito === "sede" ? sujeto.id : null,
       articuloId,
+      categoria,
       cantidad: 0,
     },
     ventas,
@@ -206,19 +291,43 @@ export const COLUMNA_TOTAL = "";
  *
  * `articuloIds` acota qué productos suman (los del catálogo activo, que son las
  * columnas que se ven). Sin él suman todos los objetivos de artículo.
+ *
+ * Con objetivos de grupo la suma es "grupos + productos sueltos": el objetivo
+ * de un producto que pertenece a un grupo que YA tiene objetivo no se suma
+ * aparte, porque sus unidades ya las está pidiendo el grupo y contarlas dos
+ * veces daría un total que nadie ha pedido. `catalogo` es el que dice a qué
+ * grupo pertenece cada producto; sin él no hay objetivos de grupo que sumar.
  */
 export function objetivoTotalDe(
   objetivosDelSujeto: ObjetivoFila[],
   articuloIds?: string[],
+  catalogo?: ArticuloObjetivo[],
 ): { cantidad: number | null; derivado: boolean } {
-  const fijado = objetivosDelSujeto.find((o) => o.articuloId === null);
+  const fijado = objetivosDelSujeto.find((o) => o.articuloId === null && !o.categoria);
   if (fijado) return { cantidad: fijado.cantidad, derivado: false };
+
+  const categoriaDe = new Map((catalogo ?? []).map((a) => [a.id, a.categoria]));
+  const categoriasVivas = catalogo ? new Set(categoriasDelCatalogo(catalogo)) : null;
+  const gruposConObjetivo = new Set(
+    objetivosDelSujeto
+      .filter((o) => o.categoria && (!categoriasVivas || categoriasVivas.has(o.categoria)))
+      .map((o) => o.categoria as string),
+  );
 
   let suma = 0;
   let hay = false;
   for (const o of objetivosDelSujeto) {
+    if (o.categoria) {
+      // Un grupo que ya no existe en el catálogo no suma, igual que un producto
+      // retirado: no tiene columna ni ventas que perseguir.
+      if (!gruposConObjetivo.has(o.categoria)) continue;
+      suma += o.cantidad;
+      hay = true;
+      continue;
+    }
     if (o.articuloId === null) continue;
     if (articuloIds && !articuloIds.includes(o.articuloId)) continue;
+    if (gruposConObjetivo.has(categoriaDe.get(o.articuloId) ?? "")) continue;
     suma += o.cantidad;
     hay = true;
   }
@@ -267,7 +376,8 @@ export interface TotalColumna {
  *
  * Las ventas de un artículo ya borrado del catálogo (`articuloId` null) suman
  * en la columna de unidades totales y en ninguna otra: misma regla que
- * `vendidoPara`.
+ * `vendidoPara`. Las de un artículo que no cuenta para objetivos suman solo en
+ * su propia columna, ni en el total ni en la de su grupo.
  */
 function indexarVentas(ventas: VentaAgregada[], ambito: AmbitoObjetivo): Map<string, number> {
   const acc = new Map<string, number>();
@@ -275,18 +385,33 @@ function indexarVentas(ventas: VentaAgregada[], ambito: AmbitoObjetivo): Map<str
   for (const v of ventas) {
     const sujetoId = ambito === "comercial" ? v.userId : v.tiendaId;
     if (!sujetoId) continue;
-    suma(`${sujetoId}|${COLUMNA_TOTAL}`, v.cantidad);
+    if (v.cuentaParaObjetivos !== false) {
+      suma(`${sujetoId}|${COLUMNA_TOTAL}`, v.cantidad);
+      if (v.categoria) suma(`${sujetoId}|${columnaCategoria(v.categoria)}`, v.cantidad);
+    }
     if (v.articuloId) suma(`${sujetoId}|${v.articuloId}`, v.cantidad);
   }
   return acc;
 }
 
+/** Columna de la matriz en la que cae un objetivo. */
+function columnaDeObjetivo(o: {
+  articuloId?: string | null;
+  categoria?: string | null;
+}): string {
+  if (o.articuloId) return o.articuloId;
+  return o.categoria ? columnaCategoria(o.categoria) : COLUMNA_TOTAL;
+}
+
 /**
  * Matriz de fijado de objetivos: una fila por comercial (o por sede) y una
- * columna por artículo del catálogo, más la de unidades totales.
+ * columna por grupo y por artículo del catálogo, más la de unidades totales.
  *
  * Los objetivos del otro ámbito se descartan aquí: los personales y los de la
  * sede son objetivos distintos y no se mezclan en la misma tabla.
+ *
+ * `catalogo` trae el grupo de cada artículo; sin él no hay columnas de grupo
+ * (es como se comportaba la parrilla antes de los objetivos por grupo).
  */
 export function construirMatriz(
   ambito: AmbitoObjetivo,
@@ -294,6 +419,7 @@ export function construirMatriz(
   articuloIds: string[],
   objetivos: ObjetivoFila[],
   ventas: VentaAgregada[],
+  catalogo?: ArticuloObjetivo[],
 ): FilaMatriz[] {
   const vendidos = indexarVentas(ventas, ambito);
 
@@ -302,16 +428,18 @@ export function construirMatriz(
   for (const o of objetivos) {
     if (ambitoDe(o) !== ambito) continue;
     const sujetoId = (ambito === "comercial" ? o.userId : o.tiendaId) as string;
-    porClave.set(`${sujetoId}|${o.articuloId ?? COLUMNA_TOTAL}`, o);
+    porClave.set(`${sujetoId}|${columnaDeObjetivo(o)}`, o);
     const suyos = porSujeto.get(sujetoId);
     if (suyos) suyos.push(o);
     else porSujeto.set(sujetoId, [o]);
   }
 
-  const columnas = [COLUMNA_TOTAL, ...articuloIds];
+  const categorias = catalogo ? categoriasDelCatalogo(catalogo) : [];
+  const columnas = [COLUMNA_TOTAL, ...categorias.map(columnaCategoria), ...articuloIds];
   return sujetos.map((s) => {
-    // Unidades totales: lo fijado a mano o, si no hay, la suma de los productos.
-    const total = objetivoTotalDe(porSujeto.get(s.id) ?? [], articuloIds);
+    // Unidades totales: lo fijado a mano o, si no hay, la suma de los grupos y
+    // los productos sueltos.
+    const total = objetivoTotalDe(porSujeto.get(s.id) ?? [], articuloIds, catalogo);
     const celdas: Record<string, CeldaObjetivo> = {};
     for (const col of columnas) {
       const o = porClave.get(`${s.id}|${col}`) ?? null;
@@ -333,9 +461,10 @@ export function construirMatriz(
 export function totalesMatriz(
   filas: FilaMatriz[],
   articuloIds: string[],
+  categorias: string[] = [],
 ): Record<string, TotalColumna> {
   const totales: Record<string, TotalColumna> = {};
-  for (const col of [COLUMNA_TOTAL, ...articuloIds]) {
+  for (const col of [COLUMNA_TOTAL, ...categorias.map(columnaCategoria), ...articuloIds]) {
     let objetivo = 0;
     let vendido = 0;
     let conObjetivo = 0;
@@ -388,6 +517,7 @@ export function progresoDe(
   ventas: VentaAgregada[],
   sujeto: { ambito: AmbitoObjetivo; id: string },
   articuloIds?: string[],
+  catalogo?: ArticuloObjetivo[],
 ): ProgresoPaso2 {
   const vendido = vendidoDeSujeto(ventas, sujeto, null);
   // El objetivo de unidades totales, con la misma regla que la parrilla de
@@ -399,7 +529,7 @@ export function progresoDe(
       ambitoDe(o) === sujeto.ambito &&
       (sujeto.ambito === "comercial" ? o.userId === sujeto.id : o.tiendaId === sujeto.id),
   );
-  const { cantidad: objetivo } = objetivoTotalDe(suyos, articuloIds);
+  const { cantidad: objetivo } = objetivoTotalDe(suyos, articuloIds, catalogo);
   return { vendido, objetivo, consecucion: objetivo === null ? null : pct(vendido, objetivo) };
 }
 

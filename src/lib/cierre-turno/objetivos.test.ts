@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   ambitoDe,
+  anotarVentas,
+  categoriasDelCatalogo,
+  columnaCategoria,
   COLUMNA_TOTAL,
   construirConsecucion,
   construirMatriz,
@@ -34,6 +37,16 @@ const VENTAS: VentaAgregada[] = [
   { userId: "ana", tiendaId: "t1", articuloId: "movil", cantidad: 4 },
   { userId: "luis", tiendaId: "t1", articuloId: "fibra", cantidad: 3 },
   { userId: "sara", tiendaId: "t2", articuloId: "fibra", cantidad: 5 },
+];
+
+/**
+ * Catálogo del ticket 714c76dd: dos productos del grupo "Telefonía" y una funda
+ * que el cliente ha dejado fuera de los objetivos.
+ */
+const CATALOGO = [
+  { id: "fibra", categoria: "Telefonía", cuentaParaObjetivos: true },
+  { id: "movil", categoria: "Telefonía", cuentaParaObjetivos: true },
+  { id: "funda", categoria: "Accesorios", cuentaParaObjetivos: false },
 ];
 
 describe("normalizarMes", () => {
@@ -127,6 +140,126 @@ describe("vendidoPara", () => {
 
   it("un comercial sin ventas se queda a cero, no falla", () => {
     expect(vendidoPara(objetivo({ userId: "nadie" }), VENTAS)).toBe(0);
+  });
+});
+
+describe("grupos de productos y productos que no cuentan (ticket 714c76dd)", () => {
+  const ventas = anotarVentas(
+    [
+      { userId: "ana", tiendaId: "t1", articuloId: "fibra", cantidad: 6 },
+      { userId: "ana", tiendaId: "t1", articuloId: "movil", cantidad: 4 },
+      { userId: "ana", tiendaId: "t1", articuloId: "funda", cantidad: 9 },
+    ],
+    CATALOGO,
+  );
+
+  it("anotarVentas marca el grupo y si el artículo cuenta", () => {
+    expect(ventas.map((v) => [v.articuloId, v.categoria, v.cuentaParaObjetivos])).toEqual([
+      ["fibra", "Telefonía", true],
+      ["movil", "Telefonía", true],
+      ["funda", "Accesorios", false],
+    ]);
+  });
+
+  it("una venta de un artículo que ya no está en el catálogo cuenta igual", () => {
+    const [v] = anotarVentas(
+      [{ userId: "ana", tiendaId: "t1", articuloId: null, cantidad: 2 }],
+      CATALOGO,
+    );
+    expect(v).toMatchObject({ categoria: null, cuentaParaObjetivos: true });
+  });
+
+  it("el objetivo de un grupo solo mide los productos de ese grupo", () => {
+    expect(vendidoPara(objetivo({ userId: "ana", categoria: "Telefonía" }), ventas)).toBe(10);
+    expect(vendidoPara(objetivo({ userId: "ana", categoria: "Accesorios" }), ventas)).toBe(0);
+  });
+
+  it("lo vendido de un producto excluido no suma en las unidades totales", () => {
+    // 6 + 4 de telefonía; las 9 fundas se venden pero no persiguen nada.
+    expect(vendidoPara(objetivo({ userId: "ana" }), ventas)).toBe(10);
+  });
+
+  it("un objetivo puesto sobre el producto excluido sí mide sus ventas", () => {
+    expect(vendidoPara(objetivo({ userId: "ana", articuloId: "funda" }), ventas)).toBe(9);
+  });
+
+  it("los grupos del catálogo son las categorías con algún producto que cuenta", () => {
+    expect(categoriasDelCatalogo(CATALOGO)).toEqual(["Telefonía"]);
+  });
+
+  it("la parrilla trae columna de grupo y ninguna del producto excluido", () => {
+    const filas = construirMatriz(
+      "comercial",
+      [{ id: "ana", nombre: "Ana" }],
+      ["fibra", "movil"],
+      [objetivo({ id: "g", userId: "ana", categoria: "Telefonía", cantidad: 20 })],
+      ventas,
+      CATALOGO.filter((a) => a.cuentaParaObjetivos),
+    );
+    expect(Object.keys(filas[0].celdas).sort()).toEqual([
+      "",
+      "fibra",
+      columnaCategoria("Telefonía"),
+      "movil",
+    ].sort());
+    expect(filas[0].celdas[columnaCategoria("Telefonía")]).toEqual({
+      objetivoId: "g",
+      objetivo: 20,
+      vendido: 10,
+      consecucion: 50,
+    });
+  });
+
+  it("el total derivado no cuenta dos veces un producto dentro de un grupo con objetivo", () => {
+    const suyos = [
+      objetivo({ id: "g", userId: "ana", categoria: "Telefonía", cantidad: 20 }),
+      objetivo({ id: "f", userId: "ana", articuloId: "fibra", cantidad: 12 }),
+      objetivo({ id: "x", userId: "ana", articuloId: "otro", cantidad: 3 }),
+    ];
+    const r = objetivoTotalDe(suyos, ["fibra", "movil", "otro"], [
+      ...CATALOGO,
+      { id: "otro", categoria: null, cuentaParaObjetivos: true },
+    ]);
+    // 20 del grupo + 3 del producto suelto; la fibra ya va dentro del grupo.
+    expect(r).toEqual({ cantidad: 23, derivado: true });
+  });
+
+  it("un objetivo de un grupo que ya no existe no suma en el total", () => {
+    const r = objetivoTotalDe(
+      [objetivo({ id: "g", userId: "ana", categoria: "Ya no existe", cantidad: 20 })],
+      ["fibra"],
+      CATALOGO,
+    );
+    expect(r).toEqual({ cantidad: null, derivado: false });
+  });
+
+  it("el progreso del comercial mide el objetivo de grupo sin las ventas excluidas", () => {
+    const r = progresoDe(
+      [objetivo({ id: "g", userId: "ana", categoria: "Telefonía", cantidad: 20 })],
+      ventas,
+      { ambito: "comercial", id: "ana" },
+      ["fibra", "movil"],
+      CATALOGO.filter((a) => a.cuentaParaObjetivos),
+    );
+    expect(r).toEqual({ vendido: 10, objetivo: 20, consecucion: 50 });
+  });
+
+  it("el pie de la tabla suma también las columnas de grupo", () => {
+    const filas = construirMatriz(
+      "comercial",
+      [{ id: "ana", nombre: "Ana" }],
+      ["fibra", "movil"],
+      [objetivo({ id: "g", userId: "ana", categoria: "Telefonía", cantidad: 20 })],
+      ventas,
+      CATALOGO.filter((a) => a.cuentaParaObjetivos),
+    );
+    const totales = totalesMatriz(filas, ["fibra", "movil"], ["Telefonía"]);
+    expect(totales[columnaCategoria("Telefonía")]).toEqual({
+      objetivo: 20,
+      vendido: 10,
+      consecucion: 50,
+      conObjetivo: 1,
+    });
   });
 });
 

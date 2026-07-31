@@ -35,6 +35,8 @@ interface Articulo {
   orden: number;
   activo: boolean;
   precio: number | null;
+  /** Sus unidades empujan los objetivos de venta (totales y los de su grupo). */
+  cuentaParaObjetivos: boolean;
 }
 
 /** Persona con acceso anticipado al módulo mientras está en rodaje. */
@@ -339,6 +341,35 @@ export function CatalogoVentasTab() {
     );
   };
 
+  /**
+   * Decide si el artículo cuenta para los objetivos de venta. Apagado, se sigue
+   * vendiendo y registrando en el cierre igual: lo único que cambia es que sus
+   * unidades no empujan el objetivo de unidades totales ni el de su categoría.
+   */
+  const cambiarCuentaObjetivos = async (a: Articulo) => {
+    const valor = !a.cuentaParaObjetivos;
+    const res = await fetch("/api/articulos-venta", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: a.id, cuentaParaObjetivos: valor }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast({ title: "No se pudo cambiar", description: data.error ?? "", variant: "destructive" });
+      await cargar();
+      return;
+    }
+    setArticulos((prev) =>
+      prev.map((x) => (x.id === a.id ? { ...x, cuentaParaObjetivos: valor } : x)),
+    );
+    toast({
+      title: valor ? `"${a.nombre}" cuenta para los objetivos` : `"${a.nombre}" ya no cuenta`,
+      description: valor
+        ? "Sus unidades vuelven a sumar en el objetivo de unidades totales y en el de su categoría."
+        : "Se sigue vendiendo y registrando igual, pero sus unidades no suman en ningún objetivo.",
+    });
+  };
+
   const cambiarActivo = async (a: Articulo) => {
     const res = await fetch("/api/articulos-venta", {
       method: "PATCH",
@@ -364,7 +395,9 @@ export function CatalogoVentasTab() {
         <p className="text-sm text-slate-500 mt-1 max-w-2xl">
           La lista de artículos y servicios que tu equipo registra al cerrar el turno, y sobre
           la que se fijan los objetivos de venta por comercial y por sede. Añádelos aquí uno a
-          uno, o súbelos de golpe desde Excel o CSV si tienes muchos.
+          uno, o súbelos de golpe desde Excel o CSV si tienes muchos. Con el interruptor{" "}
+          <strong className="font-medium text-slate-600">Cuenta para objetivos</strong> eliges qué
+          artículos empujan los objetivos y cuáles no.
         </p>
       </div>
 
@@ -484,7 +517,8 @@ export function CatalogoVentasTab() {
             </p>
             <p className="text-xs text-slate-500 mt-1 max-w-xl">
               Escribe cada concepto que vendéis: pospago, fibra, renove, prepago, energía… La
-              categoría es opcional y solo sirve para agruparlos en la tabla.
+              categoría es opcional: agrupa los artículos en la tabla del cierre y es el grupo
+              sobre el que puedes fijar un objetivo (Telefonía, Servicios…).
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-3">
@@ -674,7 +708,15 @@ export function CatalogoVentasTab() {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    {["#", "Artículo o servicio", "Categoría", ...(preciosActivos ? ["Precio"] : []), "Estado", ""].map(
+                    {[
+                      "#",
+                      "Artículo o servicio",
+                      "Categoría",
+                      ...(preciosActivos ? ["Precio"] : []),
+                      "Cuenta para objetivos",
+                      "Estado",
+                      "",
+                    ].map(
                       (h) => (
                         <th
                           key={h}
@@ -745,6 +787,31 @@ export function CatalogoVentasTab() {
                           />
                         </td>
                       )}
+                      {/* Interruptor por artículo: hay conceptos que se venden
+                          pero no se persiguen, y sumarlos infla la consecución
+                          de quien tiene el objetivo puesto sobre otra cosa. */}
+                      <td className="px-4 py-2.5">
+                        <button
+                          type="button"
+                          aria-pressed={a.cuentaParaObjetivos}
+                          aria-label={`${a.nombre} cuenta para los objetivos`}
+                          title={
+                            a.cuentaParaObjetivos
+                              ? "Sus unidades suman en el objetivo de unidades totales y en el de su categoría."
+                              : "Se sigue vendiendo, pero sus unidades no suman en ningún objetivo."
+                          }
+                          onClick={() => void cambiarCuentaObjetivos(a)}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                            a.cuentaParaObjetivos ? "bg-[var(--primary)]" : "bg-slate-200"
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                              a.cuentaParaObjetivos ? "translate-x-5" : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                      </td>
                       <td className="px-4 py-2.5 text-sm">
                         {a.activo ? (
                           <span className="text-emerald-700">Activo</span>
