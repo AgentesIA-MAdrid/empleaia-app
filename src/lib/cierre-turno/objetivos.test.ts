@@ -7,6 +7,7 @@ import {
   COLUMNA_TOTAL,
   construirConsecucion,
   construirMatriz,
+  evaluacionDeArticulo,
   totalesMatriz,
   importeVendido,
   mesAnterior,
@@ -678,5 +679,56 @@ describe("objetivoDeCoordinacion — el objetivo de zona (ticket 73)", () => {
     });
     expect(r.objetivo).toBe(0);
     expect(r.consecucion).toBeNull();
+  });
+});
+
+describe("evaluacionDeArticulo — el distintivo del catálogo (ticket cd804fa2)", () => {
+  const objetivos = (articuloIds: string[], categorias: string[]) => ({
+    articuloIds: new Set(articuloIds),
+    categorias: new Set(categorias),
+  });
+
+  it("con objetivo puesto sobre él, el producto se mide solo", () => {
+    const r = evaluacionDeArticulo({ id: "fibra", categoria: "Telefonía" }, objetivos(["fibra"], []));
+    expect(r.modo).toBe("producto");
+  });
+
+  it("sin objetivo propio pero con el de su grupo, lo mide su categoría", () => {
+    const r = evaluacionDeArticulo(
+      { id: "fibra", categoria: "Telefonía" },
+      objetivos([], ["Telefonía"]),
+    );
+    expect(r).toEqual({ modo: "grupo", categoria: "Telefonía" });
+  });
+
+  it("sin objetivo ni suyo ni de su grupo, solo suma en unidades totales", () => {
+    const r = evaluacionDeArticulo(
+      { id: "fibra", categoria: "Telefonía" },
+      objetivos(["movil"], ["Energía"]),
+    );
+    expect(r.modo).toBe("total");
+  });
+
+  it("marcado como que no cuenta, no lo evalúa nada", () => {
+    const r = evaluacionDeArticulo(
+      { id: "funda", categoria: "Accesorios", cuentaParaObjetivos: false },
+      objetivos([], ["Accesorios"]),
+    );
+    expect(r.modo).toBe("excluido");
+  });
+
+  it("un objetivo puesto sobre él manda sobre el interruptor: si alguien lo fijó, se persigue", () => {
+    // Misma regla que `vendidoPara`: un objetivo sobre el artículo concreto sí
+    // mide sus ventas aunque no cuente para el total ni para su grupo.
+    const r = evaluacionDeArticulo(
+      { id: "funda", categoria: "Accesorios", cuentaParaObjetivos: false },
+      objetivos(["funda"], []),
+    );
+    expect(r.modo).toBe("producto");
+  });
+
+  it("sin categoría no hay grupo que lo mida", () => {
+    const r = evaluacionDeArticulo({ id: "suelto", categoria: null }, objetivos([], ["Telefonía"]));
+    expect(r.modo).toBe("total");
   });
 });
