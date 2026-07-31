@@ -184,6 +184,119 @@ export function vendidoDeSujeto(
   );
 }
 
+/** Columna de "unidades totales" en la matriz: el objetivo sin artículo. */
+export const COLUMNA_TOTAL = "";
+
+/** Una casilla de la matriz: el objetivo fijado y cómo va. */
+export interface CeldaObjetivo {
+  objetivoId: string | null;
+  objetivo: number | null;
+  vendido: number;
+  consecucion: number | null;
+}
+
+/** Una fila de la matriz: un comercial (o una sede) con una casilla por columna. */
+export interface FilaMatriz {
+  sujetoId: string;
+  sujeto: string;
+  /** Sede del comercial. null en las filas de sede. */
+  sede: string | null;
+  /** Casillas por columna: `COLUMNA_TOTAL` y el id de cada artículo. */
+  celdas: Record<string, CeldaObjetivo>;
+}
+
+/** Totales de una columna, para el pie de cada tabla. */
+export interface TotalColumna {
+  objetivo: number;
+  vendido: number;
+  consecucion: number | null;
+  /** Cuántas filas tienen objetivo fijado en esa columna. */
+  conObjetivo: number;
+}
+
+/**
+ * Unidades vendidas por sujeto y artículo, en un solo recorrido. La matriz
+ * tiene comerciales × artículos casillas y recorrer las ventas en cada una
+ * multiplica el trabajo sin necesidad.
+ *
+ * Las ventas de un artículo ya borrado del catálogo (`articuloId` null) suman
+ * en la columna de unidades totales y en ninguna otra: misma regla que
+ * `vendidoPara`.
+ */
+function indexarVentas(ventas: VentaAgregada[], ambito: AmbitoObjetivo): Map<string, number> {
+  const acc = new Map<string, number>();
+  const suma = (clave: string, n: number) => acc.set(clave, (acc.get(clave) ?? 0) + n);
+  for (const v of ventas) {
+    const sujetoId = ambito === "comercial" ? v.userId : v.tiendaId;
+    if (!sujetoId) continue;
+    suma(`${sujetoId}|${COLUMNA_TOTAL}`, v.cantidad);
+    if (v.articuloId) suma(`${sujetoId}|${v.articuloId}`, v.cantidad);
+  }
+  return acc;
+}
+
+/**
+ * Matriz de fijado de objetivos: una fila por comercial (o por sede) y una
+ * columna por artículo del catálogo, más la de unidades totales.
+ *
+ * Los objetivos del otro ámbito se descartan aquí: los personales y los de la
+ * sede son objetivos distintos y no se mezclan en la misma tabla.
+ */
+export function construirMatriz(
+  ambito: AmbitoObjetivo,
+  sujetos: { id: string; nombre: string; sede?: string | null }[],
+  articuloIds: string[],
+  objetivos: ObjetivoFila[],
+  ventas: VentaAgregada[],
+): FilaMatriz[] {
+  const vendidos = indexarVentas(ventas, ambito);
+
+  const porClave = new Map<string, ObjetivoFila>();
+  for (const o of objetivos) {
+    if (ambitoDe(o) !== ambito) continue;
+    const sujetoId = (ambito === "comercial" ? o.userId : o.tiendaId) as string;
+    porClave.set(`${sujetoId}|${o.articuloId ?? COLUMNA_TOTAL}`, o);
+  }
+
+  const columnas = [COLUMNA_TOTAL, ...articuloIds];
+  return sujetos.map((s) => {
+    const celdas: Record<string, CeldaObjetivo> = {};
+    for (const col of columnas) {
+      const o = porClave.get(`${s.id}|${col}`) ?? null;
+      const vendido = vendidos.get(`${s.id}|${col}`) ?? 0;
+      celdas[col] = {
+        objetivoId: o?.id ?? null,
+        objetivo: o?.cantidad ?? null,
+        vendido,
+        consecucion: o ? pct(vendido, o.cantidad) : null,
+      };
+    }
+    return { sujetoId: s.id, sujeto: s.nombre, sede: s.sede ?? null, celdas };
+  });
+}
+
+/** Suma de cada columna de la matriz, para el pie de la tabla. */
+export function totalesMatriz(
+  filas: FilaMatriz[],
+  articuloIds: string[],
+): Record<string, TotalColumna> {
+  const totales: Record<string, TotalColumna> = {};
+  for (const col of [COLUMNA_TOTAL, ...articuloIds]) {
+    let objetivo = 0;
+    let vendido = 0;
+    let conObjetivo = 0;
+    for (const f of filas) {
+      const c = f.celdas[col];
+      if (!c) continue;
+      objetivo += c.objetivo ?? 0;
+      vendido += c.vendido;
+      if (c.objetivo !== null) conObjetivo += 1;
+    }
+    totales[col] = { objetivo, vendido, consecucion: pct(vendido, objetivo), conObjetivo };
+  }
+  return totales;
+}
+
 /**
  * Importe vendido, cuando el cliente trabaja con precios. Los artículos sin
  * precio suman 0 € y se cuentan aparte: es mejor decir "faltan precios en 3

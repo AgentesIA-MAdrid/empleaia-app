@@ -1,10 +1,12 @@
 /**
  * Objetivos de venta del mes (módulo "Cierre de turno", plan Enterprise).
  *
- * GET  /api/objetivos-venta?mes=YYYY-MM&ambito=comercial|sede&articuloId=…
- *   Devuelve la tabla lista para pintar: una fila por comercial (o por sede),
- *   con su objetivo del mes, lo vendido y la consecución. `articuloId` vacío =
- *   objetivo de unidades totales.
+ * GET  /api/objetivos-venta?mes=YYYY-MM
+ *   Devuelve las dos matrices listas para pintar: una fila por comercial y otra
+ *   tanda de filas por sede, con una columna por artículo del catálogo (más la
+ *   de unidades totales) y en cada casilla el objetivo del mes, lo vendido y la
+ *   consecución. Los objetivos personales y los de la sede son distintos y van
+ *   en tablas separadas.
  *
  * PUT  /api/objetivos-venta — fija (o borra, con cantidad 0) un objetivo.
  * DELETE /api/objetivos-venta?id=… — quita un objetivo.
@@ -23,8 +25,11 @@ import { withFeature } from "@/lib/feature-guard/with-feature";
 import { diaMadrid, filtroSede, puedeFijarObjetivos, puedeVerObjetivos } from "@/lib/cierre-turno/core";
 import {
   ambitoDe,
+  COLUMNA_TOTAL,
+  construirMatriz,
   normalizarCantidadObjetivo,
   normalizarMes,
+  totalesMatriz,
   vendidoDeSujeto,
   type AmbitoObjetivo,
 } from "@/lib/cierre-turno/objetivos";
@@ -74,22 +79,19 @@ export const GET = withTenant(
     if (!mesOk.ok) return NextResponse.json({ error: mesOk.error }, { status: 400 });
     const mes = mesOk.mes;
 
-    const ambito: AmbitoObjetivo = url.searchParams.get("ambito") === "sede" ? "sede" : "comercial";
-    const articuloId = url.searchParams.get("articuloId") || null;
-
     // El coordinador va atado a su sede aunque pida otra. Sin sede asignada no
     // ve todas las sedes: no ve ninguna (ver `filtroSede`).
     const filtro = filtroSede(s.rol, s.tiendaId, url.searchParams.get("tiendaId"));
     if (filtro.tipo === "ninguna") {
       return NextResponse.json({
         mes,
-        ambito,
-        articuloId,
         soloLectura: true,
         preciosActivos: false,
         articulos: [],
-        sedes: [],
-        filas: [],
+        filasComerciales: [],
+        filasSedes: [],
+        totalesComerciales: {},
+        totalesSedes: {},
         objetivosDelMes: [],
         resumen: { objetivo: 0, vendido: 0, conObjetivo: 0 },
         sinSede: true,
@@ -122,51 +124,29 @@ export const GET = withTenant(
     ]);
 
     const precios = new Map(articulos.map((a) => [a.id, a.precio === null ? null : Number(a.precio)]));
-    const precioArticulo = articuloId ? (precios.get(articuloId) ?? null) : null;
     const nombreSede = new Map(sedes.map((t) => [t.id, t.nombre]));
+    const articuloIds = articulos.map((a) => a.id);
 
-    // Objetivo ya fijado para cada sujeto, en el artículo elegido (o en el
-    // total). La clave incluye el artículo porque un comercial puede tener a la
-    // vez objetivo total y objetivo de un artículo concreto.
-    const clave = (o: { userId: string | null; tiendaId: string | null; articuloId: string | null }) =>
-      `${o.userId ?? ""}|${o.tiendaId ?? ""}|${o.articuloId ?? ""}`;
-    const porClave = new Map(objetivos.map((o) => [clave(o), o]));
-
-    const sujetos =
-      ambito === "sede"
-        ? sedes.map((t) => ({ id: t.id, nombre: t.nombre, sede: null as string | null }))
-        : personas.map((p) => ({
-            id: p.id,
-            nombre: `${p.nombre} ${p.apellidos}`.trim(),
-            sede: p.tiendaId ? (nombreSede.get(p.tiendaId) ?? null) : null,
-          }));
-
-    const filas = sujetos.map((suj) => {
-      const objetivo = porClave.get(
-        clave({
-          userId: ambito === "comercial" ? suj.id : null,
-          tiendaId: ambito === "sede" ? suj.id : null,
-          articuloId,
-        }),
-      );
-      const vendido = vendidoDeSujeto(ventas, { ambito, id: suj.id }, articuloId);
-      return {
-        sujetoId: suj.id,
-        sujeto: suj.nombre,
-        sede: suj.sede,
-        objetivoId: objetivo?.id ?? null,
-        objetivo: objetivo?.cantidad ?? null,
-        vendido,
-        consecucion: pct(vendido, objetivo?.cantidad ?? null),
-        // Importe solo si el cliente trabaja con precios Y estamos mirando un
-        // artículo concreto: sumar euros de artículos distintos con precios a
-        // medio poner daría un total que nadie podría cuadrar.
-        importe:
-          preciosOn && articuloId && precioArticulo !== null
-            ? Math.round(vendido * precioArticulo * 100) / 100
-            : null,
-      };
-    });
+    // Dos matrices independientes: los objetivos personales y los de la sede son
+    // objetivos distintos y no se suman entre sí.
+    const filasComerciales = construirMatriz(
+      "comercial",
+      personas.map((p) => ({
+        id: p.id,
+        nombre: `${p.nombre} ${p.apellidos}`.trim(),
+        sede: p.tiendaId ? (nombreSede.get(p.tiendaId) ?? null) : null,
+      })),
+      articuloIds,
+      objetivos,
+      ventas,
+    );
+    const filasSedes = construirMatriz(
+      "sede",
+      sedes.map((t) => ({ id: t.id, nombre: t.nombre })),
+      articuloIds,
+      objetivos,
+      ventas,
+    );
 
     // Vista de todos los objetivos del mes, para revisarlos y borrarlos sin ir
     // artículo por artículo.
@@ -182,6 +162,10 @@ export const GET = withTenant(
         // coordinador) no se pinta: no es suyo ni puede hacer nada con él.
         if (!nombre) return null;
         const vendido = vendidoDeSujeto(ventas, { ambito: amb, id: sujetoId }, o.articuloId);
+        // Importe solo si el cliente trabaja con precios Y el objetivo es de un
+        // artículo concreto con precio: sumar euros de artículos distintos con
+        // precios a medio poner daría un total que nadie podría cuadrar.
+        const precio = o.articuloId ? (precios.get(o.articuloId) ?? null) : null;
         return {
           id: o.id,
           ambito: amb,
@@ -190,15 +174,17 @@ export const GET = withTenant(
           objetivo: o.cantidad,
           vendido,
           consecucion: pct(vendido, o.cantidad),
+          importe: preciosOn && precio !== null ? Math.round(vendido * precio * 100) / 100 : null,
         };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null)
       .sort((a, b) => a.sujeto.localeCompare(b.sujeto, "es") || (a.articulo ?? "").localeCompare(b.articulo ?? "", "es"));
 
+    const totalesComerciales = totalesMatriz(filasComerciales, articuloIds);
+    const totalesSedes = totalesMatriz(filasSedes, articuloIds);
+
     return NextResponse.json({
       mes,
-      ambito,
-      articuloId,
       soloLectura: !puedeFijarObjetivos(s.rol),
       preciosActivos: preciosOn,
       articulos: articulos.map((a) => ({
@@ -207,13 +193,18 @@ export const GET = withTenant(
         categoria: a.categoria,
         precio: a.precio === null ? null : Number(a.precio),
       })),
-      sedes,
-      filas,
+      filasComerciales,
+      filasSedes,
+      totalesComerciales,
+      totalesSedes,
       objetivosDelMes: todos,
+      // Las tarjetas de arriba siguen midiendo lo de siempre: el objetivo de
+      // unidades totales de los comerciales. Lo de cada producto y lo de cada
+      // sede se lee en el pie de su tabla, que es donde tiene sentido sumarlo.
       resumen: {
-        objetivo: filas.reduce((n, f) => n + (f.objetivo ?? 0), 0),
-        vendido: filas.reduce((n, f) => n + f.vendido, 0),
-        conObjetivo: filas.filter((f) => f.objetivo !== null).length,
+        objetivo: totalesComerciales[COLUMNA_TOTAL]?.objetivo ?? 0,
+        vendido: totalesComerciales[COLUMNA_TOTAL]?.vendido ?? 0,
+        conObjetivo: totalesComerciales[COLUMNA_TOTAL]?.conObjetivo ?? 0,
       },
     });
   }),

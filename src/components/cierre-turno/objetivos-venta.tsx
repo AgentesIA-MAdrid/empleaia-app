@@ -5,19 +5,22 @@
  * objetivos) y para coordinación (los consulta, de su sede): quién puede
  * escribir lo decide el servidor y llega en `soloLectura`.
  *
- * Forma de trabajar: se elige el mes, si el objetivo es de comerciales o de
- * sedes, y sobre qué (unidades totales o un artículo concreto). La tabla
- * enseña una fila por comercial —o por sede— con su objetivo editable al lado
- * de lo que lleva vendido. Así se reparte un objetivo en un minuto en vez de
- * abrir un formulario por persona.
+ * Forma de trabajar: se elige el mes y se rellena una parrilla. Primero la de
+ * comerciales —una fila por persona y una columna por producto del catálogo—,
+ * y debajo la misma parrilla para los puntos de venta. Son objetivos distintos:
+ * el de la sede se compara con lo que vende la sede entera, no con la suma de
+ * los de su equipo, y por eso van en dos tablas separadas.
+ *
+ * La primera columna de cada parrilla es "Unidades totales" (el objetivo sin
+ * producto), que es el que ve el comercial en el paso 2 de su cierre de turno.
  *
  * Cada casilla se guarda al salir del campo. Poner 0 quita el objetivo: es lo
  * que la gente hace de forma natural para "quitar esto", y pedirle un botón de
  * borrar aparte sería trabajo de más.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Target, Trash2, TrendingUp } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Building2, Target, Trash2, TrendingUp, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,6 +29,9 @@ import { useToast } from "@/hooks/use-toast";
 
 type Ambito = "comercial" | "sede";
 
+/** Columna de unidades totales: el objetivo sin producto (ver `objetivos.ts`). */
+const COLUMNA_TOTAL = "";
+
 interface Articulo {
   id: string;
   nombre: string;
@@ -33,15 +39,31 @@ interface Articulo {
   precio: number | null;
 }
 
-interface Fila {
-  sujetoId: string;
-  sujeto: string;
-  sede: string | null;
+interface Columna {
+  id: string;
+  nombre: string;
+  categoria: string | null;
+}
+
+interface Celda {
   objetivoId: string | null;
   objetivo: number | null;
   vendido: number;
   consecucion: number | null;
-  importe: number | null;
+}
+
+interface FilaMatriz {
+  sujetoId: string;
+  sujeto: string;
+  sede: string | null;
+  celdas: Record<string, Celda>;
+}
+
+interface TotalColumna {
+  objetivo: number;
+  vendido: number;
+  consecucion: number | null;
+  conObjetivo: number;
 }
 
 interface ObjetivoDelMes {
@@ -52,22 +74,25 @@ interface ObjetivoDelMes {
   objetivo: number;
   vendido: number;
   consecucion: number | null;
+  importe: number | null;
 }
 
 interface Respuesta {
   mes: string;
-  ambito: Ambito;
-  articuloId: string | null;
   soloLectura: boolean;
   preciosActivos: boolean;
   articulos: Articulo[];
-  sedes: { id: string; nombre: string }[];
-  filas: Fila[];
+  filasComerciales: FilaMatriz[];
+  filasSedes: FilaMatriz[];
+  totalesComerciales: Record<string, TotalColumna>;
+  totalesSedes: Record<string, TotalColumna>;
   objetivosDelMes: ObjetivoDelMes[];
   resumen: { objetivo: number; vendido: number; conObjetivo: number };
   /** El servidor no ha podido acotar por sede: esta persona no tiene ninguna. */
   sinSede?: boolean;
 }
+
+const CELDA_VACIA: Celda = { objetivoId: null, objetivo: null, vendido: 0, consecucion: null };
 
 const eur = (n: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n);
@@ -90,23 +115,166 @@ function colorConsecucion(v: number | null): string {
   return "text-rose-600";
 }
 
+/** Lo vendido y la consecución, en pequeño debajo de cada casilla. */
+function PieCelda({ vendido, consecucion }: { vendido: number; consecucion: number | null }) {
+  return (
+    <span className={`block text-[11px] mt-1 tabular-nums ${colorConsecucion(consecucion)}`}>
+      {vendido} uds{consecucion === null ? "" : ` · ${consecucion} %`}
+    </span>
+  );
+}
+
+/**
+ * Parrilla de objetivos: filas de sujetos (comerciales o sedes) y una columna
+ * por producto. Es el mismo componente para las dos tablas porque las dos se
+ * rellenan igual; lo único que cambia es a quién van dirigidos los objetivos.
+ */
+function TablaObjetivos({
+  titulo,
+  descripcion,
+  icono,
+  etiquetaSujeto,
+  vacio,
+  columnas,
+  filas,
+  totales,
+  soloLectura,
+  mostrarSede,
+  mes,
+  guardando,
+  onGuardar,
+}: {
+  titulo: string;
+  descripcion: string;
+  icono: ReactNode;
+  etiquetaSujeto: string;
+  vacio: string;
+  columnas: Columna[];
+  filas: FilaMatriz[];
+  totales: Record<string, TotalColumna>;
+  soloLectura: boolean;
+  mostrarSede: boolean;
+  mes: string;
+  guardando: string | null;
+  onGuardar: (fila: FilaMatriz, columnaId: string, valor: string) => void;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-0">
+        <div className="px-6 pt-4 pb-3">
+          <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+            {icono} {titulo}
+          </p>
+          <p className="text-xs text-slate-400 mt-1 max-w-2xl">{descripcion}</p>
+        </div>
+        {filas.length === 0 ? (
+          <p className="text-center py-10 text-slate-400 text-sm border-t border-slate-200">{vacio}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-t border-slate-200">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="sticky left-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3 min-w-[13rem]">
+                    {etiquetaSujeto}
+                  </th>
+                  {columnas.map((c) => (
+                    <th
+                      key={c.id || "total"}
+                      className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-3 py-3 min-w-[8rem]"
+                    >
+                      {c.nombre}
+                      {c.categoria && (
+                        <span className="block font-normal normal-case text-slate-400">{c.categoria}</span>
+                      )}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filas.map((f) => (
+                  <tr key={f.sujetoId} className="border-b border-slate-100 last:border-0">
+                    <td className="sticky left-0 z-10 bg-white px-4 py-2.5 text-sm font-medium text-slate-800">
+                      {f.sujeto}
+                      {mostrarSede && (
+                        <span className="block text-xs font-normal text-slate-400">{f.sede ?? "Sin sede"}</span>
+                      )}
+                    </td>
+                    {columnas.map((c) => {
+                      const celda = f.celdas[c.id] ?? CELDA_VACIA;
+                      return (
+                        <td key={c.id || "total"} className="px-3 py-2.5 align-top">
+                          {soloLectura ? (
+                            <span className="text-sm tabular-nums">{celda.objetivo ?? "—"}</span>
+                          ) : (
+                            <Input
+                              // La clave lleva el mes: sin ella, al cambiar de mes
+                              // el campo (no controlado) seguiría enseñando la
+                              // cifra del mes anterior.
+                              key={`${mes}|${f.sujetoId}|${c.id}`}
+                              type="number"
+                              min="0"
+                              step="1"
+                              className="w-20 h-9 text-right tabular-nums"
+                              defaultValue={celda.objetivo ?? ""}
+                              placeholder="—"
+                              disabled={guardando === `${f.sujetoId}|${c.id}`}
+                              aria-label={`Objetivo de ${c.nombre} para ${f.sujeto}`}
+                              onBlur={(e) => {
+                                const nuevo = e.target.value.trim();
+                                const actual = celda.objetivo === null ? "" : String(celda.objetivo);
+                                if (nuevo !== actual) onGuardar(f, c.id, nuevo);
+                              }}
+                            />
+                          )}
+                          <PieCelda vendido={celda.vendido} consecucion={celda.consecucion} />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-slate-50 border-t border-slate-200">
+                <tr>
+                  <td className="sticky left-0 z-10 bg-slate-50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Total
+                  </td>
+                  {columnas.map((c) => {
+                    const t = totales[c.id];
+                    return (
+                      <td key={c.id || "total"} className="px-3 py-2.5 align-top text-sm tabular-nums">
+                        <span className="font-semibold text-slate-800">{t?.objetivo ?? 0}</span>
+                        <PieCelda vendido={t?.vendido ?? 0} consecucion={t?.consecucion ?? null} />
+                      </td>
+                    );
+                  })}
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descripcion: string }) {
   const { toast } = useToast();
   const [mes, setMes] = useState(mesActual());
-  const [ambito, setAmbito] = useState<Ambito>("comercial");
-  const [articuloId, setArticuloId] = useState<string>("");
   const [datos, setDatos] = useState<Respuesta | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState<string | null>(null);
 
-  const cargar = useCallback(async () => {
-    setCargando(true);
+  /**
+   * `silencioso` refresca sin enseñar el esqueleto de carga: al guardar una
+   * casilla se recargan las cifras, y si la parrilla desaparece y vuelve, el
+   * cursor se pierde y no se puede ir rellenando con el tabulador.
+   */
+  const cargar = useCallback(async (silencioso = false) => {
+    if (!silencioso) setCargando(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ mes, ambito });
-      if (articuloId) params.set("articuloId", articuloId);
-      const res = await fetch(`/api/objetivos-venta?${params}`);
+      const res = await fetch(`/api/objetivos-venta?${new URLSearchParams({ mes })}`);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError((data as { error?: string }).error ?? "No se han podido cargar los objetivos.");
@@ -118,28 +286,34 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
       setError("Sin conexión con el servidor.");
       setDatos(null);
     } finally {
-      setCargando(false);
+      if (!silencioso) setCargando(false);
     }
-  }, [mes, ambito, articuloId]);
+  }, [mes]);
 
   useEffect(() => {
     void cargar();
   }, [cargar]);
 
-  /** Guarda (o borra, con 0) el objetivo de una fila. */
-  const guardar = async (fila: Fila, valor: string) => {
+  /** Guarda (o borra, con 0) el objetivo de una casilla. */
+  const guardar = async (ambito: Ambito, fila: FilaMatriz, columnaId: string, valor: string) => {
     const limpio = valor.trim();
     const cantidad = limpio === "" ? 0 : Number.parseInt(limpio, 10);
     if (!Number.isInteger(cantidad) || cantidad < 0) {
       toast({ title: "Objetivo no válido", description: "Escribe un número entero de unidades.", variant: "destructive" });
       return;
     }
-    setGuardando(fila.sujetoId);
+    setGuardando(`${fila.sujetoId}|${columnaId}`);
     try {
       const res = await fetch("/api/objetivos-venta", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mes, ambito, sujetoId: fila.sujetoId, articuloId: articuloId || null, cantidad }),
+        body: JSON.stringify({
+          mes,
+          ambito,
+          sujetoId: fila.sujetoId,
+          articuloId: columnaId === COLUMNA_TOTAL ? null : columnaId,
+          cantidad,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -150,7 +324,7 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
         });
         return;
       }
-      await cargar();
+      await cargar(true);
     } catch {
       toast({ title: "Sin conexión", description: "No se ha guardado el objetivo.", variant: "destructive" });
     } finally {
@@ -169,13 +343,18 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
       });
       return;
     }
-    await cargar();
+    await cargar(true);
   };
 
   const soloLectura = datos?.soloLectura ?? true;
-  const articuloElegido = useMemo(
-    () => datos?.articulos.find((a) => a.id === articuloId) ?? null,
-    [datos, articuloId],
+  // Unidades totales siempre delante: es el objetivo "de todo" y el que ve el
+  // comercial en su cierre. Detrás, el catálogo en su orden de configuración.
+  const columnas = useMemo<Columna[]>(
+    () => [
+      { id: COLUMNA_TOTAL, nombre: "Unidades totales", categoria: null },
+      ...(datos?.articulos ?? []).map((a) => ({ id: a.id, nombre: a.nombre, categoria: a.categoria })),
+    ],
+    [datos],
   );
   const resumen = datos?.resumen;
   const consecucionGlobal =
@@ -203,44 +382,14 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
                 onChange={(e) => setMes(e.target.value || mesActual())}
               />
             </div>
-            <div>
-              <Label htmlFor="objetivos-ambito">Objetivo de</Label>
-              <select
-                id="objetivos-ambito"
-                className="mt-1 w-48 rounded-md border border-slate-200 px-3 py-2 text-sm"
-                value={ambito}
-                onChange={(e) => setAmbito(e.target.value as Ambito)}
-              >
-                <option value="comercial">Cada comercial</option>
-                <option value="sede">Cada punto de venta</option>
-              </select>
-            </div>
-            <div>
-              <Label htmlFor="objetivos-articulo">Sobre</Label>
-              <select
-                id="objetivos-articulo"
-                className="mt-1 w-64 rounded-md border border-slate-200 px-3 py-2 text-sm"
-                value={articuloId}
-                onChange={(e) => setArticuloId(e.target.value)}
-              >
-                <option value="">Unidades totales</option>
-                {(datos?.articulos ?? []).map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.nombre}
-                    {a.categoria ? ` · ${a.categoria}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
-          <p className="text-xs text-slate-400 mt-3">
-            {articuloElegido
-              ? `Objetivo de unidades de "${articuloElegido.nombre}" en el mes elegido.`
-              : "Objetivo de unidades vendidas en total, sumando todo el catálogo."}
-            {ambito === "sede" &&
-              " El objetivo de una sede se compara con lo que vende la sede completa, no con la suma de los de su equipo."}
+          <p className="text-xs text-slate-400 mt-3 max-w-3xl">
+            Cada casilla es el objetivo de unidades del mes elegido. Debajo de la casilla verás lo
+            que se lleva vendido y la consecución. Los objetivos de los comerciales y los de las
+            sedes son independientes: el de una sede se compara con lo que vende la sede completa,
+            no con la suma de los de su equipo.
           </p>
-          {/* Sin catálogo, "Sobre" solo ofrece unidades totales: hay que decir
+          {/* Sin catálogo solo hay columna de unidades totales: hay que decir
               dónde se definen los productos, o el objetivo por producto parece
               que no existe. */}
           {!soloLectura && (datos?.articulos.length ?? 0) === 0 && (
@@ -250,7 +399,7 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
               <a href="/admin/configuracion?tab=catalogo" className="underline font-medium">
                 Configuración → Catálogo de ventas
               </a>{" "}
-              (pospago, fibra, renove…) y podrás fijar un objetivo por producto.
+              (pospago, fibra, renove…) y aparecerá una columna por producto.
             </p>
           )}
         </CardContent>
@@ -272,7 +421,7 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
             color: colorConsecucion(consecucionGlobal),
           },
           {
-            label: ambito === "sede" ? "Sedes con objetivo" : "Comerciales con objetivo",
+            label: "Comerciales con objetivo",
             valor: String(resumen?.conObjetivo ?? 0),
             color: "text-[var(--primary)]",
           },
@@ -285,93 +434,63 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
           </Card>
         ))}
       </div>
+      <p className="text-xs text-slate-400 -mt-3">
+        Estas cuatro cifras resumen el objetivo de unidades totales de los comerciales. El total de
+        cada producto y el de las sedes están al pie de su tabla.
+      </p>
 
-      <Card>
-        <CardContent className="p-0">
-          {cargando ? (
-            <div className="p-4 space-y-2">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />
-              ))}
-            </div>
-          ) : datos?.sinSede ? (
+      {cargando ? (
+        <Card>
+          <CardContent className="p-4 space-y-2">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />
+            ))}
+          </CardContent>
+        </Card>
+      ) : datos?.sinSede ? (
+        <Card>
+          <CardContent className="pt-4 pb-4">
             <p className="text-center py-10 text-slate-500 text-sm max-w-md mx-auto">
               No tienes ninguna sede asignada, así que no hay objetivos que consultar. Pídele a
               administración que te asigne tu punto de venta.
             </p>
-          ) : (datos?.filas.length ?? 0) === 0 ? (
-            <p className="text-center py-10 text-slate-400 text-sm">
-              {ambito === "sede"
-                ? "No hay puntos de venta activos."
-                : "No hay empleados activos a los que fijar objetivo."}
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    {[
-                      ambito === "sede" ? "Punto de venta" : "Comercial",
-                      ...(ambito === "comercial" ? ["Sede"] : []),
-                      "Objetivo",
-                      "Vendido",
-                      ...(datos?.preciosActivos && articuloElegido?.precio != null ? ["Importe"] : []),
-                      "Consecución",
-                    ].map((h) => (
-                      <th
-                        key={h}
-                        className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3"
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {datos?.filas.map((f) => (
-                    <tr key={f.sujetoId} className="border-b border-slate-100 last:border-0">
-                      <td className="px-4 py-2.5 text-sm font-medium text-slate-800">{f.sujeto}</td>
-                      {ambito === "comercial" && (
-                        <td className="px-4 py-2.5 text-sm text-slate-500">{f.sede ?? "—"}</td>
-                      )}
-                      <td className="px-4 py-2.5">
-                        {soloLectura ? (
-                          <span className="text-sm tabular-nums">{f.objetivo ?? "—"}</span>
-                        ) : (
-                          <Input
-                            type="number"
-                            min="0"
-                            step="1"
-                            className="w-24 text-right tabular-nums"
-                            defaultValue={f.objetivo ?? ""}
-                            placeholder="—"
-                            disabled={guardando === f.sujetoId}
-                            aria-label={`Objetivo de ${f.sujeto}`}
-                            onBlur={(e) => {
-                              const nuevo = e.target.value.trim();
-                              const actual = f.objetivo === null ? "" : String(f.objetivo);
-                              if (nuevo !== actual) void guardar(f, nuevo);
-                            }}
-                          />
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-sm tabular-nums">{f.vendido}</td>
-                      {datos?.preciosActivos && articuloElegido?.precio != null && (
-                        <td className="px-4 py-2.5 text-sm tabular-nums text-slate-600">
-                          {f.importe === null ? "—" : eur(f.importe)}
-                        </td>
-                      )}
-                      <td className={`px-4 py-2.5 text-sm tabular-nums ${colorConsecucion(f.consecucion)}`}>
-                        {f.consecucion === null ? "—" : `${f.consecucion} %`}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : !datos ? null : (
+        <>
+          <TablaObjetivos
+            titulo="Objetivos por comercial"
+            descripcion="Lo que tiene que vender cada persona este mes, producto a producto."
+            icono={<Users className="h-4 w-4 text-[var(--primary)]" />}
+            etiquetaSujeto="Comercial"
+            vacio="No hay empleados activos a los que fijar objetivo."
+            columnas={columnas}
+            filas={datos?.filasComerciales ?? []}
+            totales={datos?.totalesComerciales ?? {}}
+            soloLectura={soloLectura}
+            mostrarSede
+            mes={mes}
+            guardando={guardando}
+            onGuardar={(fila, columnaId, valor) => void guardar("comercial", fila, columnaId, valor)}
+          />
+
+          <TablaObjetivos
+            titulo="Objetivos por punto de venta"
+            descripcion="El objetivo de la sede entera, producto a producto. Es independiente del de cada comercial."
+            icono={<Building2 className="h-4 w-4 text-[var(--primary)]" />}
+            etiquetaSujeto="Punto de venta"
+            vacio="No hay puntos de venta activos."
+            columnas={columnas}
+            filas={datos?.filasSedes ?? []}
+            totales={datos?.totalesSedes ?? {}}
+            soloLectura={soloLectura}
+            mostrarSede={false}
+            mes={mes}
+            guardando={guardando}
+            onGuardar={(fila, columnaId, valor) => void guardar("sede", fila, columnaId, valor)}
+          />
+        </>
+      )}
 
       {!soloLectura && (
         <p className="text-xs text-slate-400">
@@ -379,8 +498,8 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
         </p>
       )}
 
-      {/* Todos los objetivos del mes, sin importar el artículo: es la vista para
-          repasar lo fijado sin ir cambiando el selector. */}
+      {/* Todos los objetivos del mes en una sola lista: es la vista para
+          repasar lo fijado y quitar de un tirón lo que sobre. */}
       <Card>
         <CardContent className="pt-4 pb-4">
           <p className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-3">
@@ -395,16 +514,23 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
               <table className="w-full">
                 <thead className="bg-slate-50 border-y border-slate-200">
                   <tr>
-                    {["Ámbito", "Comercial o sede", "Artículo", "Objetivo", "Vendido", "Consecución", ""].map(
-                      (h) => (
-                        <th
-                          key={h}
-                          className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-2.5"
-                        >
-                          {h}
-                        </th>
-                      ),
-                    )}
+                    {[
+                      "Ámbito",
+                      "Comercial o sede",
+                      "Artículo",
+                      "Objetivo",
+                      "Vendido",
+                      ...(datos?.preciosActivos ? ["Importe"] : []),
+                      "Consecución",
+                      "",
+                    ].map((h, i) => (
+                      <th
+                        key={`${h}-${i}`}
+                        className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-2.5"
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -419,6 +545,11 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
                       </td>
                       <td className="px-4 py-2 text-sm tabular-nums">{o.objetivo}</td>
                       <td className="px-4 py-2 text-sm tabular-nums">{o.vendido}</td>
+                      {datos?.preciosActivos && (
+                        <td className="px-4 py-2 text-sm tabular-nums text-slate-600">
+                          {o.importe === null ? "—" : eur(o.importe)}
+                        </td>
+                      )}
                       <td className={`px-4 py-2 text-sm tabular-nums ${colorConsecucion(o.consecucion)}`}>
                         {o.consecucion === null ? "—" : `${o.consecucion} %`}
                       </td>

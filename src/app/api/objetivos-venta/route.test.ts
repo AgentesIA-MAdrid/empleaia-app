@@ -143,9 +143,14 @@ describe("GET /api/objetivos-venta", () => {
     sesion.user = { id: "u_jefe", rol: "MANAGER", tiendaId: null, name: "Jefe" };
     const res = await get();
     expect(res.status).toBe(200);
-    const data = (await res.json()) as { filas: unknown[]; sinSede: boolean };
+    const data = (await res.json()) as {
+      filasComerciales: unknown[];
+      filasSedes: unknown[];
+      sinSede: boolean;
+    };
     expect(data.sinSede).toBe(true);
-    expect(data.filas).toEqual([]);
+    expect(data.filasComerciales).toEqual([]);
+    expect(data.filasSedes).toEqual([]);
     // Y no se ha consultado nada de la BD del tenant.
     expect(prismaMock.cierreTurno.findMany).not.toHaveBeenCalled();
     expect(prismaMock.user.findMany).not.toHaveBeenCalled();
@@ -157,6 +162,30 @@ describe("GET /api/objetivos-venta", () => {
     const data = (await res.json()) as { soloLectura: boolean; mes: string };
     expect(data.soloLectura).toBe(false);
     expect(data.mes).toMatch(/^\d{4}-\d{2}$/);
+  });
+
+  it("devuelve las dos parrillas, con una casilla por producto y sin mezclarlas", async () => {
+    objetivosExistentes.push({
+      id: "obj_ana_fibra",
+      mes: "2026-07",
+      userId: "u_ana",
+      tiendaId: null,
+      articuloId: "art_fibra",
+      cantidad: 12,
+    });
+    const res = await get("?mes=2026-07");
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as {
+      filasComerciales: { sujetoId: string; celdas: Record<string, { objetivo: number | null }> }[];
+      filasSedes: { sujetoId: string; celdas: Record<string, { objetivo: number | null }> }[];
+    };
+    expect(data.filasComerciales.map((f) => f.sujetoId)).toEqual(["u_ana"]);
+    // Una columna de unidades totales ("") y una por artículo activo.
+    expect(Object.keys(data.filasComerciales[0].celdas).sort()).toEqual(["", "art_fibra"]);
+    expect(data.filasComerciales[0].celdas["art_fibra"].objetivo).toBe(12);
+    // El objetivo personal no aparece en la tabla de sedes: son objetivos distintos.
+    expect(data.filasSedes.map((f) => f.sujetoId)).toEqual(["t1"]);
+    expect(data.filasSedes[0].celdas["art_fibra"].objetivo).toBeNull();
   });
 
   it("rechaza un mes con formato inventado", async () => {
