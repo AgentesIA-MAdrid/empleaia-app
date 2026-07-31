@@ -160,14 +160,24 @@ export function anotarVentas<T extends VentaAgregada>(
 }
 
 /**
- * Un grupo de productos: una subcategoría del catálogo, con la categoría de la
- * que cuelga. Las dos hacen falta para saber de qué grupo se habla: "Pospago"
- * de Telefonía y "Pospago" de Energía son dos grupos, igual que son dos
- * artículos distintos los que se llaman igual en categorías distintas.
+ * Un grupo de productos: **una subcategoría del catálogo**, y solo eso.
+ *
+ * La categoría (Particular, Empresa) no entra. Organiza el catálogo, sirve para
+ * filtrar informes y el comercial la usa al registrar la venta, pero **no es un
+ * nivel con objetivo propio** (ticket 528694fa): el objetivo se pone sobre la
+ * subcategoría y lo empuja todo lo que cuelga de ella, venga de la categoría
+ * que venga.
+ *
+ *   Empresa    → FFTH → Fibra 1 GB     ┐
+ *   Empresa    → FFTH → Fibra General  │ los cuatro suman en el
+ *   Particular → FFTH → Fibra 1 GB     │ objetivo del grupo FFTH
+ *   Particular → FFTH → Fibra General  ┘
+ *
+ * Antes el grupo se identificaba por subcategoría + categoría, y eso partía la
+ * parrilla en dos columnas por subcategoría —"FFTH · Particular" y "FFTH ·
+ * Empresa"— con objetivos que había que fijar y cumplir por separado.
  */
 export interface SubgrupoProductos {
-  /** null = subcategoría de artículos sin categoría. */
-  categoria: string | null;
   subcategoria: string;
 }
 
@@ -177,69 +187,62 @@ export interface SubgrupoProductos {
  */
 export const PREFIJO_SUBGRUPO = "sub:";
 
-/**
- * Separador de control entre la categoría y la subcategoría: no se puede
- * teclear en un nombre, así que "Telefonía" + "Pospago" nunca choca con una
- * categoría llamada "Telefonía Pospago" (misma idea que `claveArticulo`).
- */
-const SEPARADOR_SUBGRUPO = "\u001f";
-
 export function columnaSubgrupo(grupo: SubgrupoProductos): string {
-  return `${PREFIJO_SUBGRUPO}${grupo.categoria ?? ""}${SEPARADOR_SUBGRUPO}${grupo.subcategoria}`;
+  return `${PREFIJO_SUBGRUPO}${grupo.subcategoria}`;
 }
 
 /** El grupo que hay detrás de una columna, o null si la columna no es de grupo. */
 export function subgrupoDeColumna(columna: string): SubgrupoProductos | null {
   if (!columna.startsWith(PREFIJO_SUBGRUPO)) return null;
-  const resto = columna.slice(PREFIJO_SUBGRUPO.length);
-  const corte = resto.indexOf(SEPARADOR_SUBGRUPO);
-  if (corte === -1) return null;
-  const categoria = resto.slice(0, corte);
-  const subcategoria = resto.slice(corte + 1);
+  const subcategoria = columna.slice(PREFIJO_SUBGRUPO.length);
   if (!subcategoria) return null;
-  return { categoria: categoria || null, subcategoria };
+  return { subcategoria };
 }
 
-/** Cómo se llama un grupo en pantalla y en la hoja: "Telefonía → Pospago". */
+/** Cómo se llama un grupo en pantalla y en la hoja. */
 export function etiquetaSubgrupo(grupo: SubgrupoProductos): string {
-  return grupo.categoria ? `${grupo.categoria} → ${grupo.subcategoria}` : grupo.subcategoria;
+  return grupo.subcategoria;
 }
 
 /**
  * Grupos del catálogo (subcategorías con al menos un artículo que cuenta), en
  * el orden del catálogo: el primer artículo de cada bloque marca dónde va.
+ *
+ * Una subcategoría que aparece en varias categorías sale UNA sola vez: es un
+ * único grupo con un único objetivo.
  */
 export function subgruposDelCatalogo(articulos: ArticuloObjetivo[]): SubgrupoProductos[] {
   const vistos: SubgrupoProductos[] = [];
   const claves = new Set<string>();
   for (const a of articulos) {
     if (!a.subcategoria || !cuentaParaObjetivos(a)) continue;
-    const grupo = { categoria: a.categoria, subcategoria: a.subcategoria };
-    const clave = columnaSubgrupo(grupo);
-    if (claves.has(clave)) continue;
-    claves.add(clave);
-    vistos.push(grupo);
+    if (claves.has(a.subcategoria)) continue;
+    claves.add(a.subcategoria);
+    vistos.push({ subcategoria: a.subcategoria });
   }
   return vistos;
 }
 
-/** ¿Este artículo (o esta venta) pertenece a ese grupo de productos? */
+/**
+ * ¿Este artículo (o esta venta) pertenece a ese grupo de productos? Solo cuenta
+ * la subcategoría: la categoría de la que cuelgue da igual.
+ */
 export function esDelSubgrupo(
-  articulo: { categoria?: string | null; subcategoria?: string | null },
+  articulo: { subcategoria?: string | null },
   grupo: SubgrupoProductos,
 ): boolean {
-  return (
-    (articulo.subcategoria ?? null) === grupo.subcategoria &&
-    (articulo.categoria ?? null) === grupo.categoria
-  );
+  return (articulo.subcategoria ?? null) === grupo.subcategoria;
 }
 
-/** El grupo al que va dirigido un objetivo, o null si no es de un grupo. */
-export function subgrupoDeObjetivo(o: {
-  subcategoria?: string | null;
-  categoria?: string | null;
-}): SubgrupoProductos | null {
-  return o.subcategoria ? { categoria: o.categoria ?? null, subcategoria: o.subcategoria } : null;
+/**
+ * El grupo al que va dirigido un objetivo, o null si no es de un grupo.
+ *
+ * `ObjetivoVenta.categoria` se ignora a propósito: dejó de tener sentido al
+ * dejar la categoría de ser un nivel con objetivo, y los objetivos fijados
+ * antes la traen rellena y tienen que seguir contando igual.
+ */
+export function subgrupoDeObjetivo(o: { subcategoria?: string | null }): SubgrupoProductos | null {
+  return o.subcategoria ? { subcategoria: o.subcategoria } : null;
 }
 
 /**
@@ -283,7 +286,7 @@ export function evaluacionDeArticulo(
   if (objetivos.articuloIds.has(articulo.id)) return { modo: "producto", grupo: null };
   if (!cuentaParaObjetivos(articulo)) return { modo: "excluido", grupo: null };
   if (articulo.subcategoria) {
-    const grupo = { categoria: articulo.categoria, subcategoria: articulo.subcategoria };
+    const grupo = { subcategoria: articulo.subcategoria };
     if (objetivos.subgrupos.has(columnaSubgrupo(grupo))) return { modo: "grupo", grupo };
   }
   return { modo: "total", grupo: null };
@@ -506,7 +509,6 @@ export function vendidoDeSujeto(
       tiendaId: sujeto.ambito === "sede" ? sujeto.id : null,
       grupoId: sujeto.ambito === "grupo" ? sujeto.id : null,
       articuloId,
-      categoria: grupo?.categoria ?? null,
       subcategoria: grupo?.subcategoria ?? null,
       cantidad: 0,
     },
@@ -552,7 +554,7 @@ export function objetivoTotalDe(
   const grupoDe = new Map(
     (catalogo ?? []).map((a) => [
       a.id,
-      a.subcategoria ? columnaSubgrupo({ categoria: a.categoria, subcategoria: a.subcategoria }) : "",
+      a.subcategoria ? columnaSubgrupo({ subcategoria: a.subcategoria }) : "",
     ]),
   );
   const gruposVivos = catalogo
@@ -649,10 +651,7 @@ function indexarVentas(ventas: VentaAgregada[], ambito: AmbitoObjetivo): Map<str
       if (v.cuentaParaObjetivos !== false) {
         suma(`${sujetoId}|${COLUMNA_TOTAL}`, v.cantidad);
         if (v.subcategoria) {
-          const columna = columnaSubgrupo({
-            categoria: v.categoria ?? null,
-            subcategoria: v.subcategoria,
-          });
+          const columna = columnaSubgrupo({ subcategoria: v.subcategoria });
           suma(`${sujetoId}|${columna}`, v.cantidad);
         }
       }

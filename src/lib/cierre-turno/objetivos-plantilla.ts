@@ -17,7 +17,7 @@
  *   Grupo     | TMT        | g_tmt | 200|    |   | …
  *
  * Ojo con la palabra "grupo", que en la hoja significa dos cosas: la columna
- * "Grupo: Telefonía → Pospago" es un grupo de PRODUCTOS (una subcategoría del
+ * "Grupo: Pospago" es un grupo de PRODUCTOS (una subcategoría del
  * catálogo, con su categoría delante) y la fila con ámbito "Grupo" es un grupo
  * de OBJETIVOS (TMT, televenta…), o sea a quién va dirigido.
  *
@@ -47,7 +47,6 @@ import {
   type AmbitoObjetivo,
   type ArticuloObjetivo,
   type ObjetivoFila,
-  type SubgrupoProductos,
 } from "./objetivos";
 
 /** Encabezados fijos de la hoja. */
@@ -304,17 +303,10 @@ export function interpretarPlantillaObjetivos(
   }
 
   const paraObjetivos = ctx.articulos.filter((a) => cuentaParaObjetivos(a));
-  // Los grupos se casan por su título de hoy ("Telefonía → Pospago") y, si no
-  // hay dos subcategorías que se llamen igual, también por el nombre pelado
-  // ("Pospago"), que es lo que teclea quien rehace la hoja a mano. Mismo
-  // criterio que con los artículos homónimos.
+  // Un grupo es una subcategoría y nada más, así que su nombre lo identifica
+  // sin ambigüedad posible (ticket 528694fa).
   const gruposProductos = subgruposDelCatalogo(paraObjetivos);
-  const gruposPorEtiqueta = new Map(gruposProductos.map((g) => [normalizar(etiquetaSubgrupo(g)), g]));
-  const gruposPorNombre = new Map<string, SubgrupoProductos | null>();
-  for (const g of gruposProductos) {
-    const clave = normalizar(g.subcategoria);
-    gruposPorNombre.set(clave, gruposPorNombre.has(clave) ? null : g);
-  }
+  const gruposPorNombre = new Map(gruposProductos.map((g) => [normalizar(g.subcategoria), g]));
   // Las columnas se casan por su título de hoy —el nombre, y detrás dónde está
   // si hay otro que se llama igual—, y además por el nombre pelado, que es lo
   // que traen las hojas de siempre. Un nombre pelado que en el catálogo ya
@@ -350,16 +342,14 @@ export function interpretarPlantillaObjetivos(
       return;
     }
     if (norm.startsWith(normalizar(PREFIJO_GRUPO_HOJA)) || norm.startsWith(PREFIJO_SUBGRUPO)) {
-      const escrito = normalizar(titulo.slice(titulo.indexOf(":") + 1));
-      const real = gruposPorEtiqueta.get(escrito) ?? gruposPorNombre.get(escrito);
+      const escrito = titulo.slice(titulo.indexOf(":") + 1);
+      // Las hojas descargadas antes del cambio traen "Categoría → Subcategoría"
+      // en la cabecera. Se sigue aceptando: vale lo que va tras la flecha.
+      const conFlecha = escrito.lastIndexOf("→");
+      const nombre = normalizar(conFlecha === -1 ? escrito : escrito.slice(conFlecha + 1));
+      const real = gruposPorNombre.get(nombre);
       if (!real) {
-        columnasIgnoradas.push({
-          columna: titulo,
-          motivo:
-            real === null
-              ? "Hay dos subcategorías con ese nombre: pon delante su categoría (Telefonía → Pospago)."
-              : "Ese grupo no está en el catálogo.",
-        });
+        columnasIgnoradas.push({ columna: titulo, motivo: "Ese grupo no está en el catálogo." });
         return;
       }
       columnas.set(i, { id: columnaSubgrupo(real), titulo });
@@ -489,7 +479,9 @@ export function interpretarPlantillaObjetivos(
         sujetoId,
         articuloId: columna.id === COLUMNA_TOTAL || grupo ? null : columna.id,
         subcategoria: grupo?.subcategoria ?? null,
-        categoria: grupo?.categoria ?? null,
+        // La categoría ya no identifica un grupo: el objetivo es de la
+        // subcategoría entera (ticket 528694fa).
+        categoria: null,
         cantidad: cantidad.cantidad,
         sujeto,
         columna: columna.titulo,

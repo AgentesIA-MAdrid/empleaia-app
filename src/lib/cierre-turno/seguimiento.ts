@@ -76,9 +76,7 @@ export function normalizarConcepto(
   if (!id) return CONCEPTO_TOTAL;
   const grupo = subgrupoDeColumna(id);
   if (grupo) {
-    const vivo = subgrupos.find(
-      (g) => g.subcategoria === grupo.subcategoria && g.categoria === grupo.categoria,
-    );
+    const vivo = subgrupos.find((g) => g.subcategoria === grupo.subcategoria);
     if (!vivo) return CONCEPTO_TOTAL;
     return {
       id: columnaSubgrupo(vivo),
@@ -173,9 +171,7 @@ export function objetivoDelConcepto(
   }
   const suyo = objetivosDelSujeto.find((o) =>
     concepto.tipo === "grupo"
-      ? !o.articuloId &&
-        (o.subcategoria ?? null) === (concepto.grupo?.subcategoria ?? null) &&
-        (o.categoria ?? null) === (concepto.grupo?.categoria ?? null)
+      ? !o.articuloId && (o.subcategoria ?? null) === (concepto.grupo?.subcategoria ?? null)
       : o.articuloId === concepto.articuloId,
   );
   return suyo ? suyo.cantidad : null;
@@ -194,7 +190,6 @@ export function vendidoDelConcepto(
       userId: sujeto.ambito === "comercial" ? sujeto.id : null,
       tiendaId: sujeto.ambito === "sede" ? sujeto.id : null,
       articuloId: concepto.articuloId,
-      categoria: concepto.grupo?.categoria ?? null,
       subcategoria: concepto.grupo?.subcategoria ?? null,
       cantidad: 0,
     },
@@ -389,7 +384,6 @@ export function serieDiaria(args: {
         userId: null,
         tiendaId: null,
         articuloId: concepto.articuloId,
-        categoria: concepto.grupo?.categoria ?? null,
         subcategoria: concepto.grupo?.subcategoria ?? null,
         cantidad: 0,
       },

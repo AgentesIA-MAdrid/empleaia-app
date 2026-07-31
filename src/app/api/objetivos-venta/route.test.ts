@@ -68,7 +68,11 @@ const catalogo = [
  * El grupo de productos con objetivo es la subcategoría, con su categoría
  * delante para no confundir dos que se llamen igual (ticket 234c6b0f).
  */
-const HOGAR = { categoria: "Telefonía", subcategoria: "Hogar" };
+/**
+ * El grupo con objetivo es la subcategoría y solo la subcategoría: la categoría
+ * de la que cuelga no lo identifica (ticket 528694fa).
+ */
+const HOGAR = { subcategoria: "Hogar" };
 const COLUMNA_HOGAR = columnaSubgrupo(HOGAR);
 
 const prismaMock = {
@@ -401,7 +405,7 @@ describe("GET /api/objetivos-venta", () => {
     };
     // "Accesorios" no sale: su único producto no cuenta para objetivos.
     expect(data.subgrupos).toEqual([
-      { id: COLUMNA_HOGAR, categoria: "Telefonía", subcategoria: "Hogar", etiqueta: "Telefonía → Hogar" },
+      { id: COLUMNA_HOGAR, subcategoria: "Hogar", etiqueta: "Hogar" },
     ]);
     expect(data.articulos.map((a) => a.id)).toEqual(["art_fibra"]);
     expect(data.excluidos).toEqual(["Funda"]);
@@ -577,6 +581,8 @@ describe("PUT /api/objetivos-venta", () => {
       cantidad: 25,
     });
     expect(res.status).toBe(200);
+    // Se guarda sin categoría: dejarla rellena partiría en dos el objetivo de
+    // una misma subcategoría (una fila para Empresa y otra para Particular).
     expect(prismaMock.objetivoVenta.create).toHaveBeenCalledWith({
       data: {
         mes: "2026-07",
@@ -584,11 +590,31 @@ describe("PUT /api/objetivos-venta", () => {
         tiendaId: null,
         grupoId: null,
         articuloId: null,
-        ...HOGAR,
+        subcategoria: "Hogar",
+        categoria: null,
         cantidad: 25,
       },
       select: { id: true, cantidad: true },
     });
+  });
+
+  it("si llega una categoría junto a la subcategoría, se ignora", async () => {
+    // Lo que manda una hoja o un cliente antiguo: el objetivo sigue siendo del
+    // grupo entero, no del trozo de una categoría.
+    const res = await put({
+      mes: "2026-07",
+      ambito: "comercial",
+      sujetoId: "u_ana",
+      subcategoria: "Hogar",
+      categoria: "Telefonía",
+      cantidad: 25,
+    });
+    expect(res.status).toBe(200);
+    expect(prismaMock.objetivoVenta.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ subcategoria: "Hogar", categoria: null }),
+      }),
+    );
   });
 
   it("un grupo que no está en el catálogo se rechaza", async () => {

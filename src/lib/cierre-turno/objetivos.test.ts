@@ -51,8 +51,8 @@ const CATALOGO = [
   { id: "funda", categoria: "Accesorios", subcategoria: "Fundas", cuentaParaObjetivos: false },
 ];
 
-const POSPAGO = { categoria: "Telefonía", subcategoria: "Pospago" };
-const FUNDAS = { categoria: "Accesorios", subcategoria: "Fundas" };
+const POSPAGO = { subcategoria: "Pospago" };
+const FUNDAS = { subcategoria: "Fundas" };
 
 describe("normalizarMes", () => {
   it("acepta AAAA-MM", () => {
@@ -254,10 +254,29 @@ describe("grupos de productos y productos que no cuentan (ticket 714c76dd)", () 
     expect(vendidoPara(objetivo({ userId: "ana", ...FUNDAS }), ventas)).toBe(0);
   });
 
-  it("dos subcategorías con el mismo nombre en categorías distintas no se mezclan", () => {
+  it("la misma subcategoría en dos categorías es UN grupo y suma junta", () => {
+    // Ticket 528694fa: "Empresa → FFTH" y "Particular → FFTH" son el mismo
+    // objetivo. La categoría organiza el catálogo y filtra informes, pero no
+    // parte el objetivo en dos.
     const catalogo = [
-      { id: "a", categoria: "Telefonía", subcategoria: "Renove", cuentaParaObjetivos: true },
-      { id: "b", categoria: "Energía", subcategoria: "Renove", cuentaParaObjetivos: true },
+      { id: "a", categoria: "Empresa", subcategoria: "FFTH", cuentaParaObjetivos: true },
+      { id: "b", categoria: "Particular", subcategoria: "FFTH", cuentaParaObjetivos: true },
+    ];
+    const suyas = anotarVentas(
+      [
+        { userId: "ana", tiendaId: "t1", articuloId: "a", cantidad: 4 },
+        { userId: "ana", tiendaId: "t1", articuloId: "b", cantidad: 7 },
+      ],
+      catalogo,
+    );
+    expect(vendidoPara(objetivo({ userId: "ana", subcategoria: "FFTH" }), suyas)).toBe(11);
+  });
+
+  it("un objetivo antiguo con la categoría rellena sigue contando igual", () => {
+    // Los objetivos fijados antes del cambio traen `categoria`; se ignora.
+    const catalogo = [
+      { id: "a", categoria: "Empresa", subcategoria: "FFTH", cuentaParaObjetivos: true },
+      { id: "b", categoria: "Particular", subcategoria: "FFTH", cuentaParaObjetivos: true },
     ];
     const suyas = anotarVentas(
       [
@@ -267,11 +286,11 @@ describe("grupos de productos y productos que no cuentan (ticket 714c76dd)", () 
       catalogo,
     );
     expect(
-      vendidoPara(objetivo({ userId: "ana", categoria: "Telefonía", subcategoria: "Renove" }), suyas),
-    ).toBe(4);
-    expect(
-      vendidoPara(objetivo({ userId: "ana", categoria: "Energía", subcategoria: "Renove" }), suyas),
-    ).toBe(7);
+      vendidoPara(
+        objetivo({ userId: "ana", categoria: "Particular", subcategoria: "FFTH" }),
+        suyas,
+      ),
+    ).toBe(11);
   });
 
   it("lo vendido de un producto excluido no suma en las unidades totales", () => {
@@ -717,37 +736,47 @@ describe("objetivoDeCoordinacion — el objetivo de zona (ticket 73)", () => {
 });
 
 describe("evaluacionDeArticulo — el distintivo del catálogo (ticket cd804fa2)", () => {
-  const objetivos = (articuloIds: string[], grupos: { categoria: string | null; subcategoria: string }[]) => ({
+  const objetivos = (articuloIds: string[], grupos: { subcategoria: string }[]) => ({
     articuloIds: new Set(articuloIds),
     subgrupos: new Set(grupos.map((g) => columnaSubgrupo(g))),
   });
 
   it("con objetivo puesto sobre él, el producto se mide solo", () => {
-    const r = evaluacionDeArticulo({ id: "fibra", ...POSPAGO }, objetivos(["fibra"], []));
+    const r = evaluacionDeArticulo(
+      { id: "fibra", categoria: "Telefonía", ...POSPAGO },
+      objetivos(["fibra"], []),
+    );
     expect(r.modo).toBe("producto");
   });
 
   it("sin objetivo propio pero con el de su grupo, lo mide su subcategoría", () => {
-    const r = evaluacionDeArticulo({ id: "fibra", ...POSPAGO }, objetivos([], [POSPAGO]));
+    const r = evaluacionDeArticulo(
+      { id: "fibra", categoria: "Telefonía", ...POSPAGO },
+      objetivos([], [POSPAGO]),
+    );
     expect(r).toEqual({ modo: "grupo", grupo: POSPAGO });
   });
 
   it("sin objetivo ni suyo ni de su grupo, solo suma en unidades totales", () => {
-    const r = evaluacionDeArticulo({ id: "fibra", ...POSPAGO }, objetivos(["movil"], [FUNDAS]));
-    expect(r.modo).toBe("total");
-  });
-
-  it("el objetivo de otra subcategoría con el mismo nombre no lo mide", () => {
     const r = evaluacionDeArticulo(
-      { id: "renove", categoria: "Telefonía", subcategoria: "Renove" },
-      objetivos([], [{ categoria: "Energía", subcategoria: "Renove" }]),
+      { id: "fibra", categoria: "Telefonía", ...POSPAGO },
+      objetivos(["movil"], [FUNDAS]),
     );
     expect(r.modo).toBe("total");
   });
 
+  it("el objetivo de su subcategoría lo mide, cuelgue de la categoría que cuelgue", () => {
+    const r = evaluacionDeArticulo(
+      { id: "renove", categoria: "Telefonía", subcategoria: "Renove" },
+      objetivos([], [{ subcategoria: "Renove" }]),
+    );
+    expect(r.modo).toBe("grupo");
+    expect(r.grupo).toEqual({ subcategoria: "Renove" });
+  });
+
   it("marcado como que no cuenta, no lo evalúa nada", () => {
     const r = evaluacionDeArticulo(
-      { id: "funda", ...FUNDAS, cuentaParaObjetivos: false },
+      { id: "funda", categoria: "Accesorios", ...FUNDAS, cuentaParaObjetivos: false },
       objetivos([], [FUNDAS]),
     );
     expect(r.modo).toBe("excluido");
@@ -757,7 +786,7 @@ describe("evaluacionDeArticulo — el distintivo del catálogo (ticket cd804fa2)
     // Misma regla que `vendidoPara`: un objetivo sobre el artículo concreto sí
     // mide sus ventas aunque no cuente para el total ni para su grupo.
     const r = evaluacionDeArticulo(
-      { id: "funda", ...FUNDAS, cuentaParaObjetivos: false },
+      { id: "funda", categoria: "Accesorios", ...FUNDAS, cuentaParaObjetivos: false },
       objetivos(["funda"], []),
     );
     expect(r.modo).toBe("producto");

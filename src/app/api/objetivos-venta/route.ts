@@ -322,7 +322,6 @@ export const GET = withTenant(
       // pantalla no tenga que componerla.
       subgrupos: subgrupos.map((g) => ({
         id: columnaSubgrupo(g),
-        categoria: g.categoria,
         subcategoria: g.subcategoria,
         etiqueta: etiquetaSubgrupo(g),
       })),
@@ -386,20 +385,21 @@ export const PUT = withTenant(
     }
     const articuloId = typeof body.articuloId === "string" && body.articuloId ? body.articuloId : null;
     // Grupo de productos: la subcategoría del catálogo, tal cual se guardó
-    // allí, con la categoría de la que cuelga (la misma subcategoría puede
-    // colgar de dos categorías y son dos grupos distintos).
+    // allí. La categoría NO forma parte del grupo (ticket 528694fa): un
+    // objetivo de "FFTH" lo empujan los productos de FFTH de todas las
+    // categorías. Si llega una categoría, se ignora.
     const subcategoria = normalizarCategoriaArticulo(body.subcategoria);
-    const categoria = normalizarCategoriaArticulo(body.categoria);
+    const categoriaRecibida = normalizarCategoriaArticulo(body.categoria);
     if (articuloId && subcategoria) {
       return NextResponse.json(
         { error: "Un objetivo es de un producto o de un grupo, no de los dos." },
         { status: 400 },
       );
     }
-    // La categoría por sí sola ya no es un grupo con objetivo: es organización
-    // del catálogo y dato de informes (ticket 234c6b0f). Se dice en vez de
-    // guardar una fila que no mediría nada.
-    if (categoria && !subcategoria) {
+    // La categoría no es un nivel con objetivo: sola no vale (se avisa en vez de
+    // guardar una fila que mediría otra cosa) y acompañando a una subcategoría
+    // se ignora, porque el grupo es la subcategoría entera.
+    if (categoriaRecibida && !subcategoria) {
       return NextResponse.json(
         {
           error:
@@ -408,7 +408,6 @@ export const PUT = withTenant(
         { status: 400 },
       );
     }
-
     // Comprobar que el destinatario y el artículo existen: un objetivo de un id
     // inventado no se vería en ninguna pantalla y quedaría de basura en la tabla.
     if (ambito === "comercial") {
@@ -454,7 +453,7 @@ export const PUT = withTenant(
       // El grupo tiene que existir en el catálogo activo y tener algún producto
       // que cuente: si no, sería un objetivo que nadie puede cumplir.
       const hay = await prisma.articuloVenta.findFirst({
-        where: { activo: true, categoria, subcategoria, cuentaParaObjetivos: true },
+        where: { activo: true, subcategoria, cuentaParaObjetivos: true },
         select: { id: true },
       });
       if (!hay) {
@@ -474,8 +473,10 @@ export const PUT = withTenant(
       // casaría con el del grupo que tuviera el mismo mes y producto.
       grupoId: ambito === "grupo" ? body.sujetoId : null,
       articuloId,
-      categoria,
       subcategoria,
+      // Sin categoría: dejó de identificar un grupo, y dejarla rellena
+      // partiría en dos el objetivo de una misma subcategoría.
+      categoria: null,
     };
 
     // No se usa `upsert` sobre la clave única (mes, userId, tiendaId,

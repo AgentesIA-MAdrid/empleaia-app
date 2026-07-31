@@ -51,7 +51,7 @@ const catalogo = [
 ];
 
 /** El grupo con objetivo es la subcategoría (ticket 234c6b0f). */
-const HOGAR = { categoria: "Telefonía", subcategoria: "Hogar" };
+const HOGAR = { subcategoria: "Hogar" };
 
 /** Ventas de Ana en la sede t1, con el catálogo ya anotado. */
 function venta(fecha: string, articuloId: string | null, cantidad: number): VentaDia {
@@ -206,19 +206,7 @@ describe("filas de seguimiento", () => {
   it("un concepto que ya no existe cae en unidades totales", () => {
     expect(normalizarConcepto("art_borrado", catalogo, [HOGAR]).tipo).toBe("total");
     expect(
-      normalizarConcepto(
-        columnaSubgrupo({ categoria: "Telefonía", subcategoria: "Fantasma" }),
-        catalogo,
-        [HOGAR],
-      ).tipo,
-    ).toBe("total");
-    // Mismo nombre de subcategoría, otra categoría: es otro grupo y no existe.
-    expect(
-      normalizarConcepto(
-        columnaSubgrupo({ categoria: "Energía", subcategoria: "Hogar" }),
-        catalogo,
-        [HOGAR],
-      ).tipo,
+      normalizarConcepto(columnaSubgrupo({ subcategoria: "Fantasma" }), catalogo, [HOGAR]).tipo,
     ).toBe("total");
   });
 

@@ -49,7 +49,7 @@ const catalogo: ArticuloPlantilla[] = [
 ];
 
 /** El grupo con objetivo es la subcategoría (ticket 234c6b0f). */
-const HOGAR = { categoria: "Telefonía", subcategoria: "Hogar" };
+const HOGAR = { subcategoria: "Hogar" };
 const FUNDAS = { categoria: "Accesorios", subcategoria: "Fundas" };
 
 const ctx = {
@@ -75,10 +75,10 @@ const objetivo = (o: Partial<ObjetivoFila>): ObjetivoFila => ({
 });
 
 describe("columnasPlantilla", () => {
-  it("lleva unidades totales, un grupo por categoría y un producto por artículo", () => {
+  it("lleva unidades totales, un grupo por subcategoría y un producto por artículo", () => {
     expect(columnasPlantilla(catalogo).map((c) => c.titulo)).toEqual([
       "Unidades totales",
-      "Grupo: Telefonía → Hogar",
+      "Grupo: Hogar",
       "Alta de fibra",
       "Portabilidad",
     ]);
@@ -157,7 +157,7 @@ describe("interpretarPlantillaObjetivos", () => {
     "Comercial o punto de venta",
     "Id",
     "Unidades totales",
-    "Grupo: Telefonía → Hogar",
+    "Grupo: Hogar",
     "Alta de fibra",
   ];
 
@@ -254,8 +254,11 @@ describe("interpretarPlantillaObjetivos", () => {
     ]);
   });
 
-  it("casa el grupo por su nombre pelado y, si se repite, pide la categoría delante", () => {
-    const conRepetidos = {
+  it("la misma subcategoría en dos categorías es un solo grupo, y se casa por su nombre", () => {
+    // Ticket 528694fa: ya no hay grupos homónimos que desambiguar. Y una hoja
+    // descargada antes del cambio trae "Categoría → Subcategoría" en la
+    // cabecera: se sigue aceptando, vale lo que va tras la flecha.
+    const dosCategorias = {
       ...ctx,
       articulos: [
         {
@@ -276,23 +279,34 @@ describe("interpretarPlantillaObjetivos", () => {
     };
     const r = interpretarPlantillaObjetivos(
       [
-        ["Ámbito", "Comercial o punto de venta", "Id", "Grupo: Energía → Renove", "Grupo: Renove"],
-        ["Comercial", "Ana García", "u_ana", "7", "3"],
+        ["Ámbito", "Comercial o punto de venta", "Id", "Grupo: Renove"],
+        ["Comercial", "Ana García", "u_ana", "7"],
       ],
-      conRepetidos,
+      dosCategorias,
     );
     expect(r.cambios).toEqual([
       expect.objectContaining({
         sujetoId: "u_ana",
         articuloId: null,
-        categoria: "Energía",
+        categoria: null,
         subcategoria: "Renove",
         cantidad: 7,
       }),
     ]);
-    expect(r.columnasIgnoradas).toEqual([
-      { columna: "Grupo: Renove", motivo: expect.stringContaining("dos subcategorías") },
+    expect(r.columnasIgnoradas).toEqual([]);
+
+    // Cabecera del formato antiguo, con la categoría delante.
+    const antigua = interpretarPlantillaObjetivos(
+      [
+        ["Ámbito", "Comercial o punto de venta", "Id", "Grupo: Energía → Renove"],
+        ["Comercial", "Ana García", "u_ana", "5"],
+      ],
+      dosCategorias,
+    );
+    expect(antigua.cambios).toEqual([
+      expect.objectContaining({ subcategoria: "Renove", categoria: null, cantidad: 5 }),
     ]);
+    expect(antigua.columnasIgnoradas).toEqual([]);
   });
 
   it("una cantidad que no es un número entero se cuenta como casilla ignorada", () => {
@@ -324,7 +338,7 @@ describe("grupos de objetivos en la plantilla (ticket ff5ab304)", () => {
     "Comercial, punto de venta o grupo",
     "Id",
     "Unidades totales",
-    "Grupo: Telefonía → Hogar",
+    "Grupo: Hogar",
     "Alta de fibra",
   ];
 

@@ -1912,14 +1912,16 @@ model ObjetivoVenta {
   /// null).
   ///
   /// El comercial sigue registrando sus ventas producto a producto; la cifra
-  /// que se compara con el objetivo es la suma de los productos de esa
-  /// subcategoría (ticket 234c6b0f).
+  /// que se compara con el objetivo es la suma de TODOS los productos de esa
+  /// subcategoría, cuelguen de la categoría que cuelguen (tickets 234c6b0f y
+  /// 528694fa).
   subcategoria String?
-  /// Categoría de esa subcategoría, para saber de cuál se trata: la misma
-  /// subcategoría ("Pospago") puede colgar de dos categorías distintas y son
-  /// dos grupos distintos, igual que en el catálogo. Solo se rellena junto a
-  /// `subcategoria`; la categoría por sí sola ya no es un grupo con objetivo
-  /// —es un dato de organización y de informes (ticket 234c6b0f).
+  /// **Sin uso desde el ticket 528694fa.** La categoría (Particular, Empresa)
+  /// organiza el catálogo, filtra informes y la elige el comercial al registrar
+  /// la venta, pero NO es un nivel con objetivo: el objetivo de "FFTH" lo
+  /// empujan los productos de FFTH de todas las categorías. Se dejó de escribir
+  /// (siempre null) y el código la ignora al leer; la columna se conserva
+  /// porque vaciarla es reversible y borrarla no.
   categoria  String?
   cantidad   Int            @default(0)
 
