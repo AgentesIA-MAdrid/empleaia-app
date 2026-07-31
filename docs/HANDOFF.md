@@ -137,6 +137,14 @@ PRs de esta sesión: **#92** (entrega 3) y **#93** (entrega 4). Antes:
    devuelve `filasComerciales`/`filasSedes` + sus totales por columna
    (`construirMatriz`/`totalesMatriz` en `src/lib/cierre-turno/objetivos.ts`).
    El modelo `ObjetivoVenta` no cambia.
+   **Actualización 2026-07-31** (ticket b4636ad5): la columna "Unidades
+   totales" ya no es un objetivo aparte que se queda a cero cuando se
+   rellena la parrilla producto a producto — si no está fijada a mano
+   vale la **suma de los objetivos por producto** de esa fila
+   (`objetivoTotalDe`, misma regla en el pie de tabla, en las tarjetas
+   del resumen y en el paso 2 del asistente). Escribir un número en esa
+   casilla sigue mandando sobre la suma (sirve para contar también lo
+   que no tiene columna propia); borrarlo devuelve la suma.
 3. **Entrega 4 (PR #93)** — arqueos semanales por sede y semana ISO, con
    recogida firmada por PIN (bcrypt, bloqueo temporal de 15 min tras 5
    fallos, gestión de autorizados y PIN desde la propia pantalla) y

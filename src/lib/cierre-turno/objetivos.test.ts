@@ -8,6 +8,7 @@ import {
   mesAnterior,
   normalizarCantidadObjetivo,
   normalizarMes,
+  objetivoTotalDe,
   progresoDe,
   rangoMes,
   vendidoDeSujeto,
@@ -247,6 +248,18 @@ describe("progresoDe", () => {
       consecucion: null,
     });
   });
+
+  it("si solo hay objetivos por producto, el total es su suma", () => {
+    const soloProductos = [
+      objetivo({ id: "fibra-luis", userId: "luis", articuloId: "fibra", cantidad: 4 }),
+      objetivo({ id: "movil-luis", userId: "luis", articuloId: "movil", cantidad: 2 }),
+    ];
+    expect(progresoDe(soloProductos, VENTAS, { ambito: "comercial", id: "luis" })).toEqual({
+      vendido: 3,
+      objetivo: 6,
+      consecucion: 50,
+    });
+  });
 });
 
 describe("construirMatriz", () => {
@@ -301,7 +314,10 @@ describe("construirMatriz", () => {
       vendido: 9,
       consecucion: 112.5,
     });
-    expect(filas[0].celdas[""].objetivo).toBeNull();
+    // Sin objetivo de unidades totales fijado a mano, el total es la suma de
+    // los productos de esa fila (aquí, solo fibra).
+    expect(filas[0].celdas[""].objetivo).toBe(8);
+    expect(filas[0].celdas[""].derivado).toBe(true);
     expect(filas[0].celdas[""].vendido).toBe(13);
     expect(filas[0].sede).toBeNull();
   });
@@ -337,12 +353,62 @@ describe("totalesMatriz", () => {
       consecucion: 90,
       conObjetivo: 2,
     });
-    // Sin ningún objetivo en la columna no hay consecución que enseñar.
+    // Y el total de unidades cuadra con lo puesto producto a producto: nadie
+    // fijó un total a mano, así que sale de sumar las columnas.
+    expect(totalesMatriz(filas, ["fibra"])[""]).toEqual({
+      objetivo: 10,
+      vendido: 13,
+      consecucion: 130,
+      conObjetivo: 2,
+    });
+  });
+
+  it("sin ningún objetivo en la parrilla no hay consecución que enseñar", () => {
+    const filas = construirMatriz(
+      "comercial",
+      [{ id: "ana", nombre: "Ana" }],
+      ["fibra"],
+      [],
+      VENTAS,
+    );
     expect(totalesMatriz(filas, ["fibra"])[""]).toEqual({
       objetivo: 0,
-      vendido: 13,
+      vendido: 10,
       consecucion: null,
       conObjetivo: 0,
     });
+  });
+});
+
+describe("objetivoTotalDe", () => {
+  it("manda el objetivo de unidades totales fijado a mano", () => {
+    const r = objetivoTotalDe([
+      objetivo({ id: "total", userId: "ana", cantidad: 30 }),
+      objetivo({ id: "fibra", userId: "ana", articuloId: "fibra", cantidad: 5 }),
+    ]);
+    expect(r).toEqual({ cantidad: 30, derivado: false });
+  });
+
+  it("si no lo hay, suma lo puesto producto a producto", () => {
+    const r = objetivoTotalDe([
+      objetivo({ id: "fibra", userId: "ana", articuloId: "fibra", cantidad: 5 }),
+      objetivo({ id: "movil", userId: "ana", articuloId: "movil", cantidad: 7 }),
+    ]);
+    expect(r).toEqual({ cantidad: 12, derivado: true });
+  });
+
+  it("solo suman los productos del catálogo, que son las columnas que se ven", () => {
+    const r = objetivoTotalDe(
+      [
+        objetivo({ id: "fibra", userId: "ana", articuloId: "fibra", cantidad: 5 }),
+        objetivo({ id: "viejo", userId: "ana", articuloId: "retirado", cantidad: 7 }),
+      ],
+      ["fibra"],
+    );
+    expect(r).toEqual({ cantidad: 5, derivado: true });
+  });
+
+  it("sin ningún objetivo no inventa un cero", () => {
+    expect(objetivoTotalDe([])).toEqual({ cantidad: null, derivado: false });
   });
 });

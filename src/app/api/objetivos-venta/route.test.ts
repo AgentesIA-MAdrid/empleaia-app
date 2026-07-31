@@ -188,6 +188,56 @@ describe("GET /api/objetivos-venta", () => {
     expect(data.filasSedes[0].celdas["art_fibra"].objetivo).toBeNull();
   });
 
+  it("las unidades totales cuadran con lo puesto producto a producto", async () => {
+    // Lo que reportó el cliente: rellenaba la parrilla producto a producto y el
+    // total (columna, pie de tabla y tarjetas de arriba) se quedaba a cero.
+    objetivosExistentes.push({
+      id: "obj_ana_fibra",
+      mes: "2026-07",
+      userId: "u_ana",
+      tiendaId: null,
+      articuloId: "art_fibra",
+      cantidad: 12,
+    });
+    const res = await get("?mes=2026-07");
+    const data = (await res.json()) as {
+      filasComerciales: { celdas: Record<string, { objetivo: number | null; derivado?: boolean }> }[];
+      totalesComerciales: Record<string, { objetivo: number }>;
+      resumen: { objetivo: number; conObjetivo: number };
+    };
+    expect(data.filasComerciales[0].celdas[""].objetivo).toBe(12);
+    expect(data.filasComerciales[0].celdas[""].derivado).toBe(true);
+    expect(data.totalesComerciales[""].objetivo).toBe(12);
+    expect(data.resumen).toMatchObject({ objetivo: 12, conObjetivo: 1 });
+  });
+
+  it("un objetivo de unidades totales fijado a mano manda sobre la suma", async () => {
+    objetivosExistentes.push(
+      {
+        id: "obj_ana_fibra",
+        mes: "2026-07",
+        userId: "u_ana",
+        tiendaId: null,
+        articuloId: "art_fibra",
+        cantidad: 12,
+      },
+      {
+        id: "obj_ana_total",
+        mes: "2026-07",
+        userId: "u_ana",
+        tiendaId: null,
+        articuloId: null,
+        cantidad: 30,
+      },
+    );
+    const res = await get("?mes=2026-07");
+    const data = (await res.json()) as {
+      filasComerciales: { celdas: Record<string, { objetivo: number | null; derivado?: boolean }> }[];
+    };
+    expect(data.filasComerciales[0].celdas[""].objetivo).toBe(30);
+    expect(data.filasComerciales[0].celdas[""].derivado).toBeUndefined();
+  });
+
   it("rechaza un mes con formato inventado", async () => {
     const res = await get("?mes=julio");
     expect(res.status).toBe(400);
