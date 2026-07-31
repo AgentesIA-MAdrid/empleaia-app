@@ -12,6 +12,10 @@
  *
  * El asistente NO condiciona el fichaje: se puede fichar la salida sin haber
  * cerrado (RD 8/2019, misma regla que el geofencing y el checklist de fichaje).
+ *
+ * Vive en su propia pantalla (`/empleado/cierre-turno`) y, con `enDialogo`,
+ * también dentro de una ventana emergente (ver `BotonCierreDia`): es el mismo
+ * asistente, sin su cabecera de página porque el título lo pone el diálogo.
  */
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -82,7 +86,15 @@ const TITULOS: Record<PasoCierre, string> = {
   incidencias: "Incidencias",
 };
 
-export function AsistenteCierre() {
+export function AsistenteCierre({
+  enDialogo = false,
+  onGuardado,
+}: {
+  /** Dentro de una ventana emergente: sin cabecera de página ni ancho propio. */
+  enDialogo?: boolean;
+  /** Tras cada guardado con éxito, para que quien lo abrió refresque sus datos. */
+  onGuardado?: () => void;
+}) {
   const [paso, setPaso] = useState<PasoCierre>("ventas");
   const [articulos, setArticulos] = useState<Articulo[]>([]);
   const [catalogoVacio, setCatalogoVacio] = useState(false);
@@ -177,6 +189,7 @@ export function AsistenteCierre() {
         toast({ title: "No se pudo guardar", description: data.error ?? "Inténtalo de nuevo.", variant: "destructive" });
         return false;
       }
+      onGuardado?.();
       return true;
     } catch {
       toast({ title: "Sin conexión", description: "No se ha podido guardar. Revisa la cobertura.", variant: "destructive" });
@@ -204,6 +217,7 @@ export function AsistenteCierre() {
         setCajaConfirmada(true);
         toast({ title: "Caja confirmada", description: "A partir de ahora solo un administrador puede corregirla." });
       }
+      onGuardado?.();
       return true;
     } catch {
       toast({ title: "Sin conexión", description: "No se ha podido guardar la caja.", variant: "destructive" });
@@ -329,6 +343,7 @@ export function AsistenteCierre() {
         return;
       }
       setCerrado(true);
+      onGuardado?.();
       toast({
         title: "Turno cerrado",
         description: data.conIncidencia
@@ -356,13 +371,15 @@ export function AsistenteCierre() {
   const grupos = useMemo(() => agruparCatalogo(articulos), [articulos]);
 
   return (
-    <div className="p-6 space-y-6 max-w-3xl">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Cierre de turno</h1>
-        <p className="text-slate-500 text-sm mt-1">
-          Registra tus ventas del día, cierra la caja y avisa de cualquier incidencia.
-        </p>
-      </div>
+    <div className={enDialogo ? "space-y-6" : "p-6 space-y-6 max-w-3xl"}>
+      {!enDialogo && (
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Cierre de turno</h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Registra tus ventas del día, cierra la caja y avisa de cualquier incidencia.
+          </p>
+        </div>
+      )}
 
       {/* Tira de pasos: la numeración es información real, es una secuencia. */}
       <ol className="flex flex-wrap gap-2">
