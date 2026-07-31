@@ -12,6 +12,7 @@
  * importar desde componentes de cliente.
  */
 import { PDFDocument, StandardFonts, degrees, rgb, type PDFImage } from "pdf-lib";
+import { fechaHoraEnZona } from "@/lib/fechas/zona";
 
 interface DataUrlParts {
   mime: string;
@@ -43,6 +44,12 @@ interface EstamparParams {
   dni: string;
   /** Momento de la firma. */
   fecha: Date;
+  /**
+   * Zona del cliente (`ConfiguracionEmpresa.zonaHoraria`). El sello va impreso
+   * en el documento y tiene que decir la hora que marcó el reloj de quien
+   * firmó, no la del servidor —que en producción es UTC (ticket 3c91f0ab).
+   */
+  zonaHoraria?: string | null;
 }
 
 // Geometría del sello (en puntos PDF).
@@ -107,13 +114,7 @@ export async function estamparFirmaEnDocumento(
   }
 
   const font = await pdf.embedFont(StandardFonts.Helvetica);
-  const fecha = params.fecha.toLocaleString("es-ES", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const fecha = fechaHoraEnZona(params.fecha, params.zonaHoraria);
   const texto = `Firmado por ${params.nombre} · DNI ${params.dni} · ${fecha}`;
 
   // El garabato se dibuja rotado 90°: su lado largo queda a lo alto de la hoja.

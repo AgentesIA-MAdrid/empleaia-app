@@ -11,6 +11,7 @@
  */
 
 import { prismaApp as prisma } from "@/lib/prisma";
+import { fechaHoraEnZona, ZONA_DEFECTO } from "@/lib/fechas/zona";
 import { sendSystemEmail } from "@/lib/email";
 import { Rol } from "@/generated/prisma-tenant/client";
 import type { TipoFichaje, EstadoSolicitudFichaje } from "@/generated/prisma-tenant/client";
@@ -38,6 +39,8 @@ interface Branding {
   colorPrimario: string;
   colorSidebar: string;
   logo: string | null;
+  /** Zona horaria del cliente, para escribir las horas como las lee él. */
+  zona: string;
 }
 
 /** Escapa texto para interpolarlo de forma segura en HTML de email. */
@@ -64,6 +67,9 @@ async function getBranding(): Promise<Branding> {
         colorPrimario: true,
         colorSidebar: true,
         logo: true,
+        // La zona del cliente: sin ella, las horas se escribirían en la del
+        // servidor, que en producción es UTC (ticket 3c91f0ab).
+        zonaHoraria: true,
       },
     });
     return {
@@ -71,20 +77,26 @@ async function getBranding(): Promise<Branding> {
       colorPrimario: cfg?.colorPrimario ?? "#6366f1",
       colorSidebar: cfg?.colorSidebar ?? "#1e1b4b",
       logo: cfg?.logo ?? null,
+      zona: cfg?.zonaHoraria ?? ZONA_DEFECTO,
     };
   } catch {
-    return { empresa: "empleaIA", colorPrimario: "#6366f1", colorSidebar: "#1e1b4b", logo: null };
+    return {
+      empresa: "empleaIA",
+      colorPrimario: "#6366f1",
+      colorSidebar: "#1e1b4b",
+      logo: null,
+      zona: ZONA_DEFECTO,
+    };
   }
 }
 
-function fmt(d: Date): string {
-  return new Intl.DateTimeFormat("es-ES", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(d);
+/**
+ * La hora tal como la lee el cliente. Antes se formateaba sin zona y el
+ * contenedor de producción va en UTC: una salida ajustada a las 16:00 del
+ * cuadrante se anunciaba como "14:00" (ticket 3c91f0ab).
+ */
+function fmt(d: Date, zona: string): string {
+  return fechaHoraEnZona(d, zona);
 }
 
 function shell(b: Branding, titulo: string, cuerpo: string): string {
@@ -128,7 +140,7 @@ export async function notifySolicitudCreada(s: SolicitudCtx): Promise<void> {
     const tipoTxt = TIPO_LABEL[s.tipo] ?? s.tipo;
     const accion = s.clase === "correccion" ? "corregir" : "registrar";
     const titulo = "Nueva solicitud de fichaje";
-    const mensaje = `${empleado} pide ${accion} un fichaje de ${tipoTxt} (${fmt(s.fechaHora)}).`;
+    const mensaje = `${empleado} pide ${accion} un fichaje de ${tipoTxt} (${fmt(s.fechaHora, b.zona)}).`;
     const enlace = "/admin/solicitudes-fichaje";
 
     // In-app para cada destinatario.
@@ -170,7 +182,7 @@ export async function notifySolicitudResuelta(s: SolicitudCtx): Promise<void> {
     const titulo = aprobada
       ? "Tu solicitud de fichaje ha sido aprobada"
       : "Tu solicitud de fichaje ha sido rechazada";
-    const mensaje = `Solicitud de ${tipoTxt} (${fmt(s.fechaHora)}): ${aprobada ? "aprobada" : "rechazada"}.`;
+    const mensaje = `Solicitud de ${tipoTxt} (${fmt(s.fechaHora, b.zona)}): ${aprobada ? "aprobada" : "rechazada"}.`;
 
     await prisma.notificacion.create({
       data: {

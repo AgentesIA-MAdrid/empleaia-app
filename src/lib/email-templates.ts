@@ -1,3 +1,5 @@
+import { fechaHoraEnZona } from "@/lib/fechas/zona";
+
 interface BienvenidaParams {
   nombre: string;
   apellidos: string;
@@ -529,16 +531,17 @@ interface FichajeFueraSedeParams {
   colorSidebar: string;
   logo?: string | null;
   appUrl?: string;
+  /** Zona del cliente, para escribir la hora como la lee él. */
+  zonaHoraria?: string | null;
 }
 
-function fmtFechaHora(d: Date): string {
-  return d.toLocaleString("es-ES", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+/**
+ * La hora como la lee el cliente. Sin zona se escribía la del servidor, que en
+ * producción es UTC, y el correo anunciaba el fichaje dos horas antes de la que
+ * marcó el reloj (ticket 3c91f0ab).
+ */
+function fmtFechaHora(d: Date, zona?: string | null): string {
+  return fechaHoraEnZona(d, zona, { month: "long" });
 }
 
 /** 850 → "850 m"; 1240 → "1,2 km". */
@@ -581,7 +584,7 @@ export function fichajeFueraSedeTemplate(p: FichajeFueraSedeParams): string {
         <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
           ${row("Empleado", escapeHtml(p.empleadoNombre))}
           ${row("Tipo", escapeHtml(p.tipo))}
-          ${row("Fecha y hora", fmtFechaHora(p.timestamp))}
+          ${row("Fecha y hora", fmtFechaHora(p.timestamp, p.zonaHoraria))}
           ${row("Sede", escapeHtml(p.sedeNombre))}
           ${row("Distancia", `${fmtDistancia(p.distancia)} (radio: ${fmtDistancia(p.radio)})`)}
           ${mapa ? row("Ubicación", `<a href="${mapa}" style="color:${p.colorPrimario};">Ver en mapa</a>`) : ""}
