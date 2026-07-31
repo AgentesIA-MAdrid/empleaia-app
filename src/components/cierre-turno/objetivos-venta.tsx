@@ -13,9 +13,11 @@
  *
  * Forma de trabajar: para el mes elegido se rellena una parrilla. Primero la de
  * comerciales —una fila por persona y una columna por producto del catálogo—,
- * y debajo la misma parrilla para los puntos de venta. Son objetivos distintos:
- * el de la sede se compara con lo que vende la sede entera, no con la suma de
- * los de su equipo, y por eso van en dos tablas separadas.
+ * debajo la misma parrilla para los puntos de venta y, al final, la de los
+ * grupos de objetivos que haya montado el cliente (TMT, televenta…). Son
+ * objetivos distintos: el de la sede se compara con lo que vende la sede
+ * entera, no con la suma de los de su equipo, y el del grupo con lo que venden
+ * sus miembros; por eso van en tablas separadas (ticket ff5ab304).
  *
  * La primera columna de cada parrilla es "Unidades totales" (el objetivo sin
  * producto), que es el que ve el comercial en el paso 2 de su cierre de turno.
@@ -35,15 +37,26 @@
  * borrar aparte sería trabajo de más.
  */
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Building2, Target, Trash2, TrendingUp, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  Building2,
+  Download,
+  FileSpreadsheet,
+  Layers,
+  Target,
+  Trash2,
+  TrendingUp,
+  Upload,
+  Users,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { GruposObjetivoDialog } from "@/components/cierre-turno/grupos-objetivo-dialog";
 import { useToast } from "@/hooks/use-toast";
 
-type Ambito = "comercial" | "sede";
+type Ambito = "comercial" | "sede" | "grupo";
 
 /** Columna de unidades totales: el objetivo sin producto (ver `objetivos.ts`). */
 const COLUMNA_TOTAL = "";
@@ -78,6 +91,7 @@ interface Celda {
 interface FilaMatriz {
   sujetoId: string;
   sujeto: string;
+  /** Sede del comercial; en las filas de grupo, de qué se compone el grupo. */
   sede: string | null;
   celdas: Record<string, Celda>;
 }
@@ -102,6 +116,18 @@ interface ObjetivoDelMes {
   importe: number | null;
 }
 
+/** Lo que devuelve el importador de la plantilla de objetivos. */
+interface ResumenImportacion {
+  mes: string;
+  creados: number;
+  actualizados: number;
+  borrados: number;
+  sinCambios: number;
+  ignoradas: { fila: number; motivo: string }[];
+  totalIgnoradas: number;
+  columnasIgnoradas: { columna: string; motivo: string }[];
+}
+
 /** Objetivo de zona de una coordinadora (ticket 73). */
 interface ObjetivoPropio {
   objetivo: number;
@@ -124,8 +150,11 @@ interface Respuesta {
   excluidos: string[];
   filasComerciales: FilaMatriz[];
   filasSedes: FilaMatriz[];
+  /** Una fila por grupo de objetivos del cliente (TMT, televenta…). */
+  filasGrupos: FilaMatriz[];
   totalesComerciales: Record<string, TotalColumna>;
   totalesSedes: Record<string, TotalColumna>;
+  totalesGrupos: Record<string, TotalColumna>;
   objetivosDelMes: ObjetivoDelMes[];
   resumen: { objetivo: number; vendido: number; conObjetivo: number };
   /** Solo para coordinación: su objetivo de zona. null para administración. */
@@ -416,6 +445,11 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState<string | null>(null);
+  const [descargando, setDescargando] = useState(false);
+  const [importando, setImportando] = useState(false);
+  const [resumenImport, setResumenImport] = useState<ResumenImportacion | null>(null);
+  const [gruposAbierto, setGruposAbierto] = useState(false);
+  const inputFichero = useRef<HTMLInputElement>(null);
 
   /**
    * `silencioso` refresca sin enseñar el esqueleto de carga: al guardar una
@@ -490,6 +524,89 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
     }
   };
 
+  /**
+   * Descarga la plantilla del mes elegido: la misma parrilla en Excel, ya
+   * rellena con lo que hay fijado. Es también la forma de exportar los
+   * objetivos para trabajarlos fuera.
+   */
+  const descargarPlantilla = async () => {
+    setDescargando(true);
+    try {
+      const res = await fetch(`/api/objetivos-venta/plantilla?${new URLSearchParams({ mes })}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast({
+          title: "No se ha podido generar la plantilla",
+          description: (data as { error?: string }).error ?? "Inténtalo de nuevo.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `objetivos_venta_${mes}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "Sin conexión", description: "No se ha descargado la plantilla.", variant: "destructive" });
+    } finally {
+      setDescargando(false);
+    }
+  };
+
+  /**
+   * Sube la plantilla rellena. Se manda el mes que hay en pantalla: el servidor
+   * comprueba que coincide con el que trae la hoja para no volcar los objetivos
+   * de un mes encima de los de otro.
+   */
+  const importarPlantilla = async (fichero: File) => {
+    setImportando(true);
+    setResumenImport(null);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result));
+        fr.onerror = () => reject(new Error("No se ha podido leer el archivo"));
+        fr.readAsDataURL(fichero);
+      });
+
+      const res = await fetch("/api/objetivos-venta/importar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mes, nombreFichero: fichero.name, contenidoBase64: base64 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({
+          title: "No se ha podido importar",
+          description: (data as { error?: string }).error ?? "Revisa el archivo e inténtalo de nuevo.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const resumen = data as ResumenImportacion;
+      setResumenImport(resumen);
+      toast({
+        title: "Objetivos importados",
+        description: `${resumen.creados} nuevos, ${resumen.actualizados} actualizados${
+          resumen.borrados ? `, ${resumen.borrados} quitados` : ""
+        }.`,
+      });
+      await cargar(true);
+    } catch (err) {
+      toast({
+        title: "Error al subir",
+        description: err instanceof Error ? err.message : "Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setImportando(false);
+      if (inputFichero.current) inputFichero.current.value = "";
+    }
+  };
+
   const quitar = async (id: string) => {
     const res = await fetch(`/api/objetivos-venta?id=${encodeURIComponent(id)}`, { method: "DELETE" });
     if (!res.ok) {
@@ -531,11 +648,62 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
     <div className="space-y-6">
       <Card>
         <CardContent className="pt-4 pb-4">
-          <p className="text-xs text-slate-400 max-w-3xl">
+          {/* El mes NO se elige aquí: lo manda el área, que es común a esta
+              subárea y al seguimiento (ticket 82). Aquí solo lo que actúa sobre
+              la parrilla del mes que ya venga elegido. */}
+          <div className="flex items-end gap-4 flex-wrap">
+            {/* Excel: la parrilla entera de un mes se rellena mucho más rápido
+                fuera, y la hoja baja ya con lo que hay fijado. */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button variant="outline" disabled={descargando} onClick={() => void descargarPlantilla()}>
+                <Download className="h-4 w-4 mr-2" />
+                {descargando ? "Preparando…" : "Descargar plantilla"}
+              </Button>
+              {!soloLectura && (
+                <>
+                  <input
+                    ref={inputFichero}
+                    type="file"
+                    accept=".xlsx,.xls,.csv,text/csv"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) void importarPlantilla(f);
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    disabled={importando}
+                    onClick={() => inputFichero.current?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {importando ? "Importando…" : "Importar objetivos"}
+                  </Button>
+                  {/* Los grupos se montan desde aquí: quien está rellenando la
+                      parrilla es quien se da cuenta de que le falta uno. */}
+                  <Button variant="outline" onClick={() => setGruposAbierto(true)}>
+                    <Layers className="h-4 w-4 mr-2" />
+                    Grupos de objetivos
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-400 mt-3 max-w-3xl">
+            <strong className="font-medium text-slate-500">Con Excel:</strong> descarga la plantilla
+            del mes elegido —baja con una fila por comercial, por punto de venta y por grupo, y una
+            columna por grupo de productos y por producto, ya con los objetivos que tengas
+            puestos—, rellénala y vuelve a subirla. Una casilla en blanco se deja como está; para
+            quitar un objetivo, escribe 0.
+          </p>
+          <p className="text-xs text-slate-400 mt-3 max-w-3xl">
             Cada casilla es el objetivo de unidades del mes elegido. Debajo de la casilla verás lo
-            que se lleva vendido y la consecución. Los objetivos de los comerciales y los de las
-            sedes son independientes: el de una sede se compara con lo que vende la sede completa,
-            no con la suma de los de su equipo.
+            que se lleva vendido y la consecución. Hay tres tablas y son independientes entre sí:
+            la de cada comercial, la de cada punto de venta —que se compara con lo que vende la
+            sede completa, no con la suma de los de su equipo— y la de los{" "}
+            <strong className="font-medium text-slate-500">grupos de objetivos</strong> que montes
+            tú (TMT, televenta…), que se compara con lo que venden sus miembros.
           </p>
           <p className="text-xs text-slate-400 mt-2 max-w-3xl">
             <strong className="font-medium text-slate-500">Unidades totales</strong> es la suma de
@@ -586,6 +754,50 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
         <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
           {error}
         </div>
+      )}
+
+      {/* Qué ha hecho la última importación. Se queda en pantalla hasta la
+          siguiente: es lo que permite repasar lo que no se ha podido leer. */}
+      {resumenImport && (
+        <Card>
+          <CardContent className="pt-4 pb-4 text-sm space-y-2">
+            <p className="font-medium text-slate-800 flex items-center gap-2">
+              <FileSpreadsheet className="h-4 w-4 text-slate-400" />
+              Resultado de la importación ({resumenImport.mes})
+            </p>
+            <p className="text-slate-600">
+              {resumenImport.creados} nuevos · {resumenImport.actualizados} actualizados ·{" "}
+              {resumenImport.borrados} quitados · {resumenImport.sinCambios} sin cambios
+            </p>
+            {resumenImport.columnasIgnoradas.length > 0 && (
+              <div>
+                <p className="text-amber-700">Columnas que no hemos podido usar:</p>
+                <ul className="mt-1 space-y-0.5 text-slate-500">
+                  {resumenImport.columnasIgnoradas.map((c) => (
+                    <li key={c.columna}>
+                      {c.columna}: {c.motivo}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {resumenImport.totalIgnoradas > 0 && (
+              <div>
+                <p className="text-amber-700">
+                  {resumenImport.totalIgnoradas} casilla
+                  {resumenImport.totalIgnoradas === 1 ? "" : "s"} sin importar:
+                </p>
+                <ul className="mt-1 space-y-0.5 text-slate-500">
+                  {resumenImport.ignoradas.map((ig, i) => (
+                    <li key={`${ig.fila}-${i}`}>
+                      Fila {ig.fila}: {ig.motivo}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Lo primero que ve la coordinadora es su propio objetivo; debajo, el
@@ -681,7 +893,40 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
             guardando={guardando}
             onGuardar={(fila, columnaId, valor) => void guardar("sede", fila, columnaId, valor)}
           />
+
+          {/* Los grupos del cliente (TMT, televenta…). Sin ninguno dado de alta
+              la tabla explica de qué va, en vez de aparecer vacía sin más. */}
+          <TablaObjetivos
+            titulo="Objetivos por grupo"
+            descripcion="El objetivo de un grupo tuyo (TMT, televenta…): se cumple con lo que venden sus miembros, contando cada venta una sola vez. Es independiente de los objetivos de cada comercial y de cada sede."
+            icono={<Layers className="h-4 w-4 text-[var(--primary)]" />}
+            etiquetaSujeto="Grupo"
+            vacio={
+              soloLectura
+                ? "No hay ningún grupo de objetivos que te corresponda."
+                : 'Todavía no tienes grupos. Créalos en "Grupos de objetivos" y aparecerán aquí.'
+            }
+            columnas={columnas}
+            filas={datos?.filasGrupos ?? []}
+            totales={datos?.totalesGrupos ?? {}}
+            soloLectura={soloLectura}
+            mostrarSede
+            mes={mes}
+            guardando={guardando}
+            onGuardar={(fila, columnaId, valor) => void guardar("grupo", fila, columnaId, valor)}
+          />
         </>
+      )}
+
+      {/* Alta y edición de los grupos; al cerrar se recarga si algo cambió. */}
+      {!soloLectura && (
+        <GruposObjetivoDialog
+          abierto={gruposAbierto}
+          onClose={(huboCambios) => {
+            setGruposAbierto(false);
+            if (huboCambios) void cargar(true);
+          }}
+        />
       )}
 
       {!soloLectura && (
@@ -708,8 +953,8 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
                   <tr>
                     {[
                       "Ámbito",
-                      "Comercial o sede",
-                      "Producto o grupo",
+                      "Comercial, sede o grupo",
+                      "Producto o grupo de productos",
                       "Objetivo",
                       "Vendido",
                       ...(datos?.preciosActivos ? ["Importe"] : []),
@@ -729,7 +974,7 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
                   {datos?.objetivosDelMes.map((o) => (
                     <tr key={o.id} className="border-b border-slate-100 last:border-0">
                       <td className="px-4 py-2 text-sm text-slate-500">
-                        {o.ambito === "sede" ? "Sede" : "Comercial"}
+                        {o.ambito === "sede" ? "Sede" : o.ambito === "grupo" ? "Grupo" : "Comercial"}
                       </td>
                       <td className="px-4 py-2 text-sm font-medium text-slate-800">{o.sujeto}</td>
                       <td className="px-4 py-2 text-sm text-slate-500">

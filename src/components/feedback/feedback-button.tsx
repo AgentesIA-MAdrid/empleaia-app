@@ -26,8 +26,8 @@ export function FeedbackButton() {
     try {
       const res = await fetch("/api/feedback/my-tickets");
       if (!res.ok) return;
-      const tickets = (await res.json()) as { visto_por_user: boolean }[];
-      setHasBadge(tickets.some((t) => t.visto_por_user === false));
+      const tickets = (await res.json()) as { respuesta_sin_leer: boolean }[];
+      setHasBadge(tickets.some((t) => t.respuesta_sin_leer));
     } catch {
       /* noop */
     }
@@ -47,7 +47,7 @@ export function FeedbackButton() {
   return createPortal(
     <>
       <button
-        onClick={() => { setOpen(true); setHasBadge(false); }}
+        onClick={() => setOpen(true)}
         aria-label="Enviar feedback o abrir un ticket de soporte"
         title="¿Una idea o un problema? Abre un ticket"
         className="group fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary)]/30 ring-1 ring-white/20 transition-all hover:scale-105 hover:shadow-xl active:scale-95"
@@ -60,7 +60,7 @@ export function FeedbackButton() {
           </span>
         )}
       </button>
-      <FeedbackModal open={open} onClose={() => setOpen(false)} onSent={checkBadge} />
+      <FeedbackModal open={open} onClose={() => { setOpen(false); checkBadge(); }} onSent={checkBadge} />
     </>,
     document.body,
   );

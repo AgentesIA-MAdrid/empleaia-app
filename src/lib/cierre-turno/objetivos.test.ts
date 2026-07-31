@@ -101,14 +101,87 @@ describe("normalizarCantidadObjetivo", () => {
 });
 
 describe("ambitoDe", () => {
-  it("distingue comercial de sede", () => {
+  it("distingue comercial, sede y grupo de objetivos", () => {
     expect(ambitoDe({ userId: "ana" })).toBe("comercial");
     expect(ambitoDe({ tiendaId: "t1" })).toBe("sede");
+    expect(ambitoDe({ grupoId: "g_tmt" })).toBe("grupo");
   });
 
-  it("ni los dos a la vez ni ninguno", () => {
+  it("ni dos a la vez ni ninguno", () => {
     expect(ambitoDe({ userId: "ana", tiendaId: "t1" })).toBeNull();
+    expect(ambitoDe({ userId: "ana", grupoId: "g_tmt" })).toBeNull();
+    expect(ambitoDe({ tiendaId: "t1", grupoId: "g_tmt" })).toBeNull();
     expect(ambitoDe({})).toBeNull();
+  });
+});
+
+/**
+ * Tercer ámbito: los grupos de objetivos del cliente (TMT, televenta…). Lo que
+ * se protege aquí es que lo vendido del grupo sea lo de sus miembros y que una
+ * venta no se cuente dos veces cuando el grupo lleva una tienda y a su gente.
+ */
+describe("grupos de objetivos (ticket ff5ab304)", () => {
+  const GRUPOS = [
+    { id: "g_tmt", nombre: "TMT", userIds: ["ana"], tiendaIds: [] },
+    // Lleva la tienda t1 entera y, además, a Ana, que trabaja en ella.
+    { id: "g_zona", nombre: "Zona norte", userIds: ["ana"], tiendaIds: ["t1"] },
+  ];
+  const ventas = anotarVentas(VENTAS, CATALOGO, GRUPOS);
+
+  it("anotarVentas marca en qué grupos cae cada venta, sin repetir", () => {
+    expect(ventas.map((v) => [v.userId, v.tiendaId, v.grupoIds])).toEqual([
+      ["ana", "t1", ["g_tmt", "g_zona"]],
+      ["ana", "t1", ["g_tmt", "g_zona"]],
+      ["luis", "t1", ["g_zona"]],
+      ["sara", "t2", []],
+    ]);
+  });
+
+  it("el objetivo del grupo mide lo que venden sus miembros", () => {
+    // TMT es solo Ana: 6 + 4.
+    expect(vendidoPara(objetivo({ grupoId: "g_tmt" }), ventas)).toBe(10);
+    // La zona es la tienda t1 entera (Ana y Luis), contando cada venta una vez
+    // aunque Ana esté también por su cuenta: 6 + 4 + 3.
+    expect(vendidoPara(objetivo({ grupoId: "g_zona" }), ventas)).toBe(13);
+  });
+
+  it("la parrilla de grupos no mezcla los objetivos de los otros ámbitos", () => {
+    const objetivos = [
+      objetivo({ id: "o_ana", userId: "ana", cantidad: 50 }),
+      objetivo({ id: "o_tmt", grupoId: "g_tmt", cantidad: 20 }),
+    ];
+    const filas = construirMatriz(
+      "grupo",
+      [{ id: "g_tmt", nombre: "TMT", sede: "1 comercial" }],
+      ["fibra", "movil"],
+      objetivos,
+      ventas,
+      CATALOGO.filter((a) => a.cuentaParaObjetivos),
+    );
+    expect(filas).toHaveLength(1);
+    expect(filas[0].celdas[COLUMNA_TOTAL]).toMatchObject({ objetivo: 20, vendido: 10 });
+    expect(filas[0].celdas["fibra"]).toMatchObject({ objetivo: null, vendido: 6 });
+    // Y el de Ana sigue en su tabla, sin contaminar la del grupo.
+    const suyas = construirMatriz(
+      "comercial",
+      [{ id: "ana", nombre: "Ana" }],
+      ["fibra", "movil"],
+      objetivos,
+      ventas,
+      CATALOGO.filter((a) => a.cuentaParaObjetivos),
+    );
+    expect(suyas[0].celdas[COLUMNA_TOTAL].objetivo).toBe(50);
+  });
+
+  it("sin grupos, ninguna venta cae en ninguno (comportamiento de antes)", () => {
+    const sinGrupos = anotarVentas(VENTAS, CATALOGO);
+    expect(sinGrupos.every((v) => (v.grupoIds ?? []).length === 0)).toBe(true);
+    expect(vendidoPara(objetivo({ grupoId: "g_tmt" }), sinGrupos)).toBe(0);
+  });
+
+  it("vendidoDeSujeto sirve también para un grupo", () => {
+    expect(vendidoDeSujeto(ventas, { ambito: "grupo", id: "g_zona" }, null)).toBe(13);
+    expect(vendidoDeSujeto(ventas, { ambito: "grupo", id: "g_zona" }, "fibra")).toBe(9);
   });
 });
 
