@@ -151,6 +151,12 @@ export function PanelAprobaciones() {
                       <span className="font-medium">{TIPO_LABEL[s.tipo] ?? s.tipo}</span> ·{" "}
                       {fmt(s.fechaHora)}
                     </p>
+                    {s.clase === "fuera_horario" && (
+                      <p className="mt-0.5 inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+                        <Clock className="h-3.5 w-3.5" />
+                        Fichaje fuera del horario del turno · hora ajustada al cuadrante
+                      </p>
+                    )}
                     {s.clase === "fuera_sede" && (
                       <p className="mt-0.5 inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
                         <MapPin className="h-3.5 w-3.5" />

@@ -59,6 +59,8 @@ export const PUT = withTenant(async (request: NextRequest) => {
       "horasJornadaDiaria", "horasSemanales", "toleranciaFichaje",
       "geofencingActivo", "fichajeMovilActivo", "fichajeTabletActivo",
       "geoObligatoria", "faceIdObligatorio", "faceIdGuardarFoto", "retencionFotosDias",
+      // Fichar solo dentro del horario del cuadrante (ticket 25c81b6b).
+      "exigirFichajeEnHorario", "margenFichajeMinutos",
       "notifAusencias", "notifTurnos", "notifTareas", "notifFichajes", "notifComunicados", "notifDocumentos",
       "notifFueraSede",
       // Aviso diario de cierres de turno sin terminar (módulo Enterprise): se
@@ -103,6 +105,15 @@ export const PUT = withTenant(async (request: NextRequest) => {
       if (typeof v !== "number" || !Number.isInteger(v) || v < 1 || v > 3650) {
         return Response.json(
           { error: "retencionFotosDias_invalid", reason: "entero entre 1 y 3650 días" },
+          { status: 400 },
+        );
+      }
+    }
+    if ("margenFichajeMinutos" in data) {
+      const v = data.margenFichajeMinutos;
+      if (typeof v !== "number" || !Number.isInteger(v) || v < 0 || v > 240) {
+        return Response.json(
+          { error: "margenFichajeMinutos_invalid", reason: "entero entre 0 y 240 minutos" },
           { status: 400 },
         );
       }

@@ -170,7 +170,12 @@ export function SolicitudesEmpleado() {
               <div key={s.id} className="flex items-center justify-between px-6 py-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">
-                    {s.clase === "correccion" ? "Corrección" : "Registro"} ·{" "}
+                    {s.clase === "correccion"
+                      ? "Corrección"
+                      : s.clase === "fuera_horario"
+                      ? "Ajuste al turno"
+                      : "Registro"}{" "}
+                    ·{" "}
                     {TIPO_LABEL[s.tipo]} · {fmt(s.fechaHora)}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">{s.motivo}</p>

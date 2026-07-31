@@ -12,6 +12,7 @@ import { currentTenant } from "@/lib/tenant/context";
 import { resolveEmpresaScope, fichajeScopeFilter } from "@/lib/multi-empresa/scope";
 import { calcularDistancia } from "@/lib/utils";
 import { notifyFichajeFueraSede } from "@/lib/fichajes/notify-fuera-sede";
+import { evaluarFichajeEnHorario } from "@/lib/fichajes/horario-turno";
 import {
   admiteChecklist,
   resolverChecklist,
@@ -218,6 +219,9 @@ export const POST = withTenant(async (request: NextRequest) => {
         fichajeMovilActivo: true,
         fichajeTabletActivo: true,
         checklistFichajeActivo: true,
+        exigirFichajeEnHorario: true,
+        margenFichajeMinutos: true,
+        zonaHoraria: true,
       },
     });
 
@@ -285,6 +289,38 @@ export const POST = withTenant(async (request: NextRequest) => {
         },
         { status: 409 },
       );
+    }
+
+    // Ticket 25c81b6b — fichar dentro del horario del cuadrante. Mismo
+    // patrón que el modo estricto de sede: se bloquea el camino fácil, no el
+    // registro de la jornada (RD 8/2019). El empleado puede pedir desde la
+    // ventana emergente que se registre ajustado a su turno, y eso crea una
+    // SolicitudFichaje clase "fuera_horario" que aprueba un responsable.
+    // Solo se comprueba si el empleado tiene turno PUBLICADO: sin cuadrante
+    // no hay con qué comparar. Se hace antes del checklist y de Face ID para
+    // no gastar el token de verificación en un intento que se va a rechazar.
+    if (cfg?.exigirFichajeEnHorario) {
+      const ev = await evaluarFichajeEnHorario(prisma, {
+        userId: userId!,
+        ahora: new Date(),
+        margenMin: cfg.margenFichajeMinutos,
+        zona: cfg.zonaHoraria,
+      });
+      if (ev.estado === "fuera") {
+        const cuando = ev.motivo === "antes" ? "aún no ha empezado" : "ya ha terminado";
+        return Response.json(
+          {
+            error: `Tu turno de ${ev.turno.horaInicio} a ${ev.turno.horaFin} ${cuando} y tu empresa no permite fichar fuera del horario del cuadrante.`,
+            code: "fuera_de_horario",
+            motivo: ev.motivo,
+            turno: { horaInicio: ev.turno.horaInicio, horaFin: ev.turno.horaFin },
+            ajuste: ev.ajuste.toISOString(),
+            ajusteHora: ev.ajusteHora,
+            margen: cfg.margenFichajeMinutos,
+          },
+          { status: 409 },
+        );
+      }
     }
 
     // Checklist de fichaje (ticket c4bc33d6): antes de la ENTRADA y de la

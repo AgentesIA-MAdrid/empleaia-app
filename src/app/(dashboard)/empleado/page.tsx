@@ -166,6 +166,20 @@ export default function EmpleadoPage() {
   const [motivoFueraSede, setMotivoFueraSede] = useState("");
   const [enviandoFueraSede, setEnviandoFueraSede] = useState(false);
 
+  // Ticket 25c81b6b — intento de fichaje antes o después del turno del
+  // cuadrante en una empresa que no lo permite. Se le recuerda su horario y
+  // se le ofrece pedir que el fichaje quede ajustado al turno.
+  const [fueraHorario, setFueraHorario] = useState<{
+    tipo: TipoFichaje;
+    motivo: "antes" | "despues";
+    horaInicio: string;
+    horaFin: string;
+    ajusteHora: string;
+    ajusteISO: string;
+  } | null>(null);
+  const [motivoFueraHorario, setMotivoFueraHorario] = useState("");
+  const [enviandoFueraHorario, setEnviandoFueraHorario] = useState(false);
+
   // Clock
   const [now, setNow] = useState<Date>(new Date());
   useEffect(() => {
@@ -406,6 +420,20 @@ export default function EmpleadoPage() {
             });
             return;
           }
+          // 409 fuera_de_horario: la empresa exige fichar dentro del turno.
+          // Se le recuerda su horario y se le ofrece pedir el ajuste.
+          if (res.status === 409 && data.code === "fuera_de_horario") {
+            setMotivoFueraHorario("");
+            setFueraHorario({
+              tipo,
+              motivo: data.motivo === "despues" ? "despues" : "antes",
+              horaInicio: data.turno?.horaInicio ?? "",
+              horaFin: data.turno?.horaFin ?? "",
+              ajusteHora: data.ajusteHora ?? "",
+              ajusteISO: data.ajuste ?? "",
+            });
+            return;
+          }
           toast({
             title: "No se pudo registrar",
             description: data.error ?? "Error desconocido",
@@ -501,6 +529,57 @@ export default function EmpleadoPage() {
       setEnviandoFueraSede(false);
     }
   }, [fueraSede, motivoFueraSede, toast]);
+
+  // Pide permiso para registrar el fichaje con la hora ajustada al turno.
+  // El servidor recalcula esa hora desde el cuadrante; queda pendiente de que
+  // un responsable lo apruebe, así que la jornada no se pierde.
+  const enviarSolicitudFueraHorario = useCallback(async () => {
+    if (!fueraHorario) return;
+    const motivo = motivoFueraHorario.trim();
+    if (motivo.length < 3) {
+      toast({
+        title: "Falta el motivo",
+        description: "Explica brevemente por qué fichas fuera de tu horario (mínimo 3 caracteres).",
+        variant: "destructive",
+      });
+      return;
+    }
+    setEnviandoFueraHorario(true);
+    try {
+      const res = await fetch("/api/solicitudes-fichaje", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clase: "fuera_horario",
+          tipo: fueraHorario.tipo,
+          fechaHora: fueraHorario.ajusteISO || new Date().toISOString(),
+          motivo,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({
+          title: "No se pudo enviar",
+          description: data.error ?? "Error desconocido",
+          variant: "destructive",
+        });
+        return;
+      }
+      setFueraHorario(null);
+      toast({
+        title: "Enviado para aprobación",
+        description: "Tu responsable revisará el fichaje ajustado a tu turno. No hace falta que lo repitas.",
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Error desconocido",
+        variant: "destructive",
+      });
+    } finally {
+      setEnviandoFueraHorario(false);
+    }
+  }, [fueraHorario, motivoFueraHorario, toast]);
 
   // Puntos de control activos para un tipo de fichaje concreto.
   const checksDe = useCallback(
@@ -955,6 +1034,70 @@ export default function EmpleadoPage() {
               </Button>
               <Button onClick={() => void enviarSolicitudFueraSede()} disabled={enviandoFueraSede}>
                 {enviandoFueraSede ? "Enviando…" : "Enviar para aprobación"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fueraHorario && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-start justify-between">
+              <h2 className="font-semibold text-lg flex items-center gap-2">
+                <Clock className="h-5 w-5 text-amber-600" />
+                Estás fuera de tu horario
+              </h2>
+              <button
+                onClick={() => setFueraHorario(null)}
+                className="text-slate-400 hover:text-slate-600"
+                aria-label="Cerrar"
+                disabled={enviandoFueraHorario}
+              >
+                <XIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Tu turno es de <strong>{fueraHorario.horaInicio}</strong> a{" "}
+              <strong>{fueraHorario.horaFin}</strong> y tu empresa no permite fichar{" "}
+              {fueraHorario.motivo === "antes" ? "antes de que empiece" : "después de que termine"}.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Puedes pedir permiso para que tu {tipoLabel(fueraHorario.tipo).toLowerCase()} se
+              registre a las <strong>{fueraHorario.ajusteHora}</strong>, ajustada al horario de tu
+              turno. Tu responsable tiene que aprobarlo.
+            </p>
+            <div>
+              <label htmlFor="motivo-fuera-horario" className="text-sm font-medium text-slate-800">
+                Motivo
+              </label>
+              <textarea
+                id="motivo-fuera-horario"
+                className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                rows={3}
+                value={motivoFueraHorario}
+                onChange={(e) => setMotivoFueraHorario(e.target.value)}
+                placeholder="Ej.: he llegado antes para abrir la tienda, me he quedado terminando una venta…"
+                disabled={enviandoFueraHorario}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setFueraHorario(null)}
+                disabled={enviandoFueraHorario}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => void enviarSolicitudFueraHorario()}
+                disabled={enviandoFueraHorario}
+              >
+                {enviandoFueraHorario ? "Enviando…" : "Pedir permiso y ajustar a mi turno"}
               </Button>
             </div>
           </div>
