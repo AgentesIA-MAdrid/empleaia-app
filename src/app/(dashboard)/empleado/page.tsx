@@ -409,6 +409,14 @@ export default function EmpleadoPage() {
         faceVerifyToken?: string;
         fotoSnapshot?: string;
         checklist?: RespuestaChecklist[];
+        /**
+         * El empleado ha aceptado que su fichaje se registre a la hora de su
+         * turno (ticket 9e4c2f10). Sin esto, fichar fuera de horario devuelve
+         * 409 y se le pregunta.
+         */
+        ajustarAlTurno?: boolean;
+        /** Lo que haya escrito el empleado al justificar el ajuste. */
+        nota?: string;
       } = {},
     ) => {
       setLoadingAction(tipo);
@@ -435,6 +443,8 @@ export default function EmpleadoPage() {
             ...(opts.faceVerifyToken ? { faceVerifyToken: opts.faceVerifyToken } : {}),
             ...(opts.fotoSnapshot ? { fotoSnapshot: opts.fotoSnapshot } : {}),
             ...(opts.checklist ? { checklist: opts.checklist } : {}),
+            ...(opts.ajustarAlTurno ? { ajustarAlTurno: true } : {}),
+            ...(opts.nota ? { nota: opts.nota } : {}),
           }),
         });
 
@@ -456,8 +466,10 @@ export default function EmpleadoPage() {
             });
             return;
           }
-          // 409 fuera_de_horario: la empresa exige fichar dentro del turno.
-          // Se le recuerda su horario y se le ofrece pedir el ajuste.
+          // 409 fuera_de_horario: la empresa exige fichar dentro del turno. Se
+          // le recuerda su horario y se le ofrece registrarlo a la hora del
+          // turno; si acepta, se repite la llamada con `ajustarAlTurno` y queda
+          // hecho, sin que nadie tenga que aprobar nada (ticket 9e4c2f10).
           if (res.status === 409 && data.code === "fuera_de_horario") {
             setMotivoFueraHorario("");
             setFueraHorario({
@@ -566,56 +578,31 @@ export default function EmpleadoPage() {
     }
   }, [fueraSede, motivoFueraSede, toast]);
 
-  // Pide permiso para registrar el fichaje con la hora ajustada al turno.
-  // El servidor recalcula esa hora desde el cuadrante; queda pendiente de que
-  // un responsable lo apruebe, así que la jornada no se pierde.
-  const enviarSolicitudFueraHorario = useCallback(async () => {
+  /**
+   * Registra el fichaje con la hora de su turno, después de que el empleado lo
+   * acepte en la ventana emergente (ticket 9e4c2f10).
+   *
+   * Antes esto abría una solicitud que tenía que aprobar un responsable, y al
+   * cliente le llegaban decenas al día. Ahora se registra en el momento: el
+   * servidor recalcula la hora desde el cuadrante —no se manda desde aquí, que
+   * no sería auditable— y deja escrito en el fichaje a qué hora se pulsó de
+   * verdad, para que administración lo pueda repasar después.
+   *
+   * El motivo que escriba se guarda como nota del fichaje. No se le exige: el
+   * fichaje no puede quedar bloqueado por un texto (RD 8/2019).
+   */
+  const registrarAjustadoAlTurno = useCallback(async () => {
     if (!fueraHorario) return;
+    const tipo = fueraHorario.tipo;
     const motivo = motivoFueraHorario.trim();
-    if (motivo.length < 3) {
-      toast({
-        title: "Falta el motivo",
-        description: "Explica brevemente por qué fichas fuera de tu horario (mínimo 3 caracteres).",
-        variant: "destructive",
-      });
-      return;
-    }
     setEnviandoFueraHorario(true);
     try {
-      const res = await fetch("/api/solicitudes-fichaje", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clase: "fuera_horario",
-          tipo: fueraHorario.tipo,
-          fechaHora: fueraHorario.ajusteISO || new Date().toISOString(),
-          motivo,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast({
-          title: "No se pudo enviar",
-          description: data.error ?? "Error desconocido",
-          variant: "destructive",
-        });
-        return;
-      }
       setFueraHorario(null);
-      toast({
-        title: "Enviado para aprobación",
-        description: "Tu responsable revisará el fichaje ajustado a tu turno. No hace falta que lo repitas.",
-      });
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Error desconocido",
-        variant: "destructive",
-      });
+      await handleFichar(tipo, { ajustarAlTurno: true, ...(motivo ? { nota: motivo } : {}) });
     } finally {
       setEnviandoFueraHorario(false);
     }
-  }, [fueraHorario, motivoFueraHorario, toast]);
+  }, [fueraHorario, motivoFueraHorario, handleFichar]);
 
   // Puntos de control activos para un tipo de fichaje concreto.
   const checksDe = useCallback(
@@ -1143,13 +1130,13 @@ export default function EmpleadoPage() {
               {fueraHorario.motivo === "antes" ? "antes de que empiece" : "después de que termine"}.
             </p>
             <p className="text-sm text-muted-foreground">
-              Puedes pedir permiso para que tu {tipoLabel(fueraHorario.tipo).toLowerCase()} se
-              registre a las <strong>{fueraHorario.ajusteHora}</strong>, ajustada al horario de tu
-              turno. Tu responsable tiene que aprobarlo.
+              Puedes registrar tu {tipoLabel(fueraHorario.tipo).toLowerCase()} a las{" "}
+              <strong>{fueraHorario.ajusteHora}</strong>, la hora de tu turno. Se guarda al momento
+              y queda anotada la hora a la que has fichado de verdad.
             </p>
             <div>
               <label htmlFor="motivo-fuera-horario" className="text-sm font-medium text-slate-800">
-                Motivo
+                Motivo <span className="font-normal text-slate-400">(opcional)</span>
               </label>
               <textarea
                 id="motivo-fuera-horario"
@@ -1170,10 +1157,12 @@ export default function EmpleadoPage() {
                 Cancelar
               </Button>
               <Button
-                onClick={() => void enviarSolicitudFueraHorario()}
+                onClick={() => void registrarAjustadoAlTurno()}
                 disabled={enviandoFueraHorario}
               >
-                {enviandoFueraHorario ? "Enviando…" : "Pedir permiso y ajustar a mi turno"}
+                {enviandoFueraHorario
+                  ? "Registrando…"
+                  : `Registrar a las ${fueraHorario.ajusteHora}`}
               </Button>
             </div>
           </div>

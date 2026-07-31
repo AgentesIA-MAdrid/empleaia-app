@@ -7,6 +7,9 @@
  *     turno y la hora a la que se ajustaría el fichaje.
  *  3. Dentro del turno (o del margen de cortesía) → 201.
  *  4. Sin turno publicado no se comprueba nada: el fichaje entra.
+ *  5. Ticket 9e4c2f10: si el empleado acepta, el fichaje se registra en el acto
+ *     con la hora del turno y con la hora real del intento anotada. Ya no se
+ *     abre una solicitud que alguien tenga que aprobar.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -84,7 +87,10 @@ vi.mock("@/lib/tenant/with-tenant", async () => {
 });
 
 /** POST /api/fichajes de ENTRADA con el reloj congelado en `horaMadrid`. */
-async function ficharA(horaMadrid: string) {
+async function ficharA(
+  horaMadrid: string,
+  extra: { ajustarAlTurno?: boolean; nota?: string } = {},
+) {
   // Verano en Madrid: UTC+2. "07:40" locales = 05:40Z.
   vi.setSystemTime(new Date(`2026-07-31T${horaMadrid}:00.000Z`));
   const { POST } = await import("./route");
@@ -92,7 +98,7 @@ async function ficharA(horaMadrid: string) {
   const req = new NextRequest("http://acme.localhost:3000/api/fichajes", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ tipo: "ENTRADA" }),
+    body: JSON.stringify({ tipo: "ENTRADA", ...extra }),
   });
   return POST(req);
 }
@@ -165,4 +171,47 @@ describe("POST /api/fichajes — fichaje fuera del horario del cuadrante", () =>
     const res = await ficharA("07:50"); // 09:50 en Madrid
     expect(res.status).toBe(201);
   });
+
+  it("aceptando el ajuste, el fichaje se registra con la hora del turno", async () => {
+    // Ticket 9e4c2f10: intenta a las 18:30 de Madrid y acepta; la entrada se
+    // guarda a las 17:00 (fin del turno), sin pasar por ninguna aprobación.
+    const res = await ficharA("16:30", { ajustarAlTurno: true });
+    expect(res.status).toBe(201);
+    const { prismaApp } = await import("@/lib/prisma");
+    const [args] = (prismaApp.fichaje.create as unknown as { mock: { calls: [{ data: Record<string, unknown> }][] } })
+      .mock.calls[0];
+    expect((args.data.timestamp as Date).toISOString()).toBe("2026-07-31T15:00:00.000Z");
+  });
+
+  it("el fichaje ajustado deja escrita la hora real del intento", async () => {
+    const res = await ficharA("16:30", { ajustarAlTurno: true });
+    expect(res.status).toBe(201);
+    const { prismaApp } = await import("@/lib/prisma");
+    const [args] = (prismaApp.fichaje.create as unknown as { mock: { calls: [{ data: Record<string, unknown> }][] } })
+      .mock.calls[0];
+    const nota = String(args.data.nota);
+    // Sin esto no habría forma de auditar que la jornada registrada no coincide
+    // con el minuto en que se pulsó el botón.
+    expect(nota).toContain("se registra a las 17:00");
+    expect(nota).toContain("el intento fue a las 18:30");
+  });
+
+  it("el motivo que escribe el empleado se conserva detrás del ajuste", async () => {
+    await ficharA("16:30", { ajustarAlTurno: true, nota: "Estaba cerrando una venta" });
+    const { prismaApp } = await import("@/lib/prisma");
+    const [args] = (prismaApp.fichaje.create as unknown as { mock: { calls: [{ data: Record<string, unknown> }][] } })
+      .mock.calls[0];
+    expect(String(args.data.nota)).toContain("Estaba cerrando una venta");
+  });
+
+  it("dentro del turno, el flag no cambia nada: se registra a su hora", async () => {
+    await ficharA("08:00", { ajustarAlTurno: true });
+    const { prismaApp } = await import("@/lib/prisma");
+    const [args] = (prismaApp.fichaje.create as unknown as { mock: { calls: [{ data: Record<string, unknown> }][] } })
+      .mock.calls[0];
+    // Sin ajuste no se toca el timestamp: lo pone la BD con la hora real.
+    expect(args.data.timestamp).toBeUndefined();
+    expect(args.data.nota).toBeUndefined();
+  });
+
 });

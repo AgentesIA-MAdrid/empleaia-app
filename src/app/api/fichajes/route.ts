@@ -120,6 +120,7 @@ export const POST = withTenant(async (request: NextRequest) => {
       faceVerifyToken,
       fotoSnapshot,
       checklist,
+      ajustarAlTurno,
     } = body as {
       tipo: TipoFichaje;
       latitud?: number;
@@ -133,6 +134,12 @@ export const POST = withTenant(async (request: NextRequest) => {
       fotoSnapshot?: string;
       /** Puntos de control confirmados por el empleado (ticket c4bc33d6). */
       checklist?: RespuestaChecklist[];
+      /**
+       * El empleado ha aceptado en la ventana emergente que su fichaje se
+       * registre ajustado al horario de su turno (ticket 9e4c2f10). Sin esto, un
+       * intento fuera de horario sigue devolviendo 409.
+       */
+      ajustarAlTurno?: boolean;
     };
 
     if (!tipo || !Object.values(TipoFichaje).includes(tipo)) {
@@ -297,33 +304,56 @@ export const POST = withTenant(async (request: NextRequest) => {
 
     // Ticket 25c81b6b — fichar dentro del horario del cuadrante. Mismo
     // patrón que el modo estricto de sede: se bloquea el camino fácil, no el
-    // registro de la jornada (RD 8/2019). El empleado puede pedir desde la
-    // ventana emergente que se registre ajustado a su turno, y eso crea una
-    // SolicitudFichaje clase "fuera_horario" que aprueba un responsable.
-    // Solo se comprueba si el empleado tiene turno PUBLICADO hoy: sin cuadrante
-    // de hoy no hay con qué comparar. Se hace antes del checklist y de Face ID para
-    // no gastar el token de verificación en un intento que se va a rechazar.
+    // registro de la jornada (RD 8/2019). Solo se comprueba si el empleado tiene
+    // turno PUBLICADO hoy: sin cuadrante de hoy no hay con qué comparar. Se hace
+    // antes del checklist y de Face ID para no gastar el token de verificación
+    // en un intento que se va a rechazar.
+    //
+    // Qué pasa cuando ficha fuera (ticket 9e4c2f10): la primera vez se responde
+    // 409 con la hora a la que se ajustaría, y la app se lo pregunta. Si acepta,
+    // repite la llamada con `ajustarAlTurno` y el fichaje se registra ahí mismo
+    // con la hora del turno. Ya NO se crea una solicitud que alguien tenga que
+    // aprobar: el cliente lo pidió así porque le llegaban decenas al día.
+    //
+    // El fichaje queda marcado con la hora real del intento en la nota, que es
+    // lo que permite auditarlo después: la jornada registrada no coincide con el
+    // minuto en que se pulsó el botón.
+    let ajusteAplicado: { timestamp: Date; nota: string } | null = null;
     if (cfg?.exigirFichajeEnHorario) {
+      const ahora = new Date();
       const ev = await evaluarFichajeEnHorario(prisma, {
         userId: userId!,
-        ahora: new Date(),
+        ahora,
         margenMin: cfg.margenFichajeMinutos,
         zona: cfg.zonaHoraria,
       });
       if (ev.estado === "fuera") {
         const cuando = ev.motivo === "antes" ? "aún no ha empezado" : "ya ha terminado";
-        return Response.json(
-          {
-            error: `Tu turno de ${ev.turno.horaInicio} a ${ev.turno.horaFin} ${cuando} y tu empresa no permite fichar fuera del horario del cuadrante.`,
-            code: "fuera_de_horario",
-            motivo: ev.motivo,
-            turno: { horaInicio: ev.turno.horaInicio, horaFin: ev.turno.horaFin },
-            ajuste: ev.ajuste.toISOString(),
-            ajusteHora: ev.ajusteHora,
-            margen: cfg.margenFichajeMinutos,
-          },
-          { status: 409 },
-        );
+        if (!ajustarAlTurno) {
+          return Response.json(
+            {
+              error: `Tu turno de ${ev.turno.horaInicio} a ${ev.turno.horaFin} ${cuando} y tu empresa no permite fichar fuera del horario del cuadrante.`,
+              code: "fuera_de_horario",
+              motivo: ev.motivo,
+              turno: { horaInicio: ev.turno.horaInicio, horaFin: ev.turno.horaFin },
+              ajuste: ev.ajuste.toISOString(),
+              ajusteHora: ev.ajusteHora,
+              margen: cfg.margenFichajeMinutos,
+            },
+            { status: 409 },
+          );
+        }
+        const horaIntento = new Intl.DateTimeFormat("es-ES", {
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: cfg.zonaHoraria,
+        }).format(ahora);
+        ajusteAplicado = {
+          timestamp: ev.ajuste,
+          nota:
+            `Ajustado al horario del turno (${ev.turno.horaInicio}–${ev.turno.horaFin}): ` +
+            `se registra a las ${ev.ajusteHora} y el intento fue a las ${horaIntento}.`,
+        };
       }
     }
 
@@ -438,7 +468,15 @@ export const POST = withTenant(async (request: NextRequest) => {
         longitud: lon,
         distancia: dist,
         metodo,
-        nota,
+        // Con ajuste, la hora es la del turno y la nota deja dicho a qué hora se
+        // pulsó de verdad. Si el empleado había escrito una nota, se conserva
+        // detrás: la suya explica el motivo y la nuestra, el ajuste.
+        ...(ajusteAplicado
+          ? {
+              timestamp: ajusteAplicado.timestamp,
+              nota: nota ? `${ajusteAplicado.nota} · ${nota}` : ajusteAplicado.nota,
+            }
+          : { nota }),
         ip,
         ...(fotoEnc ? { fotoSnapshotEnc: fotoEnc } : {}),
       },
