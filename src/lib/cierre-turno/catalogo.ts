@@ -109,13 +109,93 @@ function detectarCabecera(primera: string[]): {
   return { esCabecera, colNombre, colCategoria, colSubcategoria, colPrecio };
 }
 
+/** Clave con la que dos categorías (o subcategorías) son la misma. */
+function claveGrupo(valor: string | null | undefined): string {
+  return valor ? normalizar(valor.replace(/\s+/g, " ")) : "";
+}
+
+/** Lo que identifica a un artículo dentro del catálogo. */
+export interface ArticuloIdentificable {
+  nombre: string;
+  categoria?: string | null;
+  subcategoria?: string | null;
+}
+
 /**
- * Clave con la que dos artículos se consideran el mismo: sin tildes, sin
+ * Clave con la que dos artículos se consideran el mismo: mismo nombre y mismo
+ * sitio del catálogo (categoría y subcategoría), todo sin tildes, sin
  * mayúsculas y sin espacios de más. Se usa para no crear "Energía" y "energia"
- * como dos filas distintas, ni al importar ni al añadir a mano.
+ * como dos filas del mismo bloque, ni al importar ni al añadir a mano.
+ *
+ * El nombre por sí solo no identifica al artículo: el mismo concepto se vende
+ * en dos categorías distintas ("Renove" en Telefonía y en Energía) y son dos
+ * artículos con su propio precio, su propio orden y sus propios objetivos.
  */
-export function claveArticulo(nombre: string): string {
-  return normalizar(nombre.replace(/\s+/g, " "));
+export function claveArticulo(articulo: ArticuloIdentificable): string {
+  // Separador de control: no puede aparecer en un nombre tecleado, así que
+  // "Fibra" en "Hogar" y "Fibra Hogar" sin categoría no comparten clave.
+  return [
+    normalizar(articulo.nombre.replace(/\s+/g, " ")),
+    claveGrupo(articulo.categoria),
+    claveGrupo(articulo.subcategoria),
+  ].join("\u001f");
+}
+
+/**
+ * Empareja cada fila del fichero importado con el artículo del catálogo que ya
+ * la representa (o null si es nueva). Dos pasadas, y en este orden:
+ *
+ *  1. Mismo nombre y mismo sitio (categoría y subcategoría) → es el mismo.
+ *  2. De lo que queda, mismo nombre y un único candidato libre → también es el
+ *     mismo, al que le están cambiando la categoría desde la hoja. Recolocar
+ *     el catálogo reimportándolo es de los usos corrientes del importador y
+ *     tiene que seguir actualizando la fila, no clonarla.
+ *
+ * Si en el paso 2 hay más de un candidato con ese nombre no se adivina: la
+ * fila se trata como nueva antes que arrastrar el histórico al artículo
+ * equivocado.
+ */
+export function emparejarCatalogo<
+  F extends ArticuloIdentificable,
+  P extends ArticuloIdentificable & { id: string },
+>(filas: F[], previos: P[]): { fila: F; existente: P | null }[] {
+  const emparejadas: { fila: F; existente: P | null }[] = filas.map((fila) => ({
+    fila,
+    existente: null,
+  }));
+  const usados = new Set<string>();
+
+  const porClave = new Map<string, P[]>();
+  const porNombre = new Map<string, P[]>();
+  const apuntar = (mapa: Map<string, P[]>, clave: string, p: P) => {
+    const lista = mapa.get(clave);
+    if (lista) lista.push(p);
+    else mapa.set(clave, [p]);
+  };
+  for (const p of previos) {
+    apuntar(porClave, claveArticulo(p), p);
+    apuntar(porNombre, claveArticulo({ nombre: p.nombre }), p);
+  }
+
+  emparejadas.forEach((par) => {
+    const candidato = (porClave.get(claveArticulo(par.fila)) ?? []).find((p) => !usados.has(p.id));
+    if (candidato) {
+      par.existente = candidato;
+      usados.add(candidato.id);
+    }
+  });
+
+  emparejadas.forEach((par) => {
+    if (par.existente) return;
+    const libres = (porNombre.get(claveArticulo({ nombre: par.fila.nombre })) ?? []).filter(
+      (p) => !usados.has(p.id),
+    );
+    if (libres.length !== 1) return;
+    par.existente = libres[0];
+    usados.add(libres[0].id);
+  });
+
+  return emparejadas;
 }
 
 /**
@@ -177,11 +257,6 @@ export interface GrupoCatalogo<T> {
   /** null = artículos sueltos, sin categoría. */
   categoria: string | null;
   subgrupos: SubgrupoCatalogo<T>[];
-}
-
-/** Clave con la que dos categorías (o subcategorías) son la misma. */
-function claveGrupo(valor: string | null): string {
-  return valor ? normalizar(valor.replace(/\s+/g, " ")) : "";
 }
 
 /**
@@ -324,19 +399,23 @@ export function construirCatalogo(matriz: string[][]): ResultadoImportacion {
       return;
     }
 
-    const clave = normalizar(nombre);
-    if (vistos.has(clave)) {
-      ignoradas.push({ fila: numeroFila, motivo: `Repetido: "${nombre}"` });
-      return;
-    }
-    vistos.add(clave);
-
     const categoria =
       colCategoria >= 0 ? ((celdas[colCategoria] ?? "").trim().replace(/\s+/g, " ") || null) : null;
     const subcategoria =
       colSubcategoria >= 0
         ? ((celdas[colSubcategoria] ?? "").trim().replace(/\s+/g, " ") || null)
         : null;
+
+    // Repetido es el mismo nombre en el mismo sitio del catálogo: el mismo
+    // concepto en dos categorías distintas son dos artículos, y la hoja puede
+    // traerlos los dos.
+    const clave = claveArticulo({ nombre, categoria, subcategoria });
+    if (vistos.has(clave)) {
+      ignoradas.push({ fila: numeroFila, motivo: `Repetido en su categoría: "${nombre}"` });
+      return;
+    }
+    vistos.add(clave);
+
     const precio = colPrecio >= 0 ? parsearPrecio(celdas[colPrecio]) : null;
 
     filas.push({ nombre, categoria, subcategoria, orden: filas.length, precio });

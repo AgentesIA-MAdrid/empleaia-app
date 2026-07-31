@@ -6,6 +6,7 @@ import {
   parsearCSV,
   parsearPrecio,
   claveArticulo,
+  emparejarCatalogo,
   normalizarNombreArticulo,
   normalizarCategoriaArticulo,
   CATALOGO_MAX_FILAS,
@@ -46,12 +47,72 @@ describe("normalizarCategoriaArticulo", () => {
 
 describe("claveArticulo", () => {
   it("da la misma clave cambien tildes, mayúsculas o espacios", () => {
-    expect(claveArticulo("Energía")).toBe(claveArticulo("  ENERGIA  "));
-    expect(claveArticulo("Alta de fibra")).toBe(claveArticulo("alta  de  FIBRA"));
+    expect(claveArticulo({ nombre: "Energía" })).toBe(claveArticulo({ nombre: "  ENERGIA  " }));
+    expect(claveArticulo({ nombre: "Alta de fibra" })).toBe(
+      claveArticulo({ nombre: "alta  de  FIBRA" }),
+    );
+    expect(claveArticulo({ nombre: "Renove", categoria: "Telefonía" })).toBe(
+      claveArticulo({ nombre: "renove", categoria: " TELEFONIA " }),
+    );
   });
 
   it("distingue artículos que de verdad son distintos", () => {
-    expect(claveArticulo("Pospago")).not.toBe(claveArticulo("Prepago"));
+    expect(claveArticulo({ nombre: "Pospago" })).not.toBe(claveArticulo({ nombre: "Prepago" }));
+  });
+
+  it("el mismo nombre en otra categoría o subcategoría es otro artículo", () => {
+    const telefonia = claveArticulo({ nombre: "Renove", categoria: "Telefonía" });
+    expect(telefonia).not.toBe(claveArticulo({ nombre: "Renove", categoria: "Energía" }));
+    expect(telefonia).not.toBe(claveArticulo({ nombre: "Renove" }));
+    expect(telefonia).not.toBe(
+      claveArticulo({ nombre: "Renove", categoria: "Telefonía", subcategoria: "Pospago" }),
+    );
+  });
+
+  it("no confunde el nombre con la categoría al pegarlos", () => {
+    expect(claveArticulo({ nombre: "Fibra", categoria: "Hogar" })).not.toBe(
+      claveArticulo({ nombre: "Fibra Hogar" }),
+    );
+  });
+});
+
+describe("emparejarCatalogo", () => {
+  const previos = [
+    { id: "art_1", nombre: "Renove", categoria: "Telefonía", subcategoria: null },
+    { id: "art_2", nombre: "Fibra", categoria: "Hogar", subcategoria: null },
+  ];
+
+  it("casa por nombre y categoría", () => {
+    const r = emparejarCatalogo(
+      [{ nombre: "renove", categoria: "TELEFONÍA", subcategoria: null }],
+      previos,
+    );
+    expect(r[0]?.existente?.id).toBe("art_1");
+  });
+
+  it("el mismo nombre en otra categoría es un artículo nuevo si el suyo ya está casado", () => {
+    const r = emparejarCatalogo(
+      [
+        { nombre: "Renove", categoria: "Telefonía", subcategoria: null },
+        { nombre: "Renove", categoria: "Energía", subcategoria: null },
+      ],
+      previos,
+    );
+    expect(r[0]?.existente?.id).toBe("art_1");
+    expect(r[1]?.existente).toBeNull();
+  });
+
+  it("recolocar un artículo desde la hoja lo actualiza, no lo clona", () => {
+    const r = emparejarCatalogo([{ nombre: "Fibra", categoria: "Fijo", subcategoria: null }], previos);
+    expect(r[0]?.existente?.id).toBe("art_2");
+  });
+
+  it("con dos candidatos del mismo nombre no adivina: fila nueva", () => {
+    const r = emparejarCatalogo([{ nombre: "Renove", categoria: "Fijo", subcategoria: null }], [
+      { id: "art_1", nombre: "Renove", categoria: "Telefonía", subcategoria: null },
+      { id: "art_3", nombre: "Renove", categoria: "Energía", subcategoria: null },
+    ]);
+    expect(r[0]?.existente).toBeNull();
   });
 });
 
@@ -137,6 +198,28 @@ describe("construirCatalogo", () => {
     expect(r.filas).toHaveLength(1);
     expect(r.ignoradas).toHaveLength(2);
     expect(r.ignoradas[0]?.motivo).toContain("Repetido");
+  });
+
+  it("el mismo nombre en otra categoría no es un repetido", () => {
+    const r = construirCatalogo([
+      ["Artículo", "Categoría"],
+      ["Renove", "Telefonía"],
+      ["Renove", "Energía"],
+      ["Renove", "telefonia"],
+    ]);
+    expect(r.filas.map((f) => f.categoria)).toEqual(["Telefonía", "Energía"]);
+    expect(r.ignoradas).toHaveLength(1);
+    expect(r.ignoradas[0]?.motivo).toContain("Repetido");
+  });
+
+  it("ni el mismo nombre y categoría en otra subcategoría", () => {
+    const r = construirCatalogo([
+      ["Artículo", "Categoría", "Subcategoría"],
+      ["Renove", "Telefonía", "Pospago"],
+      ["Renove", "Telefonía", "Prepago"],
+    ]);
+    expect(r.filas).toHaveLength(2);
+    expect(r.ignoradas).toHaveLength(0);
   });
 
   it("colapsa los espacios de más", () => {

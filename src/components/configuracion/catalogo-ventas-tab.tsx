@@ -641,7 +641,10 @@ export function CatalogoVentasTab() {
               categoría es opcional: agrupa los artículos en la tabla del cierre y es el grupo
               sobre el que puedes fijar un objetivo (Telefonía, Servicios…). La subcategoría
               afina dentro de ella (Telefonía → Pospago) cuando el catálogo se hace largo. Se
-              quedan puestas al añadir, para que puedas meter un bloque entero seguido.
+              quedan puestas al añadir, para que puedas meter un bloque entero seguido. Puedes
+              repetir el mismo nombre en categorías o subcategorías distintas —un &quot;Renove&quot; de
+              Telefonía y otro de Energía son dos productos—; lo único que no se puede es
+              repetirlo dentro del mismo bloque.
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-3">

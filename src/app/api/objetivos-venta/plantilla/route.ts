@@ -81,7 +81,16 @@ export const GET = withTenant(
       }),
       prisma.articuloVenta.findMany({
         where: { activo: true },
-        select: { id: true, nombre: true, categoria: true, cuentaParaObjetivos: true },
+        // La subcategoría solo se usa para titular la columna cuando hay dos
+        // artículos que se llaman igual; el objetivo se sigue fijando sobre la
+        // categoría.
+        select: {
+          id: true,
+          nombre: true,
+          categoria: true,
+          subcategoria: true,
+          cuentaParaObjetivos: true,
+        },
         orderBy: [{ orden: "asc" }, { nombre: "asc" }],
       }),
       prisma.tienda.findMany({

@@ -64,6 +64,11 @@ export const PLANTILLA_MAX_CAMBIOS = 5000;
 /** Artículo del catálogo, con lo que la plantilla necesita saber de él. */
 export interface ArticuloPlantilla extends ArticuloObjetivo {
   nombre: string;
+  /**
+   * Segundo nivel del catálogo. Solo se usa para distinguir dos artículos que
+   * se llaman igual; los objetivos se siguen fijando sobre la categoría.
+   */
+  subcategoria?: string | null;
 }
 
 /** Una columna de objetivos de la hoja. */
@@ -150,14 +155,41 @@ const AMBITO_GRUPO = ["grupo", "grupo de objetivos", "equipo"];
  */
 export function columnasPlantilla(articulos: ArticuloPlantilla[]): ColumnaPlantilla[] {
   const paraObjetivos = articulos.filter((a) => cuentaParaObjetivos(a));
+  const titulos = titulosDeArticulos(paraObjetivos);
   return [
     { id: COLUMNA_TOTAL, titulo: TITULO_TOTAL },
     ...categoriasDelCatalogo(paraObjetivos).map((c) => ({
       id: columnaCategoria(c),
       titulo: `${PREFIJO_GRUPO_HOJA}${c}`,
     })),
-    ...paraObjetivos.map((a) => ({ id: a.id, titulo: a.nombre })),
+    ...paraObjetivos.map((a) => ({ id: a.id, titulo: titulos.get(a.id) ?? a.nombre })),
   ];
+}
+
+/**
+ * Título de columna de cada artículo: su nombre y, si en el catálogo hay otro
+ * que se llama igual, entre paréntesis dónde está.
+ *
+ * El mismo nombre en dos categorías son dos productos distintos y el cliente
+ * puede tener los dos (ticket b4afccf5); si las dos columnas se titularan
+ * igual, la hoja no se podría volver a importar sin adivinar a cuál de los dos
+ * va cada cifra.
+ */
+function titulosDeArticulos(paraObjetivos: ArticuloPlantilla[]): Map<string, string> {
+  const cuantos = new Map<string, number>();
+  for (const a of paraObjetivos) {
+    const clave = normalizar(a.nombre);
+    cuantos.set(clave, (cuantos.get(clave) ?? 0) + 1);
+  }
+  return new Map(
+    paraObjetivos.map((a) => {
+      if ((cuantos.get(normalizar(a.nombre)) ?? 0) < 2) return [a.id, a.nombre] as const;
+      const sitio = [a.categoria ?? "Sin categoría", a.subcategoria]
+        .filter((x): x is string => Boolean(x))
+        .join(" → ");
+      return [a.id, `${a.nombre} (${sitio})`] as const;
+    }),
+  );
 }
 
 /**
@@ -273,12 +305,21 @@ export function interpretarPlantillaObjetivos(
 
   const paraObjetivos = ctx.articulos.filter((a) => cuentaParaObjetivos(a));
   const categorias = new Map(categoriasDelCatalogo(paraObjetivos).map((c) => [normalizar(c), c]));
-  // Un nombre de artículo repetido en el catálogo no se puede casar sin
-  // adivinar: se dice y se deja fuera esa columna.
+  // Las columnas se casan por su título de hoy —el nombre, y detrás dónde está
+  // si hay otro que se llama igual—, y además por el nombre pelado, que es lo
+  // que traen las hojas de siempre. Un nombre pelado que en el catálogo ya
+  // señala a dos artículos no se puede casar sin adivinar: se dice y se deja
+  // fuera esa columna.
+  const titulos = titulosDeArticulos(paraObjetivos);
   const porNombre = new Map<string, ArticuloPlantilla | null>();
-  for (const a of paraObjetivos) {
-    const clave = normalizar(a.nombre);
+  const anotar = (clave: string, a: ArticuloPlantilla) => {
     porNombre.set(clave, porNombre.has(clave) ? null : a);
+  };
+  for (const a of paraObjetivos) anotar(normalizar(titulos.get(a.id) ?? a.nombre), a);
+  for (const a of paraObjetivos) {
+    const soloNombre = normalizar(a.nombre);
+    if (soloNombre === normalizar(titulos.get(a.id) ?? a.nombre)) continue;
+    anotar(soloNombre, a);
   }
   const excluidos = new Set(
     ctx.articulos.filter((a) => !cuentaParaObjetivos(a)).map((a) => normalizar(a.nombre)),

@@ -3,10 +3,13 @@
  * servicios desde un Excel o un CSV. Solo administración.
  *
  * Qué hace con lo que ya había:
- *  - Un artículo que vuelve a aparecer se actualiza (categoría, subcategoría y
+ *  - Un artículo que vuelve a aparecer —mismo nombre y misma categoría, o
+ *    mismo nombre sin más candidatos— se actualiza (categoría, subcategoría y
  *    orden) y se reactiva si estaba desactivado.
  *  - Uno que ya no aparece NO se borra: se marca inactivo. Borrarlo se llevaría
  *    por delante la trazabilidad de las ventas ya registradas con él.
+ *  - El mismo nombre en dos categorías son dos artículos: la hoja puede traer
+ *    "Renove" en Telefonía y "Renove" en Energía y se guardan los dos.
  *
  * El fichero llega en base64 porque es lo que sabe enviar el navegador sin
  * montar un endpoint multipart, y estas tablas son de kilobytes.
@@ -18,7 +21,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
-import { construirCatalogo, parsearCSV } from "@/lib/cierre-turno/catalogo";
+import { construirCatalogo, emparejarCatalogo, parsearCSV } from "@/lib/cierre-turno/catalogo";
 import { leerHojaExcel } from "@/lib/cierre-turno/catalogo-excel";
 
 /** Tope del fichero de catálogo: una tabla de 500 artículos no llega ni a 100 KB. */
@@ -86,15 +89,19 @@ export const POST = withTenant(
     }
 
     const resumen = await prisma.$transaction(async (tx) => {
-      const previos = await tx.articuloVenta.findMany({ select: { id: true, nombre: true, activo: true } });
-      const porNombre = new Map(previos.map((p) => [p.nombre.trim().toLowerCase(), p]));
+      const previos = await tx.articuloVenta.findMany({
+        select: { id: true, nombre: true, categoria: true, subcategoria: true },
+      });
+      // Un artículo es el mismo por nombre y sitio en el catálogo; el mismo
+      // nombre en dos categorías son dos artículos distintos y la hoja puede
+      // traerlos los dos (ver `emparejarCatalogo`).
+      const emparejadas = emparejarCatalogo(filas, previos);
 
       let creados = 0;
       let actualizados = 0;
       const idsEnFichero: string[] = [];
 
-      for (const fila of filas) {
-        const existente = porNombre.get(fila.nombre.toLowerCase());
+      for (const { fila, existente } of emparejadas) {
         if (existente) {
           await tx.articuloVenta.update({
             where: { id: existente.id },
