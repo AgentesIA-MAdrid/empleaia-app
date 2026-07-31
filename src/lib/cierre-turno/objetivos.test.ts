@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   ambitoDe,
   construirConsecucion,
+  construirMatriz,
+  totalesMatriz,
   importeVendido,
   mesAnterior,
   normalizarCantidadObjetivo,
@@ -243,6 +245,104 @@ describe("progresoDe", () => {
       vendido: 3,
       objetivo: null,
       consecucion: null,
+    });
+  });
+});
+
+describe("construirMatriz", () => {
+  const objetivos = [
+    objetivo({ id: "total-ana", userId: "ana", cantidad: 20 }),
+    objetivo({ id: "fibra-ana", userId: "ana", articuloId: "fibra", cantidad: 5 }),
+    objetivo({ id: "fibra-t1", tiendaId: "t1", articuloId: "fibra", cantidad: 8 }),
+  ];
+  const comerciales = [
+    { id: "ana", nombre: "Ana García", sede: "Centro" },
+    { id: "luis", nombre: "Luis Pérez", sede: "Centro" },
+  ];
+
+  it("da una casilla por comercial y artículo, más la de unidades totales", () => {
+    const filas = construirMatriz("comercial", comerciales, ["fibra", "movil"], objetivos, VENTAS);
+    expect(filas.map((f) => f.sujetoId)).toEqual(["ana", "luis"]);
+    expect(Object.keys(filas[0].celdas).sort()).toEqual(["", "fibra", "movil"]);
+    expect(filas[0].celdas[""]).toEqual({
+      objetivoId: "total-ana",
+      objetivo: 20,
+      vendido: 10,
+      consecucion: 50,
+    });
+    expect(filas[0].celdas["fibra"]).toEqual({
+      objetivoId: "fibra-ana",
+      objetivo: 5,
+      vendido: 6,
+      consecucion: 120,
+    });
+    // Sin objetivo fijado la casilla va vacía, pero lo vendido se sigue viendo.
+    expect(filas[1].celdas["fibra"]).toEqual({
+      objetivoId: null,
+      objetivo: null,
+      vendido: 3,
+      consecucion: null,
+    });
+    expect(filas[0].sede).toBe("Centro");
+  });
+
+  it("los objetivos personales no se cuelan en la parrilla de sedes", () => {
+    const filas = construirMatriz(
+      "sede",
+      [{ id: "t1", nombre: "Centro" }],
+      ["fibra", "movil"],
+      objetivos,
+      VENTAS,
+    );
+    // La sede vende lo de todo su equipo, y solo tiene su propio objetivo.
+    expect(filas[0].celdas["fibra"]).toEqual({
+      objetivoId: "fibra-t1",
+      objetivo: 8,
+      vendido: 9,
+      consecucion: 112.5,
+    });
+    expect(filas[0].celdas[""].objetivo).toBeNull();
+    expect(filas[0].celdas[""].vendido).toBe(13);
+    expect(filas[0].sede).toBeNull();
+  });
+
+  it("una venta de artículo borrado suma en unidades totales y en ninguna columna de producto", () => {
+    const ventas: VentaAgregada[] = [
+      { userId: "ana", tiendaId: "t1", articuloId: null, cantidad: 4 },
+    ];
+    const filas = construirMatriz("comercial", comerciales, ["fibra"], [], ventas);
+    expect(filas[0].celdas[""].vendido).toBe(4);
+    expect(filas[0].celdas["fibra"].vendido).toBe(0);
+  });
+});
+
+describe("totalesMatriz", () => {
+  it("suma cada columna y cuenta quién tiene objetivo", () => {
+    const filas = construirMatriz(
+      "comercial",
+      [
+        { id: "ana", nombre: "Ana" },
+        { id: "luis", nombre: "Luis" },
+      ],
+      ["fibra"],
+      [
+        objetivo({ id: "fibra-ana", userId: "ana", articuloId: "fibra", cantidad: 5 }),
+        objetivo({ id: "fibra-luis", userId: "luis", articuloId: "fibra", cantidad: 5 }),
+      ],
+      VENTAS,
+    );
+    expect(totalesMatriz(filas, ["fibra"])["fibra"]).toEqual({
+      objetivo: 10,
+      vendido: 9,
+      consecucion: 90,
+      conObjetivo: 2,
+    });
+    // Sin ningún objetivo en la columna no hay consecución que enseñar.
+    expect(totalesMatriz(filas, ["fibra"])[""]).toEqual({
+      objetivo: 0,
+      vendido: 13,
+      consecucion: null,
+      conObjetivo: 0,
     });
   });
 });

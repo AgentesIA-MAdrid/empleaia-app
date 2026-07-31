@@ -106,6 +106,14 @@ PRs de esta sesión: **#92** (entrega 3) y **#93** (entrega 4). Antes:
    administración, con adjuntos descargables y corrección de la caja.
    Precios en el catálogo tras un interruptor por cliente
    (`ventasPreciosActivos`).
+   **Actualización 2026-07-31** (ticket ada9e75f): la pantalla de
+   objetivos ya no tiene selectores de ámbito ni de artículo — es una
+   **parrilla**: una tabla de comerciales y debajo otra de sedes, con
+   una columna por producto del catálogo más la de unidades totales.
+   `GET /api/objetivos-venta` solo recibe `mes` (y `tiendaId`) y
+   devuelve `filasComerciales`/`filasSedes` + sus totales por columna
+   (`construirMatriz`/`totalesMatriz` en `src/lib/cierre-turno/objetivos.ts`).
+   El modelo `ObjetivoVenta` no cambia.
 3. **Entrega 4 (PR #93)** — arqueos semanales por sede y semana ISO, con
    recogida firmada por PIN (bcrypt, bloqueo temporal de 15 min tras 5
    fallos, gestión de autorizados y PIN desde la propia pantalla) y
