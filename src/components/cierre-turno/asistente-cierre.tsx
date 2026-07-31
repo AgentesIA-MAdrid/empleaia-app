@@ -65,6 +65,11 @@ interface Progreso {
     importe: number | null;
     /** false = lo vendido de este artículo no suma en los objetivos. */
     cuentaParaObjetivos: boolean;
+    /**
+     * Productos del catálogo que suma la fila: los que se llaman igual van
+     * juntos aunque estén en categorías distintas (ticket 7dd7ac00).
+     */
+    productos: number;
   }[];
   /** Objetivos por grupo de productos, si administración le ha puesto alguno. */
   porGrupo: {
@@ -695,6 +700,15 @@ export function AsistenteCierre({
                         ))}
                       </tbody>
                     </table>
+                    {/* Dos filas con el mismo nombre serían un duplicado a los
+                        ojos de quien lo lee: se suman, y se dice por qué la
+                        cifra no cuadra con una sola línea del catálogo. */}
+                    {progreso?.porArticulo.some((a) => a.productos > 1) && (
+                      <p className="text-xs text-slate-400 mt-2">
+                        Los productos que se llaman igual se suman en una sola fila, aunque el
+                        catálogo los tenga en categorías distintas.
+                      </p>
+                    )}
                   </div>
                 )}
 

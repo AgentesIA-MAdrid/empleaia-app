@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  agruparProductosPorNombre,
   ambitoDe,
   anotarVentas,
   columnaSubgrupo,
@@ -19,6 +20,7 @@ import {
   rangoMes,
   vendidoDeSujeto,
   vendidoPara,
+  type FilaProductoProgreso,
   type ObjetivoFila,
   type VentaAgregada,
 } from "./objetivos";
@@ -502,6 +504,105 @@ describe("progresoDe", () => {
       objetivo: 6,
       consecucion: 50,
     });
+  });
+});
+
+describe("agruparProductosPorNombre — mismo nombre, distinta categoría (ticket 7dd7ac00)", () => {
+  const fila = (f: Partial<FilaProductoProgreso>): FilaProductoProgreso => ({
+    articuloId: "a1",
+    nombre: "Fibra 1 GB",
+    vendido: 0,
+    objetivo: null,
+    consecucion: null,
+    importe: null,
+    cuentaParaObjetivos: true,
+    productos: 1,
+    ...f,
+  });
+
+  it("suma las unidades de los productos que se llaman igual", () => {
+    const filas = agruparProductosPorNombre([
+      fila({ articuloId: "fibra-particular", vendido: 1 }),
+      fila({ articuloId: "fibra-empresa", vendido: 2 }),
+    ]);
+    expect(filas).toHaveLength(1);
+    expect(filas[0]).toMatchObject({
+      articuloId: "fibra-particular",
+      nombre: "Fibra 1 GB",
+      vendido: 3,
+      productos: 2,
+    });
+  });
+
+  it("suma los objetivos y recalcula la consecución sobre el total", () => {
+    const [f] = agruparProductosPorNombre([
+      fila({ articuloId: "p", vendido: 1, objetivo: 2, consecucion: 50 }),
+      fila({ articuloId: "e", vendido: 2, objetivo: 2, consecucion: 100 }),
+    ]);
+    expect(f).toMatchObject({ vendido: 3, objetivo: 4, consecucion: 75 });
+  });
+
+  it("sin ningún objetivo no inventa un cero", () => {
+    const [f] = agruparProductosPorNombre([
+      fila({ articuloId: "p", vendido: 1 }),
+      fila({ articuloId: "e", vendido: 2 }),
+    ]);
+    expect(f).toMatchObject({ objetivo: null, consecucion: null });
+  });
+
+  it("el objetivo de uno solo mide las unidades de los dos", () => {
+    const [f] = agruparProductosPorNombre([
+      fila({ articuloId: "p", vendido: 1, objetivo: 3, consecucion: 33.3 }),
+      fila({ articuloId: "e", vendido: 2 }),
+    ]);
+    expect(f).toMatchObject({ vendido: 3, objetivo: 3, consecucion: 100 });
+  });
+
+  it("compara el nombre sin tildes, mayúsculas ni espacios de más", () => {
+    const filas = agruparProductosPorNombre([
+      fila({ articuloId: "p", nombre: "Energía  Luz", vendido: 1 }),
+      fila({ articuloId: "e", nombre: "energia luz", vendido: 2 }),
+    ]);
+    expect(filas).toHaveLength(1);
+    expect(filas[0]).toMatchObject({ nombre: "Energía  Luz", vendido: 3 });
+  });
+
+  it("no mezcla productos distintos y respeta el orden del catálogo", () => {
+    const filas = agruparProductosPorNombre([
+      fila({ articuloId: "fibra-p", nombre: "Fibra", vendido: 1 }),
+      fila({ articuloId: "movil", nombre: "Móvil", vendido: 4 }),
+      fila({ articuloId: "fibra-e", nombre: "Fibra", vendido: 2 }),
+    ]);
+    expect(filas.map((f) => [f.nombre, f.vendido])).toEqual([
+      ["Fibra", 3],
+      ["Móvil", 4],
+    ]);
+  });
+
+  it("suma el importe que se puede calcular y deja null si no hay ninguno", () => {
+    const [conPrecio] = agruparProductosPorNombre([
+      fila({ articuloId: "p", vendido: 1, importe: 10.5 }),
+      fila({ articuloId: "e", vendido: 2, importe: null }),
+    ]);
+    expect(conPrecio.importe).toBe(10.5);
+    const [sinPrecio] = agruparProductosPorNombre([
+      fila({ articuloId: "p", vendido: 1 }),
+      fila({ articuloId: "e", vendido: 2 }),
+    ]);
+    expect(sinPrecio.importe).toBeNull();
+  });
+
+  it("la fila cuenta para los objetivos si lo hace alguno de sus productos", () => {
+    const [mixto] = agruparProductosPorNombre([
+      fila({ articuloId: "p", vendido: 1, cuentaParaObjetivos: false }),
+      fila({ articuloId: "e", vendido: 2, cuentaParaObjetivos: true }),
+    ]);
+    expect(mixto.cuentaParaObjetivos).toBe(true);
+    const [excluido] = agruparProductosPorNombre([
+      fila({ articuloId: "p", vendido: 1, cuentaParaObjetivos: false }),
+      fila({ articuloId: "e", vendido: 2, cuentaParaObjetivos: false }),
+    ]);
+    expect(excluido.cuentaParaObjetivos).toBe(false);
   });
 });
 

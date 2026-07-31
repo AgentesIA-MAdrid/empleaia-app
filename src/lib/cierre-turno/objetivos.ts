@@ -38,6 +38,8 @@
  *    quién va dirigido, igual que `userId` o `tiendaId`.
  */
 
+import { claveArticulo } from "@/lib/cierre-turno/catalogo";
+
 export type AmbitoObjetivo = "comercial" | "sede" | "grupo";
 
 /** Objetivo tal como sale de la tabla, con lo justo para calcular. */
@@ -801,6 +803,75 @@ export function progresoDe(
   );
   const { cantidad: objetivo } = objetivoTotalDe(suyos, articuloIds, catalogo);
   return { vendido, objetivo, consecucion: objetivo === null ? null : pct(vendido, objetivo) };
+}
+
+/** Una fila del desglose por producto del paso 2 ("Cómo vas"). */
+export interface FilaProductoProgreso {
+  /** El del primer producto de la fila: en pantalla solo sirve de clave. */
+  articuloId: string;
+  nombre: string;
+  vendido: number;
+  objetivo: number | null;
+  consecucion: number | null;
+  /** null cuando no hay precio con el que calcularlo (o están apagados). */
+  importe: number | null;
+  cuentaParaObjetivos: boolean;
+  /** Productos del catálogo que suma esta fila. 1 = no se ha agrupado nada. */
+  productos: number;
+}
+
+/**
+ * Suma las filas de los productos que se llaman igual aunque estén en
+ * categorías distintas (ticket 7dd7ac00).
+ *
+ * El catálogo los tiene como productos distintos —"Fibra 1 GB" de Particular y
+ * "Fibra 1 GB" de Empresa son dos artículos, con su precio y sus objetivos— y
+ * así se registran en el cierre, producto a producto. Pero al comercial se le
+ * pide "vende 3 fibras", no "vende 3 fibras de particular": ver su venta
+ * partida en dos filas con el mismo nombre le obliga a sumar de cabeza para
+ * saber cómo va, y las dos filas parecen además un duplicado del catálogo.
+ *
+ * Se suman las unidades, los objetivos y el importe; la consecución se recalcula
+ * con la suma, porque la media de dos porcentajes no es el porcentaje del total.
+ * El nombre se compara con la misma clave que el catálogo (sin tildes, sin
+ * mayúsculas y sin espacios de más), que es la que decide si dos artículos se
+ * llaman igual en el resto del módulo.
+ *
+ * Solo agrupa lo que se le da: quien la llama ya ha decidido de quién son esas
+ * ventas (las del propio comercial o las de su sede).
+ */
+export function agruparProductosPorNombre(filas: FilaProductoProgreso[]): FilaProductoProgreso[] {
+  const acumuladas = new Map<string, FilaProductoProgreso>();
+  for (const f of filas) {
+    // Solo el nombre: la categoría y la subcategoría son justo lo que aquí da
+    // igual (en `claveArticulo` van vacías si no se pasan).
+    const clave = claveArticulo({ nombre: f.nombre });
+    const previa = acumuladas.get(clave);
+    if (!previa) {
+      acumuladas.set(clave, { ...f, productos: 1 });
+      continue;
+    }
+    previa.vendido += f.vendido;
+    // "Sin objetivo" no es "objetivo de cero" (misma regla que el resto del
+    // módulo): la suma solo existe si alguno de los productos tenía objetivo.
+    if (f.objetivo !== null) previa.objetivo = (previa.objetivo ?? 0) + f.objetivo;
+    // Un producto sin precio no anula el importe de sus hermanos, igual que en
+    // `importeVendido`: aporta 0 € y el importe de la fila sigue siendo el que
+    // se puede calcular.
+    if (f.importe !== null) previa.importe = (previa.importe ?? 0) + f.importe;
+    // Basta con que uno de los productos cuente para que la fila empuje los
+    // objetivos; el aviso de "no cuenta" se queda para las filas en las que
+    // ninguno cuenta, que es cuando sus unidades no aparecen arriba.
+    previa.cuentaParaObjetivos = previa.cuentaParaObjetivos || f.cuentaParaObjetivos;
+    previa.productos += 1;
+  }
+  // El orden es el de entrada (el del catálogo): manda el primer producto con
+  // ese nombre, igual que en `subgruposDelCatalogo`.
+  return [...acumuladas.values()].map((f) => ({
+    ...f,
+    importe: f.importe === null ? null : Math.round(f.importe * 100) / 100,
+    consecucion: f.objetivo === null ? null : pct(f.vendido, f.objetivo),
+  }));
 }
 
 /**
