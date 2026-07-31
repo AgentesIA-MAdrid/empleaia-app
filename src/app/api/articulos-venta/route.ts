@@ -29,6 +29,11 @@
  * El precio es opcional y solo se usa si el cliente enciende los precios
  * (`ventasPreciosActivos`); el GET devuelve ese interruptor para que la
  * pantalla sepa si tiene sentido mostrar la columna.
+ *
+ * Con `?todos=1` el GET devuelve además `objetivosDelMes`: sobre qué productos
+ * y sobre qué grupos hay objetivos puestos este mes. Con eso la pantalla del
+ * catálogo pinta, en cada artículo, cómo se le evalúa —por sí solo o dentro de
+ * su grupo— sin tener que ir a la parrilla de objetivos (ticket cd804fa2).
  */
 
 import { auth } from "@/lib/auth";
@@ -37,6 +42,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
+import { diaMadrid } from "@/lib/cierre-turno/core";
 import {
   CATALOGO_MAX_FILAS,
   claveArticulo,
@@ -96,7 +102,12 @@ export const GET = withTenant(
     const url = new URL(req.url);
     const todos = url.searchParams.get("todos") === "1";
 
-    const [articulos, cfg] = await Promise.all([
+    // Los objetivos son mensuales, así que "cómo se evalúa este producto" es
+    // siempre "este mes": se mira el mes en curso en horario peninsular, el
+    // mismo criterio que `/api/objetivos-venta`.
+    const mesObjetivos = diaMadrid().slice(0, 7);
+
+    const [articulos, cfg, objetivos] = await Promise.all([
       prisma.articuloVenta.findMany({
         ...(todos ? {} : { where: { activo: true } }),
         select: CAMPOS_ARTICULO,
@@ -106,6 +117,16 @@ export const GET = withTenant(
         where: { id: "singleton" },
         select: { ventasPreciosActivos: true, cierreTurnoEnRodaje: true },
       }),
+      // Solo para la pantalla de administración: el cierre del comercial no
+      // pinta distintivos y no hay por qué hacerle una consulta de más.
+      todos
+        ? prisma.objetivoVenta.findMany({
+            // Un objetivo de 0 unidades es uno borrado a medias: no persigue
+            // nada y no debería teñir el producto.
+            where: { mes: mesObjetivos, cantidad: { gt: 0 } },
+            select: { articuloId: true, categoria: true },
+          })
+        : Promise.resolve([]),
     ]);
 
     return NextResponse.json({
@@ -116,6 +137,23 @@ export const GET = withTenant(
       preciosActivos: cfg?.ventasPreciosActivos ?? false,
       // Sin fila de configuración se asume rodaje (lado prudente).
       enRodaje: cfg?.cierreTurnoEnRodaje ?? true,
+      // Sin `?todos=1` no se manda la clave (en vez de mandarla vacía, que se
+      // leería como "aquí nadie persigue nada").
+      ...(todos
+        ? {
+            objetivosDelMes: {
+              mes: mesObjetivos,
+              articuloIds: [
+                ...new Set(
+                  objetivos.map((o) => o.articuloId).filter((id): id is string => Boolean(id)),
+                ),
+              ],
+              categorias: [
+                ...new Set(objetivos.map((o) => o.categoria).filter((c): c is string => Boolean(c))),
+              ],
+            },
+          }
+        : {}),
     });
   }),
 );

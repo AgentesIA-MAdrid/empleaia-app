@@ -73,6 +73,33 @@ Producción ya corre desde esta rama vía Dokploy.
   `withTenant`, pages usan `withTenantPage`, no `fetch` interno entre
   rutas, etc.).
 
+## 4.hoy-sex. Distintivo de cómo se evalúa cada producto (ticket cd804fa2, 2026-07-31)
+
+Configuración → **Catálogo de ventas** tiene una columna nueva, *Cómo se
+evalúa*, con una etiqueta por artículo: **Objetivo propio** (alguien
+tiene la cifra puesta sobre ese producto), **Grupo: X** (la cifra está
+sobre su categoría), **Unidades totales** (solo suma en el total) o **No
+cuenta** (`cuentaParaObjetivos = false`). Sin ella había que ir a la
+parrilla de objetivos y leerla columna a columna para saber con qué se
+mide cada producto.
+
+- Lógica pura: `evaluacionDeArticulo` en `src/lib/cierre-turno/objetivos.ts`
+  (con tests). Un objetivo puesto sobre el producto **manda** sobre el
+  interruptor de "cuenta para objetivos": si alguien lo fijó, se
+  persigue (misma regla que `vendidoPara`).
+- `GET /api/articulos-venta?todos=1` devuelve además `objetivosDelMes`
+  (`{ mes, articuloIds, categorias }`) con los objetivos de cantidad > 0
+  del **mes en curso** (`diaMadrid()`), de cualquier ámbito. Sin
+  `?todos=1` —el cierre del comercial— no se hace la consulta.
+- Sin cambios de modelo ni migración. El distintivo mira el mes en curso;
+  la pantalla lo dice ("mira los objetivos de julio de 2026") y no lleva
+  selector de mes: el catálogo no es una pantalla mensual.
+- Ojo con el vocabulario: el cliente lo pidió como "por producto o por
+  subcategoría", pero los objetivos por grupo siguen siendo por
+  **categoría** (primer nivel), como se decidió en el ticket 2d327b98.
+  Si algún día se fijan objetivos por subcategoría, esta función y el
+  GET son los dos sitios a tocar.
+
 ## 4.hoy-qui. Catálogo de ventas en dos niveles (ticket 2d327b98, 2026-07-31)
 
 `ArticuloVenta` tiene un campo nuevo, **`subcategoria`** (migración

@@ -167,6 +167,50 @@ export function categoriasDelCatalogo(articulos: ArticuloObjetivo[]): string[] {
   return vistas;
 }
 
+/**
+ * Cómo se mide un producto del catálogo en un mes dado:
+ *
+ *  - `producto`: hay un objetivo puesto sobre él, así que se persigue solo.
+ *    Manda sobre todo lo demás, incluso sobre el interruptor de "cuenta para
+ *    objetivos": un objetivo puesto sobre un artículo concreto sí mide sus
+ *    ventas (ver `vendidoPara`).
+ *  - `excluido`: marcado como que no cuenta y sin objetivo propio. No empuja
+ *    ningún objetivo, ni el de unidades totales ni el de su grupo.
+ *  - `grupo`: su categoría tiene objetivo, así que lo que venda empuja el del
+ *    grupo entero (y el de unidades totales).
+ *  - `total`: no hay objetivo ni suyo ni de su grupo; solo suma en el de
+ *    unidades totales.
+ */
+export type ModoEvaluacion = "producto" | "grupo" | "total" | "excluido";
+
+export interface EvaluacionArticulo {
+  modo: ModoEvaluacion;
+  /** El grupo que lo mide (su categoría), solo cuando `modo === "grupo"`. */
+  categoria: string | null;
+}
+
+/**
+ * Con qué se está midiendo un producto, para poder decirlo en la lista del
+ * catálogo (ticket cd804fa2). Un objetivo puede ir sobre el producto o sobre su
+ * grupo de productos, y desde el catálogo no había forma de saber cuál de las
+ * dos cosas le pasa a cada uno.
+ *
+ * `objetivos` son los objetivos ya fijados del mes que se mira, sin distinguir
+ * a quién van dirigidos: si alguien —un comercial, una sede o un grupo de
+ * objetivos— persigue ese producto, el producto se está midiendo solo.
+ */
+export function evaluacionDeArticulo(
+  articulo: ArticuloObjetivo,
+  objetivos: { articuloIds: ReadonlySet<string>; categorias: ReadonlySet<string> },
+): EvaluacionArticulo {
+  if (objetivos.articuloIds.has(articulo.id)) return { modo: "producto", categoria: null };
+  if (!cuentaParaObjetivos(articulo)) return { modo: "excluido", categoria: null };
+  if (articulo.categoria && objetivos.categorias.has(articulo.categoria)) {
+    return { modo: "grupo", categoria: articulo.categoria };
+  }
+  return { modo: "total", categoria: null };
+}
+
 export interface FilaConsecucion {
   objetivoId: string;
   ambito: AmbitoObjetivo;

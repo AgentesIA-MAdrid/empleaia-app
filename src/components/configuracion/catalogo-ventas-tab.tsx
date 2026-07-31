@@ -28,6 +28,12 @@
  * Los precios son opcionales y van tras un interruptor: hay clientes que solo
  * cuentan unidades vendidas. Encendido, el módulo puede leer las ventas en
  * euros y cruzarlas con lo que hay en caja.
+ *
+ * Cada fila lleva además un distintivo de cómo se evalúa el artículo este mes
+ * (ticket cd804fa2): un objetivo puede ir sobre el producto o sobre su
+ * categoría, y desde aquí no había forma de saber cuál de las dos cosas le está
+ * pasando a cada uno sin ir a la parrilla de objetivos a mirarlo columna a
+ * columna. Lo decide `evaluacionDeArticulo` con los objetivos que trae el GET.
  */
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -42,12 +48,14 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { agruparCatalogo, aplanarCatalogo, moverEnOrden } from "@/lib/cierre-turno/catalogo";
+import { evaluacionDeArticulo, type EvaluacionArticulo } from "@/lib/cierre-turno/objetivos";
 
 interface Articulo {
   id: string;
@@ -60,6 +68,85 @@ interface Articulo {
   precio: number | null;
   /** Sus unidades empujan los objetivos de venta (totales y los de su grupo). */
   cuentaParaObjetivos: boolean;
+}
+
+/**
+ * Sobre qué hay objetivos puestos este mes: los ids de los productos que se
+ * persiguen uno a uno y las categorías que se persiguen enteras. Es lo que
+ * distingue "este artículo tiene su propia cifra" de "este suma en la de su
+ * grupo", que desde el catálogo no se veía.
+ */
+interface ObjetivosDelMes {
+  mes: string;
+  articuloIds: string[];
+  categorias: string[];
+}
+
+/** "Julio de 2026" a partir de "2026-07", como en la pantalla de objetivos. */
+function nombreDelMes(mes: string): string {
+  const texto = new Intl.DateTimeFormat("es-ES", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${mes}-01T00:00:00Z`));
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+/**
+ * El distintivo de cada artículo: cómo se le evalúa este mes. Se escribe con
+ * las mismas palabras que la parrilla de objetivos ("unidades totales", "grupo
+ * de productos") para que se reconozca al pasar de una pantalla a la otra.
+ */
+function distintivoEvaluacion(e: EvaluacionArticulo): {
+  texto: string;
+  variante: "default" | "secondary" | "outline";
+  detalle: string;
+} {
+  if (e.modo === "producto") {
+    return {
+      texto: "Objetivo propio",
+      variante: "default",
+      detalle:
+        "Este mes hay una cifra puesta sobre este producto: se mide por sí solo, con su propia columna en los objetivos.",
+    };
+  }
+  if (e.modo === "excluido") {
+    return {
+      texto: "No cuenta",
+      variante: "outline",
+      detalle:
+        "Se vende y se registra igual, pero sus unidades no suman en ningún objetivo (interruptor «Cuenta para objetivos» apagado).",
+    };
+  }
+  if (e.modo === "grupo") {
+    return {
+      texto: `Grupo: ${e.categoria}`,
+      variante: "secondary",
+      detalle: `No tiene cifra propia: sus unidades empujan el objetivo del grupo "${e.categoria}" y el de unidades totales.`,
+    };
+  }
+  return {
+    texto: "Unidades totales",
+    variante: "outline",
+    detalle:
+      "Nadie persigue este producto ni su grupo este mes: sus unidades solo suman en el objetivo de unidades totales.",
+  };
+}
+
+/** El distintivo de una fila del catálogo: cómo se evalúa ese artículo. */
+function DistintivoEvaluacion({
+  articulo,
+  objetivos,
+}: {
+  articulo: Articulo;
+  objetivos: { articuloIds: ReadonlySet<string>; categorias: ReadonlySet<string> };
+}) {
+  const d = distintivoEvaluacion(evaluacionDeArticulo(articulo, objetivos));
+  return (
+    <Badge variant={d.variante} className="whitespace-nowrap" title={d.detalle}>
+      {d.texto}
+    </Badge>
+  );
 }
 
 /** Persona con acceso anticipado al módulo mientras está en rodaje. */
@@ -87,6 +174,7 @@ export function CatalogoVentasTab() {
   const [cargando, setCargando] = useState(true);
   const [subiendo, setSubiendo] = useState(false);
   const [resumen, setResumen] = useState<ResumenImportacion | null>(null);
+  const [objetivosDelMes, setObjetivosDelMes] = useState<ObjetivosDelMes | null>(null);
   const [preciosActivos, setPreciosActivos] = useState(false);
   const [guardandoPrecios, setGuardandoPrecios] = useState(false);
   const [enRodaje, setEnRodaje] = useState(true);
@@ -113,8 +201,10 @@ export function CatalogoVentasTab() {
         articulos: Articulo[];
         preciosActivos: boolean;
         enRodaje: boolean;
+        objetivosDelMes?: ObjetivosDelMes;
       };
       setArticulos(data.articulos ?? []);
+      setObjetivosDelMes(data.objetivosDelMes ?? null);
       setPreciosActivos(Boolean(data.preciosActivos));
       setEnRodaje(data.enRodaje !== false);
     } finally {
@@ -490,7 +580,19 @@ export function CatalogoVentasTab() {
     [articulos],
   );
 
-  const numColumnas = preciosActivos ? 8 : 7;
+  // Los objetivos fijados del mes, en conjuntos, para resolver el distintivo de
+  // cada fila sin recorrer las listas una vez por artículo. El distintivo se
+  // recalcula en cada pintado, así que apagar "Cuenta para objetivos" lo cambia
+  // al momento, sin esperar a recargar el catálogo.
+  const objetivosFijados = useMemo(
+    () => ({
+      articuloIds: new Set(objetivosDelMes?.articuloIds ?? []),
+      categorias: new Set(objetivosDelMes?.categorias ?? []),
+    }),
+    [objetivosDelMes],
+  );
+
+  const numColumnas = preciosActivos ? 9 : 8;
 
   return (
     <div className="space-y-6">
@@ -518,7 +620,10 @@ export function CatalogoVentasTab() {
           turno. Con las flechas de cada fila los colocas en el orden que quieras dentro de su
           bloque: es el mismo que verá tu equipo, y con el interruptor{" "}
           <strong className="font-medium text-slate-600">Cuenta para objetivos</strong> eliges qué
-          artículos empujan los objetivos y cuáles no.
+          artículos empujan los objetivos y cuáles no. La columna{" "}
+          <strong className="font-medium text-slate-600">Cómo se evalúa</strong> te dice de un
+          vistazo con qué se le mide a cada uno este mes: con su propia cifra o con la de su
+          categoría.
         </p>
       </div>
 
@@ -853,6 +958,19 @@ export function CatalogoVentasTab() {
             </p>
           ) : (
             <div className="overflow-x-auto">
+              {/* De qué mes son los distintivos: los objetivos son mensuales, y
+                  un "objetivo propio" sin decir de cuándo no significa nada. */}
+              {objetivosDelMes && (
+                <p className="px-4 pt-4 text-xs text-slate-500 max-w-3xl">
+                  La columna <strong className="font-medium text-slate-600">Cómo se evalúa</strong>{" "}
+                  mira los objetivos de {nombreDelMes(objetivosDelMes.mes).toLowerCase()}:{" "}
+                  <strong className="font-medium text-slate-600">Objetivo propio</strong> si alguien
+                  persigue ese producto, <strong className="font-medium text-slate-600">Grupo</strong>{" "}
+                  si la cifra está puesta sobre su categoría entera y{" "}
+                  <strong className="font-medium text-slate-600">Unidades totales</strong> si solo
+                  suma en el total. Se cambia en Objetivos de venta.
+                </p>
+              )}
               <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
@@ -863,6 +981,7 @@ export function CatalogoVentasTab() {
                       "Subcategoría",
                       ...(preciosActivos ? ["Precio"] : []),
                       "Cuenta para objetivos",
+                      "Cómo se evalúa",
                       "Estado",
                       "",
                     ].map(
@@ -1018,6 +1137,13 @@ export function CatalogoVentasTab() {
                                     }`}
                                   />
                                 </button>
+                              </td>
+                              {/* Con qué se le mide este mes: un objetivo puede ir
+                                  sobre el producto o sobre su grupo, y desde el
+                                  catálogo no había forma de saber cuál de las dos
+                                  cosas le está pasando a cada uno. */}
+                              <td className="px-4 py-2.5">
+                                <DistintivoEvaluacion articulo={a} objetivos={objetivosFijados} />
                               </td>
                               <td className="px-4 py-2.5 text-sm">
                                 {a.activo ? (
