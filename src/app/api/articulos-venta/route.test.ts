@@ -8,10 +8,13 @@
  *  1. Solo administración toca el catálogo.
  *  2. Un artículo nuevo se añade al final de la lista (el orden del catálogo es
  *     el orden en que el comercial ve la tabla del cierre).
- *  3. El mismo nombre no se duplica ni cambiando tildes o mayúsculas; si el que
- *     había estaba desactivado se reactiva, para no partir el histórico de
- *     ventas en dos artículos gemelos.
- *  4. Renombrar tampoco puede acabar en dos artículos con el mismo nombre.
+ *  3. El mismo nombre en la misma categoría no se duplica ni cambiando tildes o
+ *     mayúsculas; si el que había estaba desactivado se reactiva, para no
+ *     partir el histórico de ventas en dos artículos gemelos.
+ *  4. El mismo nombre en otra categoría o subcategoría sí se guarda: son dos
+ *     productos distintos (ticket b4afccf5).
+ *  5. Renombrar —o mover de categoría— tampoco puede acabar en dos artículos
+ *     iguales dentro del mismo bloque.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -24,6 +27,7 @@ type ArticuloFila = {
   id: string;
   nombre: string;
   categoria?: string | null;
+  subcategoria?: string | null;
   activo: boolean;
   orden: number;
 };
@@ -33,6 +37,12 @@ let existentes: ArticuloFila[] = [];
 const prismaMock = {
   articuloVenta: {
     findMany: vi.fn(async () => existentes),
+    // El PATCH mira cómo queda el artículo entero antes de guardar: necesita
+    // el que se está tocando, además del resto del catálogo.
+    findUnique: vi.fn(async ({ where }: { where: { id: string } }) => {
+      const a = existentes.find((x) => x.id === where.id);
+      return a ?? { nombre: "Pospago", categoria: null, subcategoria: null };
+    }),
     create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
       id: "art_nuevo",
       activo: true,
@@ -186,15 +196,69 @@ describe("POST /api/articulos-venta", () => {
     expect(prismaMock.articuloVenta.create).not.toHaveBeenCalled();
   });
 
+  it("tampoco si repite nombre dentro de la misma categoría", async () => {
+    existentes = [
+      { id: "art_1", nombre: "Renove", categoria: "Telefonía", subcategoria: null, activo: true, orden: 0 },
+    ];
+    const res = await post({ nombre: "renove", categoria: " TELEFONIA " });
+    expect(res.status).toBe(409);
+    expect(prismaMock.articuloVenta.create).not.toHaveBeenCalled();
+  });
+
+  it("el mismo nombre en otra categoría sí se crea: son dos productos", async () => {
+    existentes = [
+      { id: "art_1", nombre: "Renove", categoria: "Telefonía", subcategoria: null, activo: true, orden: 0 },
+    ];
+    const res = await post({ nombre: "Renove", categoria: "Energía" });
+    expect(res.status).toBe(201);
+    expect(prismaMock.articuloVenta.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ nombre: "Renove", categoria: "Energía", orden: 1 }),
+      }),
+    );
+  });
+
+  it("y el mismo nombre y categoría en otra subcategoría, también", async () => {
+    existentes = [
+      {
+        id: "art_1",
+        nombre: "Renove",
+        categoria: "Telefonía",
+        subcategoria: "Pospago",
+        activo: true,
+        orden: 0,
+      },
+    ];
+    const res = await post({ nombre: "Renove", categoria: "Telefonía", subcategoria: "Prepago" });
+    expect(res.status).toBe(201);
+    expect(prismaMock.articuloVenta.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ subcategoria: "Prepago" }),
+      }),
+    );
+  });
+
+  it("solo reactiva el desactivado que está en esa misma categoría", async () => {
+    existentes = [
+      { id: "art_1", nombre: "Renove", categoria: "Telefonía", subcategoria: null, activo: false, orden: 2 },
+    ];
+    const res = await post({ nombre: "Renove", categoria: "Energía" });
+    expect(res.status).toBe(201);
+    expect(prismaMock.articuloVenta.update).not.toHaveBeenCalled();
+    expect(prismaMock.articuloVenta.create).toHaveBeenCalled();
+  });
+
   it("si el artículo estaba desactivado, lo reactiva en vez de clonarlo", async () => {
-    existentes = [{ id: "art_1", nombre: "Renove", activo: false, orden: 2 }];
-    const res = await post({ nombre: "renove", categoria: "Terminales" });
+    existentes = [
+      { id: "art_1", nombre: "Renove", categoria: "Terminales", subcategoria: null, activo: false, orden: 2 },
+    ];
+    const res = await post({ nombre: "renove", categoria: "terminales" });
     expect(res.status).toBe(201);
     expect(prismaMock.articuloVenta.create).not.toHaveBeenCalled();
     expect(prismaMock.articuloVenta.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "art_1" },
-        data: { nombre: "renove", categoria: "Terminales", subcategoria: null, activo: true },
+        data: { nombre: "renove", categoria: "terminales", subcategoria: null, activo: true },
       }),
     );
     expect(await res.json()).toMatchObject({ reactivado: true });
@@ -239,6 +303,34 @@ describe("PATCH /api/articulos-venta", () => {
         data: { nombre: "Pospago nuevo" },
       }),
     );
+  });
+
+  it("renombrar a un nombre que ya existe en otra categoría sí se guarda", async () => {
+    existentes = [
+      { id: "art_1", nombre: "Renove", categoria: "Telefonía", subcategoria: null, activo: true, orden: 0 },
+      { id: "art_2", nombre: "Alta", categoria: "Energía", subcategoria: null, activo: true, orden: 1 },
+    ];
+    prismaMock.articuloVenta.findMany.mockResolvedValueOnce(
+      existentes.filter((a) => a.id !== "art_2"),
+    );
+    const res = await patch({ id: "art_2", nombre: "Renove" });
+    expect(res.status).toBe(200);
+    expect(prismaMock.articuloVenta.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "art_2" }, data: { nombre: "Renove" } }),
+    );
+  });
+
+  it("mover un artículo a una categoría donde ya hay otro igual se rechaza", async () => {
+    existentes = [
+      { id: "art_1", nombre: "Renove", categoria: "Telefonía", subcategoria: null, activo: true, orden: 0 },
+      { id: "art_2", nombre: "Renove", categoria: "Energía", subcategoria: null, activo: true, orden: 1 },
+    ];
+    prismaMock.articuloVenta.findMany.mockResolvedValueOnce(
+      existentes.filter((a) => a.id !== "art_2"),
+    );
+    const res = await patch({ id: "art_2", categoria: "Telefonía" });
+    expect(res.status).toBe(409);
+    expect(prismaMock.articuloVenta.update).not.toHaveBeenCalled();
   });
 
   it("vaciar la categoría la deja sin categoría, no en blanco", async () => {

@@ -68,6 +68,26 @@ describe("columnasPlantilla", () => {
     // Y su grupo tampoco: no queda ningún producto que lo empuje.
     expect(ids).not.toContain("cat:Accesorios");
   });
+
+  it("dos artículos que se llaman igual llevan detrás dónde están", () => {
+    const titulos = columnasPlantilla([
+      { id: "art_1", nombre: "Renove", categoria: "Telefonía", cuentaParaObjetivos: true },
+      { id: "art_2", nombre: "Renove", categoria: "Energía", cuentaParaObjetivos: true },
+      {
+        id: "art_3",
+        nombre: "Renove",
+        categoria: "Telefonía",
+        subcategoria: "Pospago",
+        cuentaParaObjetivos: true,
+      },
+      { id: "art_4", nombre: "Portabilidad", categoria: "Telefonía", cuentaParaObjetivos: true },
+    ]).map((c) => c.titulo);
+    expect(titulos).toContain("Renove (Telefonía)");
+    expect(titulos).toContain("Renove (Energía)");
+    expect(titulos).toContain("Renove (Telefonía → Pospago)");
+    // El que no se repite se queda con su nombre a secas.
+    expect(titulos).toContain("Portabilidad");
+  });
 });
 
 describe("filasPlantilla", () => {
@@ -186,6 +206,30 @@ describe("interpretarPlantillaObjetivos", () => {
     expect(r.columnasIgnoradas.map((c) => c.columna)).toEqual(["Seguros", "Funda"]);
     // La funda existe, pero el cliente la ha dejado fuera de los objetivos.
     expect(r.columnasIgnoradas[1].motivo).toContain("no cuenta");
+  });
+
+  it("casa las columnas de dos artículos que se llaman igual por su categoría", () => {
+    const conRepetidos = {
+      ...ctx,
+      articulos: [
+        { id: "art_tel", nombre: "Renove", categoria: "Telefonía", cuentaParaObjetivos: true },
+        { id: "art_ene", nombre: "Renove", categoria: "Energía", cuentaParaObjetivos: true },
+      ],
+    };
+    const r = interpretarPlantillaObjetivos(
+      [
+        ["Ámbito", "Comercial o punto de venta", "Id", "Renove (Energía)", "Renove"],
+        ["Comercial", "Ana García", "u_ana", "7", "3"],
+      ],
+      conRepetidos,
+    );
+    expect(r.cambios).toEqual([
+      expect.objectContaining({ sujetoId: "u_ana", articuloId: "art_ene", cantidad: 7 }),
+    ]);
+    // La columna a secas sigue sin poder casarse: son dos artículos.
+    expect(r.columnasIgnoradas).toEqual([
+      { columna: "Renove", motivo: "Hay dos artículos con ese nombre en el catálogo." },
+    ]);
   });
 
   it("una cantidad que no es un número entero se cuenta como casilla ignorada", () => {

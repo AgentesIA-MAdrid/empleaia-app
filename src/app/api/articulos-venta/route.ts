@@ -16,6 +16,12 @@
  * Nunca se borra: las ventas ya registradas con él tienen que seguir siendo
  * legibles.
  *
+ * Lo que no se puede repetir es el mismo nombre en el mismo sitio del catálogo
+ * (misma categoría y misma subcategoría): ahí serían dos filas idénticas en la
+ * tabla del cierre. El mismo nombre en otra categoría sí vale —"Renove" de
+ * Telefonía y "Renove" de Energía son dos productos distintos, con su precio y
+ * sus objetivos— (ticket b4afccf5).
+ *
  * `cuentaParaObjetivos` decide si sus unidades empujan los objetivos de
  * unidades totales y los del grupo (su categoría). Apagarlo no lo quita del
  * cierre: se sigue vendiendo y registrando igual (ticket 714c76dd).
@@ -50,6 +56,17 @@ const CAMPOS_ARTICULO = {
   precio: true,
   cuentaParaObjetivos: true,
 } as const;
+
+/**
+ * El aviso de choque, diciendo dónde está el artículo que ya hay: el nombre
+ * solo no basta para que el administrador sepa cuál de sus bloques revisar.
+ */
+function yaExiste(categoria: string | null, subcategoria: string | null): string {
+  const donde = categoria
+    ? `en "${categoria}"${subcategoria ? ` → "${subcategoria}"` : ""}`
+    : "sin categoría";
+  return `Ya tienes un artículo con ese nombre ${donde}. Si es otro producto, ponle otra categoría o subcategoría.`;
+}
 
 /** Solo administración toca el catálogo; el resto lo consulta. */
 async function soloAdministracion(): Promise<Response | null> {
@@ -130,20 +147,23 @@ export const POST = withTenant(
       }
     }
 
-    // Todo en una transacción: entre mirar si el nombre está cogido y crear la
+    // Todo en una transacción: entre mirar si el sitio está cogido y crear la
     // fila no puede colarse otra pestaña con el mismo artículo.
     const resultado = await prisma.$transaction(async (tx) => {
       const previos = await tx.articuloVenta.findMany({
-        select: { id: true, nombre: true, activo: true, orden: true },
+        select: { id: true, nombre: true, categoria: true, subcategoria: true, activo: true, orden: true },
       });
 
-      const clave = claveArticulo(nombreOk.nombre);
-      const existente = previos.find((p) => claveArticulo(p.nombre) === clave);
+      // El mismo nombre en otra categoría (o subcategoría) es otro artículo:
+      // "Renove" de Telefonía y "Renove" de Energía se venden por separado,
+      // tienen su precio y sus objetivos, y el cliente los quiere los dos.
+      const clave = claveArticulo({ nombre: nombreOk.nombre, categoria, subcategoria });
+      const existente = previos.find((p) => claveArticulo(p) === clave);
       if (existente?.activo) return { estado: "duplicado" as const };
       if (existente) {
-        // Estaba desactivado: se reactiva en vez de crear un gemelo, para que
-        // las ventas que ya se registraron con él sigan sumando en el mismo
-        // artículo.
+        // Estaba desactivado, en esta misma categoría: se reactiva en vez de
+        // crear un gemelo, para que las ventas que ya se registraron con él
+        // sigan sumando en el mismo artículo.
         const revivido = await tx.articuloVenta.update({
           where: { id: existente.id },
           data: {
@@ -173,7 +193,7 @@ export const POST = withTenant(
     });
 
     if (resultado.estado === "duplicado") {
-      return NextResponse.json({ error: "Ya tienes un artículo con ese nombre." }, { status: 409 });
+      return NextResponse.json({ error: yaExiste(categoria, subcategoria) }, { status: 409 });
     }
     if (resultado.estado === "lleno") {
       return NextResponse.json(
@@ -223,17 +243,6 @@ export const PATCH = withTenant(
     if (body.nombre !== undefined) {
       const nombreOk = normalizarNombreArticulo(body.nombre);
       if (!nombreOk.ok) return NextResponse.json({ error: nombreOk.error }, { status: 400 });
-      // Renombrar no puede acabar en dos artículos con el mismo nombre: el
-      // importador los daría por el mismo y la tabla del cierre mostraría dos
-      // filas idénticas que nadie sabría distinguir.
-      const otros = await prisma.articuloVenta.findMany({
-        where: { id: { not: body.id } },
-        select: { nombre: true },
-      });
-      const clave = claveArticulo(nombreOk.nombre);
-      if (otros.some((o) => claveArticulo(o.nombre) === clave)) {
-        return NextResponse.json({ error: "Ya tienes un artículo con ese nombre." }, { status: 409 });
-      }
       data.nombre = nombreOk.nombre;
     }
     if (body.categoria !== undefined) {
@@ -265,6 +274,41 @@ export const PATCH = withTenant(
 
     if (Object.keys(data).length === 0) {
       return NextResponse.json({ error: "No hay nada que cambiar." }, { status: 400 });
+    }
+
+    // Renombrar —o mover de categoría— no puede acabar en dos artículos iguales
+    // dentro del mismo bloque: el importador los daría por el mismo y la tabla
+    // del cierre mostraría dos filas idénticas que nadie sabría distinguir. Dos
+    // con el mismo nombre en categorías distintas sí valen: son dos productos.
+    if (data.nombre !== undefined || data.categoria !== undefined || data.subcategoria !== undefined) {
+      const [actual, otros] = await Promise.all([
+        prisma.articuloVenta.findUnique({
+          where: { id: body.id },
+          select: { nombre: true, categoria: true, subcategoria: true },
+        }),
+        prisma.articuloVenta.findMany({
+          where: { id: { not: body.id } },
+          select: { nombre: true, categoria: true, subcategoria: true },
+        }),
+      ]);
+      if (!actual) {
+        return NextResponse.json({ error: "Ese artículo ya no existe." }, { status: 404 });
+      }
+      // Los campos que no vienen en el PATCH se quedan como están: la pantalla
+      // guarda una casilla cada vez, así que el choque hay que mirarlo sobre
+      // cómo queda el artículo entero, no sobre lo que llega suelto.
+      const destino = {
+        nombre: data.nombre ?? actual.nombre,
+        categoria: data.categoria !== undefined ? data.categoria : actual.categoria,
+        subcategoria: data.subcategoria !== undefined ? data.subcategoria : actual.subcategoria,
+      };
+      const clave = claveArticulo(destino);
+      if (otros.some((o) => claveArticulo(o) === clave)) {
+        return NextResponse.json(
+          { error: yaExiste(destino.categoria, destino.subcategoria) },
+          { status: 409 },
+        );
+      }
     }
 
     const actualizado = await prisma.articuloVenta.update({

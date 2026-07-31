@@ -103,7 +103,15 @@ export const POST = withTenant(
     const [articulos, sedes, personas, grupos] = await Promise.all([
       prisma.articuloVenta.findMany({
         where: { activo: true },
-        select: { id: true, nombre: true, categoria: true, cuentaParaObjetivos: true },
+        // Con la subcategoría se casan las columnas de dos artículos que se
+        // llaman igual ("Renove (Telefonía → Pospago)").
+        select: {
+          id: true,
+          nombre: true,
+          categoria: true,
+          subcategoria: true,
+          cuentaParaObjetivos: true,
+        },
         orderBy: [{ orden: "asc" }, { nombre: "asc" }],
       }),
       prisma.tienda.findMany({
