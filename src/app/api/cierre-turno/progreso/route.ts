@@ -1,25 +1,33 @@
 /**
  * GET /api/cierre-turno/progreso — paso 2 del asistente ("Cómo vas").
  *
- * Devuelve, del mes en curso: lo que lleva vendido el propio comercial y su
- * sede, frente a los objetivos que administración haya fijado. Es de lectura y
- * de uno mismo: no hace falta rol especial, cada quien ve lo suyo y el total de
- * su sede (que ya ve en el cuadrante y en los cierres de su tienda).
+ * Del mes en curso, los TRES objetivos que le afectan al comercial, cada uno
+ * con su total y su desglose por grupo de productos (ticket 8f2a04e1):
+ *
+ *  1. El suyo.
+ *  2. El de su sede.
+ *  3. El que el operador impone a su sede ("TMT"), otra vara sobre las mismas
+ *     ventas de la tienda.
+ *
+ * Es de lectura y de uno mismo: no hace falta rol especial, cada quien ve lo
+ * suyo y el total de su sede (que ya ve en el cuadrante y en los cierres de su
+ * tienda).
+ *
+ * La sede va con su NOMBRE, no como "tu sede": hay quien cubre en varias y lo
+ * primero que necesita saber es de qué tienda le están hablando.
+ *
+ * Salen TODOS los grupos del catálogo, tengan objetivo o no y haya vendido o
+ * no: la lista es corta —una fila por subcategoría— y enseñar solo lo vendido
+ * escondía justo lo que va flojo, que es lo que hay que mirar.
  *
  * Sin objetivo fijado no se devuelve un cero: se dice que no hay objetivo. Un
  * "0 % conseguido" cuando nadie ha puesto objetivo desanima por un dato que no
  * existe.
  *
- * Los productos que administración ha dejado fuera de los objetivos no suman en
- * el progreso, y si le han puesto objetivos por grupo de productos —cada grupo
- * es una subcategoría del catálogo— vienen en `porGrupo` (tickets 714c76dd y
- * 234c6b0f).
- *
  * En el desglose por producto, los que se llaman igual van en una sola fila con
  * las unidades sumadas aunque el catálogo los tenga en categorías distintas
  * (ticket 7dd7ac00): al comercial se le pide "vende 3 fibras", no "3 fibras de
- * particular", y las cifras de arriba —las suyas y las de su sede— ya las
- * cuentan juntas.
+ * particular", y las cifras de arriba ya las cuentan juntas.
  */
 
 import { auth } from "@/lib/auth";
@@ -35,15 +43,25 @@ import {
   cuentaParaObjetivos,
   esDelSubgrupo,
   etiquetaSubgrupo,
+  fuenteDe,
   normalizarMes,
   progresoDe,
   subgruposDelCatalogo,
   vendidoDeSujeto,
+  type FuenteObjetivo,
+  type ObjetivoFila,
+  type VentaAgregada,
 } from "@/lib/cierre-turno/objetivos";
 import {
   preciosActivos as leerPreciosActivos,
   ventasAgregadas,
 } from "@/lib/cierre-turno/ventas-queries";
+
+/** Consecución con la regla del módulo: sin objetivo no hay nada que medir. */
+function pct(vendido: number, objetivo: number | null): number | null {
+  if (objetivo === null || objetivo <= 0) return null;
+  return Math.round((vendido / objetivo) * 1000) / 10;
+}
 
 export const GET = withTenant(
   withFeature("cierre_turno", async (req: NextRequest) => {
@@ -60,11 +78,12 @@ export const GET = withTenant(
     if (!mesOk.ok) return NextResponse.json({ error: mesOk.error }, { status: 400 });
     const mes = mesOk.mes;
 
-    const [objetivos, ventasBrutas, articulos, preciosOn] = await Promise.all([
+    const [objetivos, ventasBrutas, articulos, tienda, preciosOn] = await Promise.all([
       prisma.objetivoVenta.findMany({
         where: {
           mes,
-          // Solo lo que le afecta: sus objetivos y los de su sede.
+          // Solo lo que le afecta: sus objetivos y los de su sede (los dos
+          // juegos de la sede, el de la empresa y el del operador).
           OR: [{ userId }, ...(tiendaId ? [{ tiendaId }] : [])],
         },
         select: {
@@ -75,6 +94,7 @@ export const GET = withTenant(
           articuloId: true,
           categoria: true,
           subcategoria: true,
+          fuente: true,
           cantidad: true,
         },
       }),
@@ -95,6 +115,10 @@ export const GET = withTenant(
         },
         orderBy: [{ orden: "asc" }, { nombre: "asc" }],
       }),
+      // El nombre de la tienda, para no llamarla "tu sede".
+      tiendaId
+        ? prisma.tienda.findUnique({ where: { id: tiendaId }, select: { nombre: true } })
+        : Promise.resolve(null),
       leerPreciosActivos(prisma),
     ]);
 
@@ -108,82 +132,96 @@ export const GET = withTenant(
     const ventasPropias = ventas.filter((v) => v.userId === userId);
     const ventasSede = tiendaId ? ventas : ventasPropias;
 
-    // Los ids del catálogo que cuenta acotan qué objetivos por producto suman en
-    // el total cuando administración no ha fijado uno de unidades totales.
     const paraObjetivos = articulos.filter((a) => cuentaParaObjetivos(a));
     const articuloIds = paraObjetivos.map((a) => a.id);
     const subgrupos = subgruposDelCatalogo(paraObjetivos);
 
-    const propio = progresoDe(
-      objetivos,
-      ventasPropias,
-      { ambito: "comercial", id: userId },
-      articuloIds,
-      paraObjetivos,
-    );
-    const sede = tiendaId
-      ? progresoDe(objetivos, ventasSede, { ambito: "sede", id: tiendaId }, articuloIds, paraObjetivos)
-      : null;
-
-    // Desglose por artículo del propio comercial: es donde ve qué le falta. Los
-    // productos que se llaman igual en categorías distintas van en una sola
-    // fila con las unidades sumadas (ticket 7dd7ac00).
-    const porArticulo = agruparProductosPorNombre(
-      articulos
-        .map((a) => {
-          const vendido = vendidoDeSujeto(ventasPropias, { ambito: "comercial", id: userId }, a.id);
-          const objetivo =
-            objetivos.find((o) => o.userId === userId && o.articuloId === a.id)?.cantidad ?? null;
-          return {
-            articuloId: a.id,
-            nombre: a.nombre,
-            vendido,
-            objetivo,
-            consecucion:
-              objetivo && objetivo > 0 ? Math.round((vendido / objetivo) * 1000) / 10 : null,
-            importe:
-              preciosOn && a.precio !== null
-                ? Math.round(vendido * Number(a.precio) * 100) / 100
-                : null,
-            // Lo vendido de un producto excluido no suma en el objetivo de arriba;
-            // se dice en la fila para que las dos cifras no parezcan reñidas.
-            cuentaParaObjetivos: cuentaParaObjetivos(a),
-            productos: 1,
-          };
-        })
-        // Solo lo que aporta información: con objetivo o con ventas. Una lista de
-        // 80 artículos a cero no dice nada a nadie.
-        .filter((f) => f.vendido > 0 || f.objetivo !== null),
-    );
-
-    // Desglose por grupo: si administración le ha puesto objetivos de grupo, es
-    // ahí donde los ve (en la tabla de artículos no aparecen).
-    const porGrupo = subgrupos
-      .map((g) => {
-        const vendido = vendidoDeSujeto(ventasPropias, { ambito: "comercial", id: userId }, null, g);
-        const objetivo =
-          objetivos.find((o) => o.userId === userId && o.subcategoria && esDelSubgrupo(o, g))
-            ?.cantidad ?? null;
+    /**
+     * Un bloque de la pantalla: el total del mes y una fila por grupo del
+     * catálogo. Los tres se calculan igual; solo cambian a quién miran y de
+     * quién es la cifra.
+     */
+    function bloque(args: {
+      sujeto: { ambito: "comercial" | "sede"; id: string };
+      ventasDelSujeto: VentaAgregada[];
+      fuente: FuenteObjetivo;
+    }) {
+      const suyos = objetivos.filter((o: ObjetivoFila) => {
+        if (fuenteDe(o) !== args.fuente) return false;
+        return args.sujeto.ambito === "comercial"
+          ? o.userId === args.sujeto.id
+          : o.tiendaId === args.sujeto.id;
+      });
+      const total = progresoDe(suyos, args.ventasDelSujeto, args.sujeto, articuloIds, paraObjetivos);
+      const grupos = subgrupos.map((g) => {
+        const vendido = vendidoDeSujeto(args.ventasDelSujeto, args.sujeto, null, g);
+        const objetivo = suyos.find((o) => o.subcategoria && esDelSubgrupo(o, g))?.cantidad ?? null;
         return {
           grupo: etiquetaSubgrupo(g),
           vendido,
           objetivo,
-          consecucion:
-            objetivo && objetivo > 0 ? Math.round((vendido / objetivo) * 1000) / 10 : null,
+          consecucion: pct(vendido, objetivo),
         };
-      })
-      .filter((f) => f.objetivo !== null);
+      });
+      return { ...total, grupos };
+    }
+
+    const propio = bloque({
+      sujeto: { ambito: "comercial", id: userId },
+      ventasDelSujeto: ventasPropias,
+      fuente: "propio",
+    });
+    const sede = tiendaId
+      ? bloque({
+          sujeto: { ambito: "sede", id: tiendaId },
+          ventasDelSujeto: ventasSede,
+          fuente: "propio",
+        })
+      : null;
+    // La vara del operador: mismas ventas de la tienda, otras cifras.
+    const sedeTmt = tiendaId
+      ? bloque({
+          sujeto: { ambito: "sede", id: tiendaId },
+          ventasDelSujeto: ventasSede,
+          fuente: "tmt",
+        })
+      : null;
+
+    // Desglose de lo que lleva vendido él, producto a producto. Ya no lleva
+    // objetivo —se fijan por grupo—, así que es el detalle de sus ventas.
+    const porArticulo = agruparProductosPorNombre(
+      articulos
+        .map((a) => {
+          const vendido = vendidoDeSujeto(ventasPropias, { ambito: "comercial", id: userId }, a.id);
+          return {
+            articuloId: a.id,
+            nombre: a.nombre,
+            vendido,
+            objetivo: null,
+            consecucion: null,
+            importe:
+              preciosOn && a.precio !== null
+                ? Math.round(vendido * Number(a.precio) * 100) / 100
+                : null,
+            // Lo vendido de un producto excluido no suma en los objetivos; se
+            // dice en la fila para que las dos cifras no parezcan reñidas.
+            cuentaParaObjetivos: cuentaParaObjetivos(a),
+            productos: 1,
+          };
+        })
+        // Una lista de 80 artículos a cero no dice nada a nadie.
+        .filter((f) => f.vendido > 0),
+    );
 
     return NextResponse.json({
       mes,
       preciosActivos: preciosOn,
+      sedeNombre: tienda?.nombre ?? null,
       propio,
       sede,
+      sedeTmt,
       porArticulo,
-      porGrupo,
-      importePropio: preciosOn
-        ? porArticulo.reduce((n, f) => n + (f.importe ?? 0), 0)
-        : null,
+      importePropio: preciosOn ? porArticulo.reduce((n, f) => n + (f.importe ?? 0), 0) : null,
     });
   }),
 );

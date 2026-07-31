@@ -23,6 +23,7 @@ import { AlertTriangle, CheckCircle2, PackageOpen, Paperclip } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
+import { ProgressBar } from "@/components/ui/progress-bar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PASOS_CIERRE, type PasoCierre } from "@/lib/cierre-turno/core";
@@ -49,12 +50,30 @@ interface AdjuntoCierre {
   tamañoBytes: number;
 }
 
+/** Un objetivo del mes con su desglose por grupo de productos. */
+interface BloqueProgreso {
+  vendido: number;
+  objetivo: number | null;
+  consecucion: number | null;
+  /** Una fila por grupo del catálogo, tenga objetivo o no. */
+  grupos: {
+    grupo: string;
+    vendido: number;
+    objetivo: number | null;
+    consecucion: number | null;
+  }[];
+}
+
 /** Lo que devuelve `/api/cierre-turno/progreso` para el paso 2. */
 interface Progreso {
   mes: string;
   preciosActivos: boolean;
-  propio: { vendido: number; objetivo: number | null; consecucion: number | null };
-  sede: { vendido: number; objetivo: number | null; consecucion: number | null } | null;
+  /** Nombre de la tienda en la que ficha. null si no tiene sede asignada. */
+  sedeNombre: string | null;
+  propio: BloqueProgreso;
+  sede: BloqueProgreso | null;
+  /** El objetivo que el operador impone a su sede (ticket 5d8b21c7). */
+  sedeTmt: BloqueProgreso | null;
   porArticulo: {
     articuloId: string;
     nombre: string;
@@ -70,13 +89,6 @@ interface Progreso {
      * juntos aunque estén en categorías distintas (ticket 7dd7ac00).
      */
     productos: number;
-  }[];
-  /** Objetivos por grupo de productos, si administración le ha puesto alguno. */
-  porGrupo: {
-    grupo: string;
-    vendido: number;
-    objetivo: number | null;
-    consecucion: number | null;
   }[];
 }
 
@@ -94,6 +106,122 @@ const eur = (n: number) =>
  */
 const colorPct = (v: number | null) =>
   v === null ? "text-slate-400" : v >= 100 ? "text-emerald-700 font-semibold" : "text-rose-600";
+
+/**
+ * Color de cada cuadro del paso 2. Es lo que permite decir "mira el ámbar" sin
+ * leer el título: el mismo comercial mira los tres cuadros todos los días.
+ *
+ *  - `propio`: el color de la marca, porque es el suyo y es el primero.
+ *  - `sede`: azul, el mismo que ya usa el módulo para lo de la tienda.
+ *  - `tmt`: ámbar, igual que la tabla del operador en la parrilla de
+ *    administración (`objetivos-venta.tsx`), que es de donde salen sus cifras.
+ */
+const TONOS = {
+  propio: {
+    borde: "border-[var(--primary)]/40",
+    fondo: "bg-[var(--primary)]/5",
+    texto: "text-[var(--primary)]",
+    barra: "primary" as const,
+  },
+  sede: {
+    borde: "border-sky-300",
+    fondo: "bg-sky-50",
+    texto: "text-sky-700",
+    barra: "primary" as const,
+  },
+  tmt: {
+    borde: "border-amber-300",
+    fondo: "bg-amber-50",
+    texto: "text-amber-700",
+    barra: "warning" as const,
+  },
+};
+
+/**
+ * Un objetivo del mes: el porcentaje grande con su barra y, debajo, una línea
+ * por grupo de productos.
+ *
+ * Los grupos salen TODOS, con objetivo o sin él: enseñar solo lo que ha vendido
+ * escondía justo lo que va a cero, que es lo que hay que mirar antes de cerrar
+ * el turno. El que no tiene objetivo se pinta apagado y sin barra —no hay nada
+ * que cumplir— pero con lo vendido a la vista.
+ */
+function CuadroObjetivo({
+  titulo,
+  subtitulo,
+  tono,
+  dato,
+}: {
+  titulo: string;
+  subtitulo: string;
+  tono: (typeof TONOS)[keyof typeof TONOS];
+  dato: BloqueProgreso | null;
+}) {
+  // Sin sede asignada no hay tienda de la que hablar, y sin objetivo tampoco
+  // hay porcentaje: en los dos casos se dice, en vez de pintar un 0 %.
+  const pct = dato?.consecucion ?? null;
+  return (
+    <div className={`rounded-lg border ${tono.borde} ${tono.fondo} p-3`}>
+      <p className={`text-sm font-semibold ${tono.texto}`}>{titulo}</p>
+      <p className="text-xs text-slate-500 mt-0.5">{subtitulo}</p>
+
+      {dato === null ? (
+        <p className="text-sm text-slate-400 mt-3">No tienes sede asignada.</p>
+      ) : (
+        <>
+          <div className="mt-3 flex items-end justify-between gap-2">
+            <span className={`text-3xl font-bold tabular-nums ${colorPct(pct)}`}>
+              {pct === null ? "—" : `${pct} %`}
+            </span>
+            <span className="text-xs text-slate-500 tabular-nums">
+              {dato.vendido} / {dato.objetivo ?? "—"} uds
+            </span>
+          </div>
+          {pct !== null && (
+            <ProgressBar
+              value={pct}
+              tone={pct >= 100 ? "success" : "danger"}
+              size="md"
+              className="mt-2"
+            />
+          )}
+          {dato.objetivo === null && (
+            <p className="text-xs text-slate-400 mt-2">Sin objetivo fijado este mes.</p>
+          )}
+
+          {dato.grupos.length > 0 && (
+            <ul className="mt-3 space-y-2 border-t border-slate-200/70 pt-3">
+              {dato.grupos.map((g) => (
+                <li key={g.grupo}>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-xs font-medium text-slate-700">{g.grupo}</span>
+                    <span className="text-xs tabular-nums text-slate-500">
+                      {g.vendido}
+                      {g.objetivo === null ? "" : ` / ${g.objetivo}`}
+                      {g.consecucion === null ? "" : ` · `}
+                      {g.consecucion === null ? (
+                        ""
+                      ) : (
+                        <span className={colorPct(g.consecucion)}>{g.consecucion} %</span>
+                      )}
+                    </span>
+                  </div>
+                  {g.consecucion !== null && (
+                    <ProgressBar
+                      value={g.consecucion}
+                      tone={g.consecucion >= 100 ? "success" : "danger"}
+                      className="mt-1"
+                    />
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 const TITULOS: Record<PasoCierre, string> = {
   ventas: "Ventas del día",
@@ -571,80 +699,35 @@ export function AsistenteCierre({
               </div>
             ) : (
               <>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>
-                        {["", "Este mes", "Objetivo", "Consecución"].map((h) => (
-                          <th
-                            key={h}
-                            className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-3 py-2"
-                          >
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        { quien: "Tú", dato: progreso?.propio ?? null },
-                        { quien: "Tu sede", dato: progreso?.sede ?? null },
-                      ].map(({ quien, dato }) => (
-                        <tr key={quien} className="border-b border-slate-100 last:border-0">
-                          <td className="px-3 py-2 text-sm font-medium text-slate-800">{quien}</td>
-                          <td className="px-3 py-2 text-sm tabular-nums">
-                            {dato ? dato.vendido : "—"}
-                          </td>
-                          <td className="px-3 py-2 text-sm tabular-nums">
-                            {dato?.objetivo ?? "—"}
-                          </td>
-                          <td className={`px-3 py-2 text-sm tabular-nums ${colorPct(dato?.consecucion ?? null)}`}>
-                            {dato?.consecucion == null ? "—" : `${dato.consecucion} %`}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                {/* Los tres objetivos que le afectan, uno por cuadro y cada
+                    uno con su color: el suyo, el de su tienda y el que el
+                    operador le impone a la tienda (ticket 8f2a04e1). Van en
+                    tarjetas y no en una tabla porque lo que se mira aquí de un
+                    vistazo es "voy o no voy", y un porcentaje grande con su
+                    barra se lee sin buscar la fila. */}
+                <div className="grid gap-3 md:grid-cols-3">
+                  <CuadroObjetivo
+                    titulo="Tu objetivo"
+                    subtitulo="Lo que te toca a ti este mes"
+                    tono={TONOS.propio}
+                    dato={progreso?.propio ?? null}
+                  />
+                  <CuadroObjetivo
+                    titulo={progreso?.sedeNombre ?? "Tu punto de venta"}
+                    subtitulo="El objetivo de la tienda entera"
+                    tono={TONOS.sede}
+                    dato={progreso?.sede ?? null}
+                  />
+                  <CuadroObjetivo
+                    titulo={progreso?.sedeNombre ? `TMT · ${progreso.sedeNombre}` : "TMT"}
+                    subtitulo="Lo que pide el operador a la tienda"
+                    tono={TONOS.tmt}
+                    dato={progreso?.sedeTmt ?? null}
+                  />
                 </div>
 
-                {/* Objetivos por grupo de productos: si los tiene, es lo que de
-                    verdad le están pidiendo, así que va antes del artículo. */}
-                {(progreso?.porGrupo.length ?? 0) > 0 && (
-                  <div className="mt-4 overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-slate-50 border-b border-slate-200">
-                        <tr>
-                          {["Tus objetivos por grupo", "Este mes", "Objetivo", "Consecución"].map(
-                            (h) => (
-                              <th
-                                key={h}
-                                className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-3 py-2"
-                              >
-                                {h}
-                              </th>
-                            ),
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {progreso?.porGrupo.map((g) => (
-                          <tr key={g.grupo} className="border-b border-slate-100 last:border-0">
-                            <td className="px-3 py-2 text-sm text-slate-800">{g.grupo}</td>
-                            <td className="px-3 py-2 text-sm tabular-nums">{g.vendido}</td>
-                            <td className="px-3 py-2 text-sm tabular-nums text-slate-500">
-                              {g.objetivo ?? "—"}
-                            </td>
-                            <td className={`px-3 py-2 text-sm tabular-nums ${colorPct(g.consecucion)}`}>
-                              {g.consecucion == null ? "—" : `${g.consecucion} %`}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* Desglose propio: es donde el comercial ve qué le falta. */}
+                {/* Detalle de lo que ha vendido él, producto a producto: lo que
+                    se persigue está arriba, esto es para cuadrar sus cifras. */}
                 {(progreso?.porArticulo.length ?? 0) > 0 && (
                   <div className="mt-4 overflow-x-auto">
                     <table className="w-full">
@@ -653,7 +736,6 @@ export function AsistenteCierre({
                           {[
                             "Tus ventas por artículo",
                             "Este mes",
-                            "Objetivo",
                             ...(progreso?.preciosActivos ? ["Importe"] : []),
                           ].map((h) => (
                             <th
@@ -678,19 +760,9 @@ export function AsistenteCierre({
                                 </span>
                               )}
                             </td>
-                            {/* Con objetivo por artículo, lo vendido se lee con
-                                el mismo criterio que el resto: rojo mientras no
-                                se llegue, verde al cumplirlo. */}
-                            <td
-                              className={`px-3 py-2 text-sm tabular-nums ${
-                                a.consecucion === null ? "" : colorPct(a.consecucion)
-                              }`}
-                            >
-                              {a.vendido}
-                            </td>
-                            <td className="px-3 py-2 text-sm tabular-nums text-slate-500">
-                              {a.objetivo ?? "—"}
-                            </td>
+                            {/* El detalle de lo suyo: el objetivo se persigue
+                                por grupo, en los cuadros de arriba. */}
+                            <td className="px-3 py-2 text-sm tabular-nums">{a.vendido}</td>
                             {progreso?.preciosActivos && (
                               <td className="px-3 py-2 text-sm tabular-nums text-slate-500">
                                 {a.importe === null ? "—" : eur(a.importe)}
@@ -713,7 +785,10 @@ export function AsistenteCierre({
                 )}
 
                 <p className="text-xs text-slate-400 mt-3">
-                  {progreso && progreso.propio.objetivo === null && progreso.sede?.objetivo == null
+                  {progreso &&
+                  progreso.propio.objetivo === null &&
+                  progreso.sede?.objetivo == null &&
+                  progreso.sedeTmt?.objetivo == null
                     ? "Tu empresa todavía no ha fijado objetivos para este mes. Aquí verás lo que llevas vendido."
                     : "Cuenta lo registrado en tus cierres de este mes, incluido el de hoy si ya lo has guardado."}
                 </p>
