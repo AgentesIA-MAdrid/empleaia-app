@@ -84,6 +84,17 @@ interface ObjetivoDelMes {
   importe: number | null;
 }
 
+/** Objetivo de zona de una coordinadora (ticket 73). */
+interface ObjetivoPropio {
+  objetivo: number;
+  vendido: number;
+  consecucion: number | null;
+  sedesCumplen: number;
+  sedesConObjetivo: number;
+  comercialesCumplen: number;
+  comercialesConObjetivo: number;
+}
+
 interface Respuesta {
   mes: string;
   soloLectura: boolean;
@@ -95,6 +106,8 @@ interface Respuesta {
   totalesSedes: Record<string, TotalColumna>;
   objetivosDelMes: ObjetivoDelMes[];
   resumen: { objetivo: number; vendido: number; conObjetivo: number };
+  /** Solo para coordinación: su objetivo de zona. null para administración. */
+  objetivoPropio?: ObjetivoPropio | null;
   /** El servidor no ha podido acotar por sede: esta persona no tiene ninguna. */
   sinSede?: boolean;
 }
@@ -152,6 +165,70 @@ function PieCelda({ vendido, consecucion }: { vendido: number; consecucion: numb
         <ProgressBar value={consecucion} tone={tonoConsecucion(consecucion)} className="mt-1" />
       )}
     </>
+  );
+}
+
+/**
+ * Objetivo propio de la coordinadora, arriba del área (ticket 73).
+ *
+ * No se fija a mano: es el de su zona —la suma de los objetivos de las sedes
+ * que lleva frente a lo que esas sedes han vendido—. Debajo, cuántas de sus
+ * sedes y cuántas personas de su equipo llegan al 100 %, que es lo que le dice
+ * por dónde apretar: un 95 % de zona puede ser "casi" o "dos tiendas sobradas
+ * y tres muy lejos".
+ */
+function MiObjetivo({ datos }: { datos: ObjetivoPropio }) {
+  return (
+    <Card className="border-[var(--primary)]/30">
+      <CardContent className="pt-4 pb-4">
+        <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+          <Target className="h-4 w-4 text-[var(--primary)]" /> Mi objetivo
+        </p>
+        <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+          El objetivo de tu zona: la suma de los de tus puntos de venta frente a lo que llevan
+          vendido este mes. No se fija a mano, se cumple cuando lo cumplen tus sedes.
+        </p>
+        <div className="overflow-x-auto mt-3 -mx-6">
+          <table className="w-full">
+            <thead className="bg-slate-50 border-y border-slate-200">
+              <tr>
+                {["Objetivo", "Vendido", "Consecución", "Sedes que cumplen", "Mi equipo"].map((h) => (
+                  <th
+                    key={h}
+                    className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-2.5"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="px-4 py-3 text-lg font-bold tabular-nums text-slate-900">
+                  {datos.objetivo}
+                </td>
+                <td className="px-4 py-3 text-lg font-bold tabular-nums text-slate-900">
+                  {datos.vendido}
+                </td>
+                <td className="px-4 py-3">
+                  <Consecucion valor={datos.consecucion} />
+                </td>
+                <td className="px-4 py-3 text-sm tabular-nums text-slate-600">
+                  {datos.sedesConObjetivo === 0
+                    ? "—"
+                    : `${datos.sedesCumplen} de ${datos.sedesConObjetivo}`}
+                </td>
+                <td className="px-4 py-3 text-sm tabular-nums text-slate-600">
+                  {datos.comercialesConObjetivo === 0
+                    ? "—"
+                    : `${datos.comercialesCumplen} de ${datos.comercialesConObjetivo}`}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -470,6 +547,10 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
           {error}
         </div>
       )}
+
+      {/* Lo primero que ve la coordinadora es su propio objetivo; debajo, el
+          detalle de su gente y sus sedes. */}
+      {datos?.objetivoPropio && <MiObjetivo datos={datos.objetivoPropio} />}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         {[

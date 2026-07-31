@@ -22,8 +22,12 @@ export type AlcanceCierre = "propio" | "sede" | "todos";
 /**
  * Qué puede ver cada rol:
  *  - EMPLEADO: solo sus cierres.
- *  - MANAGER (coordinador): los de su sede, para poder apretar.
+ *  - MANAGER (coordinador): los de las sedes que coordina, para poder apretar.
  *  - OWNER: todos.
+ *
+ * "sede" es en plural desde el ticket 73: un coordinador lleva varios puntos
+ * de venta, no uno. Sus sedes son las que tenga asignadas (`UsuarioSede`, más
+ * la principal de su ficha) — ver `sedesDelUsuario`.
  */
 export function alcanceSegunRol(rol: string): AlcanceCierre {
   if (rol === "OWNER") return "todos";
@@ -42,19 +46,40 @@ export function alcanceSegunRol(rol: string): AlcanceCierre {
  */
 export type FiltroSede =
   | { tipo: "todas" }
-  | { tipo: "sede"; tiendaId: string }
+  | { tipo: "sedes"; tiendaIds: string[] }
   | { tipo: "ninguna" };
 
+/**
+ * `sedesPropias` son todas las sedes de esa persona (ticket 73: un coordinador
+ * lleva varias). Puede pedir una concreta por querystring, pero solo si es
+ * suya: una sede ajena no amplía su alcance, se ignora y sigue viendo las
+ * suyas. Administración sí elige cualquiera.
+ */
 export function filtroSede(
   rol: string,
-  tiendaPropia: string | null,
+  sedesPropias: string[],
   sedePedida?: string | null,
 ): FiltroSede {
   if (alcanceSegunRol(rol) === "todos") {
-    return sedePedida ? { tipo: "sede", tiendaId: sedePedida } : { tipo: "todas" };
+    return sedePedida ? { tipo: "sedes", tiendaIds: [sedePedida] } : { tipo: "todas" };
   }
-  // El resto va atado a su sede aunque pida otra por querystring.
-  return tiendaPropia ? { tipo: "sede", tiendaId: tiendaPropia } : { tipo: "ninguna" };
+  const propias = [...new Set(sedesPropias.filter(Boolean))];
+  if (propias.length === 0) return { tipo: "ninguna" };
+  if (sedePedida && propias.includes(sedePedida)) {
+    return { tipo: "sedes", tiendaIds: [sedePedida] };
+  }
+  return { tipo: "sedes", tiendaIds: propias };
+}
+
+/**
+ * El filtro como cláusula `where` de Prisma, para no repetir el ternario en
+ * cada handler. `"ninguna"` no tiene traducción a where —no hay que consultar,
+ * hay que responder vacío— y por eso no se acepta aquí.
+ */
+export function whereSede(
+  filtro: Extract<FiltroSede, { tipo: "todas" | "sedes" }>,
+): { tiendaId?: { in: string[] } } {
+  return filtro.tipo === "todas" ? {} : { tiendaId: { in: filtro.tiendaIds } };
 }
 
 /** Áreas que solo ven coordinadores y administradores. */

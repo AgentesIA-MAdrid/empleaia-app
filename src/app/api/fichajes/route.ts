@@ -13,6 +13,8 @@ import { resolveEmpresaScope, fichajeScopeFilter } from "@/lib/multi-empresa/sco
 import { calcularDistancia } from "@/lib/utils";
 import { notifyFichajeFueraSede } from "@/lib/fichajes/notify-fuera-sede";
 import { evaluarFichajeEnHorario } from "@/lib/fichajes/horario-turno";
+import { diaMadrid } from "@/lib/cierre-turno/core";
+import { exentoDeControlesDeTienda } from "@/lib/cierre-turno/exencion-coordinacion";
 import {
   admiteChecklist,
   resolverChecklist,
@@ -139,6 +141,8 @@ export const POST = withTenant(async (request: NextRequest) => {
 
     const userId = session.user.id;
     const userTiendaId = (session.user as any).tiendaId as string | null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rol = ((session.user as any).rol as string | undefined) ?? "EMPLEADO";
 
     // Get the last fichaje to validate state transitions
     const ultimoFichaje = await prisma.fichaje.findFirst({
@@ -328,8 +332,23 @@ export const POST = withTenant(async (request: NextRequest) => {
     // el OWNER (stock y caja del turno anterior, cierre de caja…). Opt-in
     // por tenant y sin gate de plan. Se comprueba antes que Face ID para
     // no gastar el token de verificación en un intento incompleto.
+    //
+    // Excepción de coordinación (ticket 73): la coordinadora que hoy está en
+    // oficina no firma los checks. El día que cubre en un punto de venta sí,
+    // así que se decide con su turno del cuadrante, no con su rol a secas.
     let confirmaciones: ConfirmacionChecklist[] = [];
-    if (cfg?.checklistFichajeActivo && admiteChecklist(tipo)) {
+    const exentaDeChecks =
+      rol === "MANAGER" &&
+      exentoDeControlesDeTienda({
+        rol,
+        turnosDelDia: (
+          await prisma.turno.findMany({
+            where: { userId: userId!, fecha: new Date(`${diaMadrid()}T00:00:00Z`) },
+            select: { tienda: { select: { esOficina: true } } },
+          })
+        ).map((t) => ({ esOficina: t.tienda?.esOficina === true })),
+      });
+    if (cfg?.checklistFichajeActivo && admiteChecklist(tipo) && !exentaDeChecks) {
       const itemsActivos = await prisma.checklistFichajeItem.findMany({
         where: { tipo, activo: true },
         orderBy: { orden: "asc" },

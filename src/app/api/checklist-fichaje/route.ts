@@ -16,16 +16,19 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { normalizarItems, TIPOS_CON_CHECKLIST } from "@/lib/fichajes/checklist";
+import { diaMadrid } from "@/lib/cierre-turno/core";
+import { exentoDeControlesDeTienda } from "@/lib/cierre-turno/exencion-coordinacion";
 
 export const GET = withTenant(async (req: NextRequest) => {
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    const esOwner = (session.user as { rol?: string }).rol === "OWNER";
+    const rol = (session.user as { rol?: string }).rol ?? "EMPLEADO";
+    const esOwner = rol === "OWNER";
     const todos = new URL(req.url).searchParams.get("todos") === "1" && esOwner;
 
-    const [config, items] = await Promise.all([
+    const [config, items, turnosHoy] = await Promise.all([
       prisma.configuracionEmpresa.findUnique({
         where: { id: "singleton" },
         select: { checklistFichajeActivo: true },
@@ -38,11 +41,27 @@ export const GET = withTenant(async (req: NextRequest) => {
         orderBy: [{ tipo: "asc" }, { orden: "asc" }],
         select: { id: true, tipo: true, texto: true, orden: true, activo: true },
       }),
+      // Turnos de hoy con la sede, para la exención de coordinación (ticket 73).
+      // Solo hace falta preguntarlo cuando quien mira es coordinador.
+      rol === "MANAGER"
+        ? prisma.turno.findMany({
+            where: { userId: session.user.id!, fecha: new Date(`${diaMadrid()}T00:00:00Z`) },
+            select: { tienda: { select: { esOficina: true } } },
+          })
+        : Promise.resolve([]),
     ]);
 
+    // La coordinadora que hoy está en oficina no firma el check de inicio ni el
+    // de cierre; el día que cubre en un punto de venta, sí.
+    const exenta = exentoDeControlesDeTienda({
+      rol,
+      turnosDelDia: turnosHoy.map((t) => ({ esOficina: t.tienda?.esOficina === true })),
+    });
+
     return NextResponse.json({
-      activo: config?.checklistFichajeActivo === true,
+      activo: config?.checklistFichajeActivo === true && !exenta,
       items,
+      exentoPorCoordinacion: exenta,
     });
   } catch (error) {
     console.error("GET /api/checklist-fichaje error:", error);

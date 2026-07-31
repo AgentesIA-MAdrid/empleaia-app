@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   ambitoDe,
+  COLUMNA_TOTAL,
   construirConsecucion,
   construirMatriz,
   totalesMatriz,
@@ -8,6 +9,7 @@ import {
   mesAnterior,
   normalizarCantidadObjetivo,
   normalizarMes,
+  objetivoDeCoordinacion,
   objetivoTotalDe,
   progresoDe,
   rangoMes,
@@ -410,5 +412,65 @@ describe("objetivoTotalDe", () => {
 
   it("sin ningún objetivo no inventa un cero", () => {
     expect(objetivoTotalDe([])).toEqual({ cantidad: null, derivado: false });
+  });
+});
+
+describe("objetivoDeCoordinacion — el objetivo de zona (ticket 73)", () => {
+  const celda = (objetivo: number | null, vendido: number, consecucion: number | null) => ({
+    [COLUMNA_TOTAL]: { objetivoId: objetivo === null ? null : "o1", objetivo, vendido, consecucion },
+  });
+
+  it("suma el objetivo y lo vendido de sus sedes", () => {
+    const r = objetivoDeCoordinacion({
+      filasSedes: [
+        { sujetoId: "t1", sujeto: "Centro", sede: null, celdas: celda(100, 120, 120) },
+        { sujetoId: "t2", sujeto: "Norte", sede: null, celdas: celda(100, 60, 60) },
+      ],
+      filasComerciales: [],
+    });
+    expect(r.objetivo).toBe(200);
+    expect(r.vendido).toBe(180);
+    expect(r.consecucion).toBe(90);
+  });
+
+  it("cuenta cuántas sedes y cuántas personas llegan al 100 %", () => {
+    const r = objetivoDeCoordinacion({
+      filasSedes: [
+        { sujetoId: "t1", sujeto: "Centro", sede: null, celdas: celda(100, 120, 120) },
+        { sujetoId: "t2", sujeto: "Norte", sede: null, celdas: celda(100, 60, 60) },
+        { sujetoId: "t3", sujeto: "Sur", sede: null, celdas: celda(100, 100, 100) },
+      ],
+      filasComerciales: [
+        { sujetoId: "u1", sujeto: "Ana", sede: "Centro", celdas: celda(20, 25, 125) },
+        { sujetoId: "u2", sujeto: "Luis", sede: "Norte", celdas: celda(20, 10, 50) },
+      ],
+    });
+    expect(r.sedesCumplen).toBe(2);
+    expect(r.sedesConObjetivo).toBe(3);
+    expect(r.comercialesCumplen).toBe(1);
+    expect(r.comercialesConObjetivo).toBe(2);
+  });
+
+  it("una sede sin objetivo no cuenta como incumplida", () => {
+    const r = objetivoDeCoordinacion({
+      filasSedes: [
+        { sujetoId: "t1", sujeto: "Centro", sede: null, celdas: celda(100, 100, 100) },
+        { sujetoId: "t2", sujeto: "Sin cifra", sede: null, celdas: celda(null, 40, null) },
+      ],
+      filasComerciales: [],
+    });
+    expect(r.sedesConObjetivo).toBe(1);
+    expect(r.sedesCumplen).toBe(1);
+    // Pero lo vendido de esa sede sí suma: se ha vendido de verdad.
+    expect(r.vendido).toBe(140);
+  });
+
+  it("sin objetivo en ninguna sede no hay consecución que enseñar", () => {
+    const r = objetivoDeCoordinacion({
+      filasSedes: [{ sujetoId: "t1", sujeto: "Centro", sede: null, celdas: celda(null, 10, null) }],
+      filasComerciales: [],
+    });
+    expect(r.objetivo).toBe(0);
+    expect(r.consecucion).toBeNull();
   });
 });

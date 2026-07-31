@@ -23,6 +23,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
 import { diferenciaArqueo, esDescuadre, filtroSede } from "@/lib/cierre-turno/core";
+import { sedesDelUsuario } from "@/lib/tiendas/sedes-usuario";
 import {
   normalizarEfectivoArqueo,
   normalizarSemana,
@@ -64,7 +65,9 @@ export const GET = withTenant(
 
     // Solo administración elige sede; el resto va atado a la suya. Y quien
     // tiene alcance de sede pero ninguna asignada NO ve todas: no ve ninguna.
-    const filtro = filtroSede(s.rol, s.tiendaId, url.searchParams.get("tiendaId"));
+    const sedesPropias =
+      s.rol === "OWNER" ? [] : await sedesDelUsuario(prisma, { userId: s.userId, tiendaId: s.tiendaId });
+    const filtro = filtroSede(s.rol, sedesPropias, url.searchParams.get("tiendaId"));
     if (filtro.tipo === "ninguna") {
       return NextResponse.json({
         semana,
@@ -78,11 +81,11 @@ export const GET = withTenant(
         sinSede: true,
       });
     }
-    const tiendaFiltro = filtro.tipo === "sede" ? filtro.tiendaId : null;
+    const tiendaFiltro = filtro.tipo === "sedes" ? filtro.tiendaIds : null;
 
     const [arqueos, sedes, porSede, umbral, quien] = await Promise.all([
       prisma.arqueo.findMany({
-        where: { semana, ...(tiendaFiltro ? { tiendaId: tiendaFiltro } : {}) },
+        where: { semana, ...(tiendaFiltro ? { tiendaId: { in: tiendaFiltro } } : {}) },
         select: {
           id: true,
           tiendaId: true,
@@ -99,11 +102,11 @@ export const GET = withTenant(
         },
       }),
       prisma.tienda.findMany({
-        where: { activa: true, ...(tiendaFiltro ? { id: tiendaFiltro } : {}) },
+        where: { activa: true, ...(tiendaFiltro ? { id: { in: tiendaFiltro } } : {}) },
         select: { id: true, nombre: true },
         orderBy: { nombre: "asc" },
       }),
-      totalesCajaPorSede(prisma, { desde, hasta, tiendaId: tiendaFiltro }),
+      totalesCajaPorSede(prisma, { desde, hasta, tiendaIds: tiendaFiltro }),
       umbralDescuadre(prisma),
       // Quién puede firmar la recogida: se enseña para que en la tienda sepan a
       // quién esperar, sin exponer nada del PIN.
@@ -191,11 +194,17 @@ export const POST = withTenant(
     const efectivoOk = normalizarEfectivoArqueo(body.efectivo);
     if (!efectivoOk.ok) return NextResponse.json({ error: efectivoOk.error }, { status: 400 });
 
-    // La sede la elige administración; el resto declara la suya.
-    const tiendaId =
-      s.rol === "OWNER" && typeof body.tiendaId === "string" && body.tiendaId
-        ? body.tiendaId
-        : s.tiendaId;
+    // Administración declara la sede que quiera. Quien coordina varias declara
+    // la que diga, siempre que sea una de las suyas (ticket 73); el resto, la
+    // principal de su ficha.
+    const sedePedida = typeof body.tiendaId === "string" && body.tiendaId ? body.tiendaId : null;
+    let tiendaId: string | null;
+    if (s.rol === "OWNER") {
+      tiendaId = sedePedida ?? s.tiendaId;
+    } else {
+      const propias = await sedesDelUsuario(prisma, { userId: s.userId, tiendaId: s.tiendaId });
+      tiendaId = sedePedida && propias.includes(sedePedida) ? sedePedida : (s.tiendaId ?? propias[0] ?? null);
+    }
     if (!tiendaId) {
       return NextResponse.json(
         { error: "No tienes sede asignada, así que no puedes declarar su efectivo. Habla con administración." },

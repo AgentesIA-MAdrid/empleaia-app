@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   alcanceSegunRol,
   filtroSede,
+  whereSede,
   puedeVerObjetivos,
   puedeVerConciliacion,
   puedeFijarObjetivos,
@@ -288,25 +289,56 @@ describe("día del cierre en hora de Madrid", () => {
   });
 });
 
-describe("filtroSede — por qué sede filtra cada rol", () => {
+describe("filtroSede — por qué sedes filtra cada rol", () => {
   it("administración lo ve todo, y puede pedir una sede", () => {
-    expect(filtroSede("OWNER", null, null)).toEqual({ tipo: "todas" });
-    expect(filtroSede("OWNER", null, "t9")).toEqual({ tipo: "sede", tiendaId: "t9" });
+    expect(filtroSede("OWNER", [], null)).toEqual({ tipo: "todas" });
+    expect(filtroSede("OWNER", [], "t9")).toEqual({ tipo: "sedes", tiendaIds: ["t9"] });
   });
 
-  it("el coordinador va atado a la suya aunque pida otra", () => {
-    expect(filtroSede("MANAGER", "t1", "t9")).toEqual({ tipo: "sede", tiendaId: "t1" });
+  it("el coordinador ve TODAS las sedes que lleva (ticket 73)", () => {
+    expect(filtroSede("MANAGER", ["t1", "t2", "t3"], null)).toEqual({
+      tipo: "sedes",
+      tiendaIds: ["t1", "t2", "t3"],
+    });
+  });
+
+  it("puede afinar a una de sus sedes, pero no salirse de ellas", () => {
+    expect(filtroSede("MANAGER", ["t1", "t2"], "t2")).toEqual({ tipo: "sedes", tiendaIds: ["t2"] });
+    // Pide una sede que no lleva: se ignora y sigue viendo las suyas, nunca la ajena.
+    expect(filtroSede("MANAGER", ["t1", "t2"], "t9")).toEqual({
+      tipo: "sedes",
+      tiendaIds: ["t1", "t2"],
+    });
   });
 
   it("un comercial, igual", () => {
-    expect(filtroSede("EMPLEADO", "t1", "t9")).toEqual({ tipo: "sede", tiendaId: "t1" });
+    expect(filtroSede("EMPLEADO", ["t1"], "t9")).toEqual({ tipo: "sedes", tiendaIds: ["t1"] });
   });
 
-  it("con alcance de sede y SIN sede asignada no ve todas: no ve ninguna", () => {
+  it("con alcance de sede y SIN sedes asignadas no ve todas: no ve ninguna", () => {
     // El bug que esto cierra: construir el where con
     // `...(tiendaId ? { tiendaId } : {})` hace desaparecer el filtro con null,
     // y esa persona termina viendo la caja de todas las tiendas.
-    expect(filtroSede("MANAGER", null, null)).toEqual({ tipo: "ninguna" });
-    expect(filtroSede("EMPLEADO", null, "t9")).toEqual({ tipo: "ninguna" });
+    expect(filtroSede("MANAGER", [], null)).toEqual({ tipo: "ninguna" });
+    expect(filtroSede("EMPLEADO", [], "t9")).toEqual({ tipo: "ninguna" });
+  });
+
+  it("no repite sedes duplicadas", () => {
+    expect(filtroSede("MANAGER", ["t1", "t1", "t2"], null)).toEqual({
+      tipo: "sedes",
+      tiendaIds: ["t1", "t2"],
+    });
+  });
+});
+
+describe("whereSede — traducción a cláusula Prisma", () => {
+  it("sin filtro cuando se ve todo", () => {
+    expect(whereSede({ tipo: "todas" })).toEqual({});
+  });
+
+  it("filtra por las sedes del alcance", () => {
+    expect(whereSede({ tipo: "sedes", tiendaIds: ["t1", "t2"] })).toEqual({
+      tiendaId: { in: ["t1", "t2"] },
+    });
   });
 });

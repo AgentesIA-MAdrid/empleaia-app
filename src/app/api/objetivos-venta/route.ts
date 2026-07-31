@@ -29,6 +29,7 @@ import {
   construirMatriz,
   normalizarCantidadObjetivo,
   normalizarMes,
+  objetivoDeCoordinacion,
   totalesMatriz,
   vendidoDeSujeto,
   type AmbitoObjetivo,
@@ -37,6 +38,7 @@ import {
   preciosActivos as leerPreciosActivos,
   ventasAgregadas,
 } from "@/lib/cierre-turno/ventas-queries";
+import { sedesDelUsuario } from "@/lib/tiendas/sedes-usuario";
 
 /** Consecución con la misma regla que el resto del módulo (sin objetivo, null). */
 function pct(vendido: number, objetivo: number | null): number | null {
@@ -79,9 +81,11 @@ export const GET = withTenant(
     if (!mesOk.ok) return NextResponse.json({ error: mesOk.error }, { status: 400 });
     const mes = mesOk.mes;
 
-    // El coordinador va atado a su sede aunque pida otra. Sin sede asignada no
-    // ve todas las sedes: no ve ninguna (ver `filtroSede`).
-    const filtro = filtroSede(s.rol, s.tiendaId, url.searchParams.get("tiendaId"));
+    // El coordinador va atado a las sedes que lleva, aunque pida otra. Sin
+    // ninguna asignada no ve todas: no ve ninguna (ver `filtroSede`).
+    const sedesPropias =
+      s.rol === "OWNER" ? [] : await sedesDelUsuario(prisma, { userId: s.userId, tiendaId: s.tiendaId });
+    const filtro = filtroSede(s.rol, sedesPropias, url.searchParams.get("tiendaId"));
     if (filtro.tipo === "ninguna") {
       return NextResponse.json({
         mes,
@@ -97,26 +101,39 @@ export const GET = withTenant(
         sinSede: true,
       });
     }
-    const sedeFiltro = filtro.tipo === "sede" ? filtro.tiendaId : null;
+    // Sedes del alcance: todas (administración) o las del coordinador.
+    const sedesFiltro = filtro.tipo === "sedes" ? filtro.tiendaIds : null;
 
     const [objetivos, ventas, articulos, sedes, personas, preciosOn] = await Promise.all([
       prisma.objetivoVenta.findMany({
         where: { mes },
         select: { id: true, mes: true, userId: true, tiendaId: true, articuloId: true, cantidad: true },
       }),
-      ventasAgregadas(prisma, { mes, tiendaId: sedeFiltro }),
+      ventasAgregadas(prisma, { mes, tiendaIds: sedesFiltro }),
       prisma.articuloVenta.findMany({
         where: { activo: true },
         select: { id: true, nombre: true, categoria: true, precio: true },
         orderBy: [{ orden: "asc" }, { nombre: "asc" }],
       }),
       prisma.tienda.findMany({
-        where: { activa: true, ...(sedeFiltro ? { id: sedeFiltro } : {}) },
+        where: { activa: true, ...(sedesFiltro ? { id: { in: sedesFiltro } } : {}) },
         select: { id: true, nombre: true },
         orderBy: { nombre: "asc" },
       }),
       prisma.user.findMany({
-        where: { activo: true, ...(sedeFiltro ? { tiendaId: sedeFiltro } : {}) },
+        // El equipo de una coordinadora son las personas de sus sedes, ya sea
+        // como sede principal de la ficha o por asignación N:N.
+        where: {
+          activo: true,
+          ...(sedesFiltro
+            ? {
+                OR: [
+                  { tiendaId: { in: sedesFiltro } },
+                  { sedes: { some: { tiendaId: { in: sedesFiltro } } } },
+                ],
+              }
+            : {}),
+        },
         select: { id: true, nombre: true, apellidos: true, tiendaId: true },
         orderBy: [{ apellidos: "asc" }, { nombre: "asc" }],
       }),
@@ -182,6 +199,10 @@ export const GET = withTenant(
 
     const totalesComerciales = totalesMatriz(filasComerciales, articuloIds);
     const totalesSedes = totalesMatriz(filasSedes, articuloIds);
+    // Objetivo propio de la coordinadora: el de su zona (ticket 73). Solo tiene
+    // sentido con alcance limitado a sus sedes; para administración, la cifra
+    // equivalente ya es el pie de la tabla de sedes.
+    const esCoordinacion = filtro.tipo === "sedes" && s.rol !== "OWNER";
 
     return NextResponse.json({
       mes,
@@ -198,6 +219,9 @@ export const GET = withTenant(
       totalesComerciales,
       totalesSedes,
       objetivosDelMes: todos,
+      objetivoPropio: esCoordinacion
+        ? objetivoDeCoordinacion({ filasSedes, filasComerciales })
+        : null,
       // Las tarjetas de arriba miden el objetivo de unidades totales de los
       // comerciales: el fijado a mano o, donde no lo haya, la suma de sus
       // objetivos por producto (`objetivoTotalDe`). Lo de cada producto y lo de

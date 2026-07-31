@@ -19,6 +19,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
 import { adjuntoAceptado, alcanceSegunRol, diaMadrid } from "@/lib/cierre-turno/core";
+import { sedesDelUsuario } from "@/lib/tiendas/sedes-usuario";
 
 const TIPOS = ["stock", "tpv"] as const;
 
@@ -118,6 +119,10 @@ export const GET = withTenant(
 
     // Sin cierre concreto: los de hoy del propio usuario.
     const alcance = alcanceSegunRol(rol);
+    const sedesPropias =
+      alcance === "sede"
+        ? await sedesDelUsuario(prisma, { userId: session.user.id!, tiendaId: tiendaPropia })
+        : [];
     const where = cierreId
       ? {
           caja: {
@@ -126,7 +131,7 @@ export const GET = withTenant(
               ...(alcance === "propio"
                 ? { userId }
                 : alcance === "sede"
-                  ? { tiendaId: tiendaPropia }
+                  ? { tiendaId: { in: sedesPropias } }
                   : {}),
             },
           },

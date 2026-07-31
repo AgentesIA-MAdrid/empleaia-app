@@ -437,6 +437,11 @@ export default function TiendasPage() {
                   Los empleados con “horario de oficina por defecto” cubrirán aquí (9:00–17:00) los días
                   que no tengan turno en ninguna tienda. Solo una sede puede ser la oficina.
                 </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  También exime a los coordinadores: el día que su turno es aquí no firman los puntos
+                  de control del fichaje ni tienen que cerrar caja. El día que cubren en un punto de
+                  venta, sí.
+                </p>
               </div>
               <div className="col-span-2 flex items-center justify-between rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
                 <span className="text-xs text-slate-500">

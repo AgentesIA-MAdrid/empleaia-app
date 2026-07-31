@@ -7,7 +7,8 @@
  * - `gestor=a3`: layout A3NOM (una fila por concepto/movimiento).
  *
  * Las prenominas en BORRADOR se incluyen pero con flag de estado.
- * Feature: `prenomina`. OWNER/MANAGER.
+ * Feature: `prenomina`. Solo OWNER (ticket 73: el coordinador no ve los
+ * salarios de su equipo).
  */
 
 import { auth } from "@/lib/auth";
@@ -30,8 +31,8 @@ export const GET = withTenant(
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     const userRol = (session.user as { rol?: Rol }).rol;
-    if (userRol !== Rol.OWNER && userRol !== Rol.MANAGER) {
-      return NextResponse.json({ error: "Solo OWNER/MANAGER" }, { status: 403 });
+    if (userRol !== Rol.OWNER) {
+      return NextResponse.json({ error: "Solo el Administrador" }, { status: 403 });
     }
 
     const periodo = req.nextUrl.searchParams.get("periodo");
