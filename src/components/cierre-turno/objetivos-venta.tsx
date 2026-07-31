@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ProgressBar } from "@/components/ui/progress-bar";
 import { useToast } from "@/hooks/use-toast";
 
 type Ambito = "comercial" | "sede";
@@ -82,12 +83,31 @@ function mesActual(): string {
   return `${p.year}-${p.month}`;
 }
 
-/** Color de la consecución: por debajo del 80 % avisa, por encima del 100 % celebra. */
+/**
+ * Color de la consecución: solo hay dos estados, objetivo cumplido (verde) o no
+ * cumplido (rojo). Sin tramo intermedio a propósito: quien mira la tabla busca
+ * de un vistazo quién llega y quién no, y un ámbar al 95 % se lee como "va
+ * bien" cuando el objetivo sigue sin cumplirse.
+ */
 function colorConsecucion(v: number | null): string {
   if (v === null) return "text-slate-400";
   if (v >= 100) return "text-emerald-700 font-semibold";
-  if (v >= 80) return "text-amber-600";
   return "text-rose-600";
+}
+
+/**
+ * Consecución de una fila: el porcentaje y, debajo, la barra de avance hacia el
+ * objetivo. La barra va roja mientras falta y se llena entera en verde al
+ * llegar al 100 % (por encima se queda llena, no se sale).
+ */
+function Consecucion({ valor }: { valor: number | null }) {
+  if (valor === null) return <span className="text-sm tabular-nums text-slate-400">—</span>;
+  return (
+    <div className="min-w-[110px] space-y-1.5">
+      <span className={`text-sm tabular-nums ${colorConsecucion(valor)}`}>{valor} %</span>
+      <ProgressBar value={valor} tone={valor >= 100 ? "success" : "danger"} />
+    </div>
+  );
 }
 
 export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descripcion: string }) {
@@ -264,23 +284,33 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         {[
-          { label: "Objetivo del mes", valor: String(resumen?.objetivo ?? 0), color: "text-slate-900" },
-          { label: "Vendido", valor: String(resumen?.vendido ?? 0), color: "text-slate-900" },
+          { label: "Objetivo del mes", valor: String(resumen?.objetivo ?? 0), color: "text-slate-900", barra: null },
+          { label: "Vendido", valor: String(resumen?.vendido ?? 0), color: "text-slate-900", barra: null },
           {
             label: "Consecución",
             valor: consecucionGlobal === null ? "—" : `${consecucionGlobal} %`,
             color: colorConsecucion(consecucionGlobal),
+            barra: consecucionGlobal,
           },
           {
             label: ambito === "sede" ? "Sedes con objetivo" : "Comerciales con objetivo",
             valor: String(resumen?.conObjetivo ?? 0),
             color: "text-[var(--primary)]",
+            barra: null,
           },
         ].map((k) => (
           <Card key={k.label}>
             <CardContent className="pt-4 pb-4">
               <p className="text-sm text-slate-500">{k.label}</p>
               <p className={`text-2xl font-bold mt-1 tabular-nums ${k.color}`}>{k.valor}</p>
+              {k.barra !== null && (
+                <ProgressBar
+                  value={k.barra}
+                  tone={k.barra >= 100 ? "success" : "danger"}
+                  size="md"
+                  className="mt-2"
+                />
+              )}
             </CardContent>
           </Card>
         ))}
@@ -361,8 +391,8 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
                           {f.importe === null ? "—" : eur(f.importe)}
                         </td>
                       )}
-                      <td className={`px-4 py-2.5 text-sm tabular-nums ${colorConsecucion(f.consecucion)}`}>
-                        {f.consecucion === null ? "—" : `${f.consecucion} %`}
+                      <td className="px-4 py-2.5">
+                        <Consecucion valor={f.consecucion} />
                       </td>
                     </tr>
                   ))}
@@ -419,8 +449,8 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
                       </td>
                       <td className="px-4 py-2 text-sm tabular-nums">{o.objetivo}</td>
                       <td className="px-4 py-2 text-sm tabular-nums">{o.vendido}</td>
-                      <td className={`px-4 py-2 text-sm tabular-nums ${colorConsecucion(o.consecucion)}`}>
-                        {o.consecucion === null ? "—" : `${o.consecucion} %`}
+                      <td className="px-4 py-2">
+                        <Consecucion valor={o.consecucion} />
                       </td>
                       <td className="px-4 py-2 text-right">
                         {!soloLectura && (
