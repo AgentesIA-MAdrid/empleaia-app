@@ -73,6 +73,46 @@ Producción ya corre desde esta rama vía Dokploy.
   `withTenant`, pages usan `withTenantPage`, no `fetch` interno entre
   rutas, etc.).
 
+## 4.hoy-qua. Objetivos de venta: dos subáreas (ticket e6515e63, 2026-07-31)
+
+`/admin/objetivos-venta` (y su gemela `/manager/objetivos-venta`) ya no
+es una sola pantalla: `ObjetivosVentaArea`
+(`src/components/cierre-turno/objetivos-venta-area.tsx`) pone arriba el
+**indicador del mes** ("Julio de 2026 · mes en curso", flechas ‹ › y
+selector de mes) y debajo dos pestañas, con el estilo de `/admin/informes`:
+
+- **Definición de objetivos** — la parrilla de siempre
+  (`objetivos-venta.tsx`), que ahora recibe el mes por props.
+- **Seguimiento de objetivos** — nuevo
+  (`seguimiento-objetivos.tsx` + `GET /api/objetivos-venta/seguimiento`).
+  Filtros de día de corte, sede, comercial y **concepto** (unidades
+  totales / grupo / producto), tres vistas (por comercial, por punto de
+  venta, día a día) y descarga CSV de la vista con esos filtros.
+
+Cómo se calcula (lógica pura en `src/lib/cierre-turno/seguimiento.ts`,
+con tests): el objetivo del mes se reparte **linealmente** entre sus días
+("objetivo a día de hoy"), la desviación es lo vendido menos eso, el
+ritmo necesario reparte lo que falta entre los días que quedan y la
+previsión extrapola la media diaria. Es el criterio del Excel que el
+cliente llevaba a mano; si algún día se quiere ponderar por días de más
+venta (sábados), ese es el sitio.
+
+Dos cosas que conviene no volver a descubrir:
+
+- Las ventas del seguimiento se leen **del día 1 al de corte**, no del
+  mes entero: mirar "cómo íbamos el día 10" no puede contar el día 11.
+- El filtro por comercial NO se lleva a la consulta: se aplica en
+  memoria sobre las ventas del alcance de sede, para que la tabla de
+  puntos de venta siga siendo la de la sede entera.
+- `ventasAgregadas` ahora se deriva de `ventasPorDia`
+  (`ventas-queries.ts`): una sola consulta para las dos. Los mocks de
+  `cierreTurno.findMany` en tests necesitan `fecha`.
+
+Pendiente: el cliente adjuntaba una captura de su Excel que no llegó al
+ticket. Las columnas se han montado con las de un seguimiento comercial
+estándar; si su Excel trae alguna más (importe en €, altas frente a
+bajas…), es añadir columna en la fila de `seguimiento.ts` y en el CSV.
+
 ## 4.hoy-ter. Coordinación: sedes en plural (ticket 73, 2026-07-31)
 
 Repaso de los tickets que se le habían atascado a Claudia. Dos cosas que

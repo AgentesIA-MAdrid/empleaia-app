@@ -58,6 +58,14 @@ export interface VentaAgregada {
   cuentaParaObjetivos?: boolean;
 }
 
+/**
+ * Lo mismo, pero sin colapsar el día: es lo que necesita el seguimiento diario
+ * ("¿cuándo nos hemos descolgado?"). `fecha` es el día del cierre, "YYYY-MM-DD".
+ */
+export interface VentaDia extends VentaAgregada {
+  fecha: string;
+}
+
 /** Lo que los objetivos necesitan saber de cada artículo del catálogo. */
 export interface ArticuloObjetivo {
   id: string;
@@ -80,10 +88,10 @@ export function cuentaParaObjetivos(a: ArticuloObjetivo): boolean {
  * grupo y contando: se vendió algo, aunque ya no sepamos qué (misma regla que
  * `vendidoPara` con `articuloId` null).
  */
-export function anotarVentas(
-  ventas: VentaAgregada[],
+export function anotarVentas<T extends VentaAgregada>(
+  ventas: T[],
   articulos: ArticuloObjetivo[],
-): VentaAgregada[] {
+): (T & VentaAgregada)[] {
   const porId = new Map(articulos.map((a) => [a.id, a]));
   return ventas.map((v) => {
     const a = v.articuloId ? porId.get(v.articuloId) : undefined;

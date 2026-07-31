@@ -1,11 +1,11 @@
-import { ObjetivosVenta } from "@/components/cierre-turno/objetivos-venta";
+import { ObjetivosVentaArea } from "@/components/cierre-turno/objetivos-venta-area";
 
 // Quién puede escribir lo decide el servidor por el rol, no la ruta.
 export default function AdminObjetivosVentaPage() {
   return (
-    <ObjetivosVenta
+    <ObjetivosVentaArea
       titulo="Objetivos de venta"
-      descripcion="Fija los objetivos de cada comercial y de cada punto de venta, y mira la consecución del mes en tiempo real."
+      descripcion="Define los objetivos del mes de cada comercial y de cada punto de venta, y sigue día a día cómo van."
     />
   );
 }

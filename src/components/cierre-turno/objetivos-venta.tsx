@@ -1,11 +1,17 @@
 "use client";
 
 /**
- * Objetivos de venta del mes. La misma pantalla para administración (fija los
- * objetivos) y para coordinación (los consulta, de su sede): quién puede
- * escribir lo decide el servidor y llega en `soloLectura`.
+ * Definición de objetivos de venta: la primera subárea de "Objetivos de venta"
+ * (la segunda es el seguimiento diario, `seguimiento-objetivos.tsx`). La misma
+ * pantalla para administración (fija los objetivos) y para coordinación (los
+ * consulta, de su sede): quién puede escribir lo decide el servidor y llega en
+ * `soloLectura`.
  *
- * Forma de trabajar: se elige el mes y se rellena una parrilla. Primero la de
+ * El mes lo elige el área (`objetivos-venta-area.tsx`) y llega por props: es el
+ * mismo indicador y el mismo filtro para las dos subáreas, que es como se pidió
+ * —los objetivos son mensuales y se consultan también los de meses pasados.
+ *
+ * Forma de trabajar: para el mes elegido se rellena una parrilla. Primero la de
  * comerciales —una fila por persona y una columna por producto del catálogo—,
  * y debajo la misma parrilla para los puntos de venta. Son objetivos distintos:
  * el de la sede se compara con lo que vende la sede entera, no con la suma de
@@ -34,7 +40,6 @@ import { Building2, Target, Trash2, TrendingUp, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { useToast } from "@/hooks/use-toast";
 
@@ -143,16 +148,6 @@ function valorFijado(celda: Celda): string {
 
 const eur = (n: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n);
-
-/** Mes en curso como "YYYY-MM" en horario peninsular. */
-function mesActual(): string {
-  const p = Object.fromEntries(
-    new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit" })
-      .formatToParts(new Date())
-      .map((x) => [x.type, x.value]),
-  );
-  return `${p.year}-${p.month}`;
-}
 
 /**
  * Color de la consecución: o se cumple el objetivo (verde) o no se cumple
@@ -415,9 +410,8 @@ function TablaObjetivos({
   );
 }
 
-export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descripcion: string }) {
+export function ObjetivosVenta({ mes }: { mes: string }) {
   const { toast } = useToast();
-  const [mes, setMes] = useState(mesActual());
   const [datos, setDatos] = useState<Respuesta | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -534,27 +528,10 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
       : null;
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">{titulo}</h1>
-        <p className="text-slate-500 text-sm mt-1 max-w-2xl">{descripcion}</p>
-      </div>
-
+    <div className="space-y-6">
       <Card>
         <CardContent className="pt-4 pb-4">
-          <div className="flex items-end gap-4 flex-wrap">
-            <div>
-              <Label htmlFor="objetivos-mes">Mes</Label>
-              <Input
-                id="objetivos-mes"
-                type="month"
-                className="mt-1 w-44"
-                value={mes}
-                onChange={(e) => setMes(e.target.value || mesActual())}
-              />
-            </div>
-          </div>
-          <p className="text-xs text-slate-400 mt-3 max-w-3xl">
+          <p className="text-xs text-slate-400 max-w-3xl">
             Cada casilla es el objetivo de unidades del mes elegido. Debajo de la casilla verás lo
             que se lleva vendido y la consecución. Los objetivos de los comerciales y los de las
             sedes son independientes: el de una sede se compara con lo que vende la sede completa,
