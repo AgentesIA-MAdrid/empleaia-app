@@ -6,7 +6,9 @@
  * Aquí el administrador define su tabla de artículos y servicios —a mano o
  * subiéndola en Excel o CSV— y la retoca. Es la tabla que verá el comercial en
  * el paso 1 del cierre de turno, en este mismo orden, y la lista sobre la que
- * se fijan los objetivos de venta por comercial y por sede.
+ * se fijan los objetivos de venta por comercial y por sede. Ese orden se
+ * recoloca con las flechas de cada fila: dando de alta a mano, todo cae al
+ * final, y lo que se vende a diario tiene que quedar arriba.
  *
  * Añadir a mano existe porque el caso corriente son cuatro o cinco conceptos
  * (pospago, fibra, renove, prepago, energía): pedir un Excel para eso es pedir
@@ -21,12 +23,23 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Upload, FileSpreadsheet, Eye, EyeOff, Euro, Plus, Users } from "lucide-react";
+import {
+  Upload,
+  FileSpreadsheet,
+  Eye,
+  EyeOff,
+  Euro,
+  Plus,
+  Users,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { moverEnOrden } from "@/lib/cierre-turno/catalogo";
 
 interface Articulo {
   id: string;
@@ -69,6 +82,7 @@ export function CatalogoVentasTab() {
   const [personas, setPersonas] = useState<PersonaPiloto[]>([]);
   const [pilotoElegido, setPilotoElegido] = useState("");
   const [guardandoPiloto, setGuardandoPiloto] = useState<string | null>(null);
+  const [guardandoOrden, setGuardandoOrden] = useState(false);
   const inputFichero = useRef<HTMLInputElement>(null);
 
   // Alta a mano.
@@ -339,6 +353,50 @@ export function CatalogoVentasTab() {
     );
   };
 
+  /**
+   * Sube o baja un artículo una posición. La tabla se recoloca en pantalla al
+   * instante y se manda el orden completo al servidor: colocar el catálogo son
+   * varios clics seguidos y esperar al servidor entre uno y otro se nota.
+   * Si el guardado falla, la lista vuelve a como estaba.
+   */
+  const mover = async (a: Articulo, direccion: -1 | 1) => {
+    const nuevosIds = moverEnOrden(
+      articulos.map((x) => x.id),
+      a.id,
+      direccion,
+    );
+    if (!nuevosIds) return;
+
+    const previos = articulos;
+    const porId = new Map(articulos.map((x) => [x.id, x]));
+    setArticulos(nuevosIds.map((id) => porId.get(id)).filter((x): x is Articulo => Boolean(x)));
+    setGuardandoOrden(true);
+    try {
+      const res = await fetch("/api/articulos-venta/orden", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: nuevosIds }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setArticulos(previos);
+        toast({
+          title: "No se ha podido guardar el orden",
+          description: (data as { error?: string }).error ?? "Inténtalo de nuevo.",
+          variant: "destructive",
+        });
+        // 409 = alguien tocó el catálogo desde otra pestaña: se recarga para
+        // ordenar sobre la lista que hay de verdad.
+        if (res.status === 409) await cargar();
+      }
+    } catch {
+      setArticulos(previos);
+      toast({ title: "Sin conexión", description: "El orden no se ha guardado.", variant: "destructive" });
+    } finally {
+      setGuardandoOrden(false);
+    }
+  };
+
   const cambiarActivo = async (a: Articulo) => {
     const res = await fetch("/api/articulos-venta", {
       method: "PATCH",
@@ -364,7 +422,8 @@ export function CatalogoVentasTab() {
         <p className="text-sm text-slate-500 mt-1 max-w-2xl">
           La lista de artículos y servicios que tu equipo registra al cerrar el turno, y sobre
           la que se fijan los objetivos de venta por comercial y por sede. Añádelos aquí uno a
-          uno, o súbelos de golpe desde Excel o CSV si tienes muchos.
+          uno, o súbelos de golpe desde Excel o CSV si tienes muchos. Con las flechas de cada
+          fila los colocas en el orden que quieras: es el mismo que verá tu equipo.
         </p>
       </div>
 
@@ -576,7 +635,9 @@ export function CatalogoVentasTab() {
             importar, lo que vuelva a aparecer se actualiza y lo que ya no esté se desactiva
             —incluido lo que hayas añadido a mano y no figure en la hoja—, nunca se borra, para
             no romper el histórico de ventas. Si tu hoja tiene una columna llamada{" "}
-            <strong>Precio</strong> (o PVP), se importa también.
+            <strong>Precio</strong> (o PVP), se importa también. Ten en cuenta que al importar
+            la lista queda en el orden de la hoja, así que si ya la habías colocado a mano
+            tendrás que repasarla.
           </p>
         </CardContent>
       </Card>
@@ -752,7 +813,32 @@ export function CatalogoVentasTab() {
                           <span className="text-slate-500">Desactivado</span>
                         )}
                       </td>
-                      <td className="px-4 py-2.5 text-right">
+                      <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                        {/* Las flechas colocan el catálogo después de haberlo
+                            dado de alta: el orden de esta tabla es el que ve el
+                            comercial al cerrar el turno. */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          disabled={guardandoOrden || i === 0}
+                          aria-label={`Subir ${a.nombre}`}
+                          title="Subir"
+                          onClick={() => void mover(a, -1)}
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          disabled={guardandoOrden || i === articulos.length - 1}
+                          aria-label={`Bajar ${a.nombre}`}
+                          title="Bajar"
+                          onClick={() => void mover(a, 1)}
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={() => void cambiarActivo(a)}>
                           {a.activo ? (
                             <>

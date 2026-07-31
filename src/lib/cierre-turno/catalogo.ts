@@ -119,6 +119,58 @@ export function normalizarCategoriaArticulo(bruto: unknown): string | null {
 }
 
 /**
+ * Sube (-1) o baja (+1) un artículo una posición dentro de la lista de ids.
+ * Devuelve la lista nueva, o null si el movimiento no lleva a ninguna parte
+ * (ya está en el extremo, o el id no está en la lista).
+ */
+export function moverEnOrden(ids: string[], id: string, direccion: -1 | 1): string[] | null {
+  const desde = ids.indexOf(id);
+  if (desde === -1) return null;
+  const hasta = desde + direccion;
+  if (hasta < 0 || hasta >= ids.length) return null;
+  const nuevos = [...ids];
+  nuevos[desde] = ids[hasta];
+  nuevos[hasta] = ids[desde];
+  return nuevos;
+}
+
+/**
+ * Comprueba el orden que llega al endpoint de reordenar: tiene que ser el
+ * catálogo entero, sin repetidos, sin artículos ajenos y sin dejarse ninguno.
+ *
+ * Se exige la lista completa (y no "mueve este a la posición 3") porque el
+ * orden se reescribe de golpe: así dos artículos nunca acaban compartiendo
+ * posición, que es lo que deja la tabla saltando de sitio entre recargas.
+ *
+ * `desfasado` se distingue de `malformado` porque no es lo mismo un cliente
+ * que manda basura que dos pestañas abiertas: la segunda merece un "recarga la
+ * página", no un error de datos.
+ */
+export function validarOrdenCatalogo(
+  bruto: unknown,
+  idsActuales: string[],
+):
+  | { ok: true; ids: string[] }
+  | { ok: false; estado: "malformado" | "desfasado"; error: string } {
+  if (!Array.isArray(bruto) || bruto.some((x) => typeof x !== "string")) {
+    return { ok: false, estado: "malformado", error: "Datos no válidos" };
+  }
+  const ids = bruto as string[];
+  if (new Set(ids).size !== ids.length) {
+    return { ok: false, estado: "malformado", error: "Datos no válidos" };
+  }
+  const actuales = new Set(idsActuales);
+  if (ids.length !== actuales.size || ids.some((id) => !actuales.has(id))) {
+    return {
+      ok: false,
+      estado: "desfasado",
+      error: "El catálogo ha cambiado mientras lo ordenabas. Recarga la página e inténtalo de nuevo.",
+    };
+  }
+  return { ok: true, ids };
+}
+
+/**
  * Precio de una celda de Excel. Acepta "12,50", "12.50", "12,50 €" y miles
  * con punto ("1.234,50"): las hojas de precios españolas vienen así.
  * Devuelve null si no hay número aprovechable, y nunca un negativo.
