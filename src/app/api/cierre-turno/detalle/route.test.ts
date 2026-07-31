@@ -37,6 +37,9 @@ const prismaMock = {
   cierreTurno: { findFirst: vi.fn(async () => CIERRE as unknown) },
   configuracionEmpresa: { findUnique: vi.fn(async () => ({ ventasPreciosActivos: true })) },
   articuloVenta: { findMany: vi.fn(async () => [{ id: "art_fibra", precio: 30 }]) },
+  // Sedes que coordina quien mira (ticket 73): el alcance de sede es en plural.
+  usuarioSede: { findMany: vi.fn(async () => [{ tiendaId: "t2", principal: false }]) },
+  tienda: { findFirst: vi.fn(async ({ where }: { where: { id: string } }) => ({ id: where.id })) },
 };
 
 vi.mock("@/lib/prisma", () => ({
@@ -95,11 +98,24 @@ describe("GET /api/cierre-turno/detalle", () => {
     );
   });
 
-  it("un coordinador queda limitado a su sede", async () => {
+  it("un coordinador queda limitado a las sedes que lleva", async () => {
     sesion.user = { id: "u_jefe", rol: "MANAGER", tiendaId: "t1", name: "Jefe" };
     await get("?id=c1");
     expect(prismaMock.cierreTurno.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ id: "c1", tiendaId: "t1" }) }),
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "c1", tiendaId: { in: ["t1", "t2"] } }),
+      }),
+    );
+  });
+
+  it("un coordinador SIN sedes asignadas no ve ninguna, no todas", async () => {
+    // El bug que esto cierra: con la lista vacía, un filtro construido con
+    // `...(x ? {} : {})` desaparece y deja ver la caja de toda la cadena.
+    sesion.user = { id: "u_jefe", rol: "MANAGER", tiendaId: null, name: "Jefe" };
+    prismaMock.usuarioSede.findMany.mockResolvedValueOnce([]);
+    await get("?id=c1");
+    expect(prismaMock.cierreTurno.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ tiendaId: { in: [] } }) }),
     );
   });
 

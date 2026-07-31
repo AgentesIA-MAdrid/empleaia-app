@@ -5,6 +5,7 @@ import type { NextRequest } from "next/server";
 
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
+import { sedesDelUsuario } from "@/lib/tiendas/sedes-usuario";
 
 export const GET = withTenant(withFeature("turnos_publicacion", async (request: NextRequest) => {
   try {
@@ -19,6 +20,10 @@ export const GET = withTenant(withFeature("turnos_publicacion", async (request: 
     const fechaInicio = searchParams.get("fechaInicio");
     const fechaFin = searchParams.get("fechaFin");
     const estado = searchParams.get("estado") as EstadoTurno | null;
+    // "Mis turnos": el horario de quien pregunta, sin el de su equipo. El
+    // coordinador tiene las dos vistas separadas en el menú (ticket 73), y su
+    // propio cuadrante no se mezcla con el de las personas que lleva.
+    const soloMios = searchParams.get("mios") === "1";
 
     const userRol = (session.user as any).rol as Rol;
     const userTiendaId = (session.user as any).tiendaId as string | null;
@@ -26,12 +31,22 @@ export const GET = withTenant(withFeature("turnos_publicacion", async (request: 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {};
 
-    if (userRol === Rol.OWNER) {
+    if (soloMios) {
+      where.userId = session.user.id;
+    } else if (userRol === Rol.OWNER) {
       if (tiendaId) where.tiendaId = tiendaId;
       if (userId) where.userId = userId;
     } else if (userRol === Rol.MANAGER) {
-      where.tiendaId = userTiendaId;
-      if (userId) where.userId = userId;
+      // Todas las sedes que coordina, no solo la principal de su ficha. Con la
+      // lista vacía `in: []` no devuelve nada — que es lo correcto: sin sedes
+      // asignadas no se ve el cuadrante de toda la cadena.
+      const sedes = await sedesDelUsuario(prisma, {
+        userId: session.user.id!,
+        tiendaId: userTiendaId,
+      });
+      where.tiendaId = tiendaId && sedes.includes(tiendaId) ? tiendaId : { in: sedes };
+      // Su horario va aparte, en "Mis turnos": aquí solo su equipo.
+      where.userId = userId ? userId : { not: session.user.id };
     } else {
       // EMPLEADO
       where.userId = session.user.id;

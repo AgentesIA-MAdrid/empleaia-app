@@ -21,7 +21,11 @@ export const GET = withTenant(withFeature("envio_nominas", async (req: NextReque
   const userRol = (session.user as { rol?: Rol }).rol;
   const { searchParams } = req.nextUrl;
   const empleadoId = searchParams.get("empleadoId");
-  const esAdmin = userRol === Rol.OWNER || userRol === Rol.MANAGER;
+  // La nómina de otro solo la ve administración. El coordinador (MANAGER) ve
+  // la suya y nada más (ticket 73): lleva el día a día de su equipo, pero el
+  // salario de su gente no es asunto suyo. Antes entraba en `esAdmin` y las
+  // veía todas.
+  const esAdmin = userRol === Rol.OWNER;
   const where: Record<string, unknown> = esAdmin
     ? (empleadoId ? { empleadoId } : {})
     : { empleadoId: userId };

@@ -1,7 +1,7 @@
 /**
  * GET  /api/cierre-turno — cierres visibles según el rol.
  *   ?fecha=YYYY-MM-DD   día concreto (por defecto, hoy)
- *   ?tiendaId=…         filtro de sede (OWNER; el MANAGER va atado a la suya)
+ *   ?tiendaId=…         filtro de sede (OWNER; el MANAGER va atado a las suyas)
  *
  * El alcance no lo elige el cliente: sale del rol (ver `alcanceSegunRol`).
  * Un comercial solo ve sus cierres aunque pida otra sede.
@@ -22,6 +22,7 @@ import {
   diaMadrid,
   normalizarVentas,
 } from "@/lib/cierre-turno/core";
+import { sedesDelUsuario } from "@/lib/tiendas/sedes-usuario";
 
 const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -46,12 +47,17 @@ export const GET = withTenant(
 
     const alcance = alcanceSegunRol(rol);
     const tiendaFiltro = url.searchParams.get("tiendaId");
+    // Alcance de sede = TODAS las que coordina (ticket 73). Con la lista vacía
+    // (nadie le ha asignado sedes) `in: []` no devuelve nada, que es lo que
+    // toca: no ver ninguna, nunca verlas todas.
+    const sedesPropias =
+      alcance === "sede" ? await sedesDelUsuario(prisma, { userId, tiendaId: tiendaPropia }) : [];
 
     const where =
       alcance === "propio"
         ? { userId, fecha }
         : alcance === "sede"
-          ? { fecha, tiendaId: tiendaPropia }
+          ? { fecha, tiendaId: { in: sedesPropias } }
           : { fecha, ...(tiendaFiltro ? { tiendaId: tiendaFiltro } : {}) };
 
     const cierres = await prisma.cierreTurno.findMany({

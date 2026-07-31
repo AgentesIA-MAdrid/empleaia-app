@@ -24,6 +24,12 @@ export interface FiltroVentas {
   hasta?: Date;
   /** Limita a una sede (la del coordinador, o el filtro del informe). */
   tiendaId?: string | null;
+  /**
+   * Limita a un conjunto de sedes (las que coordina quien mira — ticket 73).
+   * Se cruza con `tiendaId` si vienen los dos, así que un coordinador que pide
+   * una sede ajena no ve nada en vez de verlo todo.
+   */
+  tiendaIds?: string[] | null;
   /** Limita a un comercial. */
   userId?: string | null;
 }
@@ -52,7 +58,17 @@ export async function ventasAgregadas(
   const cierres = await prisma.cierreTurno.findMany({
     where: {
       fecha: { gte: desde, lt: hasta },
-      ...(filtro.tiendaId ? { tiendaId: filtro.tiendaId } : {}),
+      // Los dos filtros de sede se acumulan en un AND: si el coordinador pide
+      // una sede que no lleva, el cruce se queda vacío. Un `...(x ? {} : {})`
+      // por separado dejaría que el segundo sobreescribiera al primero.
+      ...(filtro.tiendaId || filtro.tiendaIds
+        ? {
+            AND: [
+              ...(filtro.tiendaId ? [{ tiendaId: filtro.tiendaId }] : []),
+              ...(filtro.tiendaIds ? [{ tiendaId: { in: filtro.tiendaIds } }] : []),
+            ],
+          }
+        : {}),
       ...(filtro.userId ? { userId: filtro.userId } : {}),
     },
     select: { id: true, userId: true, tiendaId: true },

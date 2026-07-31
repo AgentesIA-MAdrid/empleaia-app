@@ -13,6 +13,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
 import { alcanceSegunRol } from "@/lib/cierre-turno/core";
+import { sedesDelUsuario } from "@/lib/tiendas/sedes-usuario";
 
 export const GET = withTenant(
   withFeature("cierre_turno", async (req: NextRequest) => {
@@ -30,6 +31,10 @@ export const GET = withTenant(
     if (!id) return NextResponse.json({ error: "Falta el archivo." }, { status: 400 });
 
     const alcance = alcanceSegunRol(rol);
+    const sedesPropias =
+      alcance === "sede"
+        ? await sedesDelUsuario(prisma, { userId: session.user.id!, tiendaId: tiendaPropia })
+        : [];
     const adjunto = await prisma.cierreCajaAdjunto.findFirst({
       where: {
         id,
@@ -38,7 +43,7 @@ export const GET = withTenant(
             alcance === "propio"
               ? { userId }
               : alcance === "sede"
-                ? { tiendaId: tiendaPropia }
+                ? { tiendaId: { in: sedesPropias } }
                 : {},
         },
       },

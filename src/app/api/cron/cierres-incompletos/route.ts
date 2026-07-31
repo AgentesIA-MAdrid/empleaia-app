@@ -39,6 +39,7 @@ import {
   decidirAviso,
   diaARevisar,
 } from "@/lib/cierre-turno/vigilancia";
+import { exentoDeControlesDeTienda } from "@/lib/cierre-turno/exencion-coordinacion";
 
 export const dynamic = "force-dynamic";
 
@@ -84,8 +85,8 @@ async function revisarTenant(
       select: {
         userId: true,
         tiendaId: true,
-        user: { select: { nombre: true, apellidos: true, activo: true } },
-        tienda: { select: { nombre: true } },
+        user: { select: { nombre: true, apellidos: true, activo: true, rol: true } },
+        tienda: { select: { nombre: true, esOficina: true } },
       },
     }),
     prismaApp.cierreTurno.findMany({
@@ -104,9 +105,26 @@ async function revisarTenant(
     }),
   ]);
 
+  // A la coordinadora que ese día estaba en oficina no se le reclama el cierre:
+  // allí no vende ni cuadra caja (ticket 73). El día que cubre en una tienda sí
+  // entra en la reclamación, como el resto del equipo.
+  const turnosPorPersona = new Map<string, { esOficina: boolean }[]>();
+  for (const t of turnos) {
+    const previo = turnosPorPersona.get(t.userId) ?? [];
+    previo.push({ esOficina: t.tienda?.esOficina === true });
+    turnosPorPersona.set(t.userId, previo);
+  }
+
   const pendientes = agruparPendientesPorSede(
     turnos
       .filter((t) => t.user.activo)
+      .filter(
+        (t) =>
+          !exentoDeControlesDeTienda({
+            rol: t.user.rol,
+            turnosDelDia: turnosPorPersona.get(t.userId) ?? [],
+          }),
+      )
       .map((t) => ({
         userId: t.userId,
         nombre: `${t.user.nombre} ${t.user.apellidos}`.trim(),

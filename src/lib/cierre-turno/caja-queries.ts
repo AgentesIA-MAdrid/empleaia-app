@@ -46,14 +46,23 @@ export async function totalesCaja(
 /** Lo mismo, agrupado por sede: es como se pinta la conciliación. */
 export async function totalesCajaPorSede(
   prisma: PrismaClient,
-  args: { desde: Date; hasta: Date; tiendaId?: string | null },
+  args: { desde: Date; hasta: Date; tiendaId?: string | null; tiendaIds?: string[] | null },
 ): Promise<Map<string, { efectivo: number; tarjeta: number; cajas: number }>> {
   const filas = await prisma.cierreCaja.groupBy({
     by: ["tiendaId"],
     where: {
       fecha: rangoExclusivo(args.desde, args.hasta),
       confirmadoEn: { not: null },
-      ...(args.tiendaId ? { tiendaId: args.tiendaId } : {}),
+      // Los dos filtros de sede se acumulan (ticket 73): quien coordina varias
+      // sedes las pasa en `tiendaIds`, y si además pide una concreta, se cruzan.
+      ...(args.tiendaId || args.tiendaIds
+        ? {
+            AND: [
+              ...(args.tiendaId ? [{ tiendaId: args.tiendaId }] : []),
+              ...(args.tiendaIds ? [{ tiendaId: { in: args.tiendaIds } }] : []),
+            ],
+          }
+        : {}),
     },
     _sum: { efectivo: true, tarjeta: true },
     _count: true,

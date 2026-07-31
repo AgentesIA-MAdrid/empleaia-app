@@ -175,7 +175,10 @@ function getSidebarConfig(rol: string, pendingAusencias = 0): SidebarConfig {
             { label: "Aprobaciones de fichaje", href: "/manager/solicitudes-fichaje", icon: ClipboardCheck },
             { label: "Ausencias", href: "/manager/ausencias", icon: ClipboardList, badge: pendingAusencias || undefined },
             { label: "Mis Ausencias", href: "/manager/mis-ausencias", icon: CalendarCheck },
-            { label: "Turnos", href: "/manager/turnos", icon: Calendar },
+            // El horario propio y el del equipo van separados (ticket 73): la
+            // coordinadora no se busca a sí misma en el cuadrante de la tienda.
+            { label: "Mis Turnos", href: "/manager/mis-turnos", icon: CalendarCheck },
+            { label: "Turnos de mi equipo", href: "/manager/turnos", icon: Calendar },
             { label: "Tareas", href: "/manager/tareas", icon: CheckSquare },
           ],
         },

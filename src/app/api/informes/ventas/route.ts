@@ -2,7 +2,7 @@
  * GET /api/informes/ventas — informe de ventas del módulo "Cierre de turno".
  *
  *   ?desde=YYYY-MM-DD&hasta=YYYY-MM-DD  (rango inclusivo por días)
- *   ?tiendaId=…   sede (el coordinador va atado a la suya)
+ *   ?tiendaId=…   sede (el coordinador va atado a las que lleva)
  *   ?userId=…     un comercial concreto
  *
  * Devuelve lo vendido en el periodo por artículo, por comercial y por sede, y
@@ -21,6 +21,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
 import { alcanceSegunRol, diaMadrid, filtroSede } from "@/lib/cierre-turno/core";
+import { sedesDelUsuario } from "@/lib/tiendas/sedes-usuario";
 import { importeVendido } from "@/lib/cierre-turno/objetivos";
 import {
   preciosActivos as leerPreciosActivos,
@@ -70,7 +71,11 @@ export const GET = withTenant(
 
     // El coordinador no puede ampliar el alcance por querystring, y sin sede
     // asignada no ve todas las sedes: no ve ninguna (ver `filtroSede`).
-    const filtro = filtroSede(rol, tiendaPropia, url.searchParams.get("tiendaId"));
+    const sedesPropias =
+      alcance === "todos"
+        ? []
+        : await sedesDelUsuario(prisma, { userId: session.user.id!, tiendaId: tiendaPropia });
+    const filtro = filtroSede(rol, sedesPropias, url.searchParams.get("tiendaId"));
     if (filtro.tipo === "ninguna") {
       return NextResponse.json({
         desde: desdeStr,
@@ -93,11 +98,11 @@ export const GET = withTenant(
         sinSede: true,
       });
     }
-    const tiendaId = filtro.tipo === "sede" ? filtro.tiendaId : null;
+    const tiendaIds = filtro.tipo === "sedes" ? filtro.tiendaIds : null;
     const userId = url.searchParams.get("userId") || null;
 
     const [ventas, articulos, personas, sedes, caja, preciosOn, cierres] = await Promise.all([
-      ventasAgregadas(prisma, { desde, hasta, tiendaId, userId }),
+      ventasAgregadas(prisma, { desde, hasta, tiendaIds, userId }),
       prisma.articuloVenta.findMany({
         select: { id: true, nombre: true, categoria: true, precio: true },
         orderBy: [{ orden: "asc" }, { nombre: "asc" }],
@@ -107,7 +112,7 @@ export const GET = withTenant(
       prisma.cierreCaja.aggregate({
         where: {
           fecha: { gte: desde, lt: hasta },
-          ...(tiendaId ? { tiendaId } : {}),
+          ...(tiendaIds ? { tiendaId: { in: tiendaIds } } : {}),
           ...(userId ? { cierre: { userId } } : {}),
         },
         _sum: { efectivo: true, tarjeta: true },
@@ -117,7 +122,7 @@ export const GET = withTenant(
       prisma.cierreTurno.count({
         where: {
           fecha: { gte: desde, lt: hasta },
-          ...(tiendaId ? { tiendaId } : {}),
+          ...(tiendaIds ? { tiendaId: { in: tiendaIds } } : {}),
           ...(userId ? { userId } : {}),
         },
       }),

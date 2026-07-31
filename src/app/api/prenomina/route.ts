@@ -7,7 +7,9 @@
  *   Recalcula y persiste todas las prenominas BORRADOR del periodo.
  *   Las que estén CERRADAS o ENVIADAS se respetan (no se sobrescriben).
  *
- * Feature: `prenomina` (Pro+Enterprise). OWNER/MANAGER.
+ * Feature: `prenomina` (Pro+Enterprise). Solo OWNER: la prenómina es el
+ * borrador de la nómina (salario base, extras, plus) y el coordinador no ve
+ * lo que cobra su equipo (ticket 73).
  */
 
 import { auth } from "@/lib/auth";
@@ -23,9 +25,9 @@ import {
 } from "@/lib/prenomina/calculo";
 import { resolveEmpresaScope, userScopeFilter } from "@/lib/multi-empresa/scope";
 
-function assertOwnerOrManager(rol: Rol | undefined) {
-  if (rol !== Rol.OWNER && rol !== Rol.MANAGER) {
-    return NextResponse.json({ error: "Solo OWNER/MANAGER" }, { status: 403 });
+function assertOwner(rol: Rol | undefined) {
+  if (rol !== Rol.OWNER) {
+    return NextResponse.json({ error: "Solo el Administrador" }, { status: 403 });
   }
   return null;
 }
@@ -43,7 +45,7 @@ export const GET = withTenant(
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     const userRol = (session.user as { rol?: Rol }).rol;
-    const guard = assertOwnerOrManager(userRol);
+    const guard = assertOwner(userRol);
     if (guard) return guard;
 
     const periodo = req.nextUrl.searchParams.get("periodo");
@@ -137,8 +139,8 @@ export const POST = withTenant(
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     const userRol = (session.user as { rol?: Rol }).rol;
-    // Recalcular/persistir prenóminas es gestión: solo el Administrador (OWNER).
-    // (La lectura GET sí la conserva el Coordinador vía assertOwnerOrManager.)
+    // Recalcular/persistir prenóminas es gestión: solo el Administrador (OWNER),
+    // igual que la lectura desde el ticket 73.
     if (userRol !== Rol.OWNER) {
       return NextResponse.json({ error: "Solo el Administrador" }, { status: 403 });
     }

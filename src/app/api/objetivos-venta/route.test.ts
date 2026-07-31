@@ -6,7 +6,8 @@
  *
  * Lo que se protege aquí:
  *  1. Un comercial no entra: los objetivos son de administración y coordinación.
- *  2. El coordinador ve su sede y en modo lectura, aunque pida otra sede.
+ *  2. El coordinador ve las sedes que lleva y en modo lectura; si pide una que
+ *     no es suya, no se le sirve.
  *  3. Fijar un objetivo NO usa `upsert` sobre la clave única con NULLs (en
  *     Postgres dos NULL no son iguales y crearía duplicados): busca primero.
  *  4. Cantidad 0 borra el objetivo en vez de dejar un cero que parece un
@@ -46,7 +47,10 @@ const prismaMock = {
   tienda: {
     findMany: vi.fn(async () => [{ id: "t1", nombre: "Centro" }]),
     findUnique: vi.fn(async () => ({ id: "t1" })),
+    findFirst: vi.fn(async ({ where }: { where: { id: string } }) => ({ id: where.id })),
   },
+  // Sedes que coordina quien mira (ticket 73): el alcance es en plural.
+  usuarioSede: { findMany: vi.fn(async () => [{ tiendaId: "t2", principal: false }]) },
   user: {
     findMany: vi.fn(async () => [
       { id: "u_ana", nombre: "Ana", apellidos: "García", tiendaId: "t1" },
@@ -125,22 +129,50 @@ describe("GET /api/objetivos-venta", () => {
     expect(res.status).toBe(403);
   });
 
-  it("el coordinador entra en modo lectura y atado a su sede", async () => {
+  it("el coordinador entra en modo lectura y atado a las sedes que lleva", async () => {
     sesion.user = { id: "u_jefe", rol: "MANAGER", tiendaId: "t1", name: "Jefe" };
     const res = await get("?tiendaId=t9");
     expect(res.status).toBe(200);
     const data = (await res.json()) as { soloLectura: boolean };
     expect(data.soloLectura).toBe(true);
-    // Pidió la sede t9 y se le sirve la suya.
+    // Pidió la sede t9, que no lleva: se le sirven las suyas (t1 principal + t2).
+    expect(prismaMock.tienda.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: { in: ["t1", "t2"] } }),
+      }),
+    );
+    // Su equipo son las personas de esas sedes, por sede principal o por
+    // asignación N:N.
     expect(prismaMock.user.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ tiendaId: "t1" }) }),
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { tiendaId: { in: ["t1", "t2"] } },
+            { sedes: { some: { tiendaId: { in: ["t1", "t2"] } } } },
+          ],
+        }),
+      }),
     );
   });
 
-  it("un coordinador SIN sede asignada no ve las ventas de todas las tiendas", async () => {
+  it("el coordinador recibe su propio objetivo de zona (ticket 73)", async () => {
+    sesion.user = { id: "u_jefe", rol: "MANAGER", tiendaId: "t1", name: "Jefe" };
+    const res = await get();
+    const data = (await res.json()) as { objetivoPropio: unknown };
+    expect(data.objetivoPropio).not.toBeNull();
+  });
+
+  it("administración no tiene objetivo de zona: el suyo es el pie de la tabla", async () => {
+    const res = await get();
+    const data = (await res.json()) as { objetivoPropio: unknown };
+    expect(data.objetivoPropio).toBeNull();
+  });
+
+  it("un coordinador SIN sedes asignadas no ve las ventas de todas las tiendas", async () => {
     // El bug que esto cierra: con `tiendaId` null el filtro desaparecía del
     // where y el coordinador terminaba viendo la caja de toda la empresa.
     sesion.user = { id: "u_jefe", rol: "MANAGER", tiendaId: null, name: "Jefe" };
+    prismaMock.usuarioSede.findMany.mockResolvedValueOnce([]);
     const res = await get();
     expect(res.status).toBe(200);
     const data = (await res.json()) as {

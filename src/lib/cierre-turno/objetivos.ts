@@ -402,3 +402,75 @@ export function progresoDe(
   const { cantidad: objetivo } = objetivoTotalDe(suyos, articuloIds);
   return { vendido, objetivo, consecucion: objetivo === null ? null : pct(vendido, objetivo) };
 }
+
+/**
+ * Objetivo propio de una coordinadora (ticket 73).
+ *
+ * El cliente lo definió así: *"tiene que salirles una tabla con su propio
+ * objetivo, que se cumplirá en base a si sus sedes y los empleados asignados en
+ * el turno a estas cumplen los objetivos"*. O sea: su objetivo no se fija a
+ * mano, **es el de su zona**. Se calcula sumando el objetivo de unidades
+ * totales de las sedes que lleva y comparándolo con lo que esas sedes han
+ * vendido.
+ *
+ * Además se cuenta cuántas de sus sedes y cuántas de las personas de su equipo
+ * llegan al 100 %, que es la lectura que le sirve para saber por dónde apretar:
+ * un 95 % de zona puede ser "casi" o puede ser "dos tiendas sobradas y tres
+ * muy lejos".
+ *
+ * Se calcula sobre las matrices ya construidas para no repetir consultas: la
+ * columna de unidades totales de cada fila ya trae objetivo, vendido y
+ * consecución con las reglas del módulo (incluido el total derivado).
+ */
+export interface ObjetivoCoordinacion {
+  objetivo: number;
+  vendido: number;
+  consecucion: number | null;
+  /** Sedes que llegan al 100 %, de las que tienen objetivo fijado. */
+  sedesCumplen: number;
+  sedesConObjetivo: number;
+  /** Comerciales de su equipo que llegan al 100 %, de los que tienen objetivo. */
+  comercialesCumplen: number;
+  comercialesConObjetivo: number;
+}
+
+export function objetivoDeCoordinacion(args: {
+  filasSedes: FilaMatriz[];
+  filasComerciales: FilaMatriz[];
+}): ObjetivoCoordinacion {
+  const cumplen = (filas: FilaMatriz[]) => {
+    let conObjetivo = 0;
+    let alCien = 0;
+    for (const f of filas) {
+      const celda = f.celdas[COLUMNA_TOTAL];
+      // Sin objetivo no se cuenta ni a favor ni en contra: una tienda a la que
+      // nadie ha puesto cifra no puede contar como incumplida.
+      if (!celda || celda.objetivo === null || celda.objetivo <= 0) continue;
+      conObjetivo += 1;
+      if ((celda.consecucion ?? 0) >= 100) alCien += 1;
+    }
+    return { conObjetivo, alCien };
+  };
+
+  let objetivo = 0;
+  let vendido = 0;
+  for (const f of args.filasSedes) {
+    const celda = f.celdas[COLUMNA_TOTAL];
+    if (!celda) continue;
+    objetivo += celda.objetivo ?? 0;
+    vendido += celda.vendido;
+  }
+
+  const sedes = cumplen(args.filasSedes);
+  const comerciales = cumplen(args.filasComerciales);
+
+  return {
+    objetivo,
+    vendido,
+    consecucion: objetivo > 0 ? pct(vendido, objetivo) : null,
+    sedesCumplen: sedes.alCien,
+    sedesConObjetivo: sedes.conObjetivo,
+    comercialesCumplen: comerciales.alCien,
+    comercialesConObjetivo: comerciales.conObjetivo,
+  };
+}
