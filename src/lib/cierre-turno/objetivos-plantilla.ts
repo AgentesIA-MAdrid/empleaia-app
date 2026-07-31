@@ -154,14 +154,16 @@ const AMBITO_GRUPO = ["grupo", "grupo de objetivos", "equipo"];
  */
 export function columnasPlantilla(articulos: ArticuloPlantilla[]): ColumnaPlantilla[] {
   const paraObjetivos = articulos.filter((a) => cuentaParaObjetivos(a));
-  const titulos = titulosDeArticulos(paraObjetivos);
+  // Unidades totales y un grupo por subcategoría. Sin columna por producto: el
+  // objetivo se fija por grupo y las ventas de sus productos lo empujan
+  // (ticket 528694fa). Una hoja antigua con columnas de producto se sigue
+  // pudiendo subir; esas columnas se ignoran y se dice por qué.
   return [
     { id: COLUMNA_TOTAL, titulo: TITULO_TOTAL },
     ...subgruposDelCatalogo(paraObjetivos).map((g) => ({
       id: columnaSubgrupo(g),
       titulo: `${PREFIJO_GRUPO_HOJA}${etiquetaSubgrupo(g)}`,
     })),
-    ...paraObjetivos.map((a) => ({ id: a.id, titulo: titulos.get(a.id) ?? a.nombre })),
   ];
 }
 
@@ -357,7 +359,14 @@ export function interpretarPlantillaObjetivos(
     }
     const articulo = porNombre.get(norm);
     if (articulo) {
-      columnas.set(i, { id: articulo.id, titulo });
+      // Columna de producto de una hoja antigua: los objetivos van por grupo.
+      const grupo = articulo.subcategoria;
+      columnasIgnoradas.push({
+        columna: titulo,
+        motivo: grupo
+          ? `Los objetivos se fijan por grupo: pon la cifra en la columna "${PREFIJO_GRUPO_HOJA}${grupo}".`
+          : "Los objetivos se fijan por grupo de productos, no producto a producto.",
+      });
       return;
     }
     columnasIgnoradas.push({

@@ -265,13 +265,14 @@ describe("GET /api/objetivos-venta", () => {
     expect(data.mes).toMatch(/^\d{4}-\d{2}$/);
   });
 
-  it("devuelve las dos parrillas, con una casilla por producto y sin mezclarlas", async () => {
+  it("devuelve las dos parrillas, con una casilla por grupo y sin mezclarlas", async () => {
     objetivosExistentes.push({
-      id: "obj_ana_fibra",
+      id: "obj_ana_hogar",
       mes: "2026-07",
       userId: "u_ana",
       tiendaId: null,
-      articuloId: "art_fibra",
+      articuloId: null,
+      subcategoria: "Hogar",
       cantidad: 12,
     });
     const res = await get("?mes=2026-07");
@@ -281,17 +282,15 @@ describe("GET /api/objetivos-venta", () => {
       filasSedes: { sujetoId: string; celdas: Record<string, { objetivo: number | null }> }[];
     };
     expect(data.filasComerciales.map((f) => f.sujetoId)).toEqual(["u_ana"]);
-    // Una columna de unidades totales (""), una por grupo y una por artículo
-    // activo que cuente para objetivos.
-    expect(Object.keys(data.filasComerciales[0].celdas).sort()).toEqual([
-      "",
-      "art_fibra",
-      COLUMNA_HOGAR,
-    ].sort());
-    expect(data.filasComerciales[0].celdas["art_fibra"].objetivo).toBe(12);
+    // Una columna de unidades totales ("") y una por grupo de productos. Sin
+    // columnas de producto (ticket 528694fa).
+    expect(Object.keys(data.filasComerciales[0].celdas).sort()).toEqual(
+      ["", COLUMNA_HOGAR].sort(),
+    );
+    expect(data.filasComerciales[0].celdas[COLUMNA_HOGAR].objetivo).toBe(12);
     // El objetivo personal no aparece en la tabla de sedes: son objetivos distintos.
     expect(data.filasSedes.map((f) => f.sujetoId)).toEqual(["t1"]);
-    expect(data.filasSedes[0].celdas["art_fibra"].objetivo).toBeNull();
+    expect(data.filasSedes[0].celdas[COLUMNA_HOGAR].objetivo).toBeNull();
   });
 
   it("los grupos de objetivos tienen su propia parrilla y no se mezclan (ticket ff5ab304)", async () => {
@@ -340,15 +339,16 @@ describe("GET /api/objetivos-venta", () => {
     expect(data.filasGrupos.map((f) => f.sujetoId)).toEqual(["g_mio"]);
   });
 
-  it("las unidades totales cuadran con lo puesto producto a producto", async () => {
-    // Lo que reportó el cliente: rellenaba la parrilla producto a producto y el
-    // total (columna, pie de tabla y tarjetas de arriba) se quedaba a cero.
+  it("las unidades totales cuadran con lo puesto grupo a grupo", async () => {
+    // Lo que reportó el cliente: rellenaba la parrilla y el total (columna, pie
+    // de tabla y tarjetas de arriba) se quedaba a cero.
     objetivosExistentes.push({
-      id: "obj_ana_fibra",
+      id: "obj_ana_hogar",
       mes: "2026-07",
       userId: "u_ana",
       tiendaId: null,
-      articuloId: "art_fibra",
+      articuloId: null,
+      subcategoria: "Hogar",
       cantidad: 12,
     });
     const res = await get("?mes=2026-07");
@@ -409,11 +409,10 @@ describe("GET /api/objetivos-venta", () => {
     ]);
     expect(data.articulos.map((a) => a.id)).toEqual(["art_fibra"]);
     expect(data.excluidos).toEqual(["Funda"]);
-    expect(Object.keys(data.filasComerciales[0].celdas).sort()).toEqual([
-      "",
-      "art_fibra",
-      COLUMNA_HOGAR,
-    ].sort());
+    // Sin columna de producto: unidades totales y el grupo.
+    expect(Object.keys(data.filasComerciales[0].celdas).sort()).toEqual(
+      ["", COLUMNA_HOGAR].sort(),
+    );
   });
 
   it("lo vendido de un producto excluido no suma en el grupo ni en el total", async () => {
