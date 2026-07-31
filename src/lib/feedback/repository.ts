@@ -88,6 +88,10 @@ export interface TicketSummary {
   visto_por_user: boolean;
   /** Autor del último mensaje público del hilo (null si no hay respuestas). */
   ultimo_autor: "admin" | "user" | null;
+  /** El equipo respondió y el usuario aún no ha abierto ese hilo → punto rojo.
+   *  `visto_por_user` solo no vale: nace en false al crear el ticket, así que
+   *  marcaría también los tickets recién enviados y sin respuesta. */
+  respuesta_sin_leer: boolean;
   created_at: string;
 }
 
@@ -113,21 +117,27 @@ export async function listByUser(userId: string): Promise<TicketSummary[]> {
       },
     },
   });
-  return rows.map((r) => ({
-    id: r.id,
-    numero: r.numero,
-    tipo: r.tipo,
-    descripcion: r.descripcion,
-    estado: r.estado,
-    visto_por_user: r.vistoPorUser,
-    ultimo_autor: r.mensajes[0]?.autor ?? null,
-    created_at: ISO(r.createdAt),
-  }));
+  return rows.map((r) => {
+    const ultimoAutor = r.mensajes[0]?.autor ?? null;
+    return {
+      id: r.id,
+      numero: r.numero,
+      tipo: r.tipo,
+      descripcion: r.descripcion,
+      estado: r.estado,
+      visto_por_user: r.vistoPorUser,
+      ultimo_autor: ultimoAutor,
+      respuesta_sin_leer: !r.vistoPorUser && ultimoAutor === "admin",
+      created_at: ISO(r.createdAt),
+    };
+  });
 }
 
-export async function markTicketsSeenByUser(userId: string): Promise<void> {
+/** Marca visto UN ticket del usuario (al abrir su hilo). Antes se marcaban
+ *  todos al abrir el modal y se perdía qué hilo tenía la respuesta nueva. */
+export async function markTicketSeenByUser(ticketId: string, userId: string): Promise<void> {
   await prismaMaster.feedbackTicket.updateMany({
-    where: { userId, vistoPorUser: false },
+    where: { id: ticketId, userId, vistoPorUser: false },
     data: { vistoPorUser: true },
   });
 }

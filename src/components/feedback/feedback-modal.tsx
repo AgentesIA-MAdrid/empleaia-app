@@ -23,6 +23,8 @@ interface TicketSummary {
   estado: string;
   visto_por_user: boolean;
   ultimo_autor?: "admin" | "user" | null;
+  /** El equipo respondió y aún no has abierto este hilo → punto rojo. */
+  respuesta_sin_leer: boolean;
   created_at: string;
 }
 interface TicketMessage {
@@ -115,11 +117,14 @@ export function FeedbackModal({
     }
   }, []);
 
+  // Se cargan siempre al abrir (no solo en la pestaña "Mis tickets") para poder
+  // marcar la pestaña con el punto rojo si hay respuestas sin leer.
   useEffect(() => {
     if (!open) return;
-    fetch("/api/feedback/mark-seen", { method: "POST" }).catch(() => {});
-    if (tab === "mis") loadTickets();
-  }, [open, tab, loadTickets]);
+    loadTickets();
+  }, [open, loadTickets]);
+
+  const hayRespuestaSinLeer = tickets.some((t) => t.respuesta_sin_leer);
 
   const addFiles = (files: File[]) => {
     const images = files.filter((f) => f.type.startsWith("image/"));
@@ -232,6 +237,18 @@ export function FeedbackModal({
     setMessages([]);
     setReply("");
     clearReplyImage();
+    // Abrir el hilo es leer la respuesta: se apaga el punto rojo de ESTE ticket
+    // (los demás siguen marcados hasta que el usuario los abra).
+    if (tickets.find((t) => t.id === ticketId)?.respuesta_sin_leer) {
+      setTickets((prev) =>
+        prev.map((t) => (t.id === ticketId ? { ...t, visto_por_user: true, respuesta_sin_leer: false } : t)),
+      );
+      fetch("/api/feedback/mark-seen", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticketId }),
+      }).catch(() => {});
+    }
     setLoadingMessages(true);
     try {
       const res = await fetch(`/api/feedback/my-tickets/${ticketId}/messages`);
@@ -307,7 +324,12 @@ export function FeedbackModal({
                 tab === t ? "bg-white text-foreground shadow-sm" : "text-muted-foreground",
               )}
             >
-              {t === "enviar" ? "Enviar" : "Mis tickets"}
+              <span className="inline-flex items-center justify-center gap-1.5">
+                {t === "enviar" ? "Enviar" : "Mis tickets"}
+                {t === "mis" && hayRespuestaSinLeer && (
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-red-500" aria-hidden />
+                )}
+              </span>
             </button>
           ))}
         </div>
@@ -391,7 +413,19 @@ export function FeedbackModal({
                     className="w-full px-4 py-3 text-left transition-colors hover:bg-slate-50"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <span className="text-xs font-semibold tracking-wide text-slate-500">{TIPO_LABEL[t.tipo]}</span>
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        {/* Mismo punto rojo del botón flotante: marca el ticket con
+                            respuesta sin leer y se apaga al abrir su hilo. */}
+                        {t.respuesta_sin_leer && (
+                          <span
+                            role="img"
+                            className="h-2 w-2 shrink-0 rounded-full bg-red-500"
+                            title="Tienes una respuesta sin leer"
+                            aria-label="Tienes una respuesta sin leer"
+                          />
+                        )}
+                        <span className="text-xs font-semibold tracking-wide text-slate-500">{TIPO_LABEL[t.tipo]}</span>
+                      </span>
                       {(() => {
                         const v = estadoVista(t);
                         return <span className={cn("shrink-0 text-xs font-semibold", v.cls)}>{v.label}</span>;
