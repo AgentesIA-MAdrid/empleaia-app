@@ -7,6 +7,7 @@ import { prismaApp } from "@/lib/prisma";
 import { FirmarForm } from "./firmar-form";
 import { AbrirDocumentoLink } from "./abrir-documento-link";
 import { DescargarFirmadoButton } from "./descargar-firmado";
+import { fechaHoraEnZona } from "@/lib/fechas/zona";
 
 interface Props extends Record<string, unknown> {
   params: Promise<{ id: string }>;
@@ -18,7 +19,7 @@ async function FirmaDetallePage({ params }: Props) {
   if (!userId) redirect("/login");
   const { id } = await params;
 
-  const [solicitud, yo] = await Promise.all([
+  const [solicitud, yo, cfg] = await Promise.all([
     prismaApp.solicitudFirma.findUnique({
       where: { id },
       include: {
@@ -30,6 +31,12 @@ async function FirmaDetallePage({ params }: Props) {
     prismaApp.user.findUnique({
       where: { id: userId },
       select: { nombre: true, apellidos: true },
+    }),
+    // Esta página se renderiza en el SERVIDOR, que va en UTC: sin la zona del
+    // cliente la hora de la firma saldría dos horas antes (ticket 3c91f0ab).
+    prismaApp.configuracionEmpresa.findUnique({
+      where: { id: "singleton" },
+      select: { zonaHoraria: true },
     }),
   ]);
   if (!solicitud) notFound();
@@ -73,20 +80,28 @@ async function FirmaDetallePage({ params }: Props) {
         </div>
       )}
 
-      <div className="rounded-lg border bg-white p-6">
-        <div className="flex items-center gap-3 mb-3">
-          <FileText className="h-5 w-5 text-slate-600" />
-          <p className="font-medium">Documento a firmar</p>
+      {/* La versión preliminar solo mientras no esté firmada: en cuanto hay
+          copia sellada, esa es la que vale y la única que se ofrece (ticket
+          6b0f74d2). Si por lo que sea no hubo copia sellada, se sigue enseñando
+          la preliminar: es mejor que dejar al empleado sin nada. */}
+      {!solicitud.firma?.documentoFirmadoUrl && (
+        <div className="rounded-lg border bg-white p-6">
+          <div className="flex items-center gap-3 mb-3">
+            <FileText className="h-5 w-5 text-slate-600" />
+            <p className="font-medium">
+              {solicitud.estado === "firmada" ? "Documento" : "Documento a firmar"}
+            </p>
+          </div>
+          {solicitud.documento.url ? (
+            <AbrirDocumentoLink url={solicitud.documento.url} />
+          ) : (
+            <p className="text-sm text-slate-500">
+              El documento no tiene URL adjunta. Pide a tu administrador que lo
+              adjunte antes de firmar.
+            </p>
+          )}
         </div>
-        {solicitud.documento.url ? (
-          <AbrirDocumentoLink url={solicitud.documento.url} />
-        ) : (
-          <p className="text-sm text-slate-500">
-            El documento no tiene URL adjunta. Pide a tu administrador que lo
-            adjunte antes de firmar.
-          </p>
-        )}
-      </div>
+      )}
 
       {solicitud.estado === "firmada" ? (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-5">
@@ -97,7 +112,7 @@ async function FirmaDetallePage({ params }: Props) {
               <p className="text-sm text-emerald-800 mt-0.5">
                 Firmado el{" "}
                 {solicitud.firma?.firmadoEn
-                  ? new Date(solicitud.firma.firmadoEn).toLocaleString("es-ES")
+                  ? fechaHoraEnZona(solicitud.firma.firmadoEn, cfg?.zonaHoraria)
                   : "—"}
                 {solicitud.firma?.ip ? ` · IP ${solicitud.firma.ip}` : ""}
               </p>

@@ -1,6 +1,7 @@
 import { ShieldAlert, Lock, Clock, CheckCircle2 } from "lucide-react";
 import { withTenantPage } from "@/lib/tenant/with-tenant-page";
 import { prismaApp } from "@/lib/prisma";
+import { fechaHoraEnZona } from "@/lib/fechas/zona";
 import { hashAccessToken } from "@/lib/denuncias/access-token";
 import {
   CATEGORIA_LABEL,
@@ -18,6 +19,15 @@ async function DenunciaAnonimaPage({ params }: Props) {
   const { token } = await params;
   const tokenHash = hashAccessToken(token);
 
+  // Estas páginas se renderizan en el SERVIDOR, que va en UTC: sin la zona del
+  // cliente las horas de los comentarios saldrían dos horas antes de las que
+  // marcó el reloj (ticket 3c91f0ab).
+  const zonaCliente = (
+    await prismaApp.configuracionEmpresa.findUnique({
+      where: { id: "singleton" },
+      select: { zonaHoraria: true },
+    })
+  )?.zonaHoraria;
   const denuncia = await prismaApp.denuncia.findUnique({
     where: { accessTokenHash: tokenHash },
     include: {
@@ -153,7 +163,7 @@ async function DenunciaAnonimaPage({ params }: Props) {
                 >
                   <p className="text-xs text-slate-500 mb-1">
                     <span className="font-medium capitalize">{c.autorRole}</span>{" "}
-                    · {new Date(c.createdAt).toLocaleString("es-ES")}
+                    · {fechaHoraEnZona(c.createdAt, zonaCliente)}
                   </p>
                   <p className="text-sm text-slate-900 whitespace-pre-wrap">
                     {c.contenido}
