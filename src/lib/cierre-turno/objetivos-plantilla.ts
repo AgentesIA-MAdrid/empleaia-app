@@ -11,9 +11,15 @@
  *
  *   Mes | 2026-07
  *   (fila en blanco)
- *   Ámbito | Comercial o punto de venta | Id | Unidades totales | Grupo: … | <producto> | …
+ *   Ámbito | Comercial, punto de venta o grupo | Id | Unidades totales | Grupo: … | <producto> | …
  *   Comercial | Ana García | u_ana | 30 | 12 | 8 | …
  *   Sede      | Centro     | t1    | 90 |    |   | …
+ *   Grupo     | TMT        | g_tmt | 200|    |   | …
+ *
+ * Ojo con la palabra "grupo", que en la hoja significa dos cosas: la columna
+ * "Grupo: Telefonía" es un grupo de PRODUCTOS (categoría del catálogo) y la
+ * fila con ámbito "Grupo" es un grupo de OBJETIVOS (TMT, televenta…), o sea a
+ * quién va dirigido.
  *
  * Criterios, los mismos que en el resto del importador del módulo:
  *  - Ser tolerante con la hoja que vuelve: encabezados con o sin tildes,
@@ -35,6 +41,7 @@ import {
   columnaDeObjetivo,
   cuentaParaObjetivos,
   normalizarCantidadObjetivo,
+  sujetoDeObjetivo,
   type AmbitoObjetivo,
   type ArticuloObjetivo,
   type ObjetivoFila,
@@ -42,7 +49,7 @@ import {
 
 /** Encabezados fijos de la hoja. */
 export const CABECERA_AMBITO = "Ámbito";
-export const CABECERA_SUJETO = "Comercial o punto de venta";
+export const CABECERA_SUJETO = "Comercial, punto de venta o grupo";
 export const CABECERA_ID = "Id";
 /** Etiqueta de la fila que dice de qué mes es la plantilla. */
 export const ETIQUETA_MES = "Mes";
@@ -66,7 +73,7 @@ export interface ColumnaPlantilla {
   titulo: string;
 }
 
-/** Un comercial o un punto de venta: una fila de la hoja. */
+/** Un comercial, un punto de venta o un grupo: una fila de la hoja. */
 export interface SujetoPlantilla {
   ambito: AmbitoObjetivo;
   id: string;
@@ -99,7 +106,9 @@ export interface LecturaPlantilla {
 
 /** Ámbito tal y como se escribe en la hoja. */
 export function textoAmbito(ambito: AmbitoObjetivo): string {
-  return ambito === "sede" ? "Sede" : "Comercial";
+  if (ambito === "sede") return "Sede";
+  if (ambito === "grupo") return "Grupo";
+  return "Comercial";
 }
 
 /** Quita tildes, espacios de sobra y pasa a minúsculas (igual que `catalogo.ts`). */
@@ -114,6 +123,9 @@ function normalizar(s: string): string {
 
 const CABECERAS_AMBITO = ["ambito", "tipo"];
 const CABECERAS_SUJETO = [
+  // La primera es la de hoy; las demás son plantillas de antes que la gente
+  // sigue teniendo guardadas y que tienen que seguir importando igual.
+  "comercial, punto de venta o grupo",
   "comercial o punto de venta",
   "comercial o sede",
   "comercial",
@@ -125,6 +137,7 @@ const CABECERAS_ID = ["id", "identificador"];
 const TITULOS_TOTAL = ["unidades totales", "total", "totales", "unidades"];
 const AMBITO_COMERCIAL = ["comercial", "empleado", "vendedor", "persona"];
 const AMBITO_SEDE = ["sede", "punto de venta", "tienda"];
+const AMBITO_GRUPO = ["grupo", "grupo de objetivos", "equipo"];
 
 /**
  * Columnas de objetivos de la plantilla: unidades totales, un grupo por
@@ -163,8 +176,7 @@ export function filasPlantilla(
   for (const o of objetivos) {
     const ambito = ambitoDe(o);
     if (!ambito) continue;
-    const sujetoId = (ambito === "comercial" ? o.userId : o.tiendaId) as string;
-    porClave.set(`${ambito}|${sujetoId}|${columnaDeObjetivo(o)}`, o.cantidad);
+    porClave.set(`${ambito}|${sujetoDeObjetivo(o)}|${columnaDeObjetivo(o)}`, o.cantidad);
   }
 
   return sujetos.map((s) => [
@@ -245,6 +257,8 @@ export function interpretarPlantillaObjetivos(
   ctx: {
     comerciales: { id: string; nombre: string }[];
     sedes: { id: string; nombre: string }[];
+    /** Grupos de objetivos del cliente (TMT, televenta…). */
+    grupos?: { id: string; nombre: string }[];
     articulos: ArticuloPlantilla[];
   },
 ): LecturaPlantilla {
@@ -310,14 +324,17 @@ export function interpretarPlantillaObjetivos(
     });
   });
 
+  const grupos = ctx.grupos ?? [];
   const porId = new Map<string, { ambito: AmbitoObjetivo; nombre: string }>([
     ...ctx.comerciales.map(
       (c) => [c.id, { ambito: "comercial" as AmbitoObjetivo, nombre: c.nombre }] as const,
     ),
     ...ctx.sedes.map((s) => [s.id, { ambito: "sede" as AmbitoObjetivo, nombre: s.nombre }] as const),
+    ...grupos.map((g) => [g.id, { ambito: "grupo" as AmbitoObjetivo, nombre: g.nombre }] as const),
   ]);
   const comercialPorNombre = new Map(ctx.comerciales.map((c) => [normalizar(c.nombre), c]));
   const sedePorNombre = new Map(ctx.sedes.map((s) => [normalizar(s.nombre), s]));
+  const grupoPorNombre = new Map(grupos.map((g) => [normalizar(g.nombre), g]));
 
   const cambios: CambioObjetivo[] = [];
   const vistos = new Set<string>();
@@ -347,29 +364,33 @@ export function interpretarPlantillaObjetivos(
       if (idHoja) {
         ignoradas.push({
           fila: numeroFila,
-          motivo: `El id "${idHoja}" ya no existe (¿empleado o sede dados de baja?).`,
+          motivo: `El id "${idHoja}" ya no existe (¿empleado, sede o grupo dados de baja?).`,
         });
         continue;
       }
       if (AMBITO_COMERCIAL.includes(ambitoHoja)) ambito = "comercial";
       else if (AMBITO_SEDE.includes(ambitoHoja)) ambito = "sede";
+      else if (AMBITO_GRUPO.includes(ambitoHoja)) ambito = "grupo";
       else {
         ignoradas.push({
           fila: numeroFila,
-          motivo: 'La columna Ámbito tiene que decir "Comercial" o "Sede".',
+          motivo: 'La columna Ámbito tiene que decir "Comercial", "Sede" o "Grupo".',
         });
         continue;
       }
-      const encontrado =
+      const donde =
         ambito === "comercial"
-          ? comercialPorNombre.get(normalizar(nombreHoja))
-          : sedePorNombre.get(normalizar(nombreHoja));
+          ? { mapa: comercialPorNombre, plural: "los comerciales" }
+          : ambito === "sede"
+            ? { mapa: sedePorNombre, plural: "los puntos de venta" }
+            : { mapa: grupoPorNombre, plural: "los grupos de objetivos" };
+      const encontrado = donde.mapa.get(normalizar(nombreHoja));
       if (!encontrado) {
         ignoradas.push({
           fila: numeroFila,
           motivo: nombreHoja
-            ? `No encontramos "${nombreHoja}" entre ${ambito === "comercial" ? "los comerciales" : "los puntos de venta"}.`
-            : "Falta el nombre del comercial o del punto de venta.",
+            ? `No encontramos "${nombreHoja}" entre ${donde.plural}.`
+            : "Falta el nombre del comercial, del punto de venta o del grupo.",
         });
         continue;
       }

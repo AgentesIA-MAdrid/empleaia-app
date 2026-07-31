@@ -128,6 +128,8 @@ model Tienda {
   arqueos             Arqueo[]
   movimientosBanco    MovimientoBanco[]
   objetivosVenta      ObjetivoVenta[]
+  // Grupos de objetivos a los que pertenece la sede (TMT, zona…).
+  gruposObjetivo      GrupoObjetivoMiembro[]
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 
@@ -334,6 +336,8 @@ model User {
   cierresTurno         CierreTurno[]       @relation("CierreTurnoEmpleado")
   cierresCajaEditados  CierreCajaEdicion[] @relation("CierreCajaEditor")
   objetivosVenta       ObjetivoVenta[]     @relation("ObjetivoVentaComercial")
+  // Grupos de objetivos a los que pertenece la persona (TMT, equipo…).
+  gruposObjetivo       GrupoObjetivoMiembro[]
   arqueosRecogidos     Arqueo[]            @relation("ArqueoRecogidoPor")
   /// Puede firmar la recogida del efectivo de un arqueo. Se marca desde
   /// administración; el rol por sí solo no habilita (un coordinador puede
@@ -1889,6 +1893,10 @@ model ObjetivoVenta {
   user       User?          @relation("ObjetivoVentaComercial", fields: [userId], references: [id], onDelete: Cascade)
   tiendaId   String?
   tienda     Tienda?        @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+  /// Objetivo de un grupo de objetivos (TMT, equipo de televenta…). Es el
+  /// tercer destinatario posible, excluyente con `userId` y `tiendaId`.
+  grupoId    String?        @map("grupo_id")
+  grupo      GrupoObjetivo? @relation(fields: [grupoId], references: [id], onDelete: Cascade)
   articuloId String?
   articulo   ArticuloVenta? @relation(fields: [articuloId], references: [id], onDelete: Cascade)
   /// Objetivo de un grupo de productos: la categoría del catálogo
@@ -1900,8 +1908,51 @@ model ObjetivoVenta {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([mes, userId, tiendaId, articuloId, categoria])
+  @@unique([mes, userId, tiendaId, grupoId, articuloId, categoria])
   @@index([mes])
+}
+
+/// Grupo de objetivos: un conjunto de comerciales y/o puntos de venta al que
+/// se le fija un objetivo propio ("TMT", "Televenta", una zona…).
+///
+/// Es el tercer ámbito de los objetivos de venta, junto al comercial y a la
+/// sede. Existe porque el cliente persigue cifras que no son ni de una persona
+/// ni de una tienda sueltas, y las agrupaciones las nombra él: aquí no se
+/// cablea ninguna ("TMT" es una fila de esta tabla, no un valor del código).
+///
+/// Lo vendido del grupo es lo que han vendido sus miembros, contando cada venta
+/// una sola vez aunque encaje por la persona y por la sede a la vez. Es
+/// independiente de los objetivos de sus miembros: como pasa con las sedes, es
+/// otra forma de apretar y no la suma de las otras.
+model GrupoObjetivo {
+  id        String                 @id @default(cuid())
+  nombre    String                 @unique
+  /// Un grupo no se borra si tiene objetivos: se desactiva y deja de pintarse.
+  activo    Boolean                @default(true)
+  orden     Int                    @default(0)
+  miembros  GrupoObjetivoMiembro[]
+  objetivos ObjetivoVenta[]
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  @@index([activo, orden])
+}
+
+/// Miembro de un grupo de objetivos: un comercial o un punto de venta
+/// (exactamente uno de los dos, como en `ObjetivoVenta`).
+model GrupoObjetivoMiembro {
+  id        String        @id @default(cuid())
+  grupoId   String        @map("grupo_id")
+  grupo     GrupoObjetivo @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  userId    String?       @map("user_id")
+  user      User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tiendaId  String?       @map("tienda_id")
+  tienda    Tienda?       @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@unique([grupoId, userId])
+  @@unique([grupoId, tiendaId])
+  @@index([grupoId])
 }
 
 /// Arqueo semanal: el efectivo que la tienda aparta para que lo recoja un

@@ -45,6 +45,8 @@ const prismaMock = {
   user: {
     findMany: vi.fn(async () => [{ id: "u_ana", nombre: "Ana", apellidos: "García" }]),
   },
+  // Grupos de objetivos del cliente: el tercer ámbito de la hoja (ff5ab304).
+  grupoObjetivo: { findMany: vi.fn(async () => [{ id: "g_tmt", nombre: "TMT" }]) },
   $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prismaMock)),
 };
 
@@ -134,9 +136,33 @@ describe("POST /api/objetivos-venta/importar", () => {
     expect(data.creados).toBe(3);
     expect(prismaMock.objetivoVenta.createMany).toHaveBeenCalledWith({
       data: [
-        { mes: "2026-07", userId: "u_ana", tiendaId: null, articuloId: null, categoria: null, cantidad: 40 },
-        { mes: "2026-07", userId: "u_ana", tiendaId: null, articuloId: "art_fibra", categoria: null, cantidad: 12 },
-        { mes: "2026-07", userId: null, tiendaId: "t1", articuloId: null, categoria: null, cantidad: 90 },
+        { mes: "2026-07", userId: "u_ana", tiendaId: null, grupoId: null, articuloId: null, categoria: null, cantidad: 40 },
+        { mes: "2026-07", userId: "u_ana", tiendaId: null, grupoId: null, articuloId: "art_fibra", categoria: null, cantidad: 12 },
+        { mes: "2026-07", userId: null, tiendaId: "t1", grupoId: null, articuloId: null, categoria: null, cantidad: 90 },
+      ],
+    });
+  });
+
+  it("importa también las filas de un grupo de objetivos (ticket ff5ab304)", async () => {
+    const res = await importar(
+      csv([
+        ["Mes", "2026-07"],
+        CABECERA,
+        ["Grupo", "TMT", "g_tmt", "200", ""],
+      ]),
+    );
+    expect(res.status).toBe(200);
+    expect(prismaMock.objetivoVenta.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          mes: "2026-07",
+          userId: null,
+          tiendaId: null,
+          grupoId: "g_tmt",
+          articuloId: null,
+          categoria: null,
+          cantidad: 200,
+        },
       ],
     });
   });

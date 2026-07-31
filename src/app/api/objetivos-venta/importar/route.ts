@@ -9,6 +9,8 @@
  *  - Cantidad 0 borra el objetivo (no se guarda un cero, que se leería como un
  *    objetivo real de cero unidades).
  *  - Solo administración: coordinación consulta y descarga, pero no fija.
+ *  - La hoja trae una fila por comercial, por punto de venta y por grupo de
+ *    objetivos (columna "Ámbito": Comercial / Sede / Grupo).
  *
  * El fichero llega en base64, igual que en `/api/articulos-venta/importar`: es
  * lo que sabe enviar el navegador sin montar un endpoint multipart, y estas
@@ -34,10 +36,17 @@ const MAX_BYTES = 2 * 1024 * 1024;
 function clave(o: {
   userId: string | null;
   tiendaId: string | null;
+  grupoId: string | null;
   articuloId: string | null;
   categoria: string | null;
 }): string {
-  return [o.userId ?? "", o.tiendaId ?? "", o.articuloId ?? "", o.categoria ?? ""].join("|");
+  return [
+    o.userId ?? "",
+    o.tiendaId ?? "",
+    o.grupoId ?? "",
+    o.articuloId ?? "",
+    o.categoria ?? "",
+  ].join("|");
 }
 
 export const POST = withTenant(
@@ -91,7 +100,7 @@ export const POST = withTenant(
       );
     }
 
-    const [articulos, sedes, personas] = await Promise.all([
+    const [articulos, sedes, personas, grupos] = await Promise.all([
       prisma.articuloVenta.findMany({
         where: { activo: true },
         select: { id: true, nombre: true, categoria: true, cuentaParaObjetivos: true },
@@ -107,11 +116,18 @@ export const POST = withTenant(
         select: { id: true, nombre: true, apellidos: true },
         orderBy: [{ apellidos: "asc" }, { nombre: "asc" }],
       }),
+      // Grupos de objetivos activos: las filas con ámbito "Grupo" de la hoja.
+      prisma.grupoObjetivo.findMany({
+        where: { activo: true },
+        select: { id: true, nombre: true },
+        orderBy: [{ orden: "asc" }, { nombre: "asc" }],
+      }),
     ]);
 
     const lectura = interpretarPlantillaObjetivos(matriz, {
       comerciales: personas.map((p) => ({ id: p.id, nombre: `${p.nombre} ${p.apellidos}`.trim() })),
       sedes,
+      grupos,
       articulos,
     });
     if (!lectura.cabeceraEncontrada) {
@@ -156,6 +172,7 @@ export const POST = withTenant(
         id: true,
         userId: true,
         tiendaId: true,
+        grupoId: true,
         articuloId: true,
         categoria: true,
         cantidad: true,
@@ -171,6 +188,7 @@ export const POST = withTenant(
       mes: string;
       userId: string | null;
       tiendaId: string | null;
+      grupoId: string | null;
       articuloId: string | null;
       categoria: string | null;
       cantidad: number;
@@ -183,6 +201,7 @@ export const POST = withTenant(
       const fila = {
         userId: c.ambito === "comercial" ? c.sujetoId : null,
         tiendaId: c.ambito === "sede" ? c.sujetoId : null,
+        grupoId: c.ambito === "grupo" ? c.sujetoId : null,
         articuloId: c.articuloId,
         categoria: c.categoria,
       };

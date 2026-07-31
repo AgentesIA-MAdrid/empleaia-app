@@ -21,7 +21,7 @@ const INSTRUCCIONES: string[][] = [
   [],
   [
     "1.",
-    "Escribe en cada casilla las unidades que esa persona (o ese punto de venta) tiene que vender en el mes.",
+    "Escribe en cada casilla las unidades que esa persona (o ese punto de venta, o ese grupo) tiene que vender en el mes.",
   ],
   [
     "2.",
@@ -31,7 +31,11 @@ const INSTRUCCIONES: string[][] = [
   ["4.", "Para quitar un objetivo, escribe 0."],
   [
     "5.",
-    'No cambies las columnas "Ámbito", "Comercial o punto de venta" ni "Id": son las que dicen de quién es cada fila.',
+    'No cambies las columnas "Ámbito", "Comercial, punto de venta o grupo" ni "Id": son las que dicen de quién es cada fila.',
+  ],
+  [
+    "6.",
+    'La columna "Ámbito" dice si la fila es de una persona ("Comercial"), de una tienda ("Sede") o de un grupo de objetivos tuyo, como TMT ("Grupo").',
   ],
   [],
   ["Qué es cada columna"],
@@ -47,7 +51,7 @@ const INSTRUCCIONES: string[][] = [
   [],
   [
     "Ojo",
-    "Los objetivos de los comerciales y los de los puntos de venta son independientes: el de una sede se compara con lo que vende la sede entera, no con la suma de los de su equipo.",
+    "Los objetivos de los comerciales, los de los puntos de venta y los de los grupos son independientes: el de una sede se compara con lo que vende la sede entera, y el de un grupo con lo que venden sus miembros, no con la suma de los objetivos de cada uno.",
   ],
   [
     "",

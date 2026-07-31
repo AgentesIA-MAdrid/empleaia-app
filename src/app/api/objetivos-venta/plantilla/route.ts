@@ -1,11 +1,11 @@
 /**
  * GET /api/objetivos-venta/plantilla?mes=YYYY-MM
  *
- * Descarga la plantilla Excel de objetivos del mes: una fila por comercial y
- * otra por punto de venta, y una columna por unidades totales, por grupo de
- * productos y por artículo del catálogo, ya rellena con los objetivos que hay
- * fijados. Se edita en Excel y se vuelve a subir por
- * `/api/objetivos-venta/importar`.
+ * Descarga la plantilla Excel de objetivos del mes: una fila por comercial, por
+ * punto de venta y por grupo de objetivos (TMT, televenta…), y una columna por
+ * unidades totales, por grupo de productos y por artículo del catálogo, ya
+ * rellena con los objetivos que hay fijados. Se edita en Excel y se vuelve a
+ * subir por `/api/objetivos-venta/importar`.
  *
  * Mismo alcance que la parrilla (`/api/objetivos-venta`): administración toda
  * la empresa y coordinación solo sus sedes. Coordinación puede descargarla —le
@@ -31,6 +31,7 @@ import {
   type SujetoPlantilla,
 } from "@/lib/cierre-turno/objetivos-plantilla";
 import { generarPlantillaObjetivos } from "@/lib/cierre-turno/objetivos-excel";
+import { gruposVisiblesPara } from "@/lib/cierre-turno/grupos-objetivo";
 import { sedesDelUsuario } from "@/lib/tiendas/sedes-usuario";
 
 export const GET = withTenant(
@@ -64,7 +65,7 @@ export const GET = withTenant(
     }
     const sedesFiltro = filtro.tipo === "sedes" ? filtro.tiendaIds : null;
 
-    const [objetivos, articulos, sedes, personas] = await Promise.all([
+    const [objetivos, articulos, sedes, personas, gruposBrutos] = await Promise.all([
       prisma.objetivoVenta.findMany({
         where: { mes },
         select: {
@@ -72,6 +73,7 @@ export const GET = withTenant(
           mes: true,
           userId: true,
           tiendaId: true,
+          grupoId: true,
           articuloId: true,
           categoria: true,
           cantidad: true,
@@ -102,7 +104,24 @@ export const GET = withTenant(
         select: { id: true, nombre: true, apellidos: true },
         orderBy: [{ apellidos: "asc" }, { nombre: "asc" }],
       }),
+      // Grupos de objetivos, con sus miembros para poder recortar por alcance.
+      prisma.grupoObjetivo.findMany({
+        where: { activo: true },
+        select: {
+          id: true,
+          nombre: true,
+          miembros: { select: { userId: true, tiendaId: true } },
+        },
+        orderBy: [{ orden: "asc" }, { nombre: "asc" }],
+      }),
     ]);
+
+    // Mismo recorte que la parrilla: coordinación solo baja los grupos que caen
+    // enteros dentro de sus sedes (ver `gruposVisiblesPara`).
+    const grupos = gruposVisiblesPara(gruposBrutos, {
+      tiendaIds: sedesFiltro,
+      userIds: personas.map((p) => p.id),
+    });
 
     const columnas = columnasPlantilla(articulos);
     const sujetos: SujetoPlantilla[] = [
@@ -112,6 +131,7 @@ export const GET = withTenant(
         nombre: `${p.nombre} ${p.apellidos}`.trim(),
       })),
       ...sedes.map((t) => ({ ambito: "sede" as const, id: t.id, nombre: t.nombre })),
+      ...grupos.map((g) => ({ ambito: "grupo" as const, id: g.id, nombre: g.nombre })),
     ];
 
     const buf = await generarPlantillaObjetivos({
