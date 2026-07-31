@@ -73,6 +73,29 @@ Producción ya corre desde esta rama vía Dokploy.
   `withTenant`, pages usan `withTenantPage`, no `fetch` interno entre
   rutas, etc.).
 
+## 4.hoy-bis. Ticket 25c81b6b — fichar solo dentro del horario del cuadrante (2026-07-31)
+
+Nuevo interruptor de tenant `ConfiguracionEmpresa.exigirFichajeEnHorario`
+(off por defecto) + `margenFichajeMinutos` (15). Con él encendido,
+`POST /api/fichajes` responde **409 `fuera_de_horario`** si el empleado
+tiene turno PUBLICADO y ficha antes del inicio o después del fin (con el
+margen de cortesía). La pantalla del empleado abre una ventana emergente
+que le recuerda su horario y le ofrece pedir que el fichaje se registre
+ajustado al turno: eso crea una `SolicitudFichaje` de clase nueva
+**`fuera_horario`**, con la hora **recalculada en servidor** desde el
+cuadrante, que aprueba un responsable.
+
+Doctrina heredada del ticket #61 (geofencing estricto): se bloquea el
+camino fácil, **nunca** el registro de la jornada (RD 8/2019). Sin turno
+publicado no se comprueba nada — no hay con qué comparar.
+
+Migración de tenant: `20260731120000_fichaje_en_horario` (idempotente,
+dos `ADD COLUMN IF NOT EXISTS`). Hay que aplicarla con
+`npm run tenants:migrate:all` — sin ella, `/api/fichajes` peta al leer
+las columnas nuevas. Lógica pura + tests en
+`src/lib/fichajes/horario-turno.ts`; test de endpoint en
+`src/app/api/fichajes/fuera-horario.test.ts`.
+
 ## 4.hoy. Lo último que hicimos (sesión 2026-07-29 → 30): módulo "Cierre de turno" COMPLETO
 
 Las 4 entregas del módulo están en `feature/saas-migration` y

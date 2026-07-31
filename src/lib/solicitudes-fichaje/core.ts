@@ -14,8 +14,12 @@ import type { TipoFichaje } from "@/generated/prisma-tenant/client";
  * - "fuera_sede": el empleado intentó fichar fuera del radio de una sede con
  *   `exigirFichajeEnSede`. El fichaje directo se rechazó, así que registra el
  *   intento con su motivo y su geolocalización para que un OWNER lo apruebe.
+ * - "fuera_horario": el empleado intentó fichar antes o después de su turno
+ *   en una empresa con `exigirFichajeEnHorario`. Pide que se registre con la
+ *   hora ajustada al turno (inicio o fin); la hora la recalcula el servidor
+ *   desde el cuadrante y la aprueba un responsable.
  */
-export type ClaseSolicitud = "olvido" | "correccion" | "fuera_sede";
+export type ClaseSolicitud = "olvido" | "correccion" | "fuera_sede" | "fuera_horario";
 
 const TIPOS_VALIDOS: readonly TipoFichaje[] = [
   "ENTRADA",
@@ -76,6 +80,7 @@ export function normalizarCrearSolicitud(
   const clase: ClaseSolicitud =
     input.clase === "correccion" ? "correccion"
     : input.clase === "fuera_sede" ? "fuera_sede"
+    : input.clase === "fuera_horario" ? "fuera_horario"
     : "olvido";
 
   const tipo = input.tipo;
@@ -91,7 +96,10 @@ export function normalizarCrearSolicitud(
     return { ok: false, error: "Fecha y hora no válidas" };
   }
   // Un fichaje no puede ser en el futuro (margen de 5 min por desfase de reloj).
-  if (fechaHora.getTime() > ahora.getTime() + 5 * 60 * 1000) {
+  // Excepción: "fuera_horario" propone el inicio del turno, que está por venir
+  // cuando alguien llega antes de hora. Esa hora no se acepta tal cual: el
+  // handler la recalcula desde el cuadrante antes de guardar la solicitud.
+  if (clase !== "fuera_horario" && fechaHora.getTime() > ahora.getTime() + 5 * 60 * 1000) {
     return { ok: false, error: "La hora no puede ser futura" };
   }
 
@@ -192,6 +200,8 @@ export function notaFichaje(motivo: string, resolverNombre: string, clase: Clase
   const cabecera =
     clase === "fuera_sede"
       ? `Fichaje fuera de la sede aprobado por ${resolverNombre}`
+      : clase === "fuera_horario"
+      ? `Fichaje ajustado al horario del turno, aprobado por ${resolverNombre}`
       : `Solicitud de fichaje aprobada por ${resolverNombre}`;
   return `${cabecera}. Motivo: ${motivo}`;
 }

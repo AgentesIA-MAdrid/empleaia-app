@@ -7,7 +7,8 @@
  *   ?estado=PENDIENTE|...   filtro opcional.
  *
  * POST /api/solicitudes-fichaje — el empleado crea una solicitud propia
- *   (olvido de fichaje o corrección de hora de uno existente).
+ *   (olvido de fichaje, corrección de hora de uno existente, fichaje fuera
+ *   de la sede o fichaje fuera del horario del cuadrante).
  */
 
 import { auth } from "@/lib/auth";
@@ -20,6 +21,7 @@ import { withTenant } from "@/lib/tenant/with-tenant";
 import { normalizarCrearSolicitud } from "@/lib/solicitudes-fichaje/core";
 import { notifySolicitudCreada } from "@/lib/solicitudes-fichaje/notify";
 import { calcularDistancia } from "@/lib/utils";
+import { evaluarFichajeEnHorario } from "@/lib/fichajes/horario-turno";
 
 const ESTADOS = ["PENDIENTE", "APROBADA", "RECHAZADA", "CANCELADA"];
 
@@ -117,6 +119,38 @@ export const POST = withTenant(async (request: NextRequest) => {
       }
     }
 
+    // En "fuera_horario" la hora propuesta la recalcula el servidor desde el
+    // cuadrante (ticket 25c81b6b): si la aceptáramos del cliente, cualquiera
+    // podría pedir el registro a la hora que quisiera. Se exige además que el
+    // intento siga estando fuera de horario ahora mismo — si ya está dentro
+    // de su turno, lo que tiene que hacer es fichar normalmente.
+    let fechaHoraFinal = fechaHora;
+    if (clase === "fuera_horario") {
+      const cfg = await prisma.configuracionEmpresa.findUnique({
+        where: { id: "singleton" },
+        select: { exigirFichajeEnHorario: true, margenFichajeMinutos: true, zonaHoraria: true },
+      });
+      if (!cfg?.exigirFichajeEnHorario) {
+        return Response.json(
+          { error: "Tu empresa no restringe el fichaje al horario del cuadrante" },
+          { status: 400 },
+        );
+      }
+      const ev = await evaluarFichajeEnHorario(prisma, {
+        userId,
+        ahora: new Date(),
+        margenMin: cfg.margenFichajeMinutos,
+        zona: cfg.zonaHoraria,
+      });
+      if (ev.estado !== "fuera") {
+        return Response.json(
+          { error: "Ahora estás dentro del horario de tu turno: puedes fichar directamente" },
+          { status: 400 },
+        );
+      }
+      fechaHoraFinal = ev.ajuste;
+    }
+
     // En "fuera_sede" la distancia se recalcula aquí con las coordenadas de
     // la sede: la que envíe el cliente no es auditable (ver /api/fichajes).
     let distanciaReal = distancia;
@@ -140,7 +174,7 @@ export const POST = withTenant(async (request: NextRequest) => {
         clase,
         tipo,
         fichajeId,
-        fechaHora,
+        fechaHora: fechaHoraFinal,
         motivo,
         estado: "PENDIENTE",
         latitud,

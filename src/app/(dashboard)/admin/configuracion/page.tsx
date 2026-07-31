@@ -37,6 +37,9 @@ interface Configuracion {
   retencionFotosDias: number;
   fichajeMovilActivo: boolean;
   fichajeTabletActivo: boolean;
+  // Fichar solo dentro del horario del cuadrante (ticket 25c81b6b).
+  exigirFichajeEnHorario: boolean;
+  margenFichajeMinutos: number;
   // Notificaciones globales
   notifAusencias: boolean;
   notifTurnos: boolean;
@@ -166,6 +169,7 @@ function ConfiguracionPageInner() {
     geofencingActivo: true, geoObligatoria: false, faceIdObligatorio: false, faceIdGuardarFoto: false,
     retencionFotosDias: 90,
     fichajeMovilActivo: true, fichajeTabletActivo: true,
+    exigirFichajeEnHorario: false, margenFichajeMinutos: 15,
     notifAusencias: true, notifTurnos: true, notifTareas: true,
     notifFichajes: false, notifComunicados: true, notifDocumentos: true,
     notifFueraSede: true,
@@ -222,6 +226,8 @@ function ConfiguracionPageInner() {
           retencionFotosDias: config.retencionFotosDias,
           fichajeMovilActivo: config.fichajeMovilActivo,
           fichajeTabletActivo: config.fichajeTabletActivo,
+          exigirFichajeEnHorario: config.exigirFichajeEnHorario,
+          margenFichajeMinutos: config.margenFichajeMinutos,
         }),
       });
       if (!res.ok) throw new Error();
@@ -519,6 +525,32 @@ function ConfiguracionPageInner() {
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">
                       RGPD art. 5.1.e (minimización). Tras este periodo, el cron diario purga el snapshot cifrado. Los fichajes se conservan; solo se borra la foto.
+                    </p>
+                  </div>
+                )}
+                <Toggle label="Fichar solo dentro del horario del turno (el cuadrante manda: fuera de su horario el empleado no ficha directamente)" value={config.exigirFichajeEnHorario} onChange={(v) => setConfig((c) => c && ({ ...c, exigirFichajeEnHorario: v }))} />
+                {config.exigirFichajeEnHorario && (
+                  <div className="ml-6 mt-2 mb-3 p-3 rounded-md bg-amber-50 border border-amber-200">
+                    <Label className="text-sm font-medium">Margen antes y después del turno</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Input
+                        type="number"
+                        min={0}
+                        max={240}
+                        className="w-32"
+                        value={config.margenFichajeMinutos}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value);
+                          setConfig((c) => c && ({ ...c, margenFichajeMinutos: Number.isNaN(v) ? 15 : v }));
+                        }}
+                      />
+                      <span className="text-sm text-muted-foreground">minutos (default: 15)</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Solo afecta a empleados con turno publicado en el cuadrante. Si intentan fichar
+                      fuera de ese horario, se les avisa y pueden pedir que el fichaje se registre
+                      ajustado al inicio o al fin de su turno; la solicitud llega a Solicitudes de
+                      fichaje para que la apruebes (RD 8/2019: la jornada nunca se pierde).
                     </p>
                   </div>
                 )}

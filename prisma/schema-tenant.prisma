@@ -611,6 +611,14 @@ model ConfiguracionEmpresa {
   // puntos de control activos (`ChecklistFichajeItem`) antes de que se
   // registre el fichaje. Off por defecto: cada tenant lo activa.
   checklistFichajeActivo      Boolean  @default(false) @map("checklist_fichaje_activo")
+  // Si true, no se puede fichar antes ni después del turno publicado en el
+  // cuadrante (ticket 25c81b6b). El intento no se pierde: el empleado puede
+  // pedir que se registre ajustado al horario de su turno y lo aprueba un
+  // responsable (SolicitudFichaje clase "fuera_horario"). Off por defecto.
+  exigirFichajeEnHorario      Boolean  @default(false) @map("exigir_fichaje_en_horario")
+  // Minutos de cortesía antes del inicio y después del fin del turno en los
+  // que sí se admite fichar directamente.
+  margenFichajeMinutos        Int      @default(15) @map("margen_fichaje_minutos")
   notifAusencias              Boolean  @default(true)
   notifTurnos                 Boolean  @default(true)
   notifTareas                 Boolean  @default(true)
