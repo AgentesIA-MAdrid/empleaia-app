@@ -309,6 +309,37 @@ export function aplanarCatalogo<T extends ArticuloAgrupable>(grupos: GrupoCatalo
 }
 
 /**
+ * Ids de los artículos cuyo nombre se repite dentro de su propia categoría, es
+ * decir, los que solo distingue la subcategoría.
+ *
+ * La tabla del cierre ya no enseña la subcategoría —es un dato que el cliente
+ * solo usa por dentro, para los objetivos (ticket c60153e3)—, pero "Renove" de
+ * "Pospago" y "Renove" de "Prepago" quedarían como dos filas idénticas y el
+ * comercial no sabría en cuál apuntar. Solo en esos casos la pantalla dice de
+ * qué subcategoría es cada uno.
+ */
+export function articulosConNombreAmbiguo<
+  T extends ArticuloAgrupable & { id: string; nombre: string },
+>(grupos: GrupoCatalogo<T>[]): Set<string> {
+  const ambiguos = new Set<string>();
+  for (const grupo of grupos) {
+    const porNombre = new Map<string, T[]>();
+    for (const articulo of aplanarCatalogo([grupo])) {
+      // Mismo criterio que el resto del catálogo: sin tildes, sin mayúsculas y
+      // sin espacios de más, que es como se leen dos filas iguales.
+      const clave = claveArticulo({ nombre: articulo.nombre });
+      const lista = porNombre.get(clave);
+      if (lista) lista.push(articulo);
+      else porNombre.set(clave, [articulo]);
+    }
+    for (const lista of porNombre.values()) {
+      if (lista.length > 1) for (const a of lista) ambiguos.add(a.id);
+    }
+  }
+  return ambiguos;
+}
+
+/**
  * Comprueba el orden que llega al endpoint de reordenar: tiene que ser el
  * catálogo entero, sin repetidos, sin artículos ajenos y sin dejarse ninguno.
  *

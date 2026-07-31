@@ -26,7 +26,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PASOS_CIERRE, type PasoCierre } from "@/lib/cierre-turno/core";
-import { agruparCatalogo } from "@/lib/cierre-turno/catalogo";
+import {
+  agruparCatalogo,
+  aplanarCatalogo,
+  articulosConNombreAmbiguo,
+} from "@/lib/cierre-turno/catalogo";
 
 interface Articulo {
   id: string;
@@ -374,8 +378,22 @@ export function AsistenteCierre({
     () => Object.values(cantidades).reduce((n, v) => n + (parseInt(v, 10) || 0), 0),
     [cantidades],
   );
-  /** El catálogo en sus dos niveles, en el orden que le ha dado administración. */
-  const grupos = useMemo(() => agruparCatalogo(articulos), [articulos]);
+  /**
+   * El catálogo en el orden que le ha dado administración, agrupado solo por
+   * categoría: la subcategoría se usa para colocar los artículos, pero no se
+   * enseña al rellenar (ticket c60153e3). `ambiguos` son los pocos artículos a
+   * los que sí hace falta ponérsela para poder distinguirlos.
+   */
+  const { grupos, ambiguos } = useMemo(() => {
+    const agrupado = agruparCatalogo(articulos);
+    return {
+      grupos: agrupado.map((g) => ({
+        categoria: g.categoria,
+        articulos: aplanarCatalogo([g]),
+      })),
+      ambiguos: articulosConNombreAmbiguo(agrupado),
+    };
+  }, [articulos]);
 
   return (
     <div className={enDialogo ? "space-y-6" : "p-6 space-y-6 max-w-3xl"}>
@@ -456,10 +474,13 @@ export function AsistenteCierre({
                     </tr>
                   </thead>
                   <tbody>
-                    {/* Agrupado por categoría y subcategoría, tal y como lo ha
-                        colocado administración en Configuración: en un catálogo
-                        largo, buscar el artículo en una lista corrida al final
-                        del turno es lo que hace que se rellene a ojo. */}
+                    {/* Agrupado por categoría, tal y como lo ha colocado
+                        administración en Configuración: en un catálogo largo,
+                        buscar el artículo en una lista corrida al final del
+                        turno es lo que hace que se rellene a ojo. La
+                        subcategoría ordena los artículos dentro de su categoría
+                        pero no se enseña: es un dato interno de los objetivos
+                        (ticket c60153e3). */}
                     {grupos.map((grupo) => (
                       <Fragment key={`cat-${grupo.categoria ?? "__sin__"}`}>
                         {/* Si la empresa no usa categorías, el catálogo es una
@@ -476,38 +497,33 @@ export function AsistenteCierre({
                             </td>
                           </tr>
                         )}
-                        {grupo.subgrupos.map((sub) => (
-                          <Fragment
-                            key={`sub-${grupo.categoria ?? "__sin__"}-${sub.subcategoria ?? "__sin__"}`}
-                          >
-                            {sub.subcategoria && (
-                              <tr className="border-b border-slate-100">
-                                <td
-                                  colSpan={2}
-                                  className="px-3 py-1 pl-6 text-xs font-medium text-slate-500"
-                                >
-                                  {sub.subcategoria}
-                                </td>
-                              </tr>
-                            )}
-                            {sub.articulos.map((a) => (
-                              <tr key={a.id} className="border-b border-slate-100 last:border-0">
-                                <td className="px-3 py-2 text-sm text-slate-800">{a.nombre}</td>
-                                <td className="px-3 py-2">
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    className="text-right tabular-nums"
-                                    value={cantidades[a.id] ?? ""}
-                                    onChange={(e) =>
-                                      setCantidades((c) => ({ ...c, [a.id]: e.target.value }))
-                                    }
-                                    placeholder="0"
-                                  />
-                                </td>
-                              </tr>
-                            ))}
-                          </Fragment>
+                        {grupo.articulos.map((a) => (
+                          <tr key={a.id} className="border-b border-slate-100 last:border-0">
+                            <td className="px-3 py-2 text-sm text-slate-800">
+                              {a.nombre}
+                              {/* Dos artículos de la misma categoría con el
+                                  mismo nombre solo se distinguen por su
+                                  subcategoría: ahí sí se dice, o serían dos
+                                  filas idénticas y se rellenarían al azar. */}
+                              {ambiguos.has(a.id) && a.subcategoria && (
+                                <span className="block text-xs text-slate-400">
+                                  {a.subcategoria}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              <Input
+                                type="number"
+                                min="0"
+                                className="text-right tabular-nums"
+                                value={cantidades[a.id] ?? ""}
+                                onChange={(e) =>
+                                  setCantidades((c) => ({ ...c, [a.id]: e.target.value }))
+                                }
+                                placeholder="0"
+                              />
+                            </td>
+                          </tr>
                         ))}
                       </Fragment>
                     ))}
