@@ -26,8 +26,27 @@ const objetivosExistentes: {
   userId: string | null;
   tiendaId: string | null;
   articuloId: string | null;
+  categoria?: string | null;
   cantidad: number;
 }[] = [];
+
+/** Catálogo del tenant de mentira: un producto que cuenta y otro que no. */
+const catalogo = [
+  {
+    id: "art_fibra",
+    nombre: "Alta de fibra",
+    categoria: "Telefonía",
+    precio: null,
+    cuentaParaObjetivos: true,
+  },
+  {
+    id: "art_funda",
+    nombre: "Funda",
+    categoria: "Accesorios",
+    precio: null,
+    cuentaParaObjetivos: false,
+  },
+];
 
 const prismaMock = {
   objetivoVenta: {
@@ -41,8 +60,14 @@ const prismaMock = {
   cierreTurno: { findMany: vi.fn(async () => [] as unknown[]) },
   cierreTurnoVenta: { groupBy: vi.fn(async () => [] as unknown[]) },
   articuloVenta: {
-    findMany: vi.fn(async () => [{ id: "art_fibra", nombre: "Alta de fibra", categoria: null, precio: null }]),
-    findUnique: vi.fn(async () => ({ id: "art_fibra" })),
+    findMany: vi.fn(async () => catalogo),
+    findUnique: vi.fn(async () => ({
+      id: "art_fibra",
+      nombre: "Alta de fibra",
+      cuentaParaObjetivos: true,
+    })),
+    // Comprobación de que el grupo existe en el catálogo activo.
+    findFirst: vi.fn(async () => ({ id: "art_fibra" }) as unknown),
   },
   tienda: {
     findMany: vi.fn(async () => [{ id: "t1", nombre: "Centro" }]),
@@ -118,6 +143,15 @@ beforeEach(async () => {
   objetivosExistentes.length = 0;
   sesion.user = { id: "u_owner", rol: "OWNER", tiendaId: null, name: "Owner" };
   prismaMock.objetivoVenta.findFirst.mockResolvedValue(null);
+  prismaMock.articuloVenta.findUnique.mockResolvedValue({
+    id: "art_fibra",
+    nombre: "Alta de fibra",
+    cuentaParaObjetivos: true,
+  });
+  prismaMock.articuloVenta.findFirst.mockResolvedValue({ id: "art_fibra" });
+  // `clearAllMocks` limpia las llamadas pero no las implementaciones: sin esto,
+  // el `null` que pone un test se arrastra a los siguientes.
+  prismaMock.user.findUnique.mockResolvedValue({ id: "u_ana" });
   const { _setFeatureCatalogForTest } = await import("@/lib/tenant/features");
   _setFeatureCatalogForTest(["cierre_turno"]);
 });
@@ -212,8 +246,13 @@ describe("GET /api/objetivos-venta", () => {
       filasSedes: { sujetoId: string; celdas: Record<string, { objetivo: number | null }> }[];
     };
     expect(data.filasComerciales.map((f) => f.sujetoId)).toEqual(["u_ana"]);
-    // Una columna de unidades totales ("") y una por artículo activo.
-    expect(Object.keys(data.filasComerciales[0].celdas).sort()).toEqual(["", "art_fibra"]);
+    // Una columna de unidades totales (""), una por grupo y una por artículo
+    // activo que cuente para objetivos.
+    expect(Object.keys(data.filasComerciales[0].celdas).sort()).toEqual([
+      "",
+      "art_fibra",
+      "cat:Telefonía",
+    ]);
     expect(data.filasComerciales[0].celdas["art_fibra"].objetivo).toBe(12);
     // El objetivo personal no aparece en la tabla de sedes: son objetivos distintos.
     expect(data.filasSedes.map((f) => f.sujetoId)).toEqual(["t1"]);
@@ -274,6 +313,76 @@ describe("GET /api/objetivos-venta", () => {
     const res = await get("?mes=julio");
     expect(res.status).toBe(400);
   });
+
+  it("hay columna por grupo y el producto excluido no tiene la suya", async () => {
+    const res = await get("?mes=2026-07");
+    const data = (await res.json()) as {
+      articulos: { id: string }[];
+      categorias: string[];
+      excluidos: string[];
+      filasComerciales: { celdas: Record<string, unknown> }[];
+    };
+    // "Accesorios" no sale: su único producto no cuenta para objetivos.
+    expect(data.categorias).toEqual(["Telefonía"]);
+    expect(data.articulos.map((a) => a.id)).toEqual(["art_fibra"]);
+    expect(data.excluidos).toEqual(["Funda"]);
+    expect(Object.keys(data.filasComerciales[0].celdas).sort()).toEqual([
+      "",
+      "art_fibra",
+      "cat:Telefonía",
+    ]);
+  });
+
+  it("lo vendido de un producto excluido no suma en el grupo ni en el total", async () => {
+    prismaMock.cierreTurno.findMany.mockResolvedValue([
+      { id: "c1", userId: "u_ana", tiendaId: "t1" },
+    ]);
+    prismaMock.cierreTurnoVenta.groupBy.mockResolvedValue([
+      { cierreId: "c1", articuloId: "art_fibra", _sum: { cantidad: 4 } },
+      { cierreId: "c1", articuloId: "art_funda", _sum: { cantidad: 9 } },
+    ]);
+    const res = await get("?mes=2026-07");
+    const data = (await res.json()) as {
+      filasComerciales: { celdas: Record<string, { vendido: number }> }[];
+    };
+    const celdas = data.filasComerciales[0].celdas;
+    expect(celdas[""].vendido).toBe(4);
+    expect(celdas["cat:Telefonía"].vendido).toBe(4);
+    // El producto excluido no tiene columna, pero su venta tampoco se ha
+    // colado en la de unidades totales.
+    expect(celdas["art_funda"]).toBeUndefined();
+  });
+
+  it("el objetivo de un grupo manda sobre el de sus productos en el total derivado", async () => {
+    objetivosExistentes.push(
+      {
+        id: "obj_ana_grupo",
+        mes: "2026-07",
+        userId: "u_ana",
+        tiendaId: null,
+        articuloId: null,
+        categoria: "Telefonía",
+        cantidad: 20,
+      },
+      {
+        id: "obj_ana_fibra",
+        mes: "2026-07",
+        userId: "u_ana",
+        tiendaId: null,
+        articuloId: "art_fibra",
+        categoria: null,
+        cantidad: 12,
+      },
+    );
+    const res = await get("?mes=2026-07");
+    const data = (await res.json()) as {
+      filasComerciales: { celdas: Record<string, { objetivo: number | null; derivado?: boolean }> }[];
+    };
+    // 20 del grupo, no 32: la fibra ya está dentro de "Telefonía".
+    expect(data.filasComerciales[0].celdas[""].objetivo).toBe(20);
+    expect(data.filasComerciales[0].celdas[""].derivado).toBe(true);
+    expect(data.filasComerciales[0].celdas["cat:Telefonía"].objetivo).toBe(20);
+  });
 });
 
 describe("PUT /api/objetivos-venta", () => {
@@ -287,11 +396,18 @@ describe("PUT /api/objetivos-venta", () => {
     const res = await put({ mes: "2026-07", ambito: "comercial", sujetoId: "u_ana", cantidad: 10 });
     expect(res.status).toBe(200);
     expect(prismaMock.objetivoVenta.findFirst).toHaveBeenCalledWith({
-      where: { mes: "2026-07", userId: "u_ana", tiendaId: null, articuloId: null },
+      where: { mes: "2026-07", userId: "u_ana", tiendaId: null, articuloId: null, categoria: null },
       select: { id: true },
     });
     expect(prismaMock.objetivoVenta.create).toHaveBeenCalledWith({
-      data: { mes: "2026-07", userId: "u_ana", tiendaId: null, articuloId: null, cantidad: 10 },
+      data: {
+        mes: "2026-07",
+        userId: "u_ana",
+        tiendaId: null,
+        articuloId: null,
+        categoria: null,
+        cantidad: 10,
+      },
       select: { id: true, cantidad: true },
     });
   });
@@ -325,5 +441,69 @@ describe("PUT /api/objetivos-venta", () => {
   it("rechaza cantidades que no son unidades enteras", async () => {
     const res = await put({ mes: "2026-07", ambito: "comercial", sujetoId: "u_ana", cantidad: -3 });
     expect(res.status).toBe(400);
+  });
+
+  it("guarda un objetivo de un grupo de productos", async () => {
+    const res = await put({
+      mes: "2026-07",
+      ambito: "comercial",
+      sujetoId: "u_ana",
+      categoria: "Telefonía",
+      cantidad: 25,
+    });
+    expect(res.status).toBe(200);
+    expect(prismaMock.objetivoVenta.create).toHaveBeenCalledWith({
+      data: {
+        mes: "2026-07",
+        userId: "u_ana",
+        tiendaId: null,
+        articuloId: null,
+        categoria: "Telefonía",
+        cantidad: 25,
+      },
+      select: { id: true, cantidad: true },
+    });
+  });
+
+  it("un grupo que no está en el catálogo se rechaza", async () => {
+    prismaMock.articuloVenta.findFirst.mockResolvedValue(null);
+    const res = await put({
+      mes: "2026-07",
+      ambito: "comercial",
+      sujetoId: "u_ana",
+      categoria: "Inventado",
+      cantidad: 5,
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("no deja mezclar producto y grupo en el mismo objetivo", async () => {
+    const res = await put({
+      mes: "2026-07",
+      ambito: "comercial",
+      sujetoId: "u_ana",
+      articuloId: "art_fibra",
+      categoria: "Telefonía",
+      cantidad: 5,
+    });
+    expect(res.status).toBe(400);
+    expect(prismaMock.objetivoVenta.create).not.toHaveBeenCalled();
+  });
+
+  it("no deja fijar objetivo a un producto marcado como que no cuenta", async () => {
+    prismaMock.articuloVenta.findUnique.mockResolvedValue({
+      id: "art_funda",
+      nombre: "Funda",
+      cuentaParaObjetivos: false,
+    });
+    const res = await put({
+      mes: "2026-07",
+      ambito: "comercial",
+      sujetoId: "u_ana",
+      articuloId: "art_funda",
+      cantidad: 5,
+    });
+    expect(res.status).toBe(400);
+    expect(prismaMock.objetivoVenta.create).not.toHaveBeenCalled();
   });
 });

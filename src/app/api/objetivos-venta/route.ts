@@ -3,12 +3,17 @@
  *
  * GET  /api/objetivos-venta?mes=YYYY-MM
  *   Devuelve las dos matrices listas para pintar: una fila por comercial y otra
- *   tanda de filas por sede, con una columna por artículo del catálogo (más la
- *   de unidades totales) y en cada casilla el objetivo del mes, lo vendido y la
- *   consecución. Los objetivos personales y los de la sede son distintos y van
- *   en tablas separadas.
+ *   tanda de filas por sede, con una columna por grupo y por artículo del
+ *   catálogo (más la de unidades totales) y en cada casilla el objetivo del mes,
+ *   lo vendido y la consecución. Los objetivos personales y los de la sede son
+ *   distintos y van en tablas separadas.
  *
- * PUT  /api/objetivos-venta — fija (o borra, con cantidad 0) un objetivo.
+ *   Un grupo es la categoría del catálogo, y solo cuentan para los objetivos
+ *   —de grupo y de unidades totales— los artículos marcados con
+ *   `cuentaParaObjetivos` (ticket 714c76dd).
+ *
+ * PUT  /api/objetivos-venta — fija (o borra, con cantidad 0) un objetivo de un
+ *   producto (`articuloId`), de un grupo (`categoria`) o de unidades totales.
  * DELETE /api/objetivos-venta?id=… — quita un objetivo.
  *
  * Quién ve qué: administración toda la empresa, coordinación solo su sede y en
@@ -25,8 +30,11 @@ import { withFeature } from "@/lib/feature-guard/with-feature";
 import { diaMadrid, filtroSede, puedeFijarObjetivos, puedeVerObjetivos } from "@/lib/cierre-turno/core";
 import {
   ambitoDe,
+  anotarVentas,
+  categoriasDelCatalogo,
   COLUMNA_TOTAL,
   construirMatriz,
+  cuentaParaObjetivos,
   normalizarCantidadObjetivo,
   normalizarMes,
   objetivoDeCoordinacion,
@@ -34,6 +42,7 @@ import {
   vendidoDeSujeto,
   type AmbitoObjetivo,
 } from "@/lib/cierre-turno/objetivos";
+import { normalizarCategoriaArticulo } from "@/lib/cierre-turno/catalogo";
 import {
   preciosActivos as leerPreciosActivos,
   ventasAgregadas,
@@ -92,6 +101,8 @@ export const GET = withTenant(
         soloLectura: true,
         preciosActivos: false,
         articulos: [],
+        categorias: [],
+        excluidos: [],
         filasComerciales: [],
         filasSedes: [],
         totalesComerciales: {},
@@ -104,15 +115,29 @@ export const GET = withTenant(
     // Sedes del alcance: todas (administración) o las del coordinador.
     const sedesFiltro = filtro.tipo === "sedes" ? filtro.tiendaIds : null;
 
-    const [objetivos, ventas, articulos, sedes, personas, preciosOn] = await Promise.all([
+    const [objetivos, ventasBrutas, articulos, sedes, personas, preciosOn] = await Promise.all([
       prisma.objetivoVenta.findMany({
         where: { mes },
-        select: { id: true, mes: true, userId: true, tiendaId: true, articuloId: true, cantidad: true },
+        select: {
+          id: true,
+          mes: true,
+          userId: true,
+          tiendaId: true,
+          articuloId: true,
+          categoria: true,
+          cantidad: true,
+        },
       }),
       ventasAgregadas(prisma, { mes, tiendaIds: sedesFiltro }),
       prisma.articuloVenta.findMany({
         where: { activo: true },
-        select: { id: true, nombre: true, categoria: true, precio: true },
+        select: {
+          id: true,
+          nombre: true,
+          categoria: true,
+          precio: true,
+          cuentaParaObjetivos: true,
+        },
         orderBy: [{ orden: "asc" }, { nombre: "asc" }],
       }),
       prisma.tienda.findMany({
@@ -142,7 +167,16 @@ export const GET = withTenant(
 
     const precios = new Map(articulos.map((a) => [a.id, a.precio === null ? null : Number(a.precio)]));
     const nombreSede = new Map(sedes.map((t) => [t.id, t.nombre]));
-    const articuloIds = articulos.map((a) => a.id);
+
+    // Las columnas de la parrilla son los productos que cuentan para objetivos y
+    // los grupos que forman. Los excluidos se siguen vendiendo y se siguen
+    // viendo en el cierre; aquí solo se dice quién los ha dejado fuera.
+    const paraObjetivos = articulos.filter((a) => cuentaParaObjetivos(a));
+    const articuloIds = paraObjetivos.map((a) => a.id);
+    const categorias = categoriasDelCatalogo(paraObjetivos);
+    // Las ventas se anotan con el catálogo COMPLETO: es lo que permite saber
+    // que una venta es de un producto excluido y no sumarla en el total.
+    const ventas = anotarVentas(ventasBrutas, articulos);
 
     // Dos matrices independientes: los objetivos personales y los de la sede son
     // objetivos distintos y no se suman entre sí.
@@ -156,6 +190,7 @@ export const GET = withTenant(
       articuloIds,
       objetivos,
       ventas,
+      paraObjetivos,
     );
     const filasSedes = construirMatriz(
       "sede",
@@ -163,6 +198,7 @@ export const GET = withTenant(
       articuloIds,
       objetivos,
       ventas,
+      paraObjetivos,
     );
 
     // Vista de todos los objetivos del mes, para revisarlos y borrarlos sin ir
@@ -178,7 +214,12 @@ export const GET = withTenant(
         // Un objetivo de alguien que ya no está (o de otra sede, para el
         // coordinador) no se pinta: no es suyo ni puede hacer nada con él.
         if (!nombre) return null;
-        const vendido = vendidoDeSujeto(ventas, { ambito: amb, id: sujetoId }, o.articuloId);
+        const vendido = vendidoDeSujeto(
+          ventas,
+          { ambito: amb, id: sujetoId },
+          o.articuloId,
+          o.categoria,
+        );
         // Importe solo si el cliente trabaja con precios Y el objetivo es de un
         // artículo concreto con precio: sumar euros de artículos distintos con
         // precios a medio poner daría un total que nadie podría cuadrar.
@@ -188,6 +229,7 @@ export const GET = withTenant(
           ambito: amb,
           sujeto: nombre,
           articulo: o.articuloId ? (nombreArticulo.get(o.articuloId) ?? "Artículo retirado") : null,
+          grupo: o.categoria,
           objetivo: o.cantidad,
           vendido,
           consecucion: pct(vendido, o.cantidad),
@@ -195,10 +237,15 @@ export const GET = withTenant(
         };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null)
-      .sort((a, b) => a.sujeto.localeCompare(b.sujeto, "es") || (a.articulo ?? "").localeCompare(b.articulo ?? "", "es"));
+      .sort(
+        (a, b) =>
+          a.sujeto.localeCompare(b.sujeto, "es") ||
+          (a.grupo ?? "").localeCompare(b.grupo ?? "", "es") ||
+          (a.articulo ?? "").localeCompare(b.articulo ?? "", "es"),
+      );
 
-    const totalesComerciales = totalesMatriz(filasComerciales, articuloIds);
-    const totalesSedes = totalesMatriz(filasSedes, articuloIds);
+    const totalesComerciales = totalesMatriz(filasComerciales, articuloIds, categorias);
+    const totalesSedes = totalesMatriz(filasSedes, articuloIds, categorias);
     // Objetivo propio de la coordinadora: el de su zona (ticket 73). Solo tiene
     // sentido con alcance limitado a sus sedes; para administración, la cifra
     // equivalente ya es el pie de la tabla de sedes.
@@ -208,12 +255,17 @@ export const GET = withTenant(
       mes,
       soloLectura: !puedeFijarObjetivos(s.rol),
       preciosActivos: preciosOn,
-      articulos: articulos.map((a) => ({
+      // Solo los productos que cuentan: son las columnas que se pueden fijar.
+      articulos: paraObjetivos.map((a) => ({
         id: a.id,
         nombre: a.nombre,
         categoria: a.categoria,
         precio: a.precio === null ? null : Number(a.precio),
       })),
+      categorias,
+      // Los que administración ha dejado fuera, para poder decirlo en pantalla
+      // en vez de que parezca que se han perdido del catálogo.
+      excluidos: articulos.filter((a) => !cuentaParaObjetivos(a)).map((a) => a.nombre),
       filasComerciales,
       filasSedes,
       totalesComerciales,
@@ -251,6 +303,7 @@ export const PUT = withTenant(
       ambito?: unknown;
       sujetoId?: unknown;
       articuloId?: unknown;
+      categoria?: unknown;
       cantidad?: unknown;
     } | null;
     if (!body) return NextResponse.json({ error: "Datos no válidos" }, { status: 400 });
@@ -265,6 +318,14 @@ export const PUT = withTenant(
       return NextResponse.json({ error: "Falta a quién es el objetivo." }, { status: 400 });
     }
     const articuloId = typeof body.articuloId === "string" && body.articuloId ? body.articuloId : null;
+    // Grupo de productos: la categoría del catálogo, tal cual se guardó allí.
+    const categoria = normalizarCategoriaArticulo(body.categoria);
+    if (articuloId && categoria) {
+      return NextResponse.json(
+        { error: "Un objetivo es de un producto o de un grupo, no de los dos." },
+        { status: 400 },
+      );
+    }
 
     // Comprobar que el destinatario y el artículo existen: un objetivo de un id
     // inventado no se vería en ninguna pantalla y quedaría de basura en la tabla.
@@ -278,9 +339,34 @@ export const PUT = withTenant(
     if (articuloId) {
       const existe = await prisma.articuloVenta.findUnique({
         where: { id: articuloId },
-        select: { id: true },
+        select: { id: true, nombre: true, cuentaParaObjetivos: true },
       });
       if (!existe) return NextResponse.json({ error: "Ese artículo no existe." }, { status: 404 });
+      // Un objetivo sobre un producto que el propio cliente ha dejado fuera de
+      // los objetivos no se podría cumplir de forma coherente con el resto de
+      // cifras: mejor decirlo que guardarlo y que no cuadre.
+      if (!existe.cuentaParaObjetivos) {
+        return NextResponse.json(
+          {
+            error: `"${existe.nombre}" está marcado como que no cuenta para los objetivos. Cámbialo en Configuración → Catálogo de ventas.`,
+          },
+          { status: 400 },
+        );
+      }
+    }
+    if (categoria) {
+      // El grupo tiene que existir en el catálogo activo y tener algún producto
+      // que cuente: si no, sería un objetivo que nadie puede cumplir.
+      const hay = await prisma.articuloVenta.findFirst({
+        where: { activo: true, categoria, cuentaParaObjetivos: true },
+        select: { id: true },
+      });
+      if (!hay) {
+        return NextResponse.json(
+          { error: "Ese grupo de productos no existe en el catálogo." },
+          { status: 404 },
+        );
+      }
     }
 
     const donde = {
@@ -288,6 +374,7 @@ export const PUT = withTenant(
       userId: ambito === "comercial" ? body.sujetoId : null,
       tiendaId: ambito === "sede" ? body.sujetoId : null,
       articuloId,
+      categoria,
     };
 
     // No se usa `upsert` sobre la clave única (mes, userId, tiendaId,

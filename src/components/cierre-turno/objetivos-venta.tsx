@@ -13,10 +13,16 @@
  *
  * La primera columna de cada parrilla es "Unidades totales" (el objetivo sin
  * producto), que es el que ve el comercial en el paso 2 de su cierre de turno.
- * Si se deja en blanco vale la suma de los objetivos de cada producto de esa
- * fila: quien rellena producto a producto espera que el total cuadre con lo que
- * ha escrito, no un total aparte que se queda a cero. Escribir un número ahí
- * manda sobre la suma.
+ * Si se deja en blanco vale la suma de los objetivos de cada grupo y de cada
+ * producto suelto de esa fila: quien rellena producto a producto espera que el
+ * total cuadre con lo que ha escrito, no un total aparte que se queda a cero.
+ * Escribir un número ahí manda sobre la suma.
+ *
+ * Detrás van las columnas de grupo —una por categoría del catálogo— y luego las
+ * de cada producto. Un objetivo de grupo se cumple con lo vendido de cualquier
+ * producto de esa categoría que cuente para objetivos; los que administración
+ * ha marcado como que no cuentan (Configuración → Catálogo de ventas) no tienen
+ * columna y sus unidades no suman en ningún objetivo (ticket 714c76dd).
  *
  * Cada casilla se guarda al salir del campo. Poner 0 quita el objetivo: es lo
  * que la gente hace de forma natural para "quitar esto", y pedirle un botón de
@@ -37,6 +43,9 @@ type Ambito = "comercial" | "sede";
 /** Columna de unidades totales: el objetivo sin producto (ver `objetivos.ts`). */
 const COLUMNA_TOTAL = "";
 
+/** Prefijo de las columnas de grupo, el mismo que usa `objetivos.ts`. */
+const PREFIJO_GRUPO = "cat:";
+
 interface Articulo {
   id: string;
   nombre: string;
@@ -48,6 +57,8 @@ interface Columna {
   id: string;
   nombre: string;
   categoria: string | null;
+  /** Columna de un grupo de productos (una categoría del catálogo). */
+  grupo?: boolean;
 }
 
 interface Celda {
@@ -78,6 +89,8 @@ interface ObjetivoDelMes {
   ambito: Ambito;
   sujeto: string;
   articulo: string | null;
+  /** Grupo de productos, cuando el objetivo es de una categoría entera. */
+  grupo: string | null;
   objetivo: number;
   vendido: number;
   consecucion: number | null;
@@ -100,6 +113,10 @@ interface Respuesta {
   soloLectura: boolean;
   preciosActivos: boolean;
   articulos: Articulo[];
+  /** Grupos del catálogo (categorías con algún producto que cuenta). */
+  categorias: string[];
+  /** Productos que el cliente ha dejado fuera de los objetivos, por su nombre. */
+  excluidos: string[];
   filasComerciales: FilaMatriz[];
   filasSedes: FilaMatriz[];
   totalesComerciales: Record<string, TotalColumna>;
@@ -299,7 +316,9 @@ function TablaObjetivos({
                   {columnas.map((c) => (
                     <th
                       key={c.id || "total"}
-                      className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-3 py-3 min-w-[8rem]"
+                      className={`text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-3 py-3 min-w-[8rem] ${
+                        c.grupo ? "bg-slate-100" : ""
+                      }`}
                     >
                       {c.nombre}
                       {c.categoria && (
@@ -322,7 +341,10 @@ function TablaObjetivos({
                       const celda = f.celdas[c.id] ?? CELDA_VACIA;
                       const fijado = valorFijado(celda);
                       return (
-                        <td key={c.id || "total"} className="px-3 py-2.5 align-top">
+                        <td
+                          key={c.id || "total"}
+                          className={`px-3 py-2.5 align-top ${c.grupo ? "bg-slate-50/70" : ""}`}
+                        >
                           {soloLectura ? (
                             <span
                               className={`text-sm tabular-nums ${celda.derivado ? "text-slate-500" : ""}`}
@@ -372,7 +394,12 @@ function TablaObjetivos({
                   {columnas.map((c) => {
                     const t = totales[c.id];
                     return (
-                      <td key={c.id || "total"} className="px-3 py-2.5 align-top text-sm tabular-nums">
+                      <td
+                        key={c.id || "total"}
+                        className={`px-3 py-2.5 align-top text-sm tabular-nums ${
+                          c.grupo ? "bg-slate-100" : ""
+                        }`}
+                      >
                         <span className="font-semibold text-slate-800">{t?.objetivo ?? 0}</span>
                         <PieCelda vendido={t?.vendido ?? 0} consecucion={t?.consecucion ?? null} />
                       </td>
@@ -434,6 +461,11 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
       return;
     }
     setGuardando(`${fila.sujetoId}|${columnaId}`);
+    // La columna dice de qué es el objetivo: unidades totales, un grupo de
+    // productos o un producto suelto.
+    const categoria = columnaId.startsWith(PREFIJO_GRUPO)
+      ? columnaId.slice(PREFIJO_GRUPO.length)
+      : null;
     try {
       const res = await fetch("/api/objetivos-venta", {
         method: "PUT",
@@ -442,7 +474,8 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
           mes,
           ambito,
           sujetoId: fila.sujetoId,
-          articuloId: columnaId === COLUMNA_TOTAL ? null : columnaId,
+          articuloId: categoria || columnaId === COLUMNA_TOTAL ? null : columnaId,
+          categoria,
           cantidad,
         }),
       });
@@ -479,10 +512,17 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
 
   const soloLectura = datos?.soloLectura ?? true;
   // Unidades totales siempre delante: es el objetivo "de todo" y el que ve el
-  // comercial en su cierre. Detrás, el catálogo en su orden de configuración.
+  // comercial en su cierre. Después los grupos, que es como el cliente piensa
+  // los objetivos, y al final el catálogo en su orden de configuración.
   const columnas = useMemo<Columna[]>(
     () => [
       { id: COLUMNA_TOTAL, nombre: "Unidades totales", categoria: null },
+      ...(datos?.categorias ?? []).map((c) => ({
+        id: `${PREFIJO_GRUPO}${c}`,
+        nombre: c,
+        categoria: "Grupo de productos",
+        grupo: true,
+      })),
       ...(datos?.articulos ?? []).map((a) => ({ id: a.id, nombre: a.nombre, categoria: a.categoria })),
     ],
     [datos],
@@ -522,23 +562,46 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
           </p>
           <p className="text-xs text-slate-400 mt-2 max-w-3xl">
             <strong className="font-medium text-slate-500">Unidades totales</strong> es la suma de
-            lo que pongas producto a producto en esa fila (aparece en gris). Si quieres otro total
-            —por ejemplo, para contar también lo que no tiene columna propia— escríbelo encima y
-            manda el tuyo; bórralo y vuelve a mandar la suma.
+            lo que pongas por grupo y por producto suelto en esa fila (aparece en gris). Si quieres
+            otro total —por ejemplo, para contar también lo que no tiene columna propia— escríbelo
+            encima y manda el tuyo; bórralo y vuelve a mandar la suma.
           </p>
-          {/* Sin catálogo solo hay columna de unidades totales: hay que decir
-              dónde se definen los productos, o el objetivo por producto parece
-              que no existe. */}
-          {!soloLectura && (datos?.articulos.length ?? 0) === 0 && (
-            <p className="text-xs text-amber-700 mt-2">
-              Todavía no tienes productos en el catálogo, así que solo puedes fijar objetivos de
-              unidades totales. Añádelos en{" "}
-              <a href="/admin/configuracion?tab=catalogo" className="underline font-medium">
-                Configuración → Catálogo de ventas
-              </a>{" "}
-              (pospago, fibra, renove…) y aparecerá una columna por producto.
+          <p className="text-xs text-slate-400 mt-2 max-w-3xl">
+            Las columnas grises son{" "}
+            <strong className="font-medium text-slate-500">grupos de productos</strong>: cada una es
+            una categoría del catálogo y su objetivo se cumple con lo vendido de cualquier producto
+            de ese grupo. Si un producto ya tiene objetivo propio dentro de un grupo con objetivo,
+            no se suma dos veces en las unidades totales: manda el del grupo.
+          </p>
+          {/* Lo que el cliente ha dejado fuera a propósito. Sin decirlo, un
+              producto sin columna parece un fallo del catálogo. */}
+          {(datos?.excluidos.length ?? 0) > 0 && (
+            <p className="text-xs text-slate-400 mt-2 max-w-3xl">
+              No cuentan para ningún objetivo: {datos?.excluidos.join(", ")}. Se siguen vendiendo y
+              registrando en el cierre; simplemente no suman.{" "}
+              {!soloLectura && (
+                <a href="/admin/configuracion?tab=catalogo" className="underline font-medium">
+                  Cambiar cuáles cuentan
+                </a>
+              )}
             </p>
           )}
+          {/* Sin catálogo solo hay columna de unidades totales: hay que decir
+              dónde se definen los productos, o el objetivo por producto parece
+              que no existe. Si los hay pero están todos excluidos, lo explica el
+              párrafo de arriba y este avisaría de algo que no es verdad. */}
+          {!soloLectura &&
+            (datos?.articulos.length ?? 0) === 0 &&
+            (datos?.excluidos.length ?? 0) === 0 && (
+              <p className="text-xs text-amber-700 mt-2">
+                Todavía no tienes productos en el catálogo, así que solo puedes fijar objetivos de
+                unidades totales. Añádelos en{" "}
+                <a href="/admin/configuracion?tab=catalogo" className="underline font-medium">
+                  Configuración → Catálogo de ventas
+                </a>{" "}
+                (pospago, fibra, renove…) y aparecerá una columna por producto y por grupo.
+              </p>
+            )}
         </CardContent>
       </Card>
 
@@ -669,7 +732,7 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
                     {[
                       "Ámbito",
                       "Comercial o sede",
-                      "Artículo",
+                      "Producto o grupo",
                       "Objetivo",
                       "Vendido",
                       ...(datos?.preciosActivos ? ["Importe"] : []),
@@ -693,7 +756,7 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
                       </td>
                       <td className="px-4 py-2 text-sm font-medium text-slate-800">{o.sujeto}</td>
                       <td className="px-4 py-2 text-sm text-slate-500">
-                        {o.articulo ?? "Unidades totales"}
+                        {o.articulo ?? (o.grupo ? `Grupo: ${o.grupo}` : "Unidades totales")}
                       </td>
                       <td className="px-4 py-2 text-sm tabular-nums">{o.objetivo}</td>
                       <td className="px-4 py-2 text-sm tabular-nums">{o.vendido}</td>

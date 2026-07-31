@@ -50,6 +50,15 @@ interface Progreso {
     vendido: number;
     objetivo: number | null;
     importe: number | null;
+    /** false = lo vendido de este artículo no suma en los objetivos. */
+    cuentaParaObjetivos: boolean;
+  }[];
+  /** Objetivos por grupo de productos, si administración le ha puesto alguno. */
+  porGrupo: {
+    grupo: string;
+    vendido: number;
+    objetivo: number | null;
+    consecucion: number | null;
   }[];
 }
 
@@ -515,6 +524,43 @@ export function AsistenteCierre() {
                   </table>
                 </div>
 
+                {/* Objetivos por grupo de productos: si los tiene, es lo que de
+                    verdad le están pidiendo, así que va antes del artículo. */}
+                {(progreso?.porGrupo.length ?? 0) > 0 && (
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          {["Tus objetivos por grupo", "Este mes", "Objetivo", "Consecución"].map(
+                            (h) => (
+                              <th
+                                key={h}
+                                className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-3 py-2"
+                              >
+                                {h}
+                              </th>
+                            ),
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {progreso?.porGrupo.map((g) => (
+                          <tr key={g.grupo} className="border-b border-slate-100 last:border-0">
+                            <td className="px-3 py-2 text-sm text-slate-800">{g.grupo}</td>
+                            <td className="px-3 py-2 text-sm tabular-nums">{g.vendido}</td>
+                            <td className="px-3 py-2 text-sm tabular-nums text-slate-500">
+                              {g.objetivo ?? "—"}
+                            </td>
+                            <td className={`px-3 py-2 text-sm tabular-nums ${colorPct(g.consecucion)}`}>
+                              {g.consecucion == null ? "—" : `${g.consecucion} %`}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
                 {/* Desglose propio: es donde el comercial ve qué le falta. */}
                 {(progreso?.porArticulo.length ?? 0) > 0 && (
                   <div className="mt-4 overflow-x-auto">
@@ -539,7 +585,16 @@ export function AsistenteCierre() {
                       <tbody>
                         {progreso?.porArticulo.map((a) => (
                           <tr key={a.articuloId} className="border-b border-slate-100 last:border-0">
-                            <td className="px-3 py-2 text-sm text-slate-800">{a.nombre}</td>
+                            <td className="px-3 py-2 text-sm text-slate-800">
+                              {a.nombre}
+                              {/* Sin esta nota, sus unidades parecen perdidas:
+                                  se ven aquí y no en el objetivo de arriba. */}
+                              {!a.cuentaParaObjetivos && (
+                                <span className="block text-xs text-slate-400">
+                                  No cuenta para los objetivos
+                                </span>
+                              )}
+                            </td>
                             <td className="px-3 py-2 text-sm tabular-nums">{a.vendido}</td>
                             <td className="px-3 py-2 text-sm tabular-nums text-slate-500">
                               {a.objetivo ?? "—"}
