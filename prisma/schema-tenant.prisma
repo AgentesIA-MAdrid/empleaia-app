@@ -1923,13 +1923,26 @@ model ObjetivoVenta {
   /// (siempre null) y el código la ignora al leer; la columna se conserva
   /// porque vaciarla es reversible y borrarla no.
   categoria  String?
+  /// De quién es la cifra: la que pone la empresa (`propio`) o la que impone el
+  /// operador (`tmt`). Son dos objetivos distintos sobre el MISMO punto de venta
+  /// y las mismas ventas —el operador aprieta con su propia vara—, así que la
+  /// fuente forma parte de lo que identifica un objetivo (ticket 5d8b21c7).
+  fuente     FuenteObjetivo @default(propio)
   cantidad   Int            @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([mes, userId, tiendaId, grupoId, articuloId, categoria, subcategoria], map: "ObjetivoVenta_mes_destinatario_producto_key")
+  @@unique([mes, userId, tiendaId, grupoId, articuloId, categoria, subcategoria, fuente], map: "ObjetivoVenta_mes_destinatario_producto_key")
   @@index([mes])
+}
+
+/// Quién impone el objetivo. `tmt` es el que manda el operador para cada punto
+/// de venta; `propio`, el que fija la empresa. Se comparan con las mismas
+/// ventas y se enseñan en tablas separadas.
+enum FuenteObjetivo {
+  propio
+  tmt
 }
 
 /// Grupo de objetivos: un conjunto de comerciales y/o puntos de venta al que

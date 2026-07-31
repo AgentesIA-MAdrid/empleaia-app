@@ -55,7 +55,24 @@ export interface ObjetivoFila {
   subcategoria?: string | null;
   /** Categoría de esa subcategoría: sin ella, dos grupos homónimos se mezclan. */
   categoria?: string | null;
+  /**
+   * Quién impone la cifra: la empresa (`propio`) o el operador (`tmt`). Son dos
+   * objetivos distintos sobre la misma tienda y las mismas ventas, así que no se
+   * mezclan nunca en la misma parrilla (ticket 5d8b21c7). Sin valor, `propio`.
+   */
+  fuente?: FuenteObjetivo;
   cantidad: number;
+}
+
+/**
+ * De quién es un objetivo. `tmt` es el que manda el operador para cada punto de
+ * venta; `propio`, el que fija la empresa.
+ */
+export type FuenteObjetivo = "propio" | "tmt";
+
+/** La fuente de un objetivo, con `propio` como valor por omisión. */
+export function fuenteDe(o: { fuente?: FuenteObjetivo | null }): FuenteObjetivo {
+  return o.fuente === "tmt" ? "tmt" : "propio";
 }
 
 /**
@@ -693,6 +710,12 @@ export function construirMatriz(
   objetivos: ObjetivoFila[],
   ventas: VentaAgregada[],
   catalogo?: ArticuloObjetivo[],
+  /**
+   * Qué juego de objetivos se pinta. La parrilla del operador y la de la
+   * empresa hablan de las mismas tiendas y las mismas ventas, y solo se
+   * diferencian en de quién es la cifra (ticket 5d8b21c7).
+   */
+  fuente: FuenteObjetivo = "propio",
 ): FilaMatriz[] {
   const vendidos = indexarVentas(ventas, ambito);
 
@@ -700,6 +723,7 @@ export function construirMatriz(
   const porSujeto = new Map<string, ObjetivoFila[]>();
   for (const o of objetivos) {
     if (ambitoDe(o) !== ambito) continue;
+    if (fuenteDe(o) !== fuente) continue;
     const sujetoId = sujetoDeObjetivo(o);
     porClave.set(`${sujetoId}|${columnaDeObjetivo(o)}`, o);
     const suyos = porSujeto.get(sujetoId);
