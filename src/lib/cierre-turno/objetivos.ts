@@ -6,7 +6,9 @@
  * Igual que `core.ts`, así se prueba sin base de datos.
  *
  * Reglas del modelo, para no repetirlas en cada pantalla:
- *  - Un objetivo es de UN comercial o de UNA sede, nunca de los dos.
+ *  - Un objetivo es de UN comercial, de UNA sede o de UN grupo de objetivos
+ *    (el ámbito "grupo": TMT, televenta…, definido por el cliente), nunca de
+ *    dos a la vez.
  *  - Un objetivo es de un producto (`articuloId`), de un grupo de productos
  *    (`categoria`, la del catálogo) o de unidades totales (los dos a null).
  *  - Un producto marcado como que no cuenta para objetivos
@@ -20,10 +22,18 @@
  *    `objetivoTotalDe`).
  *  - El objetivo de una sede se compara con lo que vendió la sede completa,
  *    no con la suma de los objetivos de sus comerciales: son dos formas de
- *    apretar y el cliente usa la que quiere en cada momento.
+ *    apretar y el cliente usa la que quiere en cada momento. Lo mismo vale
+ *    para el de un grupo de objetivos: se compara con lo que vendieron sus
+ *    miembros, contando cada venta una sola vez.
+ *
+ * Ojo con la palabra "grupo", que aquí significa dos cosas distintas:
+ *  - `categoria` = grupo de PRODUCTOS (una categoría del catálogo). Es de qué
+ *    va el objetivo.
+ *  - `grupoId` = grupo de OBJETIVOS (`GrupoObjetivo`: TMT, televenta…). Es a
+ *    quién va dirigido, igual que `userId` o `tiendaId`.
  */
 
-export type AmbitoObjetivo = "comercial" | "sede";
+export type AmbitoObjetivo = "comercial" | "sede" | "grupo";
 
 /** Objetivo tal como sale de la tabla, con lo justo para calcular. */
 export interface ObjetivoFila {
@@ -31,6 +41,8 @@ export interface ObjetivoFila {
   mes: string;
   userId: string | null;
   tiendaId: string | null;
+  /** Objetivo dirigido a un grupo de objetivos (TMT, televenta…). */
+  grupoId?: string | null;
   articuloId: string | null;
   /** Objetivo de un grupo de productos (la categoría del catálogo). */
   categoria?: string | null;
@@ -56,6 +68,21 @@ export interface VentaAgregada {
   categoria?: string | null;
   /** false = el artículo está marcado como que no cuenta para objetivos. */
   cuentaParaObjetivos?: boolean;
+  /**
+   * Grupos de objetivos en los que cae esta venta (por el comercial o por la
+   * sede). Lo rellena `anotarVentas`; sin grupos, ninguna venta cae en ninguno.
+   */
+  grupoIds?: string[];
+}
+
+/** Un grupo de objetivos con sus miembros, para repartir las ventas. */
+export interface GrupoObjetivoResumen {
+  id: string;
+  nombre: string;
+  /** Comerciales del grupo. */
+  userIds: string[];
+  /** Puntos de venta del grupo. */
+  tiendaIds: string[];
 }
 
 /** Lo que los objetivos necesitan saber de cada artículo del catálogo. */
@@ -72,25 +99,39 @@ export function cuentaParaObjetivos(a: ArticuloObjetivo): boolean {
 }
 
 /**
- * Marca cada venta con el grupo de su artículo y con si ese artículo cuenta
- * para los objetivos. Se hace una vez, al leer las ventas, para que el resto de
- * funciones sigan siendo puras y no tengan que arrastrar el catálogo.
+ * Marca cada venta con el grupo de su artículo, con si ese artículo cuenta
+ * para los objetivos y con los grupos de objetivos en los que cae. Se hace una
+ * vez, al leer las ventas, para que el resto de funciones sigan siendo puras y
+ * no tengan que arrastrar el catálogo ni la composición de los grupos.
  *
  * Una venta de un artículo que ya no está en el catálogo activo se queda sin
  * grupo y contando: se vendió algo, aunque ya no sepamos qué (misma regla que
  * `vendidoPara` con `articuloId` null).
+ *
+ * Una venta cae en un grupo de objetivos si su comercial o su sede son miembros
+ * del grupo, y cae UNA sola vez aunque lo sean los dos: si no, un grupo que
+ * lleve una tienda y a su gente contaría el doble.
  */
 export function anotarVentas(
   ventas: VentaAgregada[],
   articulos: ArticuloObjetivo[],
+  grupos: GrupoObjetivoResumen[] = [],
 ): VentaAgregada[] {
   const porId = new Map(articulos.map((a) => [a.id, a]));
+  const miembros = grupos.map((g) => ({
+    id: g.id,
+    userIds: new Set(g.userIds),
+    tiendaIds: new Set(g.tiendaIds),
+  }));
   return ventas.map((v) => {
     const a = v.articuloId ? porId.get(v.articuloId) : undefined;
     return {
       ...v,
       categoria: a?.categoria ?? null,
       cuentaParaObjetivos: a ? cuentaParaObjetivos(a) : true,
+      grupoIds: miembros
+        .filter((g) => g.userIds.has(v.userId) || (v.tiendaId ? g.tiendaIds.has(v.tiendaId) : false))
+        .map((g) => g.id),
     };
   });
 }
@@ -158,6 +199,44 @@ export function mesAnterior(mes: string): string {
   return `${y}-${String(mm).padStart(2, "0")}`;
 }
 
+/** Tope del nombre de un grupo de objetivos ("TMT", "Televenta"…). */
+export const GRUPO_NOMBRE_MAX = 60;
+
+/**
+ * Nombre de un grupo de objetivos tal y como se guarda. Devuelve el motivo del
+ * rechazo en vez de un booleano: es el texto que ve quien lo está escribiendo
+ * (mismo criterio que `normalizarNombreArticulo`).
+ *
+ * Dos letras de mínimo porque los grupos del cliente son siglas ("TMT"), no
+ * frases; pedir más dejaría fuera nombres legítimos.
+ */
+export function normalizarNombreGrupo(
+  bruto: unknown,
+): { ok: true; nombre: string } | { ok: false; error: string } {
+  const nombre = typeof bruto === "string" ? bruto.trim().replace(/\s+/g, " ") : "";
+  if (nombre.length < 2) {
+    return { ok: false, error: "Escribe el nombre del grupo (al menos 2 letras)." };
+  }
+  if (nombre.length > GRUPO_NOMBRE_MAX) {
+    return { ok: false, error: `El nombre pasa de ${GRUPO_NOMBRE_MAX} caracteres.` };
+  }
+  return { ok: true, nombre };
+}
+
+/**
+ * Clave con la que dos grupos se consideran el mismo: sin tildes, sin
+ * mayúsculas y sin espacios de más. Evita tener "TMT" y "tmt" como dos grupos
+ * distintos (misma idea que `claveArticulo` en el catálogo).
+ */
+export function claveGrupo(nombre: string): string {
+  return (nombre ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 /** Cantidad de un objetivo: entero, no negativa. 0 = borrar el objetivo. */
 export function normalizarCantidadObjetivo(
   valor: unknown,
@@ -174,18 +253,38 @@ export function normalizarCantidadObjetivo(
 }
 
 /**
- * Ámbito de un objetivo. Exige exactamente uno de los dos destinatarios: un
- * objetivo de "todos" no se puede repartir, y uno de comercial Y sede a la vez
- * se contaría dos veces al sumar.
+ * Ámbito de un objetivo. Exige exactamente uno de los tres destinatarios: un
+ * objetivo de "todos" no se puede repartir, y uno de comercial Y sede (o
+ * grupo) a la vez se contaría dos veces al sumar.
  */
 export function ambitoDe(o: {
   userId?: string | null;
   tiendaId?: string | null;
+  grupoId?: string | null;
 }): AmbitoObjetivo | null {
-  const tieneUser = Boolean(o.userId);
-  const tieneTienda = Boolean(o.tiendaId);
-  if (tieneUser === tieneTienda) return null;
-  return tieneUser ? "comercial" : "sede";
+  const puestos = [
+    o.userId ? "comercial" : null,
+    o.tiendaId ? "sede" : null,
+    o.grupoId ? "grupo" : null,
+  ].filter(Boolean) as AmbitoObjetivo[];
+  return puestos.length === 1 ? puestos[0] : null;
+}
+
+/**
+ * A quién va dirigido un objetivo: el id del comercial, de la sede o del grupo,
+ * según su ámbito. Devuelve "" para un objetivo corrupto (sin destinatario o
+ * con dos), que es lo que descartan los sitios que la usan.
+ */
+export function sujetoDeObjetivo(o: {
+  userId?: string | null;
+  tiendaId?: string | null;
+  grupoId?: string | null;
+}): string {
+  const ambito = ambitoDe(o);
+  if (ambito === "comercial") return o.userId as string;
+  if (ambito === "sede") return o.tiendaId as string;
+  if (ambito === "grupo") return o.grupoId as string;
+  return "";
 }
 
 /**
@@ -206,6 +305,9 @@ export function vendidoPara(objetivo: ObjetivoFila, ventas: VentaAgregada[]): nu
   return ventas.reduce((total, v) => {
     if (objetivo.userId && v.userId !== objetivo.userId) return total;
     if (objetivo.tiendaId && v.tiendaId !== objetivo.tiendaId) return total;
+    // Un objetivo de grupo mide lo que vendieron sus miembros: `anotarVentas`
+    // ya ha marcado en qué grupos cae cada venta.
+    if (objetivo.grupoId && !(v.grupoIds ?? []).includes(objetivo.grupoId)) return total;
     if (objetivo.articuloId) {
       return v.articuloId === objetivo.articuloId ? total + v.cantidad : total;
     }
@@ -238,7 +340,7 @@ export function construirConsecucion(
     filas.push({
       objetivoId: o.id,
       ambito,
-      sujetoId: (ambito === "comercial" ? o.userId : o.tiendaId) as string,
+      sujetoId: sujetoDeObjetivo(o),
       articuloId: o.articuloId,
       objetivo: o.cantidad,
       vendido,
@@ -249,9 +351,10 @@ export function construirConsecucion(
 }
 
 /**
- * Unidades vendidas de un sujeto (comercial o sede), opcionalmente de un solo
- * artículo. Es lo que necesita la tabla de fijar objetivos para mostrar el
- * "vendido" al lado de cada casilla, incluso donde todavía no hay objetivo.
+ * Unidades vendidas de un sujeto (comercial, sede o grupo de objetivos),
+ * opcionalmente de un solo artículo. Es lo que necesita la tabla de fijar
+ * objetivos para mostrar el "vendido" al lado de cada casilla, incluso donde
+ * todavía no hay objetivo.
  */
 export function vendidoDeSujeto(
   ventas: VentaAgregada[],
@@ -265,6 +368,7 @@ export function vendidoDeSujeto(
       mes: "",
       userId: sujeto.ambito === "comercial" ? sujeto.id : null,
       tiendaId: sujeto.ambito === "sede" ? sujeto.id : null,
+      grupoId: sujeto.ambito === "grupo" ? sujeto.id : null,
       articuloId,
       categoria,
       cantidad: 0,
@@ -383,13 +487,22 @@ function indexarVentas(ventas: VentaAgregada[], ambito: AmbitoObjetivo): Map<str
   const acc = new Map<string, number>();
   const suma = (clave: string, n: number) => acc.set(clave, (acc.get(clave) ?? 0) + n);
   for (const v of ventas) {
-    const sujetoId = ambito === "comercial" ? v.userId : v.tiendaId;
-    if (!sujetoId) continue;
-    if (v.cuentaParaObjetivos !== false) {
-      suma(`${sujetoId}|${COLUMNA_TOTAL}`, v.cantidad);
-      if (v.categoria) suma(`${sujetoId}|${columnaCategoria(v.categoria)}`, v.cantidad);
+    // En el ámbito de grupo una misma venta puede caer en varios grupos (una
+    // persona puede estar en más de uno); en los otros dos el sujeto es único.
+    let sujetos: string[];
+    if (ambito === "grupo") {
+      sujetos = v.grupoIds ?? [];
+    } else {
+      const unico = ambito === "comercial" ? v.userId : v.tiendaId;
+      sujetos = unico ? [unico] : [];
     }
-    if (v.articuloId) suma(`${sujetoId}|${v.articuloId}`, v.cantidad);
+    for (const sujetoId of sujetos) {
+      if (v.cuentaParaObjetivos !== false) {
+        suma(`${sujetoId}|${COLUMNA_TOTAL}`, v.cantidad);
+        if (v.categoria) suma(`${sujetoId}|${columnaCategoria(v.categoria)}`, v.cantidad);
+      }
+      if (v.articuloId) suma(`${sujetoId}|${v.articuloId}`, v.cantidad);
+    }
   }
   return acc;
 }
@@ -404,11 +517,13 @@ export function columnaDeObjetivo(o: {
 }
 
 /**
- * Matriz de fijado de objetivos: una fila por comercial (o por sede) y una
- * columna por grupo y por artículo del catálogo, más la de unidades totales.
+ * Matriz de fijado de objetivos: una fila por comercial (o por sede, o por
+ * grupo de objetivos) y una columna por grupo de productos y por artículo del
+ * catálogo, más la de unidades totales.
  *
- * Los objetivos del otro ámbito se descartan aquí: los personales y los de la
- * sede son objetivos distintos y no se mezclan en la misma tabla.
+ * Los objetivos de los otros ámbitos se descartan aquí: los personales, los de
+ * la sede y los del grupo son objetivos distintos y no se mezclan en la misma
+ * tabla.
  *
  * `catalogo` trae el grupo de cada artículo; sin él no hay columnas de grupo
  * (es como se comportaba la parrilla antes de los objetivos por grupo).
@@ -427,7 +542,7 @@ export function construirMatriz(
   const porSujeto = new Map<string, ObjetivoFila[]>();
   for (const o of objetivos) {
     if (ambitoDe(o) !== ambito) continue;
-    const sujetoId = (ambito === "comercial" ? o.userId : o.tiendaId) as string;
+    const sujetoId = sujetoDeObjetivo(o);
     porClave.set(`${sujetoId}|${columnaDeObjetivo(o)}`, o);
     const suyos = porSujeto.get(sujetoId);
     if (suyos) suyos.push(o);
@@ -525,9 +640,7 @@ export function progresoDe(
   // producto. Así lo que administración escribe producto a producto se ve aquí
   // en vez de un "sin objetivo".
   const suyos = objetivos.filter(
-    (o) =>
-      ambitoDe(o) === sujeto.ambito &&
-      (sujeto.ambito === "comercial" ? o.userId === sujeto.id : o.tiendaId === sujeto.id),
+    (o) => ambitoDe(o) === sujeto.ambito && sujetoDeObjetivo(o) === sujeto.id,
   );
   const { cantidad: objetivo } = objetivoTotalDe(suyos, articuloIds, catalogo);
   return { vendido, objetivo, consecucion: objetivo === null ? null : pct(vendido, objetivo) };

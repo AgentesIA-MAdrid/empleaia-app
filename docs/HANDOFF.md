@@ -212,6 +212,20 @@ PRs de esta sesión: **#92** (entrega 3) y **#93** (entrega 4). Antes:
    del resumen y en el paso 2 del asistente). Escribir un número en esa
    casilla sigue mandando sobre la suma (sirve para contar también lo
    que no tiene columna propia); borrarlo devuelve la suma.
+   **Actualización 2026-07-31** (ticket ff5ab304): **tercer ámbito de
+   objetivos**, los *grupos de objetivos* que define el cliente (el suyo
+   es "TMT"), junto a individual y tienda. Modelo nuevo `GrupoObjetivo`
+   + `GrupoObjetivoMiembro` (miembros = comerciales y/o sedes) y
+   `ObjetivoVenta.grupo_id`; migración
+   `20260731160000_grupos_objetivo`. Lo vendido del grupo es lo de sus
+   miembros contando **cada venta una sola vez** (`anotarVentas` marca
+   `grupoIds`). La pantalla trae una tercera parrilla y el diálogo
+   "Grupos de objetivos" (`/api/objetivos-venta/grupos` y
+   `/grupos/[id]`, solo OWNER); la plantilla Excel lleva filas con
+   ámbito "Grupo". Coordinación solo ve los grupos que caen **enteros**
+   dentro de sus sedes (`gruposVisiblesPara`), porque con las ventas
+   recortadas por sede la consecución sería falsa. Los grupos no se
+   cablean: "TMT" es una fila de la tabla.
 3. **Entrega 4 (PR #93)** — arqueos semanales por sede y semana ISO, con
    recogida firmada por PIN (bcrypt, bloqueo temporal de 15 min tras 5
    fallos, gestión de autorizados y PIN desde la propia pantalla) y

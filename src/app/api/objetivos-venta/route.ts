@@ -2,18 +2,20 @@
  * Objetivos de venta del mes (módulo "Cierre de turno", plan Enterprise).
  *
  * GET  /api/objetivos-venta?mes=YYYY-MM
- *   Devuelve las dos matrices listas para pintar: una fila por comercial y otra
- *   tanda de filas por sede, con una columna por grupo y por artículo del
- *   catálogo (más la de unidades totales) y en cada casilla el objetivo del mes,
- *   lo vendido y la consecución. Los objetivos personales y los de la sede son
- *   distintos y van en tablas separadas.
+ *   Devuelve las tres matrices listas para pintar: una fila por comercial, otra
+ *   tanda de filas por sede y otra por grupo de objetivos (TMT, televenta…, los
+ *   que haya dado de alta el cliente), con una columna por grupo de productos y
+ *   por artículo del catálogo (más la de unidades totales) y en cada casilla el
+ *   objetivo del mes, lo vendido y la consecución. Los objetivos personales,
+ *   los de la sede y los del grupo son distintos y van en tablas separadas.
  *
- *   Un grupo es la categoría del catálogo, y solo cuentan para los objetivos
- *   —de grupo y de unidades totales— los artículos marcados con
+ *   Un grupo de productos es la categoría del catálogo, y solo cuentan para los
+ *   objetivos —de grupo y de unidades totales— los artículos marcados con
  *   `cuentaParaObjetivos` (ticket 714c76dd).
  *
  * PUT  /api/objetivos-venta — fija (o borra, con cantidad 0) un objetivo de un
- *   producto (`articuloId`), de un grupo (`categoria`) o de unidades totales.
+ *   producto (`articuloId`), de un grupo de productos (`categoria`) o de
+ *   unidades totales, para un comercial, una sede o un grupo de objetivos.
  * DELETE /api/objetivos-venta?id=… — quita un objetivo.
  *
  * Quién ve qué: administración toda la empresa, coordinación solo su sede y en
@@ -38,10 +40,13 @@ import {
   normalizarCantidadObjetivo,
   normalizarMes,
   objetivoDeCoordinacion,
+  sujetoDeObjetivo,
   totalesMatriz,
   vendidoDeSujeto,
   type AmbitoObjetivo,
+  type GrupoObjetivoResumen,
 } from "@/lib/cierre-turno/objetivos";
+import { describeMiembrosGrupo, gruposVisiblesPara } from "@/lib/cierre-turno/grupos-objetivo";
 import { normalizarCategoriaArticulo } from "@/lib/cierre-turno/catalogo";
 import {
   preciosActivos as leerPreciosActivos,
@@ -105,8 +110,10 @@ export const GET = withTenant(
         excluidos: [],
         filasComerciales: [],
         filasSedes: [],
+        filasGrupos: [],
         totalesComerciales: {},
         totalesSedes: {},
+        totalesGrupos: {},
         objetivosDelMes: [],
         resumen: { objetivo: 0, vendido: 0, conObjetivo: 0 },
         sinSede: true,
@@ -115,7 +122,7 @@ export const GET = withTenant(
     // Sedes del alcance: todas (administración) o las del coordinador.
     const sedesFiltro = filtro.tipo === "sedes" ? filtro.tiendaIds : null;
 
-    const [objetivos, ventasBrutas, articulos, sedes, personas, preciosOn] = await Promise.all([
+    const [objetivos, ventasBrutas, articulos, sedes, personas, gruposBrutos, preciosOn] = await Promise.all([
       prisma.objetivoVenta.findMany({
         where: { mes },
         select: {
@@ -123,6 +130,7 @@ export const GET = withTenant(
           mes: true,
           userId: true,
           tiendaId: true,
+          grupoId: true,
           articuloId: true,
           categoria: true,
           cantidad: true,
@@ -162,6 +170,18 @@ export const GET = withTenant(
         select: { id: true, nombre: true, apellidos: true, tiendaId: true },
         orderBy: [{ apellidos: "asc" }, { nombre: "asc" }],
       }),
+      // Grupos de objetivos con sus miembros. Se leen todos y el recorte por
+      // alcance lo hace `gruposVisiblesPara`: necesita la composición entera
+      // para saber si un grupo cae dentro de las sedes de quien mira.
+      prisma.grupoObjetivo.findMany({
+        where: { activo: true },
+        select: {
+          id: true,
+          nombre: true,
+          miembros: { select: { userId: true, tiendaId: true } },
+        },
+        orderBy: [{ orden: "asc" }, { nombre: "asc" }],
+      }),
       leerPreciosActivos(prisma),
     ]);
 
@@ -174,9 +194,17 @@ export const GET = withTenant(
     const paraObjetivos = articulos.filter((a) => cuentaParaObjetivos(a));
     const articuloIds = paraObjetivos.map((a) => a.id);
     const categorias = categoriasDelCatalogo(paraObjetivos);
+    // Grupos de objetivos que puede ver quien mira: administración todos, y
+    // coordinación solo los que caen enteros dentro de sus sedes (si no, la
+    // consecución saldría recortada y sería mentira).
+    const grupos: GrupoObjetivoResumen[] = gruposVisiblesPara(gruposBrutos, {
+      tiendaIds: sedesFiltro,
+      userIds: personas.map((p) => p.id),
+    });
     // Las ventas se anotan con el catálogo COMPLETO: es lo que permite saber
-    // que una venta es de un producto excluido y no sumarla en el total.
-    const ventas = anotarVentas(ventasBrutas, articulos);
+    // que una venta es de un producto excluido y no sumarla en el total. Los
+    // grupos marcan en qué agrupación cae cada venta (una sola vez por grupo).
+    const ventas = anotarVentas(ventasBrutas, articulos, grupos);
 
     // Dos matrices independientes: los objetivos personales y los de la sede son
     // objetivos distintos y no se suman entre sí.
@@ -200,17 +228,34 @@ export const GET = withTenant(
       ventas,
       paraObjetivos,
     );
+    // Tercera tabla: los grupos de objetivos del cliente (TMT, televenta…). El
+    // subtítulo de cada fila dice de qué está hecho el grupo, que es lo que
+    // permite entender su cifra sin abrir la ficha.
+    const filasGrupos = construirMatriz(
+      "grupo",
+      grupos.map((g) => ({ id: g.id, nombre: g.nombre, sede: describeMiembrosGrupo(g) })),
+      articuloIds,
+      objetivos,
+      ventas,
+      paraObjetivos,
+    );
 
     // Vista de todos los objetivos del mes, para revisarlos y borrarlos sin ir
     // artículo por artículo.
     const nombrePersona = new Map(personas.map((p) => [p.id, `${p.nombre} ${p.apellidos}`.trim()]));
     const nombreArticulo = new Map(articulos.map((a) => [a.id, a.nombre]));
+    const nombreGrupo = new Map(grupos.map((g) => [g.id, g.nombre]));
     const todos = objetivos
       .map((o) => {
         const amb = ambitoDe(o);
         if (!amb) return null;
-        const sujetoId = (amb === "comercial" ? o.userId : o.tiendaId) as string;
-        const nombre = amb === "comercial" ? nombrePersona.get(sujetoId) : nombreSede.get(sujetoId);
+        const sujetoId = sujetoDeObjetivo(o);
+        const nombre =
+          amb === "comercial"
+            ? nombrePersona.get(sujetoId)
+            : amb === "sede"
+              ? nombreSede.get(sujetoId)
+              : nombreGrupo.get(sujetoId);
         // Un objetivo de alguien que ya no está (o de otra sede, para el
         // coordinador) no se pinta: no es suyo ni puede hacer nada con él.
         if (!nombre) return null;
@@ -246,6 +291,7 @@ export const GET = withTenant(
 
     const totalesComerciales = totalesMatriz(filasComerciales, articuloIds, categorias);
     const totalesSedes = totalesMatriz(filasSedes, articuloIds, categorias);
+    const totalesGrupos = totalesMatriz(filasGrupos, articuloIds, categorias);
     // Objetivo propio de la coordinadora: el de su zona (ticket 73). Solo tiene
     // sentido con alcance limitado a sus sedes; para administración, la cifra
     // equivalente ya es el pie de la tabla de sedes.
@@ -268,8 +314,10 @@ export const GET = withTenant(
       excluidos: articulos.filter((a) => !cuentaParaObjetivos(a)).map((a) => a.nombre),
       filasComerciales,
       filasSedes,
+      filasGrupos,
       totalesComerciales,
       totalesSedes,
+      totalesGrupos,
       objetivosDelMes: todos,
       objetivoPropio: esCoordinacion
         ? objetivoDeCoordinacion({ filasSedes, filasComerciales })
@@ -313,7 +361,8 @@ export const PUT = withTenant(
     const cantidadOk = normalizarCantidadObjetivo(body.cantidad);
     if (!cantidadOk.ok) return NextResponse.json({ error: cantidadOk.error }, { status: 400 });
 
-    const ambito: AmbitoObjetivo = body.ambito === "sede" ? "sede" : "comercial";
+    const ambito: AmbitoObjetivo =
+      body.ambito === "sede" ? "sede" : body.ambito === "grupo" ? "grupo" : "comercial";
     if (typeof body.sujetoId !== "string" || !body.sujetoId) {
       return NextResponse.json({ error: "Falta a quién es el objetivo." }, { status: 400 });
     }
@@ -332,9 +381,23 @@ export const PUT = withTenant(
     if (ambito === "comercial") {
       const existe = await prisma.user.findUnique({ where: { id: body.sujetoId }, select: { id: true } });
       if (!existe) return NextResponse.json({ error: "Ese empleado no existe." }, { status: 404 });
-    } else {
+    } else if (ambito === "sede") {
       const existe = await prisma.tienda.findUnique({ where: { id: body.sujetoId }, select: { id: true } });
       if (!existe) return NextResponse.json({ error: "Esa sede no existe." }, { status: 404 });
+    } else {
+      const existe = await prisma.grupoObjetivo.findUnique({
+        where: { id: body.sujetoId },
+        select: { id: true, activo: true },
+      });
+      if (!existe) return NextResponse.json({ error: "Ese grupo no existe." }, { status: 404 });
+      // Un grupo desactivado no se pinta en ninguna parrilla: dejar fijarle
+      // objetivos sería guardar cifras que nadie va a volver a ver.
+      if (!existe.activo) {
+        return NextResponse.json(
+          { error: "Ese grupo está desactivado. Actívalo para fijarle objetivos." },
+          { status: 400 },
+        );
+      }
     }
     if (articuloId) {
       const existe = await prisma.articuloVenta.findUnique({
@@ -373,6 +436,10 @@ export const PUT = withTenant(
       mes: mesOk.mes,
       userId: ambito === "comercial" ? body.sujetoId : null,
       tiendaId: ambito === "sede" ? body.sujetoId : null,
+      // Los tres destinatarios van explícitos (con null incluido): sin
+      // `grupoId: null`, el `findFirst` de un objetivo de comercial también
+      // casaría con el del grupo que tuviera el mismo mes y producto.
+      grupoId: ambito === "grupo" ? body.sujetoId : null,
       articuloId,
       categoria,
     };

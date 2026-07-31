@@ -7,9 +7,11 @@
  *
  * Forma de trabajar: se elige el mes y se rellena una parrilla. Primero la de
  * comerciales —una fila por persona y una columna por producto del catálogo—,
- * y debajo la misma parrilla para los puntos de venta. Son objetivos distintos:
- * el de la sede se compara con lo que vende la sede entera, no con la suma de
- * los de su equipo, y por eso van en dos tablas separadas.
+ * debajo la misma parrilla para los puntos de venta y, al final, la de los
+ * grupos de objetivos que haya montado el cliente (TMT, televenta…). Son
+ * objetivos distintos: el de la sede se compara con lo que vende la sede
+ * entera, no con la suma de los de su equipo, y el del grupo con lo que venden
+ * sus miembros; por eso van en tablas separadas (ticket ff5ab304).
  *
  * La primera columna de cada parrilla es "Unidades totales" (el objetivo sin
  * producto), que es el que ve el comercial en el paso 2 de su cierre de turno.
@@ -34,6 +36,7 @@ import {
   Building2,
   Download,
   FileSpreadsheet,
+  Layers,
   Target,
   Trash2,
   TrendingUp,
@@ -45,9 +48,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { GruposObjetivoDialog } from "@/components/cierre-turno/grupos-objetivo-dialog";
 import { useToast } from "@/hooks/use-toast";
 
-type Ambito = "comercial" | "sede";
+type Ambito = "comercial" | "sede" | "grupo";
 
 /** Columna de unidades totales: el objetivo sin producto (ver `objetivos.ts`). */
 const COLUMNA_TOTAL = "";
@@ -82,6 +86,7 @@ interface Celda {
 interface FilaMatriz {
   sujetoId: string;
   sujeto: string;
+  /** Sede del comercial; en las filas de grupo, de qué se compone el grupo. */
   sede: string | null;
   celdas: Record<string, Celda>;
 }
@@ -140,8 +145,11 @@ interface Respuesta {
   excluidos: string[];
   filasComerciales: FilaMatriz[];
   filasSedes: FilaMatriz[];
+  /** Una fila por grupo de objetivos del cliente (TMT, televenta…). */
+  filasGrupos: FilaMatriz[];
   totalesComerciales: Record<string, TotalColumna>;
   totalesSedes: Record<string, TotalColumna>;
+  totalesGrupos: Record<string, TotalColumna>;
   objetivosDelMes: ObjetivoDelMes[];
   resumen: { objetivo: number; vendido: number; conObjetivo: number };
   /** Solo para coordinación: su objetivo de zona. null para administración. */
@@ -446,6 +454,7 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
   const [descargando, setDescargando] = useState(false);
   const [importando, setImportando] = useState(false);
   const [resumenImport, setResumenImport] = useState<ResumenImportacion | null>(null);
+  const [gruposAbierto, setGruposAbierto] = useState(false);
   const inputFichero = useRef<HTMLInputElement>(null);
 
   /**
@@ -689,6 +698,12 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
                     <Upload className="h-4 w-4 mr-2" />
                     {importando ? "Importando…" : "Importar objetivos"}
                   </Button>
+                  {/* Los grupos se montan desde aquí: quien está rellenando la
+                      parrilla es quien se da cuenta de que le falta uno. */}
+                  <Button variant="outline" onClick={() => setGruposAbierto(true)}>
+                    <Layers className="h-4 w-4 mr-2" />
+                    Grupos de objetivos
+                  </Button>
                 </>
               )}
             </div>
@@ -696,15 +711,18 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
 
           <p className="text-xs text-slate-400 mt-3 max-w-3xl">
             <strong className="font-medium text-slate-500">Con Excel:</strong> descarga la plantilla
-            del mes elegido —baja con una fila por comercial y por punto de venta y una columna por
-            grupo y por producto, ya con los objetivos que tengas puestos—, rellénala y vuelve a
-            subirla. Una casilla en blanco se deja como está; para quitar un objetivo, escribe 0.
+            del mes elegido —baja con una fila por comercial, por punto de venta y por grupo, y una
+            columna por grupo de productos y por producto, ya con los objetivos que tengas
+            puestos—, rellénala y vuelve a subirla. Una casilla en blanco se deja como está; para
+            quitar un objetivo, escribe 0.
           </p>
           <p className="text-xs text-slate-400 mt-3 max-w-3xl">
             Cada casilla es el objetivo de unidades del mes elegido. Debajo de la casilla verás lo
-            que se lleva vendido y la consecución. Los objetivos de los comerciales y los de las
-            sedes son independientes: el de una sede se compara con lo que vende la sede completa,
-            no con la suma de los de su equipo.
+            que se lleva vendido y la consecución. Hay tres tablas y son independientes entre sí:
+            la de cada comercial, la de cada punto de venta —que se compara con lo que vende la
+            sede completa, no con la suma de los de su equipo— y la de los{" "}
+            <strong className="font-medium text-slate-500">grupos de objetivos</strong> que montes
+            tú (TMT, televenta…), que se compara con lo que venden sus miembros.
           </p>
           <p className="text-xs text-slate-400 mt-2 max-w-3xl">
             <strong className="font-medium text-slate-500">Unidades totales</strong> es la suma de
@@ -894,7 +912,40 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
             guardando={guardando}
             onGuardar={(fila, columnaId, valor) => void guardar("sede", fila, columnaId, valor)}
           />
+
+          {/* Los grupos del cliente (TMT, televenta…). Sin ninguno dado de alta
+              la tabla explica de qué va, en vez de aparecer vacía sin más. */}
+          <TablaObjetivos
+            titulo="Objetivos por grupo"
+            descripcion="El objetivo de un grupo tuyo (TMT, televenta…): se cumple con lo que venden sus miembros, contando cada venta una sola vez. Es independiente de los objetivos de cada comercial y de cada sede."
+            icono={<Layers className="h-4 w-4 text-[var(--primary)]" />}
+            etiquetaSujeto="Grupo"
+            vacio={
+              soloLectura
+                ? "No hay ningún grupo de objetivos que te corresponda."
+                : 'Todavía no tienes grupos. Créalos en "Grupos de objetivos" y aparecerán aquí.'
+            }
+            columnas={columnas}
+            filas={datos?.filasGrupos ?? []}
+            totales={datos?.totalesGrupos ?? {}}
+            soloLectura={soloLectura}
+            mostrarSede
+            mes={mes}
+            guardando={guardando}
+            onGuardar={(fila, columnaId, valor) => void guardar("grupo", fila, columnaId, valor)}
+          />
         </>
+      )}
+
+      {/* Alta y edición de los grupos; al cerrar se recarga si algo cambió. */}
+      {!soloLectura && (
+        <GruposObjetivoDialog
+          abierto={gruposAbierto}
+          onClose={(huboCambios) => {
+            setGruposAbierto(false);
+            if (huboCambios) void cargar(true);
+          }}
+        />
       )}
 
       {!soloLectura && (
@@ -921,8 +972,8 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
                   <tr>
                     {[
                       "Ámbito",
-                      "Comercial o sede",
-                      "Producto o grupo",
+                      "Comercial, sede o grupo",
+                      "Producto o grupo de productos",
                       "Objetivo",
                       "Vendido",
                       ...(datos?.preciosActivos ? ["Importe"] : []),
@@ -942,7 +993,7 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
                   {datos?.objetivosDelMes.map((o) => (
                     <tr key={o.id} className="border-b border-slate-100 last:border-0">
                       <td className="px-4 py-2 text-sm text-slate-500">
-                        {o.ambito === "sede" ? "Sede" : "Comercial"}
+                        {o.ambito === "sede" ? "Sede" : o.ambito === "grupo" ? "Grupo" : "Comercial"}
                       </td>
                       <td className="px-4 py-2 text-sm font-medium text-slate-800">{o.sujeto}</td>
                       <td className="px-4 py-2 text-sm text-slate-500">

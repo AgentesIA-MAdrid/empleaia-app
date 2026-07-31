@@ -205,25 +205,103 @@ describe("interpretarPlantillaObjetivos", () => {
   });
 });
 
+/**
+ * Tercer ámbito de la hoja: los grupos de objetivos del cliente (TMT,
+ * televenta…). La columna "Ámbito" dice "Grupo" y el resto de la fila se lee
+ * igual que la de un comercial o la de una sede (ticket ff5ab304).
+ */
+describe("grupos de objetivos en la plantilla (ticket ff5ab304)", () => {
+  const ctxConGrupos = { ...ctx, grupos: [{ id: "g_tmt", nombre: "TMT" }] };
+  const cabecera = [
+    "Ámbito",
+    "Comercial, punto de venta o grupo",
+    "Id",
+    "Unidades totales",
+    "Grupo: Telefonía",
+    "Alta de fibra",
+  ];
+
+  it("baja una fila por grupo, con su ámbito escrito", () => {
+    const columnas = columnasPlantilla(catalogo);
+    const filas = filasPlantilla(
+      [...sujetos, { ambito: "grupo" as const, id: "g_tmt", nombre: "TMT" }],
+      columnas,
+      [objetivo({ id: "o1", grupoId: "g_tmt", cantidad: 200 })],
+    );
+    expect(filas[2]).toEqual(["Grupo", "TMT", "g_tmt", 200, "", "", ""]);
+    // Y no se cuela en las filas de los otros ámbitos.
+    expect(filas[0][3]).toBe("");
+    expect(filas[1][3]).toBe("");
+  });
+
+  it("lee una fila de grupo por su id", () => {
+    const r = interpretarPlantillaObjetivos(
+      [cabecera, ["Grupo", "TMT", "g_tmt", "200", "80", ""]],
+      ctxConGrupos,
+    );
+    expect(r.cambios).toEqual([
+      expect.objectContaining({ ambito: "grupo", sujetoId: "g_tmt", cantidad: 200 }),
+      expect.objectContaining({ ambito: "grupo", categoria: "Telefonía", cantidad: 80 }),
+    ]);
+  });
+
+  it("sin id busca el grupo por su nombre", () => {
+    const r = interpretarPlantillaObjetivos(
+      [cabecera, ["grupo", "tmt", "", "150", "", ""]],
+      ctxConGrupos,
+    );
+    expect(r.cambios[0]).toMatchObject({ ambito: "grupo", sujetoId: "g_tmt", cantidad: 150 });
+  });
+
+  it("un grupo que no existe se ignora y lo dice", () => {
+    const r = interpretarPlantillaObjetivos(
+      [cabecera, ["Grupo", "Inventado", "", "10", "", ""]],
+      ctxConGrupos,
+    );
+    expect(r.cambios).toHaveLength(0);
+    expect(r.ignoradas[0].motivo).toContain("los grupos de objetivos");
+  });
+
+  it("una hoja vieja sin grupos se sigue importando igual", () => {
+    const r = interpretarPlantillaObjetivos(
+      [
+        ["Ámbito", "Comercial o punto de venta", "Id", "Unidades totales"],
+        ["Comercial", "Ana García", "u_ana", "40"],
+      ],
+      ctx,
+    );
+    expect(r.cambios[0]).toMatchObject({ ambito: "comercial", sujetoId: "u_ana", cantidad: 40 });
+  });
+});
+
 describe("viaje completo por un .xlsx de verdad", () => {
   it("lo que se descarga se vuelve a leer igual", async () => {
     const columnas = columnasPlantilla(catalogo);
-    const filas = filasPlantilla(sujetos, columnas, [
-      objetivo({ id: "o1", userId: "u_ana", articuloId: "art_fibra", cantidad: 12 }),
-      objetivo({ id: "o2", tiendaId: "t1", cantidad: 90 }),
-    ]);
+    const filas = filasPlantilla(
+      [...sujetos, { ambito: "grupo" as const, id: "g_tmt", nombre: "TMT" }],
+      columnas,
+      [
+        objetivo({ id: "o1", userId: "u_ana", articuloId: "art_fibra", cantidad: 12 }),
+        objetivo({ id: "o2", tiendaId: "t1", cantidad: 90 }),
+        objetivo({ id: "o3", grupoId: "g_tmt", cantidad: 200 }),
+      ],
+    );
     const xlsx = await generarPlantillaObjetivos({ mes: "2026-07", columnas, filas });
 
     const matriz = await leerHojaExcel(xlsx);
     expect(leerMesPlantilla(matriz)).toBe("2026-07");
 
-    const r = interpretarPlantillaObjetivos(matriz, ctx);
+    const r = interpretarPlantillaObjetivos(matriz, {
+      ...ctx,
+      grupos: [{ id: "g_tmt", nombre: "TMT" }],
+    });
     expect(r.cabeceraEncontrada).toBe(true);
     expect(r.ignoradas).toEqual([]);
     expect(r.columnasIgnoradas).toEqual([]);
     expect(r.cambios).toEqual([
       expect.objectContaining({ ambito: "comercial", sujetoId: "u_ana", articuloId: "art_fibra", cantidad: 12 }),
       expect.objectContaining({ ambito: "sede", sujetoId: "t1", articuloId: null, categoria: null, cantidad: 90 }),
+      expect.objectContaining({ ambito: "grupo", sujetoId: "g_tmt", articuloId: null, categoria: null, cantidad: 200 }),
     ]);
   });
 });

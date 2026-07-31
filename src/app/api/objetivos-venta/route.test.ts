@@ -12,6 +12,9 @@
  *     Postgres dos NULL no son iguales y crearía duplicados): busca primero.
  *  4. Cantidad 0 borra el objetivo en vez de dejar un cero que parece un
  *     objetivo real de cero unidades.
+ *  5. El tercer ámbito —los grupos de objetivos, ticket ff5ab304— tiene su
+ *     propia parrilla, no se mezcla con las otras dos y el coordinador solo ve
+ *     los grupos que caen dentro de sus sedes.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -25,9 +28,18 @@ const objetivosExistentes: {
   mes: string;
   userId: string | null;
   tiendaId: string | null;
+  grupoId?: string | null;
   articuloId: string | null;
   categoria?: string | null;
   cantidad: number;
+}[] = [];
+
+/** Grupos de objetivos del tenant de mentira (ticket ff5ab304). */
+const gruposExistentes: {
+  id: string;
+  nombre: string;
+  activo?: boolean;
+  miembros: { userId: string | null; tiendaId: string | null }[];
 }[] = [];
 
 /** Catálogo del tenant de mentira: un producto que cuenta y otro que no. */
@@ -56,6 +68,13 @@ const prismaMock = {
     create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: "obj_nuevo", ...data })),
     update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id: "obj_1", ...data })),
     delete: vi.fn(async () => ({ id: "obj_1" })),
+  },
+  grupoObjetivo: {
+    findMany: vi.fn(async () => gruposExistentes),
+    findUnique: vi.fn(async ({ where }: { where: { id: string } }) => {
+      const g = gruposExistentes.find((x) => x.id === where.id);
+      return g ? { id: g.id, activo: g.activo !== false } : null;
+    }),
   },
   cierreTurno: { findMany: vi.fn(async () => [] as unknown[]) },
   cierreTurnoVenta: { groupBy: vi.fn(async () => [] as unknown[]) },
@@ -141,6 +160,7 @@ async function put(body: Record<string, unknown>) {
 beforeEach(async () => {
   vi.clearAllMocks();
   objetivosExistentes.length = 0;
+  gruposExistentes.length = 0;
   sesion.user = { id: "u_owner", rol: "OWNER", tiendaId: null, name: "Owner" };
   prismaMock.objetivoVenta.findFirst.mockResolvedValue(null);
   prismaMock.articuloVenta.findUnique.mockResolvedValue({
@@ -257,6 +277,52 @@ describe("GET /api/objetivos-venta", () => {
     // El objetivo personal no aparece en la tabla de sedes: son objetivos distintos.
     expect(data.filasSedes.map((f) => f.sujetoId)).toEqual(["t1"]);
     expect(data.filasSedes[0].celdas["art_fibra"].objetivo).toBeNull();
+  });
+
+  it("los grupos de objetivos tienen su propia parrilla y no se mezclan (ticket ff5ab304)", async () => {
+    gruposExistentes.push({
+      id: "g_tmt",
+      nombre: "TMT",
+      miembros: [{ userId: "u_ana", tiendaId: null }],
+    });
+    objetivosExistentes.push({
+      id: "obj_tmt",
+      mes: "2026-07",
+      userId: null,
+      tiendaId: null,
+      grupoId: "g_tmt",
+      articuloId: null,
+      cantidad: 200,
+    });
+    const res = await get("?mes=2026-07");
+    const data = (await res.json()) as {
+      filasGrupos: { sujetoId: string; sujeto: string; sede: string | null; celdas: Record<string, { objetivo: number | null }> }[];
+      filasComerciales: { celdas: Record<string, { objetivo: number | null }> }[];
+      totalesGrupos: Record<string, { objetivo: number }>;
+      objetivosDelMes: { ambito: string; sujeto: string }[];
+    };
+    expect(data.filasGrupos.map((f) => f.sujetoId)).toEqual(["g_tmt"]);
+    expect(data.filasGrupos[0].celdas[""].objetivo).toBe(200);
+    // El subtítulo dice de qué está hecho el grupo.
+    expect(data.filasGrupos[0].sede).toBe("1 comercial");
+    expect(data.totalesGrupos[""].objetivo).toBe(200);
+    // El objetivo del grupo no se cuela en la fila de su miembro.
+    expect(data.filasComerciales[0].celdas[""].objetivo).toBeNull();
+    expect(data.objetivosDelMes).toEqual([
+      expect.objectContaining({ ambito: "grupo", sujeto: "TMT" }),
+    ]);
+  });
+
+  it("el coordinador no ve un grupo que se sale de sus sedes", async () => {
+    sesion.user = { id: "u_jefe", rol: "MANAGER", tiendaId: "t1", name: "Jefe" };
+    gruposExistentes.push(
+      // "u_ana" sí está entre las personas de sus sedes; "t9" no es suya.
+      { id: "g_mio", nombre: "Mi grupo", miembros: [{ userId: "u_ana", tiendaId: null }] },
+      { id: "g_ajeno", nombre: "Otra zona", miembros: [{ userId: null, tiendaId: "t9" }] },
+    );
+    const res = await get();
+    const data = (await res.json()) as { filasGrupos: { sujetoId: string }[] };
+    expect(data.filasGrupos.map((f) => f.sujetoId)).toEqual(["g_mio"]);
   });
 
   it("las unidades totales cuadran con lo puesto producto a producto", async () => {
@@ -396,7 +462,16 @@ describe("PUT /api/objetivos-venta", () => {
     const res = await put({ mes: "2026-07", ambito: "comercial", sujetoId: "u_ana", cantidad: 10 });
     expect(res.status).toBe(200);
     expect(prismaMock.objetivoVenta.findFirst).toHaveBeenCalledWith({
-      where: { mes: "2026-07", userId: "u_ana", tiendaId: null, articuloId: null, categoria: null },
+      // Los tres destinatarios van explícitos: sin `grupoId: null` la búsqueda
+      // casaría también con el objetivo de un grupo del mismo mes.
+      where: {
+        mes: "2026-07",
+        userId: "u_ana",
+        tiendaId: null,
+        grupoId: null,
+        articuloId: null,
+        categoria: null,
+      },
       select: { id: true },
     });
     expect(prismaMock.objetivoVenta.create).toHaveBeenCalledWith({
@@ -404,6 +479,7 @@ describe("PUT /api/objetivos-venta", () => {
         mes: "2026-07",
         userId: "u_ana",
         tiendaId: null,
+        grupoId: null,
         articuloId: null,
         categoria: null,
         cantidad: 10,
@@ -443,6 +519,37 @@ describe("PUT /api/objetivos-venta", () => {
     expect(res.status).toBe(400);
   });
 
+  it("guarda un objetivo de un grupo de objetivos (TMT)", async () => {
+    gruposExistentes.push({ id: "g_tmt", nombre: "TMT", miembros: [{ userId: "u_ana", tiendaId: null }] });
+    const res = await put({ mes: "2026-07", ambito: "grupo", sujetoId: "g_tmt", cantidad: 200 });
+    expect(res.status).toBe(200);
+    expect(prismaMock.objetivoVenta.create).toHaveBeenCalledWith({
+      data: {
+        mes: "2026-07",
+        userId: null,
+        tiendaId: null,
+        grupoId: "g_tmt",
+        articuloId: null,
+        categoria: null,
+        cantidad: 200,
+      },
+      select: { id: true, cantidad: true },
+    });
+  });
+
+  it("un objetivo de un grupo que no existe se rechaza", async () => {
+    const res = await put({ mes: "2026-07", ambito: "grupo", sujetoId: "g_fantasma", cantidad: 5 });
+    expect(res.status).toBe(404);
+    expect(prismaMock.objetivoVenta.create).not.toHaveBeenCalled();
+  });
+
+  it("no se fijan objetivos a un grupo desactivado", async () => {
+    gruposExistentes.push({ id: "g_viejo", nombre: "Antiguo", activo: false, miembros: [] });
+    const res = await put({ mes: "2026-07", ambito: "grupo", sujetoId: "g_viejo", cantidad: 5 });
+    expect(res.status).toBe(400);
+    expect(prismaMock.objetivoVenta.create).not.toHaveBeenCalled();
+  });
+
   it("guarda un objetivo de un grupo de productos", async () => {
     const res = await put({
       mes: "2026-07",
@@ -457,6 +564,7 @@ describe("PUT /api/objetivos-venta", () => {
         mes: "2026-07",
         userId: "u_ana",
         tiendaId: null,
+        grupoId: null,
         articuloId: null,
         categoria: "Telefonía",
         cantidad: 25,
