@@ -96,6 +96,15 @@ las columnas nuevas. Lógica pura + tests en
 `src/lib/fichajes/horario-turno.ts`; test de endpoint en
 `src/app/api/fichajes/fuera-horario.test.ts`.
 
+**Corrección 2026-07-31 (ticket 93b3e437)**: la comprobación miraba los
+turnos de ayer y de mañana como si fueran de hoy, así que quien no tenía
+turno publicado HOY (día libre, cuadrante de hoy aún en BORRADOR, refuerzo
+de última hora) se quedaba sin poder fichar, y el ajuste que se le ofrecía
+podía caer en otro día. Ahora `evaluarHorarioTurno` exige un turno con
+`offsetDias === 0` para comprobar nada, y los turnos de ayer/mañana solo
+cuentan si su ventana se solapa con hoy (turno de noche que cruza
+medianoche) — solo pueden ampliar la ventana admitida, nunca rechazar.
+
 ## 4.hoy. Lo último que hicimos (sesión 2026-07-29 → 30): módulo "Cierre de turno" COMPLETO
 
 Las 4 entregas del módulo están en `feature/saas-migration` y

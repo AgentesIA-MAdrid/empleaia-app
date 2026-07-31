@@ -9,13 +9,15 @@
  *
  * Reglas:
  *  - Solo se comprueba si el tenant activó `exigirFichajeEnHorario`.
- *  - Solo se comprueba si el empleado tiene turno PUBLICADO ese día: sin
+ *  - Solo se comprueba si el empleado tiene turno PUBLICADO **ese día**: sin
  *    cuadrante no hay con qué comparar (igual que el modo estricto de sede
  *    necesita coordenadas de la tienda).
  *  - Ventana admitida: [inicio − margen, fin + margen] de cualquiera de sus
  *    turnos. Con jornada partida (mañana y tarde) vale cualquiera de las dos.
  *  - Turnos nocturnos (fin <= inicio) cruzan medianoche: el fin se lleva al
- *    día siguiente. Por eso se miran también los turnos de ayer y de mañana.
+ *    día siguiente. Por eso se miran también los turnos de ayer y de mañana,
+ *    pero esos solo pueden AMPLIAR la ventana admitida, nunca servir para
+ *    rechazar un fichaje del día de hoy.
  *
  * La decisión (`evaluarHorarioTurno`) es pura y testeable; la parte que toca
  * BD recibe el cliente Prisma del tenant como dependencia (nunca fetch
@@ -72,12 +74,26 @@ export function minToHHMM(min: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+/** Ventana [inicio, fin] del turno en minutos relativos a la medianoche de hoy. */
+function ventanaTurno(turno: TurnoDia): { inicio: number; fin: number } {
+  const base = turno.offsetDias * MIN_POR_DIA;
+  const inicio = base + hhmmToMin(turno.horaInicio);
+  let fin = base + hhmmToMin(turno.horaFin);
+  // Turno nocturno (22:00 → 06:00): el fin es del día siguiente.
+  if (fin <= inicio) fin += MIN_POR_DIA;
+  return { inicio, fin };
+}
+
 /**
  * ¿Está `ahoraMin` dentro del horario de alguno de los turnos?
  *
  * `ahoraMin` son los minutos transcurridos desde la medianoche de hoy en la
- * zona del tenant. Si queda fuera de todos, devuelve el turno más cercano y
- * a qué minuto habría que ajustar el fichaje.
+ * zona del tenant. Si queda fuera de todos, devuelve el turno más cercano de
+ * los que alcanzan a hoy y a qué minuto habría que ajustar el fichaje.
+ *
+ * Sin turno de hoy (`offsetDias === 0`) no se comprueba nada, aunque haya
+ * turnos ayer o mañana: en un día que el cuadrante no cubre no hay con qué
+ * comparar y la jornada no puede bloquearse (RD 8/2019).
  */
 export function evaluarHorarioTurno(opts: {
   turnos: TurnoDia[];
@@ -85,21 +101,32 @@ export function evaluarHorarioTurno(opts: {
   margenMin: number;
 }): EvaluacionHorario {
   const margen = Math.max(0, opts.margenMin);
-  if (opts.turnos.length === 0) return { estado: "sin_turno" };
+  if (!opts.turnos.some((t) => t.offsetDias === 0)) return { estado: "sin_turno" };
 
-  let mejor: { turno: TurnoDia; distancia: number; motivo: MotivoFueraHorario; ajusteMin: number } | null = null;
+  // Turnos que alcanzan al día de hoy: los de hoy, y los de ayer o mañana cuya
+  // ventana (con margen) se solapa con hoy —un turno de noche que empezó ayer
+  // sigue abierto de madrugada, y uno que mañana empieza a las 00:15 admite
+  // fichar esta noche—. El turno de ayer que ya terminó ayer no dice nada del
+  // fichaje de hoy: ni lo admite ni puede rechazarlo ni fija su ajuste.
+  const relevantes = opts.turnos.filter((t) => {
+    if (t.offsetDias === 0) return true;
+    const { inicio, fin } = ventanaTurno(t);
+    return fin + margen >= 0 && inicio - margen <= MIN_POR_DIA;
+  });
 
-  for (const turno of opts.turnos) {
-    const base = turno.offsetDias * MIN_POR_DIA;
-    const inicio = base + hhmmToMin(turno.horaInicio);
-    let fin = base + hhmmToMin(turno.horaFin);
-    // Turno nocturno (22:00 → 06:00): el fin es del día siguiente.
-    if (fin <= inicio) fin += MIN_POR_DIA;
-
+  // 1) ¿Cae dentro de la ventana de alguno de esos turnos?
+  for (const turno of relevantes) {
+    const { inicio, fin } = ventanaTurno(turno);
     if (opts.ahoraMin >= inicio - margen && opts.ahoraMin <= fin + margen) {
       return { estado: "dentro", turno };
     }
+  }
 
+  // 2) Fuera de todas: se ajusta al borde más cercano del turno más cercano.
+  let mejor: { turno: TurnoDia; distancia: number; motivo: MotivoFueraHorario; ajusteMin: number } | null = null;
+
+  for (const turno of relevantes) {
+    const { inicio, fin } = ventanaTurno(turno);
     const antes = opts.ahoraMin < inicio;
     const distancia = antes ? inicio - margen - opts.ahoraMin : opts.ahoraMin - (fin + margen);
     // A igual distancia gana el primero (el turno más temprano del día): el

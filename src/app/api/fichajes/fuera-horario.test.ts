@@ -154,4 +154,15 @@ describe("POST /api/fichajes — fichaje fuera del horario del cuadrante", () =>
     const res = await ficharA("05:40");
     expect(res.status).toBe(201);
   });
+
+  it("con turno solo ayer o mañana (hoy sin cuadrante) deja fichar", async () => {
+    // El empleado echa una mano un día que no le toca: hoy no tiene turno
+    // publicado, así que no hay con qué comparar y la entrada debe registrarse.
+    turnos = [
+      { horaInicio: "09:00", horaFin: "17:00", fecha: new Date("2026-07-30T00:00:00Z") },
+      { horaInicio: "09:00", horaFin: "17:00", fecha: new Date("2026-08-01T00:00:00Z") },
+    ];
+    const res = await ficharA("07:50"); // 09:50 en Madrid
+    expect(res.status).toBe(201);
+  });
 });
