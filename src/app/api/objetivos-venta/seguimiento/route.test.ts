@@ -12,15 +12,31 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { columnaSubgrupo } from "@/lib/cierre-turno/objetivos";
 
 const sesion = {
   user: { id: "u_owner", rol: "OWNER", tiendaId: null as string | null, name: "Owner" },
 };
 
 const catalogo = [
-  { id: "art_fibra", nombre: "Alta de fibra", categoria: "Telefonía", cuentaParaObjetivos: true },
-  { id: "art_funda", nombre: "Funda", categoria: "Accesorios", cuentaParaObjetivos: false },
+  {
+    id: "art_fibra",
+    nombre: "Alta de fibra",
+    categoria: "Telefonía",
+    subcategoria: "Hogar",
+    cuentaParaObjetivos: true,
+  },
+  {
+    id: "art_funda",
+    nombre: "Funda",
+    categoria: "Accesorios",
+    subcategoria: "Fundas",
+    cuentaParaObjetivos: false,
+  },
 ];
+
+/** El grupo con objetivo es la subcategoría (ticket 234c6b0f). */
+const COLUMNA_HOGAR = columnaSubgrupo({ categoria: "Telefonía", subcategoria: "Hogar" });
 
 const prismaMock = {
   objetivoVenta: {
@@ -120,9 +136,9 @@ describe("GET /api/objetivos-venta/seguimiento", () => {
     expect(data.dias).toBe(31);
     expect(data.filasComerciales).toHaveLength(1);
     expect(data.filasComerciales[0].objetivo).toBe(31);
-    // Unidades totales + el grupo "Telefonía" + el artículo que cuenta. La
-    // funda está excluida de objetivos, así que no se puede seguir.
-    expect(data.conceptos.map((c) => c.id)).toEqual(["", "cat:Telefonía", "art_fibra"]);
+    // Unidades totales + el grupo "Telefonía → Hogar" + el artículo que
+    // cuenta. La funda está excluida de objetivos, así que no se puede seguir.
+    expect(data.conceptos.map((c) => c.id)).toEqual(["", COLUMNA_HOGAR, "art_fibra"]);
   });
 
   it("las ventas se leen del día 1 al de corte, no del mes entero", async () => {

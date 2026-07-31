@@ -39,6 +39,7 @@ function clave(o: {
   grupoId: string | null;
   articuloId: string | null;
   categoria: string | null;
+  subcategoria: string | null;
 }): string {
   return [
     o.userId ?? "",
@@ -46,6 +47,7 @@ function clave(o: {
     o.grupoId ?? "",
     o.articuloId ?? "",
     o.categoria ?? "",
+    o.subcategoria ?? "",
   ].join("|");
 }
 
@@ -103,8 +105,9 @@ export const POST = withTenant(
     const [articulos, sedes, personas, grupos] = await Promise.all([
       prisma.articuloVenta.findMany({
         where: { activo: true },
-        // Con la subcategoría se casan las columnas de dos artículos que se
-        // llaman igual ("Renove (Telefonía → Pospago)").
+        // La subcategoría es el grupo de productos con objetivo, y además casa
+        // las columnas de dos artículos que se llaman igual ("Renove
+        // (Telefonía → Pospago)").
         select: {
           id: true,
           nombre: true,
@@ -183,6 +186,7 @@ export const POST = withTenant(
         grupoId: true,
         articuloId: true,
         categoria: true,
+        subcategoria: true,
         cantidad: true,
       },
     });
@@ -199,6 +203,7 @@ export const POST = withTenant(
       grupoId: string | null;
       articuloId: string | null;
       categoria: string | null;
+      subcategoria: string | null;
       cantidad: number;
     }[] = [];
     const aActualizar: { id: string; cantidad: number }[] = [];
@@ -212,6 +217,7 @@ export const POST = withTenant(
         grupoId: c.ambito === "grupo" ? c.sujetoId : null,
         articuloId: c.articuloId,
         categoria: c.categoria,
+        subcategoria: c.subcategoria,
       };
       const previo = porClave.get(clave(fila));
       if (c.cantidad === 0) {

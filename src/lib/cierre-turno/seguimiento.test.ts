@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import type { ObjetivoFila, VentaDia } from "@/lib/cierre-turno/objetivos";
+import { columnaSubgrupo, type ObjetivoFila, type VentaDia } from "@/lib/cierre-turno/objetivos";
 import {
   CONCEPTO_TOTAL,
   construirSeguimiento,
@@ -27,10 +27,31 @@ import {
 } from "@/lib/cierre-turno/seguimiento";
 
 const catalogo = [
-  { id: "art_fibra", nombre: "Alta de fibra", categoria: "Telefonía", cuentaParaObjetivos: true },
-  { id: "art_pospago", nombre: "Pospago", categoria: "Telefonía", cuentaParaObjetivos: true },
-  { id: "art_funda", nombre: "Funda", categoria: "Accesorios", cuentaParaObjetivos: false },
+  {
+    id: "art_fibra",
+    nombre: "Alta de fibra",
+    categoria: "Telefonía",
+    subcategoria: "Hogar",
+    cuentaParaObjetivos: true,
+  },
+  {
+    id: "art_pospago",
+    nombre: "Pospago",
+    categoria: "Telefonía",
+    subcategoria: "Hogar",
+    cuentaParaObjetivos: true,
+  },
+  {
+    id: "art_funda",
+    nombre: "Funda",
+    categoria: "Accesorios",
+    subcategoria: "Fundas",
+    cuentaParaObjetivos: false,
+  },
 ];
+
+/** El grupo con objetivo es la subcategoría (ticket 234c6b0f). */
+const HOGAR = { categoria: "Telefonía", subcategoria: "Hogar" };
 
 /** Ventas de Ana en la sede t1, con el catálogo ya anotado. */
 function venta(fecha: string, articuloId: string | null, cantidad: number): VentaDia {
@@ -42,6 +63,7 @@ function venta(fecha: string, articuloId: string | null, cantidad: number): Vent
     articuloId,
     cantidad,
     categoria: a?.categoria ?? null,
+    subcategoria: a?.subcategoria ?? null,
     cuentaParaObjetivos: a ? a.cuentaParaObjetivos : true,
   };
 }
@@ -155,7 +177,7 @@ describe("filas de seguimiento", () => {
   });
 
   it("un grupo de productos solo mide lo suyo", () => {
-    const concepto = normalizarConcepto("cat:Telefonía", catalogo, ["Telefonía"]);
+    const concepto = normalizarConcepto(columnaSubgrupo(HOGAR), catalogo, [HOGAR]);
     const [ana] = construirSeguimiento({
       ambito: "comercial",
       sujetos: [{ id: "u_ana", nombre: "Ana García", sede: "Centro" }],
@@ -166,7 +188,7 @@ describe("filas de seguimiento", () => {
           userId: "u_ana",
           tiendaId: null,
           articuloId: null,
-          categoria: "Telefonía",
+          ...HOGAR,
           cantidad: 62,
         },
       ],
@@ -182,8 +204,22 @@ describe("filas de seguimiento", () => {
   });
 
   it("un concepto que ya no existe cae en unidades totales", () => {
-    expect(normalizarConcepto("art_borrado", catalogo, ["Telefonía"]).tipo).toBe("total");
-    expect(normalizarConcepto("cat:Fantasma", catalogo, ["Telefonía"]).tipo).toBe("total");
+    expect(normalizarConcepto("art_borrado", catalogo, [HOGAR]).tipo).toBe("total");
+    expect(
+      normalizarConcepto(
+        columnaSubgrupo({ categoria: "Telefonía", subcategoria: "Fantasma" }),
+        catalogo,
+        [HOGAR],
+      ).tipo,
+    ).toBe("total");
+    // Mismo nombre de subcategoría, otra categoría: es otro grupo y no existe.
+    expect(
+      normalizarConcepto(
+        columnaSubgrupo({ categoria: "Energía", subcategoria: "Hogar" }),
+        catalogo,
+        [HOGAR],
+      ).tipo,
+    ).toBe("total");
   });
 
   it("el pie de la tabla suma objetivos y cuenta quién llega", () => {

@@ -17,9 +17,9 @@
  *   Grupo     | TMT        | g_tmt | 200|    |   | …
  *
  * Ojo con la palabra "grupo", que en la hoja significa dos cosas: la columna
- * "Grupo: Telefonía" es un grupo de PRODUCTOS (categoría del catálogo) y la
- * fila con ámbito "Grupo" es un grupo de OBJETIVOS (TMT, televenta…), o sea a
- * quién va dirigido.
+ * "Grupo: Telefonía → Pospago" es un grupo de PRODUCTOS (una subcategoría del
+ * catálogo, con su categoría delante) y la fila con ámbito "Grupo" es un grupo
+ * de OBJETIVOS (TMT, televenta…), o sea a quién va dirigido.
  *
  * Criterios, los mismos que en el resto del importador del módulo:
  *  - Ser tolerante con la hoja que vuelve: encabezados con o sin tildes,
@@ -34,17 +34,20 @@
 
 import {
   COLUMNA_TOTAL,
-  PREFIJO_CATEGORIA,
+  PREFIJO_SUBGRUPO,
   ambitoDe,
-  categoriasDelCatalogo,
-  columnaCategoria,
   columnaDeObjetivo,
+  columnaSubgrupo,
   cuentaParaObjetivos,
+  etiquetaSubgrupo,
   normalizarCantidadObjetivo,
+  subgrupoDeColumna,
+  subgruposDelCatalogo,
   sujetoDeObjetivo,
   type AmbitoObjetivo,
   type ArticuloObjetivo,
   type ObjetivoFila,
+  type SubgrupoProductos,
 } from "./objetivos";
 
 /** Encabezados fijos de la hoja. */
@@ -64,16 +67,11 @@ export const PLANTILLA_MAX_CAMBIOS = 5000;
 /** Artículo del catálogo, con lo que la plantilla necesita saber de él. */
 export interface ArticuloPlantilla extends ArticuloObjetivo {
   nombre: string;
-  /**
-   * Segundo nivel del catálogo. Solo se usa para distinguir dos artículos que
-   * se llaman igual; los objetivos se siguen fijando sobre la categoría.
-   */
-  subcategoria?: string | null;
 }
 
 /** Una columna de objetivos de la hoja. */
 export interface ColumnaPlantilla {
-  /** Columna de la matriz: "" (totales), "cat:<grupo>" o el id del artículo. */
+  /** Columna de la matriz: "" (totales), "sub:<grupo>" o el id del artículo. */
   id: string;
   titulo: string;
 }
@@ -90,6 +88,8 @@ export interface CambioObjetivo {
   ambito: AmbitoObjetivo;
   sujetoId: string;
   articuloId: string | null;
+  /** Grupo de productos del objetivo (subcategoría) y su categoría. */
+  subcategoria: string | null;
   categoria: string | null;
   cantidad: number;
   /** Solo para poder explicarlo en el resumen. */
@@ -146,8 +146,8 @@ const AMBITO_GRUPO = ["grupo", "grupo de objetivos", "equipo"];
 
 /**
  * Columnas de objetivos de la plantilla: unidades totales, un grupo por
- * categoría del catálogo y un producto por artículo. Es el mismo orden que las
- * columnas de la parrilla de la pantalla, para que la hoja se lea igual.
+ * subcategoría del catálogo y un producto por artículo. Es el mismo orden que
+ * las columnas de la parrilla de la pantalla, para que la hoja se lea igual.
  *
  * Los artículos que el cliente ha marcado como que no cuentan para objetivos no
  * tienen columna: no se les puede fijar objetivo (lo rechaza el endpoint) y
@@ -158,9 +158,9 @@ export function columnasPlantilla(articulos: ArticuloPlantilla[]): ColumnaPlanti
   const titulos = titulosDeArticulos(paraObjetivos);
   return [
     { id: COLUMNA_TOTAL, titulo: TITULO_TOTAL },
-    ...categoriasDelCatalogo(paraObjetivos).map((c) => ({
-      id: columnaCategoria(c),
-      titulo: `${PREFIJO_GRUPO_HOJA}${c}`,
+    ...subgruposDelCatalogo(paraObjetivos).map((g) => ({
+      id: columnaSubgrupo(g),
+      titulo: `${PREFIJO_GRUPO_HOJA}${etiquetaSubgrupo(g)}`,
     })),
     ...paraObjetivos.map((a) => ({ id: a.id, titulo: titulos.get(a.id) ?? a.nombre })),
   ];
@@ -304,7 +304,17 @@ export function interpretarPlantillaObjetivos(
   }
 
   const paraObjetivos = ctx.articulos.filter((a) => cuentaParaObjetivos(a));
-  const categorias = new Map(categoriasDelCatalogo(paraObjetivos).map((c) => [normalizar(c), c]));
+  // Los grupos se casan por su título de hoy ("Telefonía → Pospago") y, si no
+  // hay dos subcategorías que se llamen igual, también por el nombre pelado
+  // ("Pospago"), que es lo que teclea quien rehace la hoja a mano. Mismo
+  // criterio que con los artículos homónimos.
+  const gruposProductos = subgruposDelCatalogo(paraObjetivos);
+  const gruposPorEtiqueta = new Map(gruposProductos.map((g) => [normalizar(etiquetaSubgrupo(g)), g]));
+  const gruposPorNombre = new Map<string, SubgrupoProductos | null>();
+  for (const g of gruposProductos) {
+    const clave = normalizar(g.subcategoria);
+    gruposPorNombre.set(clave, gruposPorNombre.has(clave) ? null : g);
+  }
   // Las columnas se casan por su título de hoy —el nombre, y detrás dónde está
   // si hay otro que se llama igual—, y además por el nombre pelado, que es lo
   // que traen las hojas de siempre. Un nombre pelado que en el catálogo ya
@@ -325,7 +335,7 @@ export function interpretarPlantillaObjetivos(
     ctx.articulos.filter((a) => !cuentaParaObjetivos(a)).map((a) => normalizar(a.nombre)),
   );
 
-  // Columna de la hoja → columna de objetivos (id de artículo, "cat:<grupo>" o
+  // Columna de la hoja → columna de objetivos (id de artículo, "sub:<grupo>" o
   // unidades totales).
   const fijas = new Set([cabecera.ambito, cabecera.sujeto, cabecera.id].filter((i) => i >= 0));
   const columnas = new Map<number, ColumnaPlantilla>();
@@ -339,14 +349,20 @@ export function interpretarPlantillaObjetivos(
       columnas.set(i, { id: COLUMNA_TOTAL, titulo });
       return;
     }
-    if (norm.startsWith(normalizar(PREFIJO_GRUPO_HOJA)) || norm.startsWith(PREFIJO_CATEGORIA)) {
-      const grupo = titulo.slice(titulo.indexOf(":") + 1).trim();
-      const real = categorias.get(normalizar(grupo));
+    if (norm.startsWith(normalizar(PREFIJO_GRUPO_HOJA)) || norm.startsWith(PREFIJO_SUBGRUPO)) {
+      const escrito = normalizar(titulo.slice(titulo.indexOf(":") + 1));
+      const real = gruposPorEtiqueta.get(escrito) ?? gruposPorNombre.get(escrito);
       if (!real) {
-        columnasIgnoradas.push({ columna: titulo, motivo: "Ese grupo no está en el catálogo." });
+        columnasIgnoradas.push({
+          columna: titulo,
+          motivo:
+            real === null
+              ? "Hay dos subcategorías con ese nombre: pon delante su categoría (Telefonía → Pospago)."
+              : "Ese grupo no está en el catálogo.",
+        });
         return;
       }
-      columnas.set(i, { id: columnaCategoria(real), titulo });
+      columnas.set(i, { id: columnaSubgrupo(real), titulo });
       return;
     }
     const articulo = porNombre.get(norm);
@@ -467,12 +483,13 @@ export function interpretarPlantillaObjetivos(
       }
 
       vistos.add(clave);
-      const esGrupo = columna.id.startsWith(PREFIJO_CATEGORIA);
+      const grupo = subgrupoDeColumna(columna.id);
       cambios.push({
         ambito,
         sujetoId,
-        articuloId: columna.id === COLUMNA_TOTAL || esGrupo ? null : columna.id,
-        categoria: esGrupo ? columna.id.slice(PREFIJO_CATEGORIA.length) : null,
+        articuloId: columna.id === COLUMNA_TOTAL || grupo ? null : columna.id,
+        subcategoria: grupo?.subcategoria ?? null,
+        categoria: grupo?.categoria ?? null,
         cantidad: cantidad.cantidad,
         sujeto,
         columna: columna.titulo,

@@ -23,7 +23,7 @@
  * sus objetivos— (ticket b4afccf5).
  *
  * `cuentaParaObjetivos` decide si sus unidades empujan los objetivos de
- * unidades totales y los del grupo (su categoría). Apagarlo no lo quita del
+ * unidades totales y los del grupo (su subcategoría). Apagarlo no lo quita del
  * cierre: se sigue vendiendo y registrando igual (ticket 714c76dd).
  *
  * El precio es opcional y solo se usa si el cliente enciende los precios
@@ -31,9 +31,10 @@
  * pantalla sepa si tiene sentido mostrar la columna.
  *
  * Con `?todos=1` el GET devuelve además `objetivosDelMes`: sobre qué productos
- * y sobre qué grupos hay objetivos puestos este mes. Con eso la pantalla del
- * catálogo pinta, en cada artículo, cómo se le evalúa —por sí solo o dentro de
- * su grupo— sin tener que ir a la parrilla de objetivos (ticket cd804fa2).
+ * y sobre qué grupos —subcategorías— hay objetivos puestos este mes. Con eso la
+ * pantalla del catálogo pinta, en cada artículo, cómo se le evalúa —por sí solo
+ * o dentro de su subcategoría— sin tener que ir a la parrilla de objetivos
+ * (tickets cd804fa2 y 234c6b0f).
  */
 
 import { auth } from "@/lib/auth";
@@ -50,6 +51,7 @@ import {
   normalizarNombreArticulo,
   parsearPrecio,
 } from "@/lib/cierre-turno/catalogo";
+import { columnaSubgrupo, subgrupoDeObjetivo } from "@/lib/cierre-turno/objetivos";
 
 /** Campos que devuelven todos los handlers de esta ruta. */
 const CAMPOS_ARTICULO = {
@@ -124,7 +126,7 @@ export const GET = withTenant(
             // Un objetivo de 0 unidades es uno borrado a medias: no persigue
             // nada y no debería teñir el producto.
             where: { mes: mesObjetivos, cantidad: { gt: 0 } },
-            select: { articuloId: true, categoria: true },
+            select: { articuloId: true, categoria: true, subcategoria: true },
           })
         : Promise.resolve([]),
     ]);
@@ -148,8 +150,16 @@ export const GET = withTenant(
                   objetivos.map((o) => o.articuloId).filter((id): id is string => Boolean(id)),
                 ),
               ],
-              categorias: [
-                ...new Set(objetivos.map((o) => o.categoria).filter((c): c is string => Boolean(c))),
+              // Los grupos viajan ya como columna (`columnaSubgrupo`): es lo
+              // que identifica a uno sin ambigüedad cuando dos categorías
+              // tienen una subcategoría con el mismo nombre.
+              subgrupos: [
+                ...new Set(
+                  objetivos
+                    .map((o) => subgrupoDeObjetivo(o))
+                    .filter((g) => g !== null)
+                    .map((g) => columnaSubgrupo(g)),
+                ),
               ],
             },
           }

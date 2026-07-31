@@ -26,6 +26,7 @@ const objetivosExistentes: {
   tiendaId: string | null;
   articuloId: string | null;
   categoria: string | null;
+  subcategoria: string | null;
   cantidad: number;
 }[] = [];
 
@@ -38,7 +39,13 @@ const prismaMock = {
   },
   articuloVenta: {
     findMany: vi.fn(async () => [
-      { id: "art_fibra", nombre: "Alta de fibra", categoria: "Telefonía", cuentaParaObjetivos: true },
+      {
+        id: "art_fibra",
+        nombre: "Alta de fibra",
+        categoria: "Telefonía",
+        subcategoria: "Hogar",
+        cuentaParaObjetivos: true,
+      },
     ]),
   },
   tienda: { findMany: vi.fn(async () => [{ id: "t1", nombre: "Centro" }]) },
@@ -136,9 +143,9 @@ describe("POST /api/objetivos-venta/importar", () => {
     expect(data.creados).toBe(3);
     expect(prismaMock.objetivoVenta.createMany).toHaveBeenCalledWith({
       data: [
-        { mes: "2026-07", userId: "u_ana", tiendaId: null, grupoId: null, articuloId: null, categoria: null, cantidad: 40 },
-        { mes: "2026-07", userId: "u_ana", tiendaId: null, grupoId: null, articuloId: "art_fibra", categoria: null, cantidad: 12 },
-        { mes: "2026-07", userId: null, tiendaId: "t1", grupoId: null, articuloId: null, categoria: null, cantidad: 90 },
+        { mes: "2026-07", userId: "u_ana", tiendaId: null, grupoId: null, articuloId: null, categoria: null, subcategoria: null, cantidad: 40 },
+        { mes: "2026-07", userId: "u_ana", tiendaId: null, grupoId: null, articuloId: "art_fibra", categoria: null, subcategoria: null, cantidad: 12 },
+        { mes: "2026-07", userId: null, tiendaId: "t1", grupoId: null, articuloId: null, categoria: null, subcategoria: null, cantidad: 90 },
       ],
     });
   });
@@ -161,6 +168,7 @@ describe("POST /api/objetivos-venta/importar", () => {
           grupoId: "g_tmt",
           articuloId: null,
           categoria: null,
+          subcategoria: null,
           cantidad: 200,
         },
       ],
@@ -169,8 +177,8 @@ describe("POST /api/objetivos-venta/importar", () => {
 
   it("una casilla vacía no borra el objetivo que hubiera; el 0 sí lo quita", async () => {
     objetivosExistentes.push(
-      { id: "obj_total", userId: "u_ana", tiendaId: null, articuloId: null, categoria: null, cantidad: 40 },
-      { id: "obj_fibra", userId: "u_ana", tiendaId: null, articuloId: "art_fibra", categoria: null, cantidad: 12 },
+      { id: "obj_total", userId: "u_ana", tiendaId: null, articuloId: null, categoria: null, subcategoria: null, cantidad: 40 },
+      { id: "obj_fibra", userId: "u_ana", tiendaId: null, articuloId: "art_fibra", categoria: null, subcategoria: null, cantidad: 12 },
     );
     const res = await importar(csv([CABECERA, ["Comercial", "Ana García", "u_ana", "", "0"]]));
     expect(res.status).toBe(200);
@@ -190,6 +198,7 @@ describe("POST /api/objetivos-venta/importar", () => {
       tiendaId: null,
       articuloId: null,
       categoria: null,
+      subcategoria: null,
       cantidad: 40,
     });
     const res = await importar(csv([CABECERA, ["Comercial", "Ana García", "u_ana", "40", "18"]]));

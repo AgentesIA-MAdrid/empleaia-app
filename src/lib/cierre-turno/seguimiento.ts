@@ -26,13 +26,15 @@
 
 import {
   ambitoDe,
-  columnaCategoria,
+  columnaSubgrupo,
+  etiquetaSubgrupo,
   objetivoTotalDe,
-  PREFIJO_CATEGORIA,
+  subgrupoDeColumna,
   vendidoPara,
   type AmbitoObjetivo,
   type ArticuloObjetivo,
   type ObjetivoFila,
+  type SubgrupoProductos,
   type VentaAgregada,
   type VentaDia,
 } from "@/lib/cierre-turno/objetivos";
@@ -41,10 +43,11 @@ import {
 export type TipoConcepto = "total" | "grupo" | "articulo";
 
 export interface Concepto {
-  /** Id de la columna: "" (unidades totales), "cat:<grupo>" o el id del artículo. */
+  /** Id de la columna: "" (unidades totales), "sub:<grupo>" o el id del artículo. */
   id: string;
   tipo: TipoConcepto;
-  categoria: string | null;
+  /** El grupo de productos que se sigue (subcategoría), solo si `tipo === "grupo"`. */
+  grupo: SubgrupoProductos | null;
   articuloId: string | null;
   /** Cómo se llama en pantalla y en el nombre del fichero exportado. */
   etiqueta: string;
@@ -53,7 +56,7 @@ export interface Concepto {
 export const CONCEPTO_TOTAL: Concepto = {
   id: "",
   tipo: "total",
-  categoria: null,
+  grupo: null,
   articuloId: null,
   etiqueta: "Unidades totales",
 };
@@ -67,18 +70,27 @@ export const CONCEPTO_TOTAL: Concepto = {
 export function normalizarConcepto(
   valor: unknown,
   catalogo: { id: string; nombre: string; categoria: string | null }[],
-  categorias: string[],
+  subgrupos: SubgrupoProductos[],
 ): Concepto {
   const id = typeof valor === "string" ? valor.trim() : "";
   if (!id) return CONCEPTO_TOTAL;
-  if (id.startsWith(PREFIJO_CATEGORIA)) {
-    const categoria = id.slice(PREFIJO_CATEGORIA.length);
-    if (!categorias.includes(categoria)) return CONCEPTO_TOTAL;
-    return { id: columnaCategoria(categoria), tipo: "grupo", categoria, articuloId: null, etiqueta: categoria };
+  const grupo = subgrupoDeColumna(id);
+  if (grupo) {
+    const vivo = subgrupos.find(
+      (g) => g.subcategoria === grupo.subcategoria && g.categoria === grupo.categoria,
+    );
+    if (!vivo) return CONCEPTO_TOTAL;
+    return {
+      id: columnaSubgrupo(vivo),
+      tipo: "grupo",
+      grupo: vivo,
+      articuloId: null,
+      etiqueta: etiquetaSubgrupo(vivo),
+    };
   }
   const articulo = catalogo.find((a) => a.id === id);
   if (!articulo) return CONCEPTO_TOTAL;
-  return { id, tipo: "articulo", categoria: null, articuloId: id, etiqueta: articulo.nombre };
+  return { id, tipo: "articulo", grupo: null, articuloId: id, etiqueta: articulo.nombre };
 }
 
 /** Días que tiene un mes "YYYY-MM". */
@@ -161,7 +173,9 @@ export function objetivoDelConcepto(
   }
   const suyo = objetivosDelSujeto.find((o) =>
     concepto.tipo === "grupo"
-      ? !o.articuloId && (o.categoria ?? null) === concepto.categoria
+      ? !o.articuloId &&
+        (o.subcategoria ?? null) === (concepto.grupo?.subcategoria ?? null) &&
+        (o.categoria ?? null) === (concepto.grupo?.categoria ?? null)
       : o.articuloId === concepto.articuloId,
   );
   return suyo ? suyo.cantidad : null;
@@ -180,7 +194,8 @@ export function vendidoDelConcepto(
       userId: sujeto.ambito === "comercial" ? sujeto.id : null,
       tiendaId: sujeto.ambito === "sede" ? sujeto.id : null,
       articuloId: concepto.articuloId,
-      categoria: concepto.categoria,
+      categoria: concepto.grupo?.categoria ?? null,
+      subcategoria: concepto.grupo?.subcategoria ?? null,
       cantidad: 0,
     },
     ventas,
@@ -374,7 +389,8 @@ export function serieDiaria(args: {
         userId: null,
         tiendaId: null,
         articuloId: concepto.articuloId,
-        categoria: concepto.categoria,
+        categoria: concepto.grupo?.categoria ?? null,
+        subcategoria: concepto.grupo?.subcategoria ?? null,
         cantidad: 0,
       },
       porDia.get(fecha) ?? [],

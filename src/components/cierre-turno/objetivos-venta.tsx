@@ -26,11 +26,14 @@
  * total cuadre con lo que ha escrito, no un total aparte que se queda a cero.
  * Escribir un número ahí manda sobre la suma.
  *
- * Detrás van las columnas de grupo —una por categoría del catálogo— y luego las
- * de cada producto. Un objetivo de grupo se cumple con lo vendido de cualquier
- * producto de esa categoría que cuente para objetivos; los que administración
- * ha marcado como que no cuentan (Configuración → Catálogo de ventas) no tienen
- * columna y sus unidades no suman en ningún objetivo (ticket 714c76dd).
+ * Detrás van las columnas de grupo —una por subcategoría del catálogo— y luego
+ * las de cada producto: son las dos formas de fijar un objetivo, por grupo o
+ * por producto individual (ticket 234c6b0f). Un objetivo de grupo se cumple
+ * sumando lo vendido de los productos de esa subcategoría que cuentan para
+ * objetivos; los que administración ha marcado como que no cuentan
+ * (Configuración → Catálogo de ventas) no tienen columna y sus unidades no
+ * suman en ningún objetivo (ticket 714c76dd). La categoría organiza el catálogo
+ * y sale en los informes, pero ya no es un nivel con objetivo propio.
  *
  * Cada casilla se guarda al salir del campo. Poner 0 quita el objetivo: es lo
  * que la gente hace de forma natural para "quitar esto", y pedirle un botón de
@@ -61,22 +64,32 @@ type Ambito = "comercial" | "sede" | "grupo";
 /** Columna de unidades totales: el objetivo sin producto (ver `objetivos.ts`). */
 const COLUMNA_TOTAL = "";
 
-/** Prefijo de las columnas de grupo, el mismo que usa `objetivos.ts`. */
-const PREFIJO_GRUPO = "cat:";
-
 interface Articulo {
   id: string;
   nombre: string;
   categoria: string | null;
+  subcategoria: string | null;
   precio: number | null;
+}
+
+/**
+ * Un grupo de productos con objetivo: una subcategoría del catálogo. `id` es la
+ * columna de la parrilla, tal y como la arma el servidor.
+ */
+interface Subgrupo {
+  id: string;
+  categoria: string | null;
+  subcategoria: string;
+  etiqueta: string;
 }
 
 interface Columna {
   id: string;
   nombre: string;
-  categoria: string | null;
-  /** Columna de un grupo de productos (una categoría del catálogo). */
-  grupo?: boolean;
+  /** Segunda línea de la cabecera: dónde está ese producto o ese grupo. */
+  detalle: string | null;
+  /** Columna de un grupo de productos (una subcategoría del catálogo). */
+  grupo?: Subgrupo;
 }
 
 interface Celda {
@@ -108,7 +121,7 @@ interface ObjetivoDelMes {
   ambito: Ambito;
   sujeto: string;
   articulo: string | null;
-  /** Grupo de productos, cuando el objetivo es de una categoría entera. */
+  /** Grupo de productos, cuando el objetivo es de una subcategoría entera. */
   grupo: string | null;
   objetivo: number;
   vendido: number;
@@ -144,8 +157,8 @@ interface Respuesta {
   soloLectura: boolean;
   preciosActivos: boolean;
   articulos: Articulo[];
-  /** Grupos del catálogo (categorías con algún producto que cuenta). */
-  categorias: string[];
+  /** Grupos del catálogo (subcategorías con algún producto que cuenta). */
+  subgrupos: Subgrupo[];
   /** Productos que el cliente ha dejado fuera de los objetivos, por su nombre. */
   excluidos: string[];
   filasComerciales: FilaMatriz[];
@@ -316,7 +329,7 @@ function TablaObjetivos({
   mostrarSede: boolean;
   mes: string;
   guardando: string | null;
-  onGuardar: (fila: FilaMatriz, columnaId: string, valor: string) => void;
+  onGuardar: (fila: FilaMatriz, columna: Columna, valor: string) => void;
 }) {
   return (
     <Card>
@@ -345,8 +358,8 @@ function TablaObjetivos({
                       }`}
                     >
                       {c.nombre}
-                      {c.categoria && (
-                        <span className="block font-normal normal-case text-slate-400">{c.categoria}</span>
+                      {c.detalle && (
+                        <span className="block font-normal normal-case text-slate-400">{c.detalle}</span>
                       )}
                     </th>
                   ))}
@@ -399,7 +412,7 @@ function TablaObjetivos({
                               aria-label={`Objetivo de ${c.nombre} para ${f.sujeto}`}
                               onBlur={(e) => {
                                 const nuevo = e.target.value.trim();
-                                if (nuevo !== fijado) onGuardar(f, c.id, nuevo);
+                                if (nuevo !== fijado) onGuardar(f, c, nuevo);
                               }}
                             />
                           )}
@@ -481,19 +494,16 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
   }, [cargar]);
 
   /** Guarda (o borra, con 0) el objetivo de una casilla. */
-  const guardar = async (ambito: Ambito, fila: FilaMatriz, columnaId: string, valor: string) => {
+  const guardar = async (ambito: Ambito, fila: FilaMatriz, columna: Columna, valor: string) => {
     const limpio = valor.trim();
     const cantidad = limpio === "" ? 0 : Number.parseInt(limpio, 10);
     if (!Number.isInteger(cantidad) || cantidad < 0) {
       toast({ title: "Objetivo no válido", description: "Escribe un número entero de unidades.", variant: "destructive" });
       return;
     }
-    setGuardando(`${fila.sujetoId}|${columnaId}`);
+    setGuardando(`${fila.sujetoId}|${columna.id}`);
     // La columna dice de qué es el objetivo: unidades totales, un grupo de
-    // productos o un producto suelto.
-    const categoria = columnaId.startsWith(PREFIJO_GRUPO)
-      ? columnaId.slice(PREFIJO_GRUPO.length)
-      : null;
+    // productos (una subcategoría, con su categoría) o un producto suelto.
     try {
       const res = await fetch("/api/objetivos-venta", {
         method: "PUT",
@@ -502,8 +512,9 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
           mes,
           ambito,
           sujetoId: fila.sujetoId,
-          articuloId: categoria || columnaId === COLUMNA_TOTAL ? null : columnaId,
-          categoria,
+          articuloId: columna.grupo || columna.id === COLUMNA_TOTAL ? null : columna.id,
+          subcategoria: columna.grupo?.subcategoria ?? null,
+          categoria: columna.grupo?.categoria ?? null,
           cantidad,
         }),
       });
@@ -627,14 +638,22 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
   // los objetivos, y al final el catálogo en su orden de configuración.
   const columnas = useMemo<Columna[]>(
     () => [
-      { id: COLUMNA_TOTAL, nombre: "Unidades totales", categoria: null },
-      ...(datos?.categorias ?? []).map((c) => ({
-        id: `${PREFIJO_GRUPO}${c}`,
-        nombre: c,
-        categoria: "Grupo de productos",
-        grupo: true,
+      { id: COLUMNA_TOTAL, nombre: "Unidades totales", detalle: null },
+      ...(datos?.subgrupos ?? []).map((g) => ({
+        id: g.id,
+        nombre: g.subcategoria,
+        // Debajo, de qué categoría es ese grupo: dos categorías pueden tener
+        // una subcategoría con el mismo nombre y son dos columnas distintas.
+        detalle: g.categoria ? `Grupo · ${g.categoria}` : "Grupo de productos",
+        grupo: g,
       })),
-      ...(datos?.articulos ?? []).map((a) => ({ id: a.id, nombre: a.nombre, categoria: a.categoria })),
+      ...(datos?.articulos ?? []).map((a) => ({
+        id: a.id,
+        nombre: a.nombre,
+        // Dónde está el producto, que es lo que distingue dos que se llaman
+        // igual en bloques distintos.
+        detalle: [a.categoria, a.subcategoria].filter(Boolean).join(" → ") || null,
+      })),
     ],
     [datos],
   );
@@ -712,11 +731,15 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
             encima y manda el tuyo; bórralo y vuelve a mandar la suma.
           </p>
           <p className="text-xs text-slate-400 mt-2 max-w-3xl">
-            Las columnas grises son{" "}
-            <strong className="font-medium text-slate-500">grupos de productos</strong>: cada una es
-            una categoría del catálogo y su objetivo se cumple con lo vendido de cualquier producto
-            de ese grupo. Si un producto ya tiene objetivo propio dentro de un grupo con objetivo,
-            no se suma dos veces en las unidades totales: manda el del grupo.
+            Cada objetivo puede ir de dos formas: sobre un{" "}
+            <strong className="font-medium text-slate-500">producto suelto</strong> o sobre un{" "}
+            <strong className="font-medium text-slate-500">grupo de productos</strong> (las columnas
+            grises, una por subcategoría del catálogo). Tu equipo sigue registrando cada producto por
+            separado; para el objetivo de grupo se suman las unidades de todos los productos de esa
+            subcategoría. Debajo del nombre de la columna verás de qué categoría es. Las categorías
+            no llevan objetivo propio: organizan el catálogo y salen en los informes. Si un producto
+            ya tiene objetivo propio dentro de un grupo con objetivo, no se suma dos veces en las
+            unidades totales: manda el del grupo.
           </p>
           {/* Lo que el cliente ha dejado fuera a propósito. Sin decirlo, un
               producto sin columna parece un fallo del catálogo. */}
@@ -744,7 +767,8 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
                 <a href="/admin/configuracion?tab=catalogo" className="underline font-medium">
                   Configuración → Catálogo de ventas
                 </a>{" "}
-                (pospago, fibra, renove…) y aparecerá una columna por producto y por grupo.
+                (pospago, fibra, renove…) y aparecerá una columna por producto y otra por cada
+                subcategoría.
               </p>
             )}
         </CardContent>
@@ -875,7 +899,7 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
             mostrarSede
             mes={mes}
             guardando={guardando}
-            onGuardar={(fila, columnaId, valor) => void guardar("comercial", fila, columnaId, valor)}
+            onGuardar={(fila, columna, valor) => void guardar("comercial", fila, columna, valor)}
           />
 
           <TablaObjetivos
@@ -891,7 +915,7 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
             mostrarSede={false}
             mes={mes}
             guardando={guardando}
-            onGuardar={(fila, columnaId, valor) => void guardar("sede", fila, columnaId, valor)}
+            onGuardar={(fila, columna, valor) => void guardar("sede", fila, columna, valor)}
           />
 
           {/* Los grupos del cliente (TMT, televenta…). Sin ninguno dado de alta
@@ -913,7 +937,7 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
             mostrarSede
             mes={mes}
             guardando={guardando}
-            onGuardar={(fila, columnaId, valor) => void guardar("grupo", fila, columnaId, valor)}
+            onGuardar={(fila, columna, valor) => void guardar("grupo", fila, columna, valor)}
           />
         </>
       )}

@@ -11,8 +11,9 @@
  * existe.
  *
  * Los productos que administración ha dejado fuera de los objetivos no suman en
- * el progreso, y si le han puesto objetivos por grupo de productos vienen en
- * `porGrupo` (ticket 714c76dd).
+ * el progreso, y si le han puesto objetivos por grupo de productos —cada grupo
+ * es una subcategoría del catálogo— vienen en `porGrupo` (tickets 714c76dd y
+ * 234c6b0f).
  */
 
 import { auth } from "@/lib/auth";
@@ -24,10 +25,12 @@ import { withFeature } from "@/lib/feature-guard/with-feature";
 import { diaMadrid } from "@/lib/cierre-turno/core";
 import {
   anotarVentas,
-  categoriasDelCatalogo,
   cuentaParaObjetivos,
+  esDelSubgrupo,
+  etiquetaSubgrupo,
   normalizarMes,
   progresoDe,
+  subgruposDelCatalogo,
   vendidoDeSujeto,
 } from "@/lib/cierre-turno/objetivos";
 import {
@@ -64,6 +67,7 @@ export const GET = withTenant(
           tiendaId: true,
           articuloId: true,
           categoria: true,
+          subcategoria: true,
           cantidad: true,
         },
       }),
@@ -74,7 +78,14 @@ export const GET = withTenant(
       ventasAgregadas(prisma, tiendaId ? { mes, tiendaId } : { mes, userId }),
       prisma.articuloVenta.findMany({
         where: { activo: true },
-        select: { id: true, nombre: true, categoria: true, precio: true, cuentaParaObjetivos: true },
+        select: {
+          id: true,
+          nombre: true,
+          categoria: true,
+          subcategoria: true,
+          precio: true,
+          cuentaParaObjetivos: true,
+        },
         orderBy: [{ orden: "asc" }, { nombre: "asc" }],
       }),
       leerPreciosActivos(prisma),
@@ -94,7 +105,7 @@ export const GET = withTenant(
     // el total cuando administración no ha fijado uno de unidades totales.
     const paraObjetivos = articulos.filter((a) => cuentaParaObjetivos(a));
     const articuloIds = paraObjetivos.map((a) => a.id);
-    const categorias = categoriasDelCatalogo(paraObjetivos);
+    const subgrupos = subgruposDelCatalogo(paraObjetivos);
 
     const propio = progresoDe(
       objetivos,
@@ -135,13 +146,14 @@ export const GET = withTenant(
 
     // Desglose por grupo: si administración le ha puesto objetivos de grupo, es
     // ahí donde los ve (en la tabla de artículos no aparecen).
-    const porGrupo = categorias
-      .map((c) => {
-        const vendido = vendidoDeSujeto(ventasPropias, { ambito: "comercial", id: userId }, null, c);
+    const porGrupo = subgrupos
+      .map((g) => {
+        const vendido = vendidoDeSujeto(ventasPropias, { ambito: "comercial", id: userId }, null, g);
         const objetivo =
-          objetivos.find((o) => o.userId === userId && o.categoria === c)?.cantidad ?? null;
+          objetivos.find((o) => o.userId === userId && o.subcategoria && esDelSubgrupo(o, g))
+            ?.cantidad ?? null;
         return {
-          grupo: c,
+          grupo: etiquetaSubgrupo(g),
           vendido,
           objetivo,
           consecucion:
