@@ -1,4 +1,4 @@
-# Handoff — estado del proyecto a 2026-07-30
+# Handoff — estado del proyecto a 2026-07-31
 
 Documento para retomar el trabajo desde otra cuenta de Claude (o
 máquina). Resume lo que hay en marcha, decisiones recientes y
@@ -72,6 +72,64 @@ Producción ya corre desde esta rama vía Dokploy.
 - Ver `AGENTS.md` — incluye reglas críticas (handlers usan
   `withTenant`, pages usan `withTenantPage`, no `fetch` interno entre
   rutas, etc.).
+
+## 4.hoy-ter. Coordinación: sedes en plural (ticket 73, 2026-07-31)
+
+Repaso de los tickets que se le habían atascado a Claudia. Dos cosas que
+conviene no volver a descubrir desde cero:
+
+**El rol de coordinador YA existía**: es `MANAGER` en la BD y la interfaz
+lo llama literalmente "Coordinador", con su panel en `/manager/*`. Antes
+de inventar un rol nuevo, mirar ahí. En `mobileshop` no había ninguno
+dado de alta (3 OWNER + 36 EMPLEADO), y por eso parecía no existir.
+
+Qué cambió (PR #106):
+
+- **Alcance multi-sede**. `filtroSede(rol, sedesPropias, sedePedida)`
+  devuelve `{ tipo: "sedes", tiendaIds }` y `whereSede()` lo traduce a
+  Prisma. Las sedes de una persona las resuelve
+  `src/lib/tiendas/sedes-usuario.ts` (`UsuarioSede` + la principal de la
+  ficha, solo activas). Aplicado a cierres, adjuntos, detalle, arqueos,
+  objetivos de venta e informe de ventas. **Sin sedes asignadas se ve
+  `in: []` (nada), nunca todo** — misma doctrina que el ticket #94.
+- **Su equipo** son las personas de esas sedes por `tiendaId` **o** por
+  `UsuarioSede`, no solo las que la tienen como principal.
+- **Horario separado**: `GET /api/turnos?mios=1` fuerza el filtro al
+  usuario de la sesión, y el cuadrante de equipo excluye al coordinador.
+  Menú: "Mis Turnos" + "Turnos de mi equipo". La vista se comparte con
+  la del comercial en `src/components/turnos/mis-turnos.tsx`.
+- **Nóminas**: `/api/nominas`, `/api/nominas/[id]`, `/api/prenomina` y
+  su export eran `OWNER || MANAGER`. El coordinador veía y descargaba
+  las nóminas de toda la plantilla; ahora solo administración.
+- **Sin checks ni caja en oficina**:
+  `src/lib/cierre-turno/exencion-coordinacion.ts` decide con **su turno
+  del cuadrante**, no con el rol. Turno en la sede `esOficina` → exenta;
+  en un punto de venta → hace los controles; jornada partida entre los
+  dos → manda la tienda; sin turno → exenta. Cableado en el checklist
+  (GET y POST de fichajes) y en el cron `cierres-incompletos`.
+- **Objetivo de zona**: `objetivoDeCoordinacion()` en
+  `src/lib/cierre-turno/objetivos.ts`, calculado sobre las matrices ya
+  construidas (sin consultas nuevas). Se pinta como primera tarjeta de
+  Objetivos de venta solo para coordinación.
+
+En producción (mobileshop) queda hecho: `OFICINA LEGANES` marcada como
+`es_oficina`. **Falta que el cliente ponga el rol "Coordinador" a quien
+corresponda y le asigne sus sedes** — hasta entonces nada cambia.
+
+### Trampa recurrente: desplegado ≠ activo
+
+El ticket 71 ("no puedan fichar fuera del cuadrante") estaba entero en
+producción desde el PR #100 y el cliente lo veía como "no funciona":
+`exigir_fichaje_en_horario` seguía en `false`. Igual que pasó con
+`cierre_turno`. **Al cerrar un ticket que añade un interruptor, decidir
+y decir quién lo enciende.** Activado el 2026-07-31 con margen 15 min.
+
+### Nota de entorno
+
+`npm run db:generate` solo regenera el cliente **master**. Para el del
+producto: `npx prisma generate --schema=prisma/schema-tenant.prisma`
+(lo que hace el Dockerfile). Si `tsc` se queja de campos que sí están en
+`schema-tenant.prisma`, es esto.
 
 ## 4.hoy-bis. Ticket 25c81b6b — fichar solo dentro del horario del cuadrante (2026-07-31)
 
