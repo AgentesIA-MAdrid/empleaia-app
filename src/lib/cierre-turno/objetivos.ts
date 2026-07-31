@@ -395,7 +395,7 @@ function indexarVentas(ventas: VentaAgregada[], ambito: AmbitoObjetivo): Map<str
 }
 
 /** Columna de la matriz en la que cae un objetivo. */
-function columnaDeObjetivo(o: {
+export function columnaDeObjetivo(o: {
   articuloId?: string | null;
   categoria?: string | null;
 }): string {

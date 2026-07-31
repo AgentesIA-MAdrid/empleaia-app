@@ -29,8 +29,17 @@
  * borrar aparte sería trabajo de más.
  */
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Building2, Target, Trash2, TrendingUp, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  Building2,
+  Download,
+  FileSpreadsheet,
+  Target,
+  Trash2,
+  TrendingUp,
+  Upload,
+  Users,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -95,6 +104,18 @@ interface ObjetivoDelMes {
   vendido: number;
   consecucion: number | null;
   importe: number | null;
+}
+
+/** Lo que devuelve el importador de la plantilla de objetivos. */
+interface ResumenImportacion {
+  mes: string;
+  creados: number;
+  actualizados: number;
+  borrados: number;
+  sinCambios: number;
+  ignoradas: { fila: number; motivo: string }[];
+  totalIgnoradas: number;
+  columnasIgnoradas: { columna: string; motivo: string }[];
 }
 
 /** Objetivo de zona de una coordinadora (ticket 73). */
@@ -422,6 +443,10 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState<string | null>(null);
+  const [descargando, setDescargando] = useState(false);
+  const [importando, setImportando] = useState(false);
+  const [resumenImport, setResumenImport] = useState<ResumenImportacion | null>(null);
+  const inputFichero = useRef<HTMLInputElement>(null);
 
   /**
    * `silencioso` refresca sin enseñar el esqueleto de carga: al guardar una
@@ -496,6 +521,89 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
     }
   };
 
+  /**
+   * Descarga la plantilla del mes elegido: la misma parrilla en Excel, ya
+   * rellena con lo que hay fijado. Es también la forma de exportar los
+   * objetivos para trabajarlos fuera.
+   */
+  const descargarPlantilla = async () => {
+    setDescargando(true);
+    try {
+      const res = await fetch(`/api/objetivos-venta/plantilla?${new URLSearchParams({ mes })}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast({
+          title: "No se ha podido generar la plantilla",
+          description: (data as { error?: string }).error ?? "Inténtalo de nuevo.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `objetivos_venta_${mes}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "Sin conexión", description: "No se ha descargado la plantilla.", variant: "destructive" });
+    } finally {
+      setDescargando(false);
+    }
+  };
+
+  /**
+   * Sube la plantilla rellena. Se manda el mes que hay en pantalla: el servidor
+   * comprueba que coincide con el que trae la hoja para no volcar los objetivos
+   * de un mes encima de los de otro.
+   */
+  const importarPlantilla = async (fichero: File) => {
+    setImportando(true);
+    setResumenImport(null);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result));
+        fr.onerror = () => reject(new Error("No se ha podido leer el archivo"));
+        fr.readAsDataURL(fichero);
+      });
+
+      const res = await fetch("/api/objetivos-venta/importar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mes, nombreFichero: fichero.name, contenidoBase64: base64 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({
+          title: "No se ha podido importar",
+          description: (data as { error?: string }).error ?? "Revisa el archivo e inténtalo de nuevo.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const resumen = data as ResumenImportacion;
+      setResumenImport(resumen);
+      toast({
+        title: "Objetivos importados",
+        description: `${resumen.creados} nuevos, ${resumen.actualizados} actualizados${
+          resumen.borrados ? `, ${resumen.borrados} quitados` : ""
+        }.`,
+      });
+      await cargar(true);
+    } catch (err) {
+      toast({
+        title: "Error al subir",
+        description: err instanceof Error ? err.message : "Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setImportando(false);
+      if (inputFichero.current) inputFichero.current.value = "";
+    }
+  };
+
   const quitar = async (id: string) => {
     const res = await fetch(`/api/objetivos-venta?id=${encodeURIComponent(id)}`, { method: "DELETE" });
     if (!res.ok) {
@@ -553,7 +661,45 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
                 onChange={(e) => setMes(e.target.value || mesActual())}
               />
             </div>
+
+            {/* Excel: la parrilla entera de un mes se rellena mucho más rápido
+                fuera, y la hoja baja ya con lo que hay fijado. */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button variant="outline" disabled={descargando} onClick={() => void descargarPlantilla()}>
+                <Download className="h-4 w-4 mr-2" />
+                {descargando ? "Preparando…" : "Descargar plantilla"}
+              </Button>
+              {!soloLectura && (
+                <>
+                  <input
+                    ref={inputFichero}
+                    type="file"
+                    accept=".xlsx,.xls,.csv,text/csv"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) void importarPlantilla(f);
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    disabled={importando}
+                    onClick={() => inputFichero.current?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {importando ? "Importando…" : "Importar objetivos"}
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
+
+          <p className="text-xs text-slate-400 mt-3 max-w-3xl">
+            <strong className="font-medium text-slate-500">Con Excel:</strong> descarga la plantilla
+            del mes elegido —baja con una fila por comercial y por punto de venta y una columna por
+            grupo y por producto, ya con los objetivos que tengas puestos—, rellénala y vuelve a
+            subirla. Una casilla en blanco se deja como está; para quitar un objetivo, escribe 0.
+          </p>
           <p className="text-xs text-slate-400 mt-3 max-w-3xl">
             Cada casilla es el objetivo de unidades del mes elegido. Debajo de la casilla verás lo
             que se lleva vendido y la consecución. Los objetivos de los comerciales y los de las
@@ -609,6 +755,50 @@ export function ObjetivosVenta({ titulo, descripcion }: { titulo: string; descri
         <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
           {error}
         </div>
+      )}
+
+      {/* Qué ha hecho la última importación. Se queda en pantalla hasta la
+          siguiente: es lo que permite repasar lo que no se ha podido leer. */}
+      {resumenImport && (
+        <Card>
+          <CardContent className="pt-4 pb-4 text-sm space-y-2">
+            <p className="font-medium text-slate-800 flex items-center gap-2">
+              <FileSpreadsheet className="h-4 w-4 text-slate-400" />
+              Resultado de la importación ({resumenImport.mes})
+            </p>
+            <p className="text-slate-600">
+              {resumenImport.creados} nuevos · {resumenImport.actualizados} actualizados ·{" "}
+              {resumenImport.borrados} quitados · {resumenImport.sinCambios} sin cambios
+            </p>
+            {resumenImport.columnasIgnoradas.length > 0 && (
+              <div>
+                <p className="text-amber-700">Columnas que no hemos podido usar:</p>
+                <ul className="mt-1 space-y-0.5 text-slate-500">
+                  {resumenImport.columnasIgnoradas.map((c) => (
+                    <li key={c.columna}>
+                      {c.columna}: {c.motivo}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {resumenImport.totalIgnoradas > 0 && (
+              <div>
+                <p className="text-amber-700">
+                  {resumenImport.totalIgnoradas} casilla
+                  {resumenImport.totalIgnoradas === 1 ? "" : "s"} sin importar:
+                </p>
+                <ul className="mt-1 space-y-0.5 text-slate-500">
+                  {resumenImport.ignoradas.map((ig, i) => (
+                    <li key={`${ig.fila}-${i}`}>
+                      Fila {ig.fila}: {ig.motivo}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Lo primero que ve la coordinadora es su propio objetivo; debajo, el
