@@ -32,6 +32,7 @@ const TIPOS_AVANZADOS: ReadonlySet<InformeTipo> = new Set<InformeTipo>([
   // Los retrasos son análisis agregado, igual que el resumen: sin esto un plan
   // sin `informes_avanzados` los tendría por la puerta de atrás.
   "retrasos",
+  "discrepancias",
 ]);
 
 export const GET = withTenant(async (request: NextRequest) => {
