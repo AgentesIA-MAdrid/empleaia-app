@@ -40,6 +40,7 @@ export const PUT = withTenant(async (request: NextRequest,
       activa,
       managerId,
       esOficina,
+      sinEfectivo,
       exigirFichajeEnSede,
     } = body as {
       nombre?: string;
@@ -55,6 +56,7 @@ export const PUT = withTenant(async (request: NextRequest,
       activa?: boolean;
       managerId?: string | null;
       esOficina?: boolean;
+      sinEfectivo?: boolean;
       exigirFichajeEnSede?: boolean;
     };
 
@@ -103,6 +105,7 @@ export const PUT = withTenant(async (request: NextRequest,
           // Responsable informativo: ausente → no se toca; "" → se borra.
           ...(managerId !== undefined && { managerId: managerId || null }),
           ...(esOficina !== undefined && { esOficina: Boolean(esOficina) }),
+          ...(sinEfectivo !== undefined && { sinEfectivo: Boolean(sinEfectivo) }),
           ...(exigirFichajeEnSede !== undefined && {
             exigirFichajeEnSede: Boolean(exigirFichajeEnSede),
           }),
