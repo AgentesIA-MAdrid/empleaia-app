@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FileSpreadsheet, FileText, BarChart2, CalendarRange, Search, Lock, AlarmClock, ShieldAlert } from "lucide-react";
+import { FileSpreadsheet, FileText, BarChart2, CalendarRange, Search, Lock, AlarmClock, ShieldAlert, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FeatureGateClient } from "@/components/feature-gate-client";
 import { useFeatures } from "@/lib/hooks/use-features";
@@ -63,6 +63,17 @@ interface Discrepancia {
   distancia: number | null;
   /** Fichó a más de la tolerancia de su sede: estaba en otro sitio. */
   lejos: boolean;
+}
+/** Una corrección ya hecha (ticket c1e94a7b). */
+interface CorreccionHecha {
+  id: string;
+  dia: string;
+  tipo: string;
+  antes: string;
+  despues: string;
+  empleado: string;
+  corregidoPor: string;
+  cuando: string;
 }
 interface Stats {
   totalHoras: number; mediaHorasDia: number; totalAusencias: number;
@@ -126,6 +137,8 @@ function AdminInformesContent() {
   } | null>(null);
   const [totalDisc, setTotalDisc] = useState(0);
   const [toleranciaMetros, setToleranciaMetros] = useState(2000);
+  const [historial, setHistorial] = useState<CorreccionHecha[]>([]);
+  const [corrigiendo, setCorrigiendo] = useState<string | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [exportando, setExportando] = useState(false);
@@ -204,6 +217,7 @@ function AdminInformesContent() {
         setResumenDisc(dd.resumen ?? null);
         setTotalDisc(dd.total ?? 0);
         setToleranciaMetros(dd.toleranciaMetros ?? 2000);
+        setHistorial(dd.historial ?? []);
       } else {
         setDiscrepancias([]);
         setResumenDisc(null);
@@ -228,6 +242,44 @@ function AdminInformesContent() {
     horas: parseFloat(e.horasTotales.toFixed(1)),
     extra: parseFloat(e.horasExtra.toFixed(1)),
   }));
+
+  /**
+   * Corrige el cuadrante a partir de una discrepancia (ticket c1e94a7b). El
+   * servidor decide qué hacer según el tipo —cambiar la sede del turno, crearlo
+   * o marcarlo como no realizado—: aquí solo se dice cuál es la incidencia, para
+   * que nadie pueda reescribir el cuadrante mandando un turno a mano.
+   */
+  const corregirCuadrante = async (d: Discrepancia) => {
+    const clave = `${d.userId}|${d.dia}|${d.tipo}`;
+    setCorrigiendo(clave);
+    try {
+      const res = await fetch("/api/informes/discrepancias/corregir", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: d.userId, dia: d.dia, tipo: d.tipo }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; despues?: string };
+      if (!res.ok) {
+        toast({
+          title: "No se pudo corregir",
+          description: data.error ?? "Inténtalo de nuevo.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Cuadrante corregido",
+        description: `${d.empleado}: ${data.despues ?? "hecho"}. El turno queda en amarillo.`,
+      });
+      // Se recarga todo: la incidencia desaparece del cuadro y aparece en el
+      // historial de abajo.
+      await fetchInformes();
+    } catch {
+      toast({ title: "Sin conexión", description: "No se ha corregido.", variant: "destructive" });
+    } finally {
+      setCorrigiendo(null);
+    }
+  };
 
   const handleExport = async (formato: "xlsx" | "pdf") => {
     setExportando(true);
@@ -802,10 +854,24 @@ function AdminInformesContent() {
                                 </span>
                               )}
                             </td>
-                            <td className="px-4 py-3 text-right">
+                            <td className="px-4 py-3 text-right whitespace-nowrap">
                               <Link href={enlaceFichajes(d.userId)}>
-                                <Button variant="ghost" size="sm">Ver fichajes →</Button>
+                                <Button variant="ghost" size="sm">Ver fichajes</Button>
                               </Link>
+                              {/* Corrige el cuadrante tras revisar la incidencia:
+                                  cambia la sede del turno, lo crea o lo marca
+                                  como no trabajado, según el caso. */}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="ml-1"
+                                disabled={corrigiendo === `${d.userId}|${d.dia}|${d.tipo}`}
+                                onClick={() => void corregirCuadrante(d)}
+                              >
+                                {corrigiendo === `${d.userId}|${d.dia}|${d.tipo}`
+                                  ? "Corrigiendo…"
+                                  : "Corregir en el cuadrante"}
+                              </Button>
                             </td>
                           </tr>
                         ))}
@@ -823,6 +889,67 @@ function AdminInformesContent() {
               )}
             </CardContent>
           </Card>
+
+          {/* Historial de correcciones (ticket c1e94a7b). El cuadro de arriba
+              solo enseña lo que sigue sin cuadrar, así que sin esto no quedaría
+              constancia de lo que se tocó ni de quién lo tocó. */}
+          {historial.length > 0 && (
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                  <History className="h-4 w-4 text-slate-500" /> Correcciones del cuadrante
+                </p>
+                <p className="text-xs text-slate-400 mt-1 max-w-3xl">
+                  Lo que se ha corregido en este periodo. Los turnos tocados salen en amarillo en el
+                  cuadrante, y el fichaje guarda en su nota el turno que tenía antes.
+                </p>
+                <div className="overflow-x-auto mt-3 -mx-6">
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-y border-slate-200">
+                      <tr>
+                        {["Día", "Empleado", "Antes", "Después", "Corregido por"].map((h) => (
+                          <th
+                            key={h}
+                            className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-2.5"
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historial.map((h) => (
+                        <tr key={h.id} className="border-b border-slate-100 last:border-0">
+                          <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
+                            {new Date(`${h.dia}T00:00:00`).toLocaleDateString("es-ES", {
+                              day: "2-digit",
+                              month: "short",
+                            })}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium text-slate-800">
+                            {h.empleado}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-slate-500">{h.antes}</td>
+                          <td className="px-4 py-3 text-sm text-slate-700">{h.despues}</td>
+                          <td className="px-4 py-3 text-sm text-slate-500">
+                            {h.corregidoPor}
+                            <span className="block text-xs text-slate-400">
+                              {new Date(h.cuando).toLocaleString("es-ES", {
+                                day: "2-digit",
+                                month: "short",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
         </>
