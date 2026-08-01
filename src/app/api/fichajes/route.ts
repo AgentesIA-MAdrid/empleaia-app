@@ -340,8 +340,9 @@ export const POST = withTenant(async (request: NextRequest) => {
             {
               error:
                 `Tu turno de ${ev.turno.horaInicio} a ${ev.turno.horaFin} ${cuando}, ` +
-                `así que ${queEs} no se puede cuadrar con tu horario. Pídelo desde ` +
-                `Mis Fichajes y administración lo registra a mano.`,
+                `así que ${queEs} no cuadra con el horario de hoy. Pídela desde ` +
+                `Mis Fichajes con la hora real y administración la registra: tu ` +
+                `tiempo de trabajo no se pierde.`,
               code: "fuera_de_horario",
               // Sin ajuste posible: la ventana no ofrece registrar, solo explica.
               ajustable: false,
@@ -355,7 +356,15 @@ export const POST = withTenant(async (request: NextRequest) => {
         if (!ajustarAlTurno) {
           return Response.json(
             {
-              error: `Tu turno de ${ev.turno.horaInicio} a ${ev.turno.horaFin} ${cuando} y tu empresa no permite fichar fuera del horario del cuadrante.`,
+              // Nunca "tu empresa no te deja fichar": el registro de jornada es
+              // un derecho y decirlo así, además de sonar a castigo, da a
+              // entender lo contrario de lo que hace el sistema —que registra la
+              // jornada y anota la hora real del intento— (ticket 9a3f27d0).
+              error:
+                `Tu turno de ${ev.turno.horaInicio} a ${ev.turno.horaFin} ${cuando}. ` +
+                `Puedes registrar ${tipo === "ENTRADA" ? "tu entrada" : "tu salida"} a las ` +
+                `${ev.ajusteHora}, la hora de tu turno; queda anotada también la hora a la ` +
+                `que has fichado.`,
               code: "fuera_de_horario",
               ajustable: true,
               motivo: ev.motivo,

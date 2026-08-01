@@ -817,9 +817,9 @@ export default function EmpleadoPage() {
         <div className="space-y-3">
           <UpsellCTA feature={required} />
           <p className="text-xs text-muted-foreground text-center">
-            Tu plan no permite fichar desde {device === "mobile" ? "móvil" : "tablet"}.
-            Usa un PC/kiosko web del centro de trabajo o solicita upgrade al
-            administrador.
+            Con el plan actual, el fichaje no está habilitado desde{" "}
+            {device === "mobile" ? "el móvil" : "la tablet"}. Ficha desde el PC o el kiosko
+            del centro de trabajo, o pídele a tu administrador que lo active.
           </p>
         </div>
       );
@@ -1170,7 +1170,9 @@ export default function EmpleadoPage() {
             <div className="flex items-start justify-between">
               <h2 className="font-semibold text-lg flex items-center gap-2">
                 <Clock className="h-5 w-5 text-amber-600" />
-                Estás fuera de tu horario
+                {fueraHorario.motivo === "antes"
+                  ? "Tu turno todavía no ha empezado"
+                  : "Tu turno ya ha terminado"}
               </h2>
               <button
                 onClick={() => setFueraHorario(null)}
@@ -1181,27 +1183,38 @@ export default function EmpleadoPage() {
                 <XIcon className="h-5 w-5" />
               </button>
             </div>
+            {/* Nunca "tu empresa no permite fichar": registrar la jornada es un
+                derecho del trabajador, decirlo así suena a castigo y encima da a
+                entender lo contrario de lo que hace el sistema, que registra la
+                jornada igual (ticket 9a3f27d0). Se dice el hecho —el turno es
+                este— y qué puede hacer. */}
             <p className="text-sm text-muted-foreground">
-              Tu turno es de <strong>{fueraHorario.horaInicio}</strong> a{" "}
-              <strong>{fueraHorario.horaFin}</strong> y tu empresa no permite fichar{" "}
-              {fueraHorario.motivo === "antes" ? "antes de que empiece" : "después de que termine"}.
+              Tu turno de hoy es de <strong>{fueraHorario.horaInicio}</strong> a{" "}
+              <strong>{fueraHorario.horaFin}</strong>.
             </p>
             {fueraHorario.ajustable ? (
-              <p className="text-sm text-muted-foreground">
-                Puedes registrar tu {tipoLabel(fueraHorario.tipo).toLowerCase()} a las{" "}
-                <strong>{fueraHorario.ajusteHora}</strong>, la hora de tu turno. Se guarda al
-                momento y queda anotada la hora a la que has fichado de verdad.
-              </p>
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Puedes registrar tu {tipoLabel(fueraHorario.tipo).toLowerCase()} a las{" "}
+                  <strong>{fueraHorario.ajusteHora}</strong>, la hora de tu turno. Se guarda al
+                  momento y queda anotada la hora a la que has fichado de verdad.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Si has {fueraHorario.motivo === "antes" ? "empezado" : "terminado"} a otra
+                  hora, díselo a tu responsable: el tiempo que trabajas se registra siempre.
+                </p>
+              </>
             ) : (
               /* Cruce sin hora con la que cuadrar —entrar después del cierre o
                  salir antes de empezar—: no se inventa un ajuste, se le dice
                  dónde pedirlo (ticket b7d3e5a9). */
               <p className="text-sm text-muted-foreground">
-                Esta vez no se puede cuadrar con tu horario. Pídelo en{" "}
+                Esta vez no cuadra con el horario de hoy. Pídelo en{" "}
                 <a href="/empleado/mis-fichajes" className="underline font-medium">
                   Mis Fichajes
                 </a>{" "}
-                y administración lo registra a mano.
+                con la hora real y administración lo registra: el tiempo que trabajas se
+                registra siempre.
               </p>
             )}
             {fueraHorario.ajustable && (

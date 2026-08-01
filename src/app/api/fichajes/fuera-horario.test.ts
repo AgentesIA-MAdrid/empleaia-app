@@ -267,3 +267,33 @@ describe("POST /api/fichajes — fichaje fuera del horario del cuadrante", () =>
 
 
 });
+
+/**
+ * Cómo se le dice (ticket 9a3f27d0).
+ *
+ * El mensaje decía "tu empresa no permite fichar fuera del horario del
+ * cuadrante". Registrar la jornada es un derecho del trabajador: una frase así,
+ * por escrito y en su pantalla, suena a que se le impide cumplirlo —y encima
+ * dice lo contrario de lo que hace el sistema, que registra la jornada igual y
+ * anota la hora real—. Esto fija que no vuelva.
+ */
+describe("el aviso de fuera de horario no dice que se le impida fichar", () => {
+  const prohibidas = [/no permite fichar/i, /no puedes fichar/i, /tu empresa no/i];
+
+  it("antes del turno: explica qué puede hacer, no lo que su empresa no le deja", async () => {
+    const res = await ficharA("05:40");
+    const body = await res.json();
+    for (const mala of prohibidas) expect(body.error).not.toMatch(mala);
+    // Y ofrece la salida real: registrar a la hora del turno.
+    expect(body.error).toContain("09:00");
+    expect(body.ajustable).toBe(true);
+  });
+
+  it("después del turno: lo mismo por el otro lado", async () => {
+    await conEntradaFichada();
+    const res = await ficharA("16:30", { tipo: "SALIDA" });
+    const body = await res.json();
+    for (const mala of prohibidas) expect(body.error).not.toMatch(mala);
+    expect(body.error).toContain("17:00");
+  });
+});
