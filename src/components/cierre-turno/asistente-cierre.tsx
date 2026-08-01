@@ -13,7 +13,7 @@
  * El asistente NO condiciona el fichaje: se puede fichar la salida sin haber
  * cerrado (RD 8/2019, misma regla que el geofencing y el checklist de fichaje).
  *
- * Los domingos, a quien cierra la tienda le sale un paso más: el **arqueo
+ * El último día que abre la tienda, a quien la cierra le sale un paso más: el **arqueo
  * semanal** (ticket 3b7e05d1). Cuenta el efectivo acumulado, lo mete en un sobre
  * y lo declara; sin eso no puede cerrar el turno. El importe se pide a ciegas —
  * la cifra esperada se le enseña DESPUÉS de guardar—: si la ve antes, la teclea
@@ -652,7 +652,7 @@ export function AsistenteCierre({
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast({ title: "No se pudo cerrar", description: data.error ?? "Inténtalo de nuevo.", variant: "destructive" });
-        // Le falta el arqueo del domingo: se le lleva al paso, en vez de dejarlo
+        // Le falta el arqueo de la semana: se le lleva al paso, en vez de dejarlo
         // con un aviso y sin saber dónde se hace.
         if (data.code === "sin_arqueo") {
           setArqueo((a) => ({ ...a, toca: true }));
@@ -1340,10 +1340,10 @@ export function AsistenteCierre({
       {paso === "incidencias" && (
         <Card>
           <CardContent className="pt-4 pb-4 space-y-4">
-            {/* Es domingo, la tienda sigue sin arquear y a esta persona no le ha
-                salido el paso porque el cuadrante dice que sale otro después. Si
-                el cuadrante está mal, el domingo se quedaría sin arquear sin que
-                nadie se entere: se le avisa para que lo diga. */}
+            {/* Es el día de arqueo de la tienda, sigue sin arquear y a esta
+                persona no le ha salido el paso porque el cuadrante dice que sale
+                otro después. Si el cuadrante está mal, la semana se quedaría sin
+                arquear sin que nadie se entere: se le avisa para que lo diga. */}
             {arqueo.pendienteEnSede && (
               <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 flex items-start gap-2">
                 <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />

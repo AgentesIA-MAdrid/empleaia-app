@@ -41,6 +41,7 @@ export const PUT = withTenant(async (request: NextRequest,
       managerId,
       esOficina,
       sinEfectivo,
+      arqueoDiaSemana,
       exigirFichajeEnSede,
     } = body as {
       nombre?: string;
@@ -57,6 +58,7 @@ export const PUT = withTenant(async (request: NextRequest,
       managerId?: string | null;
       esOficina?: boolean;
       sinEfectivo?: boolean;
+      arqueoDiaSemana?: number;
       exigirFichajeEnSede?: boolean;
     };
 
@@ -106,6 +108,11 @@ export const PUT = withTenant(async (request: NextRequest,
           ...(managerId !== undefined && { managerId: managerId || null }),
           ...(esOficina !== undefined && { esOficina: Boolean(esOficina) }),
           ...(sinEfectivo !== undefined && { sinEfectivo: Boolean(sinEfectivo) }),
+          // Día del arqueo (1 = lunes … 7 = domingo). Un valor fuera de rango se
+          // ignora en vez de dejar la sede sin arquear nunca.
+          ...(typeof arqueoDiaSemana === "number" &&
+            arqueoDiaSemana >= 1 &&
+            arqueoDiaSemana <= 7 && { arqueoDiaSemana }),
           ...(exigirFichajeEnSede !== undefined && {
             exigirFichajeEnSede: Boolean(exigirFichajeEnSede),
           }),

@@ -73,6 +73,7 @@ export const POST = withTenant(
       managerId,
       esOficina = false,
       sinEfectivo = false,
+      arqueoDiaSemana = 7,
       exigirFichajeEnSede = false,
     } = body as {
       nombre: string;
@@ -88,6 +89,7 @@ export const POST = withTenant(
       managerId?: string | null;
       esOficina?: boolean;
       sinEfectivo?: boolean;
+      arqueoDiaSemana?: number;
       exigirFichajeEnSede?: boolean;
     };
 
@@ -153,6 +155,11 @@ export const POST = withTenant(
           managerId: managerId || null,
           esOficina: Boolean(esOficina),
           sinEfectivo: Boolean(sinEfectivo),
+          // Día del arqueo (1 = lunes … 7 = domingo); fuera de rango, domingo.
+          arqueoDiaSemana:
+            typeof arqueoDiaSemana === "number" && arqueoDiaSemana >= 1 && arqueoDiaSemana <= 7
+              ? arqueoDiaSemana
+              : 7,
           exigirFichajeEnSede: Boolean(exigirFichajeEnSede),
         },
       });

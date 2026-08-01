@@ -30,6 +30,7 @@ interface Tienda {
   // cuadrante). Solo una sede puede tenerlo activo.
   esOficina?: boolean;
   sinEfectivo?: boolean;
+  arqueoDiaSemana?: number;
   exigirFichajeEnSede?: boolean;
   // Responsable de la sede (dato informativo). Null si no se ha asignado.
   managerId?: string | null;
@@ -145,7 +146,7 @@ const COLORES = [
 const FORM_INICIAL = {
   nombre: "", direccion: "", ciudad: "", codigoPostal: "", telefono: "",
   email: "", latitud: "", longitud: "", radio: "200", color: "#6366f1",
-  managerId: "", esOficina: false, sinEfectivo: false, exigirFichajeEnSede: false,
+  managerId: "", esOficina: false, sinEfectivo: false, arqueoDiaSemana: 7, exigirFichajeEnSede: false,
 };
 
 export default function TiendasPage() {
@@ -226,6 +227,7 @@ export default function TiendasPage() {
       longitud: t.longitud?.toString() || "", radio: t.radio.toString(),
       color: t.color, managerId: t.managerId || "", esOficina: t.esOficina ?? false,
       sinEfectivo: t.sinEfectivo ?? false,
+      arqueoDiaSemana: t.arqueoDiaSemana ?? 7,
       exigirFichajeEnSede: t.exigirFichajeEnSede ?? false,
     });
     setDialogOpen(true);
@@ -464,6 +466,42 @@ export default function TiendasPage() {
                   conciliación bancaria.
                 </p>
               </div>
+              {/* El arqueo lo hace quien cierra la tienda el último día que
+                  abre, y ese día no es el mismo en todas: las de centro
+                  comercial abren el domingo; las de calle cierran el sábado y el
+                  domingo no hay nadie que cuente el dinero (ticket 2c9d84f1). */}
+              {!form.sinEfectivo && !form.esOficina && (
+                <div className="col-span-2">
+                  <label
+                    htmlFor="arqueo-dia"
+                    className="text-sm font-medium text-slate-800 block mb-1"
+                  >
+                    Día del arqueo semanal
+                  </label>
+                  <select
+                    id="arqueo-dia"
+                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                    value={form.arqueoDiaSemana}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, arqueoDiaSemana: Number(e.target.value) }))
+                    }
+                  >
+                    <option value={7}>Domingo (la tienda abre los domingos)</option>
+                    <option value={6}>Sábado (la tienda no abre los domingos)</option>
+                    <option value={5}>Viernes</option>
+                    <option value={4}>Jueves</option>
+                    <option value={3}>Miércoles</option>
+                    <option value={2}>Martes</option>
+                    <option value={1}>Lunes</option>
+                  </select>
+                  <p className="mt-1 text-xs text-slate-400">
+                    El último día que abre. Ese día, a quien cierre la tienda le sale el arqueo
+                    como paso obligatorio de su cierre de turno: cuenta el efectivo acumulado y
+                    lo mete en el sobre.
+                  </p>
+                </div>
+              )}
+
               <div className="col-span-2 flex items-center justify-between rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
                 <span className="text-xs text-slate-500">
                   Las coordenadas se calculan solas al guardar. Pulsa para previsualizarlas y afinar.

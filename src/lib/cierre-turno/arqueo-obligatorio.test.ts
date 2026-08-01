@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { esElUltimoEnSalir, esUltimoDiaDeLaSemana, tocaArqueo } from "./arqueo-obligatorio";
+import { esDiaDeArqueo, esElUltimoEnSalir, tocaArqueo } from "./arqueo-obligatorio";
 
 const DOMINGO = new Date("2026-08-02T00:00:00Z");
 const SABADO = new Date("2026-08-01T00:00:00Z");
@@ -9,11 +9,23 @@ const TURNOS = [
   { userId: "u_tarde", horaFin: "22:00" },
 ];
 
-describe("esUltimoDiaDeLaSemana", () => {
-  it("el domingo sí; el resto no", () => {
-    expect(esUltimoDiaDeLaSemana(DOMINGO)).toBe(true);
-    expect(esUltimoDiaDeLaSemana(SABADO)).toBe(false);
-    expect(esUltimoDiaDeLaSemana(new Date("2026-08-03T00:00:00Z"))).toBe(false); // lunes
+describe("esDiaDeArqueo — ticket 2c9d84f1", () => {
+  it("sin dato de la sede se asume domingo, como antes", () => {
+    expect(esDiaDeArqueo(DOMINGO)).toBe(true);
+    expect(esDiaDeArqueo(SABADO)).toBe(false);
+    expect(esDiaDeArqueo(new Date("2026-08-03T00:00:00Z"))).toBe(false); // lunes
+  });
+
+  it("una tienda que cierra el sábado arquea el sábado", () => {
+    expect(esDiaDeArqueo(SABADO, 6)).toBe(true);
+    expect(esDiaDeArqueo(DOMINGO, 6)).toBe(false);
+  });
+
+  it("un valor imposible cae al domingo en vez de no arquear nunca", () => {
+    // Un 0, un 9 o un null tendrían a la tienda sin arquear para siempre.
+    expect(esDiaDeArqueo(DOMINGO, 0)).toBe(true);
+    expect(esDiaDeArqueo(DOMINGO, 9)).toBe(true);
+    expect(esDiaDeArqueo(DOMINGO, null)).toBe(true);
   });
 });
 
@@ -97,11 +109,12 @@ describe("cuándo hay que avisar de que la tienda sigue sin arquear", () => {
     turnosDeLaSede: { userId: string; horaFin: string }[];
     arqueoYaDeclarado: boolean;
     sedeSinCaja: boolean;
+    arqueoDiaSemana?: number | null;
   }) =>
     !tocaArqueo(args) &&
     !args.sedeSinCaja &&
     !args.arqueoYaDeclarado &&
-    esUltimoDiaDeLaSemana(args.fecha);
+    esDiaDeArqueo(args.fecha, args.arqueoDiaSemana);
 
   const base = {
     fecha: DOMINGO,
@@ -129,5 +142,42 @@ describe("cuándo hay que avisar de que la tienda sigue sin arquear", () => {
 
   it("en una sede sin caja nuestra, tampoco", () => {
     expect(pendienteEnSede({ ...base, sedeSinCaja: true })).toBe(false);
+  });
+});
+
+/**
+ * El día de arqueo depende de la tienda (ticket 2c9d84f1): las de centro
+ * comercial abren el domingo y arquean ese día; las de calle cierran el sábado
+ * y arquean entonces, porque el domingo no hay nadie que cuente el dinero.
+ */
+describe("tocaArqueo — tiendas que no abren el domingo", () => {
+  const base = {
+    userId: "u_tarde",
+    turnosDeLaSede: TURNOS,
+    arqueoYaDeclarado: false,
+    sedeSinCaja: false,
+  };
+
+  it("una tienda de calle arquea el SÁBADO, no el domingo", () => {
+    expect(tocaArqueo({ ...base, fecha: SABADO, arqueoDiaSemana: 6 })).toBe(true);
+    // Y el domingo no se le pide a nadie: la tienda está cerrada.
+    expect(tocaArqueo({ ...base, fecha: DOMINGO, arqueoDiaSemana: 6 })).toBe(false);
+  });
+
+  it("una tienda de centro comercial sigue arqueando el domingo", () => {
+    expect(tocaArqueo({ ...base, fecha: DOMINGO, arqueoDiaSemana: 7 })).toBe(true);
+    expect(tocaArqueo({ ...base, fecha: SABADO, arqueoDiaSemana: 7 })).toBe(false);
+  });
+
+  it("el sábado de una tienda de domingo no dispara nada", () => {
+    // Antes de esto, el sábado no era día de arqueo para nadie: que siga así
+    // donde no toca.
+    expect(tocaArqueo({ ...base, fecha: SABADO })).toBe(false);
+  });
+
+  it("al que no cierra la tienda tampoco se le pide, sea el día que sea", () => {
+    expect(tocaArqueo({ ...base, fecha: SABADO, userId: "u_mañana", arqueoDiaSemana: 6 })).toBe(
+      false,
+    );
   });
 });

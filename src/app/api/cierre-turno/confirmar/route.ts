@@ -50,7 +50,15 @@ export const POST = withTenant(
         completadoEn: true,
         tiendaId: true,
         user: { select: { id: true, nombre: true, apellidos: true } },
-        tienda: { select: { id: true, nombre: true, sinEfectivo: true, esOficina: true } },
+        tienda: {
+          select: {
+            id: true,
+            nombre: true,
+            sinEfectivo: true,
+            esOficina: true,
+            arqueoDiaSemana: true,
+          },
+        },
         caja: { select: { efectivo: true, tarjeta: true, confirmadoEn: true } },
         ventas: { select: { nombreArticulo: true, cantidad: true } },
       },
@@ -98,6 +106,7 @@ export const POST = withTenant(
           turnosDeLaSede,
           arqueoYaDeclarado: Boolean(arqueoSemana),
           sedeSinCaja: cierre.tienda.sinEfectivo || cierre.tienda.esOficina,
+          arqueoDiaSemana: cierre.tienda.arqueoDiaSemana,
         })
       ) {
         return NextResponse.json(

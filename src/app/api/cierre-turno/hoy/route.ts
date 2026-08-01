@@ -30,7 +30,7 @@ import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
 import { diaMadrid, pasosPendientes } from "@/lib/cierre-turno/core";
 import { sugerirSedeDelDia } from "@/lib/cierre-turno/sede-del-dia";
-import { esUltimoDiaDeLaSemana, tocaArqueo } from "@/lib/cierre-turno/arqueo-obligatorio";
+import { esDiaDeArqueo, tocaArqueo } from "@/lib/cierre-turno/arqueo-obligatorio";
 import { semanaISO } from "@/lib/cierre-turno/arqueos";
 
 export const GET = withTenant(
@@ -57,6 +57,7 @@ export const GET = withTenant(
           longitud: true,
           sinEfectivo: true,
           esOficina: true,
+          arqueoDiaSemana: true,
         },
         orderBy: { nombre: "asc" },
       }),
@@ -138,11 +139,15 @@ export const GET = withTenant(
         turnosDeLaSede,
         arqueoYaDeclarado: Boolean(arqueoSemana),
         sedeSinCaja,
+        arqueoDiaSemana: sedeCompleta.arqueoDiaSemana,
       });
       arqueo = {
         toca,
         pendienteEnSede:
-          !toca && !sedeSinCaja && !arqueoSemana && esUltimoDiaDeLaSemana(fecha),
+          !toca &&
+          !sedeSinCaja &&
+          !arqueoSemana &&
+          esDiaDeArqueo(fecha, sedeCompleta.arqueoDiaSemana),
         semana,
         sede: sedeCompleta.nombre,
       };

@@ -432,7 +432,7 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                 </div>
 
                 {/* La cuenta entera, que es lo que la tienda tiene delante el
-                    domingo al preparar el sobre: de dónde venía la caja, lo que
+                    último día al preparar el sobre: de dónde venía la caja, lo que
                     ha entrado y lo que debería haber. El fondo de cambio no
                     aparece porque no se arquea. */}
                 {f.esperado !== null ? (
@@ -506,7 +506,7 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
 
                 {/* Declarar / corregir. Un arqueo recogido ya no se toca.
                     Y solo administración: el arqueo lo prepara quien cierra la
-                    tienda el domingo, DENTRO de su cierre de turno (ticket
+                    tienda el último día que abre, DENTRO de su cierre de turno (ticket
                     3b7e05d1). Tener aquí un segundo sitio donde declararlo se
                     presta a que se meta dos veces o a destiempo; esto queda como
                     lo que es, la pantalla de control, con la corrección en manos
@@ -515,7 +515,8 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                     un botón que ya no está. */}
                 {f.estado === "sin_declarar" && !esAdmin && (
                   <p className="text-xs text-slate-500">
-                    El arqueo se prepara al cerrar el turno del domingo, en tu Cierre de turno.
+                    El arqueo se prepara al cerrar la tienda el último día que abre, desde tu
+                    Cierre de turno.
                     Si hay algo que corregir, lo hace administración.
                   </p>
                 )}

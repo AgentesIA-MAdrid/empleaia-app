@@ -5,7 +5,7 @@ export default function ManagerArqueosPage() {
   return (
     <PanelArqueos
       titulo="Arqueos"
-      descripcion="El efectivo acumulado de tu sede, lo que se aparta en el sobre cada domingo y la recogida firmada. El fondo de cambio no entra: no se arquea."
+      descripcion="El efectivo acumulado de tu sede, lo que se aparta en el sobre cada semana y la recogida firmada. El fondo de cambio no entra: no se arquea."
     />
   );
 }

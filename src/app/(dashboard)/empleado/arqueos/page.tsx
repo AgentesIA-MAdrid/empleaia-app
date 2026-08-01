@@ -5,7 +5,7 @@ export default function EmpleadoArqueosPage() {
   return (
     <PanelArqueos
       titulo="Arqueos"
-      descripcion="Los domingos, cuenta el efectivo acumulado, mételo en un sobre y regístralo aquí para que lo recoja un responsable. El fondo de cambio se queda en el cajón: no se cuenta."
+      descripcion="El último día que abre tu tienda, quien la cierra cuenta el efectivo acumulado y lo mete en un sobre para que lo recoja un responsable. El fondo de cambio se queda en el cajón: no se cuenta."
     />
   );
 }

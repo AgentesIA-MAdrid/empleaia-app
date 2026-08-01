@@ -113,6 +113,12 @@ model Tienda {
   // ficha ahí —sea del rol que sea— no tiene caja que cuadrar ni stock que
   // revisar.
   esOficina           Boolean           @default(false) @map("es_oficina")
+  /// Día de la semana en el que esta sede prepara el arqueo, en numeración ISO
+  /// (1 = lunes … 7 = domingo). Es el ÚLTIMO día que abre: las tiendas de centro
+  /// comercial abren el domingo y arquean ese día; las de calle cierran el
+  /// sábado y arquean entonces, porque el domingo no hay nadie que cuente el
+  /// dinero (ticket 2c9d84f1).
+  arqueoDiaSemana     Int               @default(7) @map("arqueo_dia_semana")
   /// La sede vende, pero el dinero NO es nuestro: lo liquida un tercero (el
   /// caso de un córner en unos grandes almacenes, que factura él y liquida
   /// después — ticket 9d4e17c2).
