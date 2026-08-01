@@ -8,6 +8,7 @@
 
 import { describe, it, expect } from "vitest";
 import {
+  accionFueraHorario,
   evaluarHorarioTurno,
   hhmmToMin,
   minToHHMM,
@@ -158,5 +159,27 @@ describe("helpers de zona horaria", () => {
     // 06:00 del día siguiente = 1440 + 360 minutos.
     expect(instanteEnZona("2026-07-31", 1440 + hhmmToMin("06:00"), "Europe/Madrid").toISOString())
       .toBe("2026-08-01T04:00:00.000Z");
+  });
+});
+
+describe("accionFueraHorario — qué se ajusta y qué se bloquea (ticket b7d3e5a9)", () => {
+  it("la entrada solo se ajusta si llega ANTES de empezar", () => {
+    expect(accionFueraHorario("ENTRADA", "antes")).toBe("ajustar");
+    // Entrar después del cierre no se ajusta: quedaría registrado a la hora en
+    // que su turno ya había acabado.
+    expect(accionFueraHorario("ENTRADA", "despues")).toBe("bloquear");
+  });
+
+  it("la salida solo se ajusta si es DESPUÉS de acabar", () => {
+    expect(accionFueraHorario("SALIDA", "despues")).toBe("ajustar");
+    // Una salida antes de entrar no es nada que se pueda cuadrar.
+    expect(accionFueraHorario("SALIDA", "antes")).toBe("bloquear");
+  });
+
+  it("las pausas se ajustan por los dos lados", () => {
+    for (const motivo of ["antes", "despues"] as const) {
+      expect(accionFueraHorario("PAUSA", motivo)).toBe("ajustar");
+      expect(accionFueraHorario("VUELTA_PAUSA", motivo)).toBe("ajustar");
+    }
   });
 });

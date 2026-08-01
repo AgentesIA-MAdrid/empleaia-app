@@ -89,7 +89,7 @@ vi.mock("@/lib/tenant/with-tenant", async () => {
 /** POST /api/fichajes de ENTRADA con el reloj congelado en `horaMadrid`. */
 async function ficharA(
   horaMadrid: string,
-  extra: { ajustarAlTurno?: boolean; nota?: string } = {},
+  extra: { ajustarAlTurno?: boolean; nota?: string; tipo?: string } = {},
 ) {
   // Verano en Madrid: UTC+2. "07:40" locales = 05:40Z.
   vi.setSystemTime(new Date(`2026-07-31T${horaMadrid}:00.000Z`));
@@ -98,14 +98,27 @@ async function ficharA(
   const req = new NextRequest("http://acme.localhost:3000/api/fichajes", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ tipo: "ENTRADA", ...extra }),
+    body: JSON.stringify({ tipo: extra.tipo ?? "ENTRADA", ...extra }),
   });
   return POST(req);
+}
+
+/** Deja el estado como si ya hubiera fichado la ENTRADA (para probar SALIDA). */
+async function conEntradaFichada() {
+  const { prismaApp } = await import("@/lib/prisma");
+  (prismaApp.fichaje.findFirst as unknown as { mockResolvedValue: (v: unknown) => void })
+    .mockResolvedValue({ id: "fic_0", tipo: "ENTRADA" });
 }
 
 beforeEach(async () => {
   vi.clearAllMocks();
   vi.useFakeTimers();
+  // `clearAllMocks` no deshace un `mockResolvedValue`: sin esto, el test que
+  // simula "ya ha fichado la ENTRADA" contagiaría a los siguientes y sus
+  // entradas se rechazarían por transición inválida.
+  const { prismaApp } = await import("@/lib/prisma");
+  (prismaApp.fichaje.findFirst as unknown as { mockResolvedValue: (v: unknown) => void })
+    .mockResolvedValue(null);
   cfg.exigirFichajeEnHorario = true;
   cfg.margenFichajeMinutos = 15;
   turnos = [{ horaInicio: "09:00", horaFin: "17:00", fecha: new Date("2026-07-31T00:00:00Z") }];
@@ -136,12 +149,14 @@ describe("POST /api/fichajes — fichaje fuera del horario del cuadrante", () =>
     expect(body.ajuste).toBe("2026-07-31T07:00:00.000Z");
   });
 
-  it("después del turno responde 409 con el ajuste al fin", async () => {
-    const res = await ficharA("16:30"); // 18:30 en Madrid
+  it("la salida después del turno responde 409 con el ajuste al fin", async () => {
+    await conEntradaFichada();
+    const res = await ficharA("16:30", { tipo: "SALIDA" }); // 18:30 en Madrid
     expect(res.status).toBe(409);
     const body = await res.json();
     expect(body.code).toBe("fuera_de_horario");
     expect(body.motivo).toBe("despues");
+    expect(body.ajustable).toBe(true);
     expect(body.ajusteHora).toBe("17:00");
   });
 
@@ -175,7 +190,8 @@ describe("POST /api/fichajes — fichaje fuera del horario del cuadrante", () =>
   it("aceptando el ajuste, el fichaje se registra con la hora del turno", async () => {
     // Ticket 9e4c2f10: intenta a las 18:30 de Madrid y acepta; la entrada se
     // guarda a las 17:00 (fin del turno), sin pasar por ninguna aprobación.
-    const res = await ficharA("16:30", { ajustarAlTurno: true });
+    await conEntradaFichada();
+    const res = await ficharA("16:30", { tipo: "SALIDA", ajustarAlTurno: true });
     expect(res.status).toBe(201);
     const { prismaApp } = await import("@/lib/prisma");
     const [args] = (prismaApp.fichaje.create as unknown as { mock: { calls: [{ data: Record<string, unknown> }][] } })
@@ -184,7 +200,8 @@ describe("POST /api/fichajes — fichaje fuera del horario del cuadrante", () =>
   });
 
   it("el fichaje ajustado deja escrita la hora real del intento", async () => {
-    const res = await ficharA("16:30", { ajustarAlTurno: true });
+    await conEntradaFichada();
+    const res = await ficharA("16:30", { tipo: "SALIDA", ajustarAlTurno: true });
     expect(res.status).toBe(201);
     const { prismaApp } = await import("@/lib/prisma");
     const [args] = (prismaApp.fichaje.create as unknown as { mock: { calls: [{ data: Record<string, unknown> }][] } })
@@ -197,7 +214,8 @@ describe("POST /api/fichajes — fichaje fuera del horario del cuadrante", () =>
   });
 
   it("el motivo que escribe el empleado se conserva detrás del ajuste", async () => {
-    await ficharA("16:30", { ajustarAlTurno: true, nota: "Estaba cerrando una venta" });
+    await conEntradaFichada();
+    await ficharA("16:30", { tipo: "SALIDA", ajustarAlTurno: true, nota: "Estaba cerrando una venta" });
     const { prismaApp } = await import("@/lib/prisma");
     const [args] = (prismaApp.fichaje.create as unknown as { mock: { calls: [{ data: Record<string, unknown> }][] } })
       .mock.calls[0];
@@ -213,5 +231,39 @@ describe("POST /api/fichajes — fichaje fuera del horario del cuadrante", () =>
     expect(args.data.timestamp).toBeUndefined();
     expect(args.data.nota).toBeUndefined();
   });
+
+  it("entrar DESPUÉS del cierre se bloquea: no se cuadra a una hora ya pasada", async () => {
+    // Ticket b7d3e5a9: ajustar esto dejaría la entrada registrada a las 17:00,
+    // la hora en que su turno ya había acabado.
+    const res = await ficharA("16:30", { tipo: "ENTRADA" });
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.code).toBe("fuera_de_horario");
+    expect(body.ajustable).toBe(false);
+    expect(body.ajusteHora).toBeUndefined();
+    expect(body.error).toContain("Mis Fichajes");
+  });
+
+  it("y aceptando el ajuste tampoco entra: el bloqueo no se puede saltar", async () => {
+    const res = await ficharA("16:30", { tipo: "ENTRADA", ajustarAlTurno: true });
+    expect(res.status).toBe(409);
+    expect((await res.json()).ajustable).toBe(false);
+  });
+
+  it("salir después del cierre sí se ajusta", async () => {
+    await conEntradaFichada();
+    const res = await ficharA("16:30", { tipo: "SALIDA", ajustarAlTurno: true });
+    expect(res.status).toBe(201);
+  });
+
+  it("una pausa fuera de la ventana se ajusta al borde", async () => {
+    await conEntradaFichada();
+    const res = await ficharA("16:30", { tipo: "PAUSA" });
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.ajustable).toBe(true);
+    expect(body.ajusteHora).toBe("17:00");
+  });
+
 
 });
