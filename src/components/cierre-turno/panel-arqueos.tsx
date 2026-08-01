@@ -56,7 +56,18 @@ interface Respuesta {
   filas: FilaArqueo[];
   /** El servidor no ha podido acotar por sede: esta persona no tiene ninguna. */
   sinSede?: boolean;
+  /** Con `sinSede`: las tiendas entre las que elegir, y la que se le propone. */
+  sedes?: { id: string; nombre: string }[];
+  sugerida?: { sedeId: string | null; motivo: "ubicacion" | "turno" | "ficha" | "ninguna" };
 }
+
+/** Por qué se le propone esa tienda. Se lo decimos: leerlo cambia la respuesta. */
+const PORQUE_SEDE: Record<string, string> = {
+  ubicacion: "Es la tienda donde has fichado hoy.",
+  turno: "Es la tienda de tu turno de hoy en el cuadrante.",
+  ficha: "Es tu tienda habitual.",
+  ninguna: "No sabemos dónde estás hoy: dínoslo tú.",
+};
 
 const eur = (n: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n);
@@ -97,6 +108,9 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
   const [pin, setPin] = useState("");
   const [recogido, setRecogido] = useState("");
   const [guardando, setGuardando] = useState(false);
+  /** Sin sede propia: la tienda que dice que está cubriendo hoy (ticket 8c05f3e1). */
+  const [sedeElegida, setSedeElegida] = useState("");
+  const [confirmandoSede, setConfirmandoSede] = useState(false);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -117,6 +131,32 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
       setCargando(false);
     }
   }, [semana]);
+
+  /**
+   * Deja fijado el centro de trabajo del día y recarga. Se guarda en el cierre
+   * de hoy, que es de donde lo lee todo lo demás.
+   */
+  const confirmarSede = async (tiendaId: string) => {
+    if (!tiendaId) return;
+    setConfirmandoSede(true);
+    try {
+      const res = await fetch("/api/cierre-turno/sede", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tiendaId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({ title: "No se pudo guardar", description: data.error ?? "", variant: "destructive" });
+        return;
+      }
+      await cargar();
+    } catch {
+      toast({ title: "Sin conexión", description: "Revisa la cobertura.", variant: "destructive" });
+    } finally {
+      setConfirmandoSede(false);
+    }
+  };
 
   useEffect(() => {
     void cargar();
@@ -272,11 +312,46 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
           </CardContent>
         </Card>
       ) : datos?.sinSede ? (
-        <Card>
-          <CardContent className="pt-4 pb-4">
-            <p className="text-center py-8 text-slate-500 text-sm max-w-md mx-auto">
-              No tienes ninguna sede asignada, así que no hay efectivo que arquear. Pídele a
-              administración que te asigne tu punto de venta.
+        /* Sin sede en la ficha y sin centro de trabajo confirmado hoy: en vez de
+           dejarlo fuera, se le pregunta dónde está. Es el mismo desplegable del
+           cierre de turno y se guarda en el mismo sitio (ticket 8c05f3e1): un
+           correturnos también tiene que poder arquear la caja que ha llevado. */
+        <Card className="mx-auto max-w-md">
+          <CardContent className="p-6 text-center space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">
+                Confirma tu centro de trabajo de hoy
+              </h2>
+              <p className="text-sm text-slate-500 mt-1">
+                {PORQUE_SEDE[datos.sugerida?.motivo ?? "ninguna"]}
+              </p>
+            </div>
+            <div className="text-left">
+              <Label htmlFor="arqueo-sede">Tienda</Label>
+              <select
+                id="arqueo-sede"
+                className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-base"
+                value={sedeElegida || (datos.sugerida?.sedeId ?? "")}
+                onChange={(e) => setSedeElegida(e.target.value)}
+              >
+                <option value="">Elige tu tienda…</option>
+                {(datos.sedes ?? []).map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button
+              className="w-full"
+              disabled={confirmandoSede || !(sedeElegida || datos.sugerida?.sedeId)}
+              onClick={() => void confirmarSede(sedeElegida || (datos.sugerida?.sedeId ?? ""))}
+            >
+              {confirmandoSede ? "Guardando…" : "Confirmar y ver la caja"}
+            </Button>
+            <p className="text-xs text-slate-400">
+              Es la misma tienda que confirmas al cerrar tu turno: solo hace falta decirlo
+              una vez al día.
             </p>
           </CardContent>
         </Card>

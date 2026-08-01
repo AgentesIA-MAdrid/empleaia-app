@@ -24,7 +24,10 @@
  *   arqueo ya recogido no se toca.
  *
  * Alcance: el empleado ve y declara el de su sede (el efectivo es de la
- * tienda), el coordinador el de la suya, y administración todas.
+ * tienda), el coordinador el de la suya, y administración todas. Quien no tiene
+ * ninguna sede en su ficha —un correturnos— opera en la que haya confirmado hoy
+ * al abrir su cierre de turno (`sedesOperables`); y si aún no ha confirmado
+ * nada, la pantalla se lo pregunta con el mismo desplegable del cierre.
  */
 
 import { auth } from "@/lib/auth";
@@ -33,8 +36,9 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
-import { esDescuadre, filtroSede } from "@/lib/cierre-turno/core";
-import { sedesDelUsuario } from "@/lib/tiendas/sedes-usuario";
+import { diaMadrid, esDescuadre, filtroSede } from "@/lib/cierre-turno/core";
+import { sedesOperables } from "@/lib/cierre-turno/sedes-operables";
+import { sugerirSedeDelDia } from "@/lib/cierre-turno/sede-del-dia";
 import {
   normalizarEfectivoArqueo,
   normalizarSemana,
@@ -56,6 +60,11 @@ interface Sesion {
   userId: string;
   rol: string;
   tiendaId: string | null;
+}
+
+/** Hoy en Madrid, a medianoche: el día del que se mira el fichaje y el turno. */
+function hoyMadrid(): Date {
+  return new Date(`${diaMadrid()}T00:00:00Z`);
 }
 
 async function sesion(): Promise<Sesion | null> {
@@ -84,9 +93,32 @@ export const GET = withTenant(
     // Solo administración elige sede; el resto va atado a la suya. Y quien
     // tiene alcance de sede pero ninguna asignada NO ve todas: no ve ninguna.
     const sedesPropias =
-      s.rol === "OWNER" ? [] : await sedesDelUsuario(prisma, { userId: s.userId, tiendaId: s.tiendaId });
+      s.rol === "OWNER" ? [] : await sedesOperables(prisma, { userId: s.userId, tiendaId: s.tiendaId });
     const filtro = filtroSede(s.rol, sedesPropias, url.searchParams.get("tiendaId"));
     if (filtro.tipo === "ninguna") {
+      // Ni sede en la ficha ni centro de trabajo confirmado hoy. En vez de
+      // dejarlo fuera, se le pregunta dónde está: el mismo desplegable del
+      // cierre, con la respuesta ya elegida (ticket 8c05f3e1).
+      const [sedesActivas, entradaHoy, turnoHoy] = await Promise.all([
+        prisma.tienda.findMany({
+          where: { activa: true, esOficina: false, sinEfectivo: false },
+          select: { id: true, nombre: true, latitud: true, longitud: true },
+          orderBy: { nombre: "asc" },
+        }),
+        prisma.fichaje.findFirst({
+          where: {
+            userId: s.userId,
+            tipo: "ENTRADA",
+            timestamp: { gte: hoyMadrid(), lt: new Date(hoyMadrid().getTime() + 86_400_000) },
+          },
+          select: { latitud: true, longitud: true },
+          orderBy: { timestamp: "asc" },
+        }),
+        prisma.turno.findFirst({
+          where: { userId: s.userId, fecha: hoyMadrid(), estado: "PUBLICADO" },
+          select: { tiendaId: true },
+        }),
+      ]);
       return NextResponse.json({
         semana,
         semanaTexto: semanaLegible(semana),
@@ -97,6 +129,13 @@ export const GET = withTenant(
         autorizados: [],
         filas: [],
         sinSede: true,
+        sedes: sedesActivas.map((t) => ({ id: t.id, nombre: t.nombre })),
+        sugerida: sugerirSedeDelDia({
+          fichaje: entradaHoy,
+          turnoTiendaId: turnoHoy?.tiendaId ?? null,
+          fichaTiendaId: s.tiendaId,
+          sedes: sedesActivas,
+        }),
       });
     }
     const tiendaFiltro = filtro.tipo === "sedes" ? filtro.tiendaIds : null;
@@ -257,12 +296,18 @@ export const POST = withTenant(
     if (s.rol === "OWNER") {
       tiendaId = sedePedida ?? s.tiendaId;
     } else {
-      const propias = await sedesDelUsuario(prisma, { userId: s.userId, tiendaId: s.tiendaId });
-      tiendaId = sedePedida && propias.includes(sedePedida) ? sedePedida : (s.tiendaId ?? propias[0] ?? null);
+      // Las suyas o, si no tiene, la que haya confirmado hoy como centro de
+      // trabajo: quien cubre en una tienda es quien cuenta su caja.
+      const propias = await sedesOperables(prisma, { userId: s.userId, tiendaId: s.tiendaId });
+      tiendaId = sedePedida && propias.includes(sedePedida) ? sedePedida : (propias[0] ?? s.tiendaId ?? null);
     }
     if (!tiendaId) {
       return NextResponse.json(
-        { error: "No tienes sede asignada, así que no puedes declarar su efectivo. Habla con administración." },
+        {
+          error:
+            "Todavía no has dicho en qué tienda estás hoy. Confírmalo y podrás declarar su efectivo.",
+          code: "sin_sede",
+        },
         { status: 409 },
       );
     }

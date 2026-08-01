@@ -13,7 +13,9 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const sesion = { user: { id: "u_own", rol: "OWNER", tiendaId: null, name: "Owner" } };
+const sesion = {
+  user: { id: "u_own", rol: "OWNER", tiendaId: null as string | null, name: "Owner" },
+};
 
 const SEDES = [
   { id: "t1", nombre: "NEKSUS CARTAGENA" },
@@ -61,6 +63,13 @@ const prismaMock = {
     aggregate: vi.fn(async () => ({ _sum: { efectivo: 480, tarjeta: 0 }, _count: 0 })),
   },
   user: { findMany: vi.fn(async () => [] as unknown[]) },
+  usuarioSede: { findMany: vi.fn(async () => [] as { tiendaId: string }[]) },
+  cierreTurno: {
+    // La sede que confirmó hoy como centro de trabajo (ticket 8c05f3e1).
+    findUnique: vi.fn(async () => null as { tiendaId: string | null } | null),
+  },
+  fichaje: { findFirst: vi.fn(async () => null) },
+  turno: { findFirst: vi.fn(async () => null) },
   configuracionEmpresa: { findUnique: vi.fn(async () => ({ umbralDescuadreEur: 1 })) },
   $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prismaMock)),
 };
@@ -134,6 +143,9 @@ beforeEach(async () => {
   prismaMock.tienda.findMany.mockResolvedValue(SEDES);
   prismaMock.fondoCaja.findMany.mockResolvedValue(FONDOS);
   prismaMock.user.findMany.mockResolvedValue([]);
+  prismaMock.usuarioSede.findMany.mockResolvedValue([]);
+  prismaMock.cierreTurno.findUnique.mockResolvedValue(null);
+  sesion.user = { id: "u_own", rol: "OWNER", tiendaId: null, name: "Owner" };
   prismaMock.$transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
     fn(prismaMock),
   );
@@ -224,5 +236,50 @@ describe("POST /api/arqueos — declarar deja la caja a cero", () => {
     // arrancaría contando otra vez el dinero que ya está en el sobre.
     await post({ semana: "2026-W31", tiendaId: "t1", efectivo: "719,32" });
     expect(prismaMock.$transaction).toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/arqueos — quien no tiene sede en su ficha", () => {
+  it("opera en la tienda que confirmó hoy al abrir su cierre", async () => {
+    // Un correturnos cubriendo en Cartagena: tiene que poder arquear ESA caja.
+    sesion.user = { id: "u_ana", rol: "EMPLEADO", tiendaId: null, name: "Ana" };
+    prismaMock.cierreTurno.findUnique.mockResolvedValue({ tiendaId: "t1" });
+    const { data } = await get();
+    expect((data as unknown as { sinSede?: boolean }).sinSede).toBeUndefined();
+    // Se consulta acotado a esa tienda (el doble de Prisma no aplica el where).
+    const [args] = prismaMock.tienda.findMany.mock.calls[0] as unknown as [
+      { where: { id?: { in: string[] } } },
+    ];
+    expect(args.where.id?.in).toEqual(["t1"]);
+  });
+
+  it("sin nada confirmado, se le pregunta dónde está en vez de dejarlo fuera", async () => {
+    sesion.user = { id: "u_ana", rol: "EMPLEADO", tiendaId: null, name: "Ana" };
+    const { data } = (await get()) as unknown as {
+      data: { sinSede: boolean; sedes: { id: string }[]; sugerida: { motivo: string } };
+    };
+    expect(data.sinSede).toBe(true);
+    // Con la lista para elegir: antes solo se le decía que hablara con administración.
+    expect(data.sedes.map((s) => s.id)).toEqual(["t1", "t2"]);
+    expect(data.sugerida.motivo).toBe("ninguna");
+  });
+
+  it("declara el efectivo de la tienda que confirmó, aunque no sea suya", async () => {
+    sesion.user = { id: "u_ana", rol: "EMPLEADO", tiendaId: null, name: "Ana" };
+    prismaMock.cierreTurno.findUnique.mockResolvedValue({ tiendaId: "t1" });
+    const { status } = await post({ semana: "2026-W31", efectivo: "719,32" });
+    expect(status).toBe(200);
+    const [args] = prismaMock.arqueo.upsert.mock.calls[0] as unknown as [
+      { where: { tiendaId_semana: { tiendaId: string } } },
+    ];
+    expect(args.where.tiendaId_semana.tiendaId).toBe("t1");
+  });
+
+  it("sin tienda confirmada no se declara a ciegas", async () => {
+    sesion.user = { id: "u_ana", rol: "EMPLEADO", tiendaId: null, name: "Ana" };
+    const { status, data } = await post({ semana: "2026-W31", efectivo: "100" });
+    expect(status).toBe(409);
+    expect(data.code).toBe("sin_sede");
+    expect(prismaMock.arqueo.upsert).not.toHaveBeenCalled();
   });
 });
