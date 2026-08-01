@@ -119,6 +119,8 @@ model Tienda {
   turnos              Turno[]
   // Horarios de apertura: N tramos por día (sin filas para un día = cerrado).
   horarios            HorarioSede[]
+  /// Fondo de caja por fecha (ticket 7ab2c5d9).
+  fondosCaja          FondoCaja[]
   // Multi-sede: empleados asignados a esta sede (N:N vía UsuarioSede).
   miembros            UsuarioSede[]
   // Festivos locales que aplican solo a esta sede.
@@ -249,6 +251,7 @@ model User {
   cursosAsignados            AsignacionCurso[]          @relation("AsignacionCursoEmpleado")
   // Correcciones del cuadrante (ticket c1e94a7b): las que le afectan y las que
   // ha hecho él.
+  fondosCajaRegistrados      FondoCaja[]                @relation("FondoCajaRegistradoPor")
   correccionesRecibidas      CorreccionCuadrante[]      @relation("CorreccionCuadranteEmpleado")
   correccionesHechas         CorreccionCuadrante[]      @relation("CorreccionCuadranteAutor")
   // Custom requests: peticiones del empleado, gestionadas por OWNER/MANAGER.
@@ -2042,6 +2045,40 @@ model GrupoObjetivoMiembro {
 /// Arqueo semanal: el efectivo que la tienda aparta para que lo recoja un
 /// superior. `efectivoCierres` guarda lo que sumaban los cierres diarios en
 /// el momento de declararlo, para que la diferencia quede congelada.
+/// Fondo de caja de una sede a una fecha (ticket 7ab2c5d9).
+///
+/// Es el efectivo que se queda en el cajón como punto de partida del día
+/// siguiente: lo que el comercial cuenta al abrir para saber si le cuadra. No es
+/// lo mismo que el efectivo de un cierre (lo que se recaudó ese turno) ni que el
+/// arqueo semanal (lo que se aparta para que lo recojan).
+///
+/// Con histórico por fecha y no un campo en la sede: el cliente arranca cargando
+/// el fondo de un día y después la situación de caja del año, y con un solo
+/// número se perdería de dónde viene cada saldo.
+///
+/// `importe` puede ser NEGATIVO a propósito: si falta dinero, el dato tiene que
+/// poder contarlo. Y `incidencia` es para las sedes cuya caja no se puede dar
+/// por buena todavía: no hay importe que valga hasta que se aclare.
+model FondoCaja {
+  id         String   @id @default(cuid())
+  tiendaId   String   @map("tienda_id")
+  tienda     Tienda   @relation(fields: [tiendaId], references: [id], onDelete: Cascade)
+  /// Día al que corresponde el saldo, a medianoche.
+  fecha      DateTime @db.Date
+  /// Efectivo en el cajón. null cuando hay incidencia y no hay cifra fiable.
+  importe    Decimal? @db.Decimal(10, 2)
+  /// Por qué no hay importe ("pendiente de aclarar el descuadre del sábado").
+  incidencia String?
+  nota       String?
+  registradoPorId String? @map("registrado_por_id")
+  registradoPor   User?   @relation("FondoCajaRegistradoPor", fields: [registradoPorId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([tiendaId, fecha])
+  @@index([fecha])
+}
+
 model Arqueo {
   id       String   @id @default(cuid())
   tiendaId String

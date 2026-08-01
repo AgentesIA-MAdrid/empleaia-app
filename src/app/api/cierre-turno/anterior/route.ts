@@ -15,6 +15,9 @@
  *  - Los adjuntos: el Excel del stock y el comprobante del TPV, por id y nombre.
  *    El contenido NO va aquí —son data URL de cientos de KB— sino que se
  *    descarga de `/api/cierre-turno/adjuntos/[id]`.
+ *  - El fondo de caja registrado de esa sede (ticket 7ab2c5d9): el efectivo que
+ *    debería haber en el cajón al abrir, que es contra lo que cuenta. Si esa
+ *    sede está en incidencia se dice, en vez de dar una cifra que no vale.
  *
  * Es de lectura y de su propia tienda: se acota a las sedes del usuario
  * (`sedesDelUsuario`), nunca a un id que venga del cliente. Un comercial ve la
@@ -44,7 +47,7 @@ export const GET = withTenant(
     const pedida = new URL(req.url).searchParams.get("tiendaId");
     const sedes = pedida && propias.includes(pedida) ? [pedida] : propias;
     if (sedes.length === 0) {
-      return NextResponse.json({ cierre: null, motivo: "sin_sede" });
+      return NextResponse.json({ cierre: null, fondoCaja: null, motivo: "sin_sede" });
     }
 
     const hoy = new Date(`${diaMadrid()}T00:00:00Z`);
@@ -77,9 +80,26 @@ export const GET = withTenant(
       },
     });
 
-    if (!cierre) return NextResponse.json({ cierre: null, motivo: "sin_cierres" });
+    // Fondo de caja registrado más reciente de esa sede: el punto de partida
+    // contra el que cuenta el cajón al abrir.
+    const fondo = await prisma.fondoCaja.findFirst({
+      where: { tiendaId: { in: sedes } },
+      orderBy: { fecha: "desc" },
+      select: { fecha: true, importe: true, incidencia: true, tienda: { select: { nombre: true } } },
+    });
+    const fondoCaja = fondo
+      ? {
+          fecha: fondo.fecha.toISOString().slice(0, 10),
+          importe: fondo.importe === null ? null : Number(fondo.importe),
+          incidencia: fondo.incidencia,
+          sede: fondo.tienda?.nombre ?? null,
+        }
+      : null;
+
+    if (!cierre) return NextResponse.json({ cierre: null, fondoCaja, motivo: "sin_cierres" });
 
     return NextResponse.json({
+      fondoCaja,
       cierre: {
         id: cierre.id,
         fecha: cierre.fecha.toISOString().slice(0, 10),

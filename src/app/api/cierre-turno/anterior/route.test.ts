@@ -35,6 +35,22 @@ const CIERRE = {
 
 const prismaMock = {
   cierreTurno: { findFirst: vi.fn(async () => CIERRE as unknown) },
+  // Fondo de caja registrado de la sede (ticket 7ab2c5d9).
+  fondoCaja: {
+    findFirst: vi.fn(
+      async (): Promise<{
+        fecha: Date;
+        importe: number | null;
+        incidencia: string | null;
+        tienda: { nombre: string } | null;
+      } | null> => ({
+        fecha: new Date("2026-07-31T00:00:00Z"),
+        importe: 239.32,
+        incidencia: null,
+        tienda: { nombre: "NEKSUS CARTAGENA" },
+      }),
+    ),
+  },
   usuarioSede: { findMany: vi.fn(async () => [{ tiendaId: "t2", principal: false }]) },
   tienda: { findFirst: vi.fn(async ({ where }: { where: { id: string } }) => ({ id: where.id })) },
 };
@@ -83,6 +99,12 @@ beforeEach(async () => {
   sesion.user = { id: "u_ana", rol: "EMPLEADO", tiendaId: "t1", name: "Ana" };
   prismaMock.cierreTurno.findFirst.mockResolvedValue(CIERRE);
   prismaMock.usuarioSede.findMany.mockResolvedValue([{ tiendaId: "t2", principal: false }]);
+  prismaMock.fondoCaja.findFirst.mockResolvedValue({
+    fecha: new Date("2026-07-31T00:00:00Z"),
+    importe: 239.32,
+    incidencia: null,
+    tienda: { nombre: "NEKSUS CARTAGENA" },
+  });
   const { _setFeatureCatalogForTest } = await import("@/lib/tenant/features");
   _setFeatureCatalogForTest(["cierre_turno"]);
 });
@@ -136,13 +158,36 @@ describe("GET /api/cierre-turno/anterior", () => {
     sesion.user = { id: "u_ana", rol: "EMPLEADO", tiendaId: null, name: "Ana" };
     prismaMock.usuarioSede.findMany.mockResolvedValue([]);
     const { body } = await get();
-    expect(body).toEqual({ cierre: null, motivo: "sin_sede" });
+    expect(body).toEqual({ cierre: null, fondoCaja: null, motivo: "sin_sede" });
     expect(prismaMock.cierreTurno.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("da el fondo de caja registrado de su sede: es contra lo que cuenta", async () => {
+    const { body } = await get();
+    expect(body.fondoCaja).toMatchObject({ importe: 239.32, fecha: "2026-07-31" });
+  });
+
+  it("una caja en incidencia lo dice, en vez de dar una cifra que no vale", async () => {
+    prismaMock.fondoCaja.findFirst.mockResolvedValue({
+      fecha: new Date("2026-07-31T00:00:00Z"),
+      importe: null,
+      incidencia: "Caja pendiente de aclarar",
+      tienda: { nombre: "NEKSUS CC ISLA AZUL" },
+    });
+    const { body } = await get();
+    expect(body.fondoCaja).toMatchObject({ importe: null, incidencia: "Caja pendiente de aclarar" });
+  });
+
+  it("sin cierres previos sigue dando el fondo: puede ser el primer día", async () => {
+    prismaMock.cierreTurno.findFirst.mockResolvedValue(null);
+    const { body } = await get();
+    expect(body.cierre).toBeNull();
+    expect(body.fondoCaja).not.toBeNull();
   });
 
   it("sin cierres previos devuelve null y por qué", async () => {
     prismaMock.cierreTurno.findFirst.mockResolvedValue(null);
     const { body } = await get();
-    expect(body).toEqual({ cierre: null, motivo: "sin_cierres" });
+    expect(body).toMatchObject({ cierre: null, motivo: "sin_cierres" });
   });
 });
