@@ -1,22 +1,22 @@
 /**
- * GET /api/conciliacion/tarjeta?tiendaId=&desde=&hasta=&desfase= — el cuadre de
- * tarjeta de una tienda, día a día (ticket 1e73c9a4).
+ * GET /api/conciliacion/facturacion?tiendaId=&desde=&hasta=&desfase= — lo que la
+ * tienda declara haber cobrado frente a lo que consta facturado en el sistema
+ * del operador, día a día (ticket 4b8e1d05).
  *
- * Lo que la tienda dice haber cobrado con el datáfono un día, frente a lo que el
- * banco ingresó **al día siguiente**: las liquidaciones entran con desfase, así
- * que comparar el mismo día marcaría descuadre en todas partes —un día con
- * ventas y sin ingreso, y otro con ingreso y sin ventas—.
+ * Es la tercera pata del cuadre. Las otras dos comprueban que el dinero está;
+ * esta comprueba que la venta **se tramitó**: una venta declarada que nadie metió
+ * a facturar no aparece en el otro sistema, y un importe facturado sin venta
+ * declarada tampoco cuadra.
  *
- * El desfase por defecto es un día, que es lo que hace el datáfono de este
- * cliente. Se puede cambiar con `?desfase=` para un banco que liquide distinto,
- * o ponerlo a 0 para comparar el mismo día.
+ * Se compara lo cobrado en el cierre (efectivo + tarjeta) contra el importe
+ * facturado. Por defecto, del MISMO día: a diferencia del banco, aquí no hay
+ * liquidación de por medio. Con `?desfase=` se puede desplazar si el operador
+ * fecha las altas al día siguiente.
  *
- * Los movimientos del banco salen de `MovimientoBanco`, que se importa del Excel
- * del extracto (ver `/api/movimientos-banco`). Los que no tienen tienda asignada
- * no se pueden atribuir y se cuentan aparte, para que no parezca que falta
- * dinero de esta.
+ * Los importes salen de `MovimientoFacturacion`, que se importa del Excel del
+ * operador (ver `/api/movimientos-facturacion`).
  *
- * Solo administración: cruza el extracto de la cuenta de la empresa.
+ * Solo administración.
  */
 
 import { auth } from "@/lib/auth";
@@ -25,7 +25,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
-import { cuadrePorDia, DESFASE_BANCO_DIAS, sumarDias } from "@/lib/cierre-turno/cuadre-diario";
+import { cuadrePorDia, sumarDias } from "@/lib/cierre-turno/cuadre-diario";
 import { rangoExclusivo, umbralDescuadre } from "@/lib/cierre-turno/caja-queries";
 
 const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -49,22 +49,22 @@ export const GET = withTenant(
     if (!tiendaId || !FECHA_RE.test(desdeStr) || !FECHA_RE.test(hastaStr)) {
       return NextResponse.json({ error: "Faltan la tienda y el rango de fechas." }, { status: 400 });
     }
-    // Ojo con el parámetro ausente: `Number(null)` es 0, y un 0 aquí significa
-    // "compara el mismo día", que es justo lo que este cuadre viene a evitar.
+    // Aquí el defecto es 0 —mismo día—: la venta se factura cuando se hace, sin
+    // la liquidación de por medio que sí desplaza los cobros con tarjeta.
     const desfaseCrudo = url.searchParams.get("desfase");
     const desfasePedido = desfaseCrudo === null ? NaN : Number(desfaseCrudo);
     const desfase =
       Number.isInteger(desfasePedido) && desfasePedido >= 0 && desfasePedido <= 7
         ? desfasePedido
-        : DESFASE_BANCO_DIAS;
+        : 0;
 
     const desde = new Date(`${desdeStr}T00:00:00Z`);
     const hasta = new Date(`${hastaStr}T00:00:00Z`);
     if (hasta < desde) {
       return NextResponse.json({ error: "El rango está del revés." }, { status: 400 });
     }
-    // El extracto se mira desplazado: los ingresos de las ventas del último día
-    // del rango entran después.
+    // Si el operador fecha con desfase, el rango de su fichero se desplaza igual
+    // que el del banco.
     const desdeBanco = new Date(`${sumarDias(desdeStr, desfase)}T00:00:00Z`);
     const hastaBanco = new Date(`${sumarDias(hastaStr, desfase)}T00:00:00Z`);
 
@@ -78,9 +78,11 @@ export const GET = withTenant(
       prisma.cierreCaja.groupBy({
         by: ["fecha"],
         where: { tiendaId, fecha: rangoExclusivo(desde, hasta), confirmadoEn: { not: null } },
-        _sum: { tarjeta: true },
+        // Lo cobrado, sin distinguir medio de pago: al operador se le factura la
+        // venta entera.
+        _sum: { efectivo: true, tarjeta: true },
       }),
-      prisma.movimientoBanco.findMany({
+      prisma.movimientoFacturacion.findMany({
         where: { tiendaId, fecha: rangoExclusivo(desdeBanco, hastaBanco) },
         select: { id: true, fecha: true, importe: true, concepto: true, referencia: true },
         orderBy: { fecha: "asc" },
@@ -90,7 +92,10 @@ export const GET = withTenant(
 
     const declaradoPorDia = new Map<string, number>();
     for (const c of cajas) {
-      declaradoPorDia.set(c.fecha.toISOString().slice(0, 10), Number(c._sum.tarjeta ?? 0));
+      declaradoPorDia.set(
+        c.fecha.toISOString().slice(0, 10),
+        Number(c._sum.efectivo ?? 0) + Number(c._sum.tarjeta ?? 0),
+      );
     }
 
     const bancoPorDia = new Map<string, { importe: number; movimientos: number }>();
@@ -112,8 +117,8 @@ export const GET = withTenant(
       desfase,
       umbral,
       filas,
-      // El extracto en crudo, para poder mirar un día concreto movimiento a
-      // movimiento cuando la fila no cuadra.
+      // El fichero en crudo, para poder mirar un día concreto línea a línea
+      // cuando la fila no cuadra.
       movimientos: movimientos.map((m) => ({
         id: m.id,
         fecha: m.fecha.toISOString().slice(0, 10),
@@ -126,8 +131,8 @@ export const GET = withTenant(
         banco: Math.round(filas.reduce((n, f) => n + f.banco, 0) * 100) / 100,
         descuadres: filas.filter((f) => f.descuadre).length,
       },
-      // Sin extracto importado no hay nada que cuadrar: se dice, en vez de
-      // enseñar todas las filas en rojo como si faltara el dinero.
+      // Sin fichero importado no hay nada que cuadrar: se dice, en vez de
+      // enseñar todas las filas en rojo como si no se hubiera facturado nada.
       sinExtracto: movimientos.length === 0,
     });
   }),

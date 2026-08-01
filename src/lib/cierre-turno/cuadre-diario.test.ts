@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cuadreTarjeta, libroDeCaja, sumarDias } from "./cuadre-diario";
+import { cuadrePorDia, libroDeCaja, sumarDias } from "./cuadre-diario";
 
 describe("libroDeCaja — ticket 1e73c9a4", () => {
   it("entra el efectivo de cada cierre y sale lo que retiran, con su saldo", () => {
@@ -81,7 +81,7 @@ describe("libroDeCaja — ticket 1e73c9a4", () => {
 
 describe("cuadreTarjeta — el desfase del banco", () => {
   it("lo cobrado el 1 se compara con el ingreso del 2", () => {
-    const filas = cuadreTarjeta({
+    const filas = cuadrePorDia({
       declaradoPorDia: new Map([["2026-08-01", 1210]]),
       bancoPorDia: new Map([["2026-08-02", { importe: 1210, movimientos: 1 }]]),
     });
@@ -99,7 +99,7 @@ describe("cuadreTarjeta — el desfase del banco", () => {
   it("sin desfase, ese mismo caso daría dos descuadres falsos", () => {
     // Es lo que pasaba comparando el mismo día: un día con ventas y sin ingreso,
     // y otro con ingreso y sin ventas.
-    const filas = cuadreTarjeta({
+    const filas = cuadrePorDia({
       declaradoPorDia: new Map([["2026-08-01", 1210]]),
       bancoPorDia: new Map([["2026-08-02", { importe: 1210, movimientos: 1 }]]),
       desfaseDias: 0,
@@ -109,7 +109,7 @@ describe("cuadreTarjeta — el desfase del banco", () => {
   });
 
   it("una diferencia real se marca, y el signo dice de qué lado", () => {
-    const filas = cuadreTarjeta({
+    const filas = cuadrePorDia({
       declaradoPorDia: new Map([["2026-08-01", 1000]]),
       bancoPorDia: new Map([["2026-08-02", { importe: 950, movimientos: 2 }]]),
     });
@@ -121,7 +121,7 @@ describe("cuadreTarjeta — el desfase del banco", () => {
 
   it("un ingreso sin ventas ese día también sale", () => {
     // Es justo lo que hay que mirar: dinero que entra sin venta detrás.
-    const filas = cuadreTarjeta({
+    const filas = cuadrePorDia({
       declaradoPorDia: new Map(),
       bancoPorDia: new Map([["2026-08-05", { importe: 300, movimientos: 1 }]]),
     });
@@ -131,7 +131,7 @@ describe("cuadreTarjeta — el desfase del banco", () => {
   });
 
   it("por debajo del umbral no se marca: son redondeos", () => {
-    const filas = cuadreTarjeta({
+    const filas = cuadrePorDia({
       declaradoPorDia: new Map([["2026-08-01", 1000]]),
       bancoPorDia: new Map([["2026-08-02", { importe: 999.5, movimientos: 1 }]]),
     });
@@ -139,7 +139,7 @@ describe("cuadreTarjeta — el desfase del banco", () => {
   });
 
   it("los días a cero por los dos lados no ensucian la tabla", () => {
-    const filas = cuadreTarjeta({
+    const filas = cuadrePorDia({
       declaradoPorDia: new Map([["2026-08-01", 0]]),
       bancoPorDia: new Map(),
     });
@@ -147,7 +147,7 @@ describe("cuadreTarjeta — el desfase del banco", () => {
   });
 
   it("salen ordenados por día de venta", () => {
-    const filas = cuadreTarjeta({
+    const filas = cuadrePorDia({
       declaradoPorDia: new Map([
         ["2026-08-03", 10],
         ["2026-08-01", 20],

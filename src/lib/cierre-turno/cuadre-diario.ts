@@ -111,8 +111,11 @@ export function libroDeCaja(args: {
   return { movimientos, saldoFinal: saldo };
 }
 
-/** Una fila del cuadre de tarjeta: un día de ventas contra su ingreso. */
-export interface FilaCuadreTarjeta {
+/**
+ * Una fila del cuadre: un día de ventas contra lo que dice la otra fuente —el
+ * banco, o el sistema de facturación—.
+ */
+export interface FilaCuadreDiario {
   /** Día en que se cobró con el datáfono. */
   fecha: string;
   /** Día en que ese dinero aparece en el banco (fecha + desfase). */
@@ -121,26 +124,27 @@ export interface FilaCuadreTarjeta {
   banco: number;
   diferencia: number;
   descuadre: boolean;
-  /** Cuántos movimientos del extracto se han sumado en `banco`. */
+  /** Cuántos apuntes de la otra fuente se han sumado en `banco`. */
   movimientos: number;
 }
 
 export const DESFASE_BANCO_DIAS = 1;
 
 /**
- * Cuadre día a día. `declaradoPorDia` son las ventas con tarjeta de los cierres
- * y `bancoPorDia` los ingresos del extracto, ambos indexados por su propia
- * fecha; el desfase los alinea.
+ * Cuadre día a día. `declaradoPorDia` es lo que declararon los empleados en sus
+ * cierres y `bancoPorDia` lo que dice la otra fuente —los ingresos del extracto
+ * bancario, o los importes del sistema de facturación—, ambos indexados por su
+ * propia fecha; el desfase los alinea.
  *
  * Se listan todos los días con algo en cualquiera de los dos lados: un día sin
  * ventas pero con un ingreso del banco es justo lo que hay que mirar.
  */
-export function cuadreTarjeta(args: {
+export function cuadrePorDia(args: {
   declaradoPorDia: Map<string, number>;
   bancoPorDia: Map<string, { importe: number; movimientos: number }>;
   desfaseDias?: number;
   umbral?: number;
-}): FilaCuadreTarjeta[] {
+}): FilaCuadreDiario[] {
   const desfase = args.desfaseDias ?? DESFASE_BANCO_DIAS;
   const umbral = args.umbral ?? 1;
 

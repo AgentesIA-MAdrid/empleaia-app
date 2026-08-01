@@ -5,6 +5,9 @@
  *     declararon en sus arqueos de esas semanas.
  *  2. **Tarjeta**: lo cobrado con datáfono frente a los ingresos del banco
  *     importados del extracto.
+ *  3. **Facturación**: lo cobrado en total —efectivo y tarjeta— frente a lo que
+ *     consta facturado en el sistema del operador (ticket 4b8e1d05). Los dos
+ *     primeros comprueban que el dinero está; este, que la venta se tramitó.
  *
  * Por debajo del umbral del cliente (`descuadreUmbral`, 1 € por defecto) no se
  * marca descuadre: son redondeos y llenar la pantalla de avisos de céntimos la
@@ -74,7 +77,7 @@ export const GET = withTenant(
       if (!semanas.includes(s)) semanas.push(s);
     }
 
-    const [sedes, cajaPorSede, arqueos, banco, umbral] = await Promise.all([
+    const [sedes, cajaPorSede, arqueos, banco, facturado, umbral] = await Promise.all([
       prisma.tienda.findMany({
         where: {
           activa: true,
@@ -101,6 +104,12 @@ export const GET = withTenant(
         _sum: { importe: true },
         _count: true,
       }),
+      prisma.movimientoFacturacion.groupBy({
+        by: ["tiendaId"],
+        where: { fecha: rangoExclusivo(desde, hasta), ...(tiendaId ? { tiendaId } : {}) },
+        _sum: { importe: true },
+        _count: true,
+      }),
       umbralDescuadre(prisma),
     ]);
 
@@ -117,6 +126,9 @@ export const GET = withTenant(
     const bancoPorSede = new Map(
       banco.map((b) => [b.tiendaId ?? "", { importe: Number(b._sum.importe ?? 0), n: b._count }]),
     );
+    const facturadoPorSede = new Map(
+      facturado.map((f) => [f.tiendaId ?? "", { importe: Number(f._sum.importe ?? 0), n: f._count }]),
+    );
 
     // Movimientos del banco sin sede asignada: no se pueden atribuir a una
     // tienda, así que se muestran aparte en vez de repartirlos a ojo.
@@ -129,9 +141,14 @@ export const GET = withTenant(
       const caja = cajaPorSede.get(s.id) ?? { efectivo: 0, tarjeta: 0, cajas: 0 };
       const arq = arqueoPorSede.get(s.id) ?? { declarado: 0, recogido: 0, n: 0 };
       const ban = bancoPorSede.get(s.id) ?? { importe: 0, n: 0 };
+      const fac = facturadoPorSede.get(s.id) ?? { importe: 0, n: 0 };
 
       const difEfectivo = diferenciaArqueo(arq.declarado, caja.efectivo);
       const difTarjeta = diferenciaArqueo(ban.importe, caja.tarjeta);
+      // Contra lo facturado va lo cobrado ENTERO: al operador se le factura la
+      // venta, no el medio de pago.
+      const cobradoTotal = Math.round((caja.efectivo + caja.tarjeta) * 100) / 100;
+      const difFacturado = diferenciaArqueo(fac.importe, cobradoTotal);
 
       return {
         tiendaId: s.id,
@@ -156,6 +173,14 @@ export const GET = withTenant(
           diferencia: difTarjeta,
           descuadre: ban.n > 0 && esDescuadre(difTarjeta, umbral),
           sinBanco: ban.n === 0 && caja.tarjeta > 0,
+        },
+        facturacion: {
+          segunCierres: cobradoTotal,
+          segunFacturacion: fac.importe,
+          lineas: fac.n,
+          diferencia: difFacturado,
+          descuadre: fac.n > 0 && esDescuadre(difFacturado, umbral),
+          sinFacturacion: fac.n === 0 && cobradoTotal > 0,
         },
       };
     });

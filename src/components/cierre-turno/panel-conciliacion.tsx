@@ -33,6 +33,14 @@ interface Fila {
     descuadre: boolean;
     sinArqueos: boolean;
   };
+  facturacion: {
+    segunCierres: number;
+    segunFacturacion: number;
+    lineas: number;
+    diferencia: number;
+    descuadre: boolean;
+    sinFacturacion: boolean;
+  };
   tarjeta: {
     segunCierres: number;
     segunBanco: number;
@@ -59,6 +67,9 @@ interface Conciliacion {
     descuadres: number;
   };
 }
+
+/** Los dos ficheros externos que se importan aquí. */
+type FuenteImport = "banco" | "facturacion";
 
 interface Previsualizacion {
   cabeceras: string[];
@@ -118,6 +129,7 @@ export function PanelConciliacion() {
   const [previa, setPrevia] = useState<Previsualizacion | null>(null);
   const [mapeo, setMapeo] = useState<Previsualizacion["mapeo"] | null>(null);
   const [sedeImport, setSedeImport] = useState("");
+  const [fuenteImport, setFuenteImport] = useState<FuenteImport>("banco");
   const [subiendo, setSubiendo] = useState(false);
   const [recordarMapeo, setRecordarMapeo] = useState(true);
 
@@ -154,6 +166,13 @@ export function PanelConciliacion() {
       .catch(() => setSedes([]));
   }, []);
 
+  /**
+   * Qué fichero se está subiendo. Los dos circuitos son iguales —previsualizar,
+   * confirmar columnas, importar sin duplicar— y solo cambia el endpoint, así
+   * que comparten pantalla (ticket 4b8e1d05).
+   */
+  const fuenteEs = (f: FuenteImport) => (f === "banco" ? "el extracto del banco" : "la facturación");
+
   /** Paso 1 de la importación: leer el fichero y proponer el mapeo. */
   const elegirFichero = async (f: File) => {
     setSubiendo(true);
@@ -167,7 +186,7 @@ export function PanelConciliacion() {
       });
       setFichero({ nombre: f.name, base64 });
 
-      const res = await fetch("/api/movimientos-banco", {
+      const res = await fetch(`/api/movimientos-${fuenteImport}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -180,7 +199,7 @@ export function PanelConciliacion() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast({
-          title: "No se ha podido leer el extracto",
+          title: `No se ha podido leer ${fuenteEs(fuenteImport)}`,
           description: (data as { error?: string }).error ?? "",
           variant: "destructive",
         });
@@ -206,7 +225,7 @@ export function PanelConciliacion() {
     if (!fichero || !mapeo) return;
     setSubiendo(true);
     try {
-      const res = await fetch("/api/movimientos-banco", {
+      const res = await fetch(`/api/movimientos-${fuenteImport}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -228,7 +247,7 @@ export function PanelConciliacion() {
       }
       const r = data as { importados: number; yaEstaban: number; totalIgnoradas: number; importe: number };
       toast({
-        title: "Extracto importado",
+        title: fuenteImport === "banco" ? "Extracto importado" : "Facturación importada",
         description: `${r.importados} movimientos nuevos (${eur(r.importe)})${
           r.yaEstaban ? `, ${r.yaEstaban} ya estaban` : ""
         }${r.totalIgnoradas ? `, ${r.totalIgnoradas} filas sin importar` : ""}.`,
@@ -346,7 +365,7 @@ export function PanelConciliacion() {
             <Card key={f.tiendaId}>
               <CardContent className="pt-4 pb-4">
                 <p className="font-semibold text-slate-900">{f.sede}</p>
-                <div className="grid md:grid-cols-2 gap-4 mt-3">
+                <div className="grid md:grid-cols-3 gap-4 mt-3">
                   <Cuadre
                     titulo="Efectivo"
                     href={`/admin/conciliacion/efectivo/${f.tiendaId}?desde=${desde}&hasta=${hasta}`}
@@ -366,6 +385,19 @@ export function PanelConciliacion() {
                     descuadre={f.tarjeta.descuadre}
                     faltaDato={f.tarjeta.sinBanco}
                     textoFalta="No hay movimientos del banco de esta sede en el periodo. Importa el extracto para poder cuadrar."
+                  />
+                  {/* La tercera pata (ticket 4b8e1d05): los otros dos cuadres
+                      comprueban que el dinero está; este, que la venta se
+                      tramitó en el sistema del operador. */}
+                  <Cuadre
+                    titulo="Facturado"
+                    href={`/admin/conciliacion/facturacion/${f.tiendaId}?desde=${desde}&hasta=${hasta}`}
+                    izquierda={{ label: "Cobrado en cierres", valor: f.facturacion.segunCierres }}
+                    derecha={{ label: "Consta facturado", valor: f.facturacion.segunFacturacion }}
+                    diferencia={f.facturacion.diferencia}
+                    descuadre={f.facturacion.descuadre}
+                    faltaDato={f.facturacion.sinFacturacion}
+                    textoFalta="No hay líneas de facturación de esta sede en el periodo. Sube el Excel del sistema de facturación para poder cuadrar."
                   />
                 </div>
               </CardContent>
@@ -429,6 +461,24 @@ export function PanelConciliacion() {
                 </select>
               </div>
             )}
+            <div>
+              <Label htmlFor="fuente-import">Qué fichero subes</Label>
+              <select
+                id="fuente-import"
+                className="mt-1 block rounded-md border border-slate-200 px-3 py-2 text-sm"
+                value={fuenteImport}
+                onChange={(e) => {
+                  setFuenteImport(e.target.value as FuenteImport);
+                  // El mapeo de columnas es de cada fichero: al cambiar de
+                  // fuente, la previsualización anterior ya no vale.
+                  setPrevia(null);
+                  setFichero(null);
+                }}
+              >
+                <option value="banco">Extracto del banco</option>
+                <option value="facturacion">Facturación del operador</option>
+              </select>
+            </div>
             <input
               ref={inputFichero}
               type="file"
@@ -441,7 +491,7 @@ export function PanelConciliacion() {
             />
             <Button disabled={subiendo} onClick={() => inputFichero.current?.click()}>
               <Upload className="h-4 w-4 mr-2" />
-              {subiendo ? "Leyendo…" : "Elegir extracto"}
+              {subiendo ? "Leyendo…" : "Elegir fichero"}
             </Button>
           </div>
 

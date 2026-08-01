@@ -1,15 +1,16 @@
 "use client";
 
 /**
- * El cuadre de tarjeta de una tienda, día a día (ticket 1e73c9a4).
+ * Cuadre día a día de una tienda contra una fuente externa: el extracto del
+ * banco (tickets 1e73c9a4) o el sistema de facturación (4b8e1d05).
  *
- * Lo que la tienda dice haber cobrado con el datáfono cada día, frente a lo que
- * el banco ingresó **al día siguiente**: las liquidaciones entran con desfase,
- * así que comparar el mismo día marcaría descuadre en todas partes. Cada fila
- * lleva las dos fechas para que se vea de dónde sale cada cifra.
+ * Es la misma pantalla porque es el mismo problema —lo que la tienda declara
+ * frente a lo que dice un tercero, alineado por fecha—; solo cambian las
+ * etiquetas y el desfase por defecto. Cada fila lleva las DOS fechas, para que
+ * se vea de dónde sale cada cifra.
  *
- * Debajo, el extracto en crudo: cuando una fila no cuadra, hay que poder mirar
- * los movimientos de ese día uno a uno.
+ * Debajo, el fichero en crudo: cuando una fila no cuadra, hay que poder mirar
+ * los apuntes de ese día uno a uno.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -58,18 +59,38 @@ function fechaCorta(iso: string): string {
     .replace(".", "");
 }
 
-export function CuadreTarjeta({
+export interface TextosCuadre {
+  /** "Tarjeta" | "Facturación". */
+  titulo: string;
+  descripcion: string;
+  /** De dónde vienen los datos de la derecha: "el banco", "facturación". */
+  fuente: string;
+  etiquetaDeclarado: string;
+  etiquetaFuente: string;
+  columnaFechaFuente: string;
+  sinDatos: string;
+  tituloFichero: string;
+}
+
+export function CuadreExterno({
   tiendaId,
   desdeInicial,
   hastaInicial,
+  endpoint,
+  desfaseInicial,
+  textos,
 }: {
   tiendaId: string;
   desdeInicial: string;
   hastaInicial: string;
+  /** "tarjeta" | "facturacion". */
+  endpoint: string;
+  desfaseInicial: number;
+  textos: TextosCuadre;
 }) {
   const [desde, setDesde] = useState(desdeInicial);
   const [hasta, setHasta] = useState(hastaInicial);
-  const [desfase, setDesfase] = useState(1);
+  const [desfase, setDesfase] = useState(desfaseInicial);
   const [datos, setDatos] = useState<Respuesta | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +105,7 @@ export function CuadreTarjeta({
         hasta,
         desfase: String(desfase),
       });
-      const res = await fetch(`/api/conciliacion/tarjeta?${params}`);
+      const res = await fetch(`/api/conciliacion/${endpoint}?${params}`);
       const data = await res.json();
       if (!res.ok) {
         setError((data as { error?: string }).error ?? "No se ha podido cargar.");
@@ -96,7 +117,7 @@ export function CuadreTarjeta({
     } finally {
       setCargando(false);
     }
-  }, [tiendaId, desde, hasta, desfase]);
+  }, [tiendaId, desde, hasta, desfase, endpoint]);
 
   useEffect(() => {
     void cargar();
@@ -114,13 +135,9 @@ export function CuadreTarjeta({
         </Link>
         <h1 className="text-2xl font-bold text-slate-900 mt-1 flex items-center gap-2">
           <CreditCard className="h-6 w-6 text-[var(--primary)]" />
-          Tarjeta · {datos?.tienda.nombre ?? "…"}
+          {textos.titulo} · {datos?.tienda.nombre ?? "…"}
         </h1>
-        <p className="text-slate-500 text-sm mt-1 max-w-2xl">
-          Lo que la tienda declaró haber cobrado con el datáfono cada día, frente a lo que
-          entró en el banco. El dinero de un día aparece en el extracto al día siguiente, así
-          que cada fila compara las dos fechas.
-        </p>
+        <p className="text-slate-500 text-sm mt-1 max-w-2xl">{textos.descripcion}</p>
       </div>
 
       <Card>
@@ -147,15 +164,15 @@ export function CuadreTarjeta({
               />
             </div>
             <div>
-              <Label htmlFor="desfase">El banco ingresa</Label>
+              <Label htmlFor="desfase">{textos.fuente} registra</Label>
               <select
                 id="desfase"
                 className="mt-1 block rounded-md border border-slate-200 px-3 py-2 text-sm"
                 value={desfase}
                 onChange={(e) => setDesfase(Number(e.target.value))}
               >
-                <option value={1}>al día siguiente</option>
                 <option value={0}>el mismo día</option>
+                <option value={1}>al día siguiente</option>
                 <option value={2}>a los 2 días</option>
                 <option value={3}>a los 3 días</option>
               </select>
@@ -173,18 +190,14 @@ export function CuadreTarjeta({
       {datos?.sinExtracto && (
         <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 flex items-start gap-2">
           <HelpCircle className="h-4 w-4 mt-0.5 shrink-0 text-slate-400" />
-          <span>
-            No hay movimientos del banco de esta tienda en estas fechas. Importa el extracto
-            desde la pantalla de Conciliación para poder cuadrar: sin él, todo aparecería como
-            si faltara el dinero.
-          </span>
+          <span>{textos.sinDatos}</span>
         </div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-3">
         {[
-          { label: "Declarado en cierres", valor: datos?.totales.declarado, color: "text-slate-900" },
-          { label: "Ingresado por el banco", valor: datos?.totales.banco, color: "text-[var(--primary)]" },
+          { label: textos.etiquetaDeclarado, valor: datos?.totales.declarado, color: "text-slate-900" },
+          { label: textos.etiquetaFuente, valor: datos?.totales.banco, color: "text-[var(--primary)]" },
         ].map((k) => (
           <Card key={k.label}>
             <CardContent className="pt-4 pb-4">
@@ -219,7 +232,7 @@ export function CuadreTarjeta({
             </div>
           ) : (datos?.filas.length ?? 0) === 0 ? (
             <p className="text-center py-8 text-slate-400 text-sm">
-              No hay cobros con tarjeta ni ingresos en estas fechas.
+              No hay nada que cuadrar en estas fechas.
             </p>
           ) : (
             <div className="overflow-x-auto -mx-6">
@@ -228,9 +241,9 @@ export function CuadreTarjeta({
                   <tr>
                     {[
                       "Día de venta",
-                      "Ingreso del banco",
+                      textos.columnaFechaFuente,
                       "Declarado",
-                      "En el banco",
+                      textos.titulo,
                       "Diferencia",
                       "",
                     ].map((h, i) => (
@@ -287,11 +300,9 @@ export function CuadreTarjeta({
       {(datos?.movimientos.length ?? 0) > 0 && (
         <Card>
           <CardContent className="pt-4 pb-4">
-            <p className="text-sm font-semibold text-slate-800">
-              Movimientos del banco importados
-            </p>
+            <p className="text-sm font-semibold text-slate-800">{textos.tituloFichero}</p>
             <p className="text-xs text-slate-500 mt-0.5 mb-3">
-              El extracto tal cual se importó, para mirar un día concreto apunte a apunte.
+              El fichero tal cual se importó, para mirar un día concreto apunte a apunte.
             </p>
             <div className="overflow-x-auto -mx-6">
               <table className="w-full">

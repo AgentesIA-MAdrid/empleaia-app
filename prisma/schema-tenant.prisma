@@ -150,6 +150,7 @@ model Tienda {
   cierresTurno        CierreTurno[]
   arqueos             Arqueo[]
   movimientosBanco    MovimientoBanco[]
+  facturacion         MovimientoFacturacion[]
   objetivosVenta      ObjetivoVenta[]
   // Grupos de objetivos a los que pertenece la sede (TMT, zona…).
   gruposObjetivo      GrupoObjetivoMiembro[]
@@ -744,6 +745,9 @@ model ConfiguracionEmpresa {
   /// Cada banco exporta distinto, así que el mapeo es del tenant y no del
   /// producto. Forma: ver `MapeoBanco` en `src/lib/cierre-turno/banco.ts`.
   bancoMapeo                  Json?    @map("banco_mapeo")
+  /// Lo mismo para el export del sistema de facturación (ticket 4b8e1d05):
+  /// cada operador exporta a su manera y el mapeo es del tenant.
+  facturacionMapeo            Json?    @map("facturacion_mapeo")
   emailActivo                 Boolean  @default(false)
   emailHost                   String?
   emailPort                   Int?
@@ -2140,6 +2144,29 @@ model Arqueo {
 
   @@unique([tiendaId, semana])
   @@index([estado])
+}
+
+/// Importes que constan facturados en el sistema del operador, importados desde
+/// su Excel (ticket 4b8e1d05). Sirven para cuadrar lo que los empleados declaran
+/// haber vendido con lo que de verdad se metió a facturar: una venta declarada
+/// que nunca se tramitó no aparece aquí, y un importe facturado sin venta
+/// declarada tampoco cuadra.
+///
+/// Mismo planteamiento que `MovimientoBanco`, y a propósito: son dos fuentes
+/// externas que se cruzan igual, por tienda y día.
+model MovimientoFacturacion {
+  id          String   @id @default(cuid())
+  tiendaId    String?
+  tienda      Tienda?  @relation(fields: [tiendaId], references: [id], onDelete: SetNull)
+  fecha       DateTime @db.Date
+  importe     Decimal  @db.Decimal(10, 2)
+  concepto    String?
+  /// Referencia en el export, para no importar dos veces lo mismo.
+  referencia  String?
+  importadoEn DateTime @default(now())
+
+  @@unique([referencia])
+  @@index([tiendaId, fecha])
 }
 
 /// Movimientos del banco importados desde Excel, para cuadrar los cobros con
