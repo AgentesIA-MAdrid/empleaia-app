@@ -33,6 +33,12 @@ interface Turno {
   horaInicio: string; horaFin: string; nota?: string;
   estado: "BORRADOR" | "PUBLICADO";
   tipoTurno?: TipoTurnoRef | null;
+  /** Corregido a mano desde el cuadro de discrepancias (ticket c1e94a7b). */
+  corregido?: boolean;
+  /** Estaba previsto y no se trabajó: sus horas no cuentan. */
+  noRealizado?: boolean;
+  /** Qué decía el cuadrante antes de la corrección. */
+  notaCorreccion?: string | null;
 }
 interface Ausencia {
   id: string; userId: string; fechaInicio: string; fechaFin: string;
@@ -1300,11 +1306,31 @@ function CeldaDia({
               "group relative mx-auto block w-fit cursor-grab rounded-md px-1 py-1 text-xs font-medium leading-tight active:cursor-grabbing",
               t.estado === "PUBLICADO" ? "text-white" : "border border-dashed border-slate-300 text-slate-600",
             )}
-            style={t.estado === "PUBLICADO" ? { backgroundColor: t.tipoTurno?.color || "var(--primary)" } : undefined}
-            title={t.nota ? `${t.nota} · arrastra por los días para copiar` : "Arrastra por los días para copiar en cada uno"}
+            /* Los corregidos van en AMARILLO, por encima del color de su tipo:
+               lo que se quiere ver de un golpe es qué se ha tocado a mano
+               (ticket c1e94a7b). El texto pasa a oscuro para que se lea. */
+            style={
+              t.corregido
+                ? { backgroundColor: "#facc15", color: "#422006" }
+                : t.estado === "PUBLICADO"
+                  ? { backgroundColor: t.tipoTurno?.color || "var(--primary)" }
+                  : undefined
+            }
+            title={
+              [
+                t.corregido ? t.notaCorreccion ?? "Turno corregido a mano" : null,
+                t.noRealizado ? "No se trabajó: sus horas no cuentan en el informe de horas" : null,
+                t.nota,
+                "Arrastra por los días para copiar en cada uno",
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            }
           >
             <div>{etiquetaTurno(t)}</div>
-            <div className="opacity-80">{horasDeTurno(t)}h</div>
+            <div className="opacity-80">
+              {horasDeTurno(t)}h{t.noRealizado ? " · no trabajado" : ""}
+            </div>
             <span
               onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
               className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px]"

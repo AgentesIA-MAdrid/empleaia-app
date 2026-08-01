@@ -592,6 +592,24 @@ async function informeDiscrepancias(
   });
 
   const nombreSede = new Map(sedes.map((t) => [t.id, t.nombre]));
+  // Historial de lo ya corregido en el periodo (ticket c1e94a7b): el cuadro de
+  // discrepancias solo enseña lo que sigue sin cuadrar, así que sin esto no
+  // quedaría constancia de lo que se tocó ni de quién lo tocó.
+  const historial = await prisma.correccionCuadrante.findMany({
+    where: { fecha: { gte: inicio, lte: fin } },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+    select: {
+      id: true,
+      fecha: true,
+      tipo: true,
+      antes: true,
+      despues: true,
+      createdAt: true,
+      user: { select: { nombre: true, apellidos: true } },
+      corregidoPor: { select: { nombre: true, apellidos: true } },
+    },
+  });
   const personas = await prisma.user.findMany({
     where: { id: { in: [...new Set(discrepancias.map((d) => d.userId))] } },
     select: { id: true, nombre: true, apellidos: true },
@@ -608,6 +626,16 @@ async function informeDiscrepancias(
     // pantalla es para revisar lo de arriba, no para leerlo entero. El resumen
     // sí cuenta todas.
     total: discrepancias.length,
+    historial: historial.map((h) => ({
+      id: h.id,
+      dia: h.fecha.toISOString().slice(0, 10),
+      tipo: h.tipo,
+      antes: h.antes,
+      despues: h.despues,
+      empleado: `${h.user.nombre} ${h.user.apellidos}`.trim(),
+      corregidoPor: `${h.corregidoPor.nombre} ${h.corregidoPor.apellidos}`.trim(),
+      cuando: h.createdAt.toISOString(),
+    })),
     incidencias: discrepancias.slice(0, 300).map((d) => ({
       ...d,
       empleado: nombrePersona.get(d.userId) ?? "—",

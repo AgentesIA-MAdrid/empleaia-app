@@ -247,6 +247,10 @@ model User {
   // Formación LMS: cursos creados, asignaciones recibidas.
   cursosCreados              Curso[]                    @relation("CursoCreador")
   cursosAsignados            AsignacionCurso[]          @relation("AsignacionCursoEmpleado")
+  // Correcciones del cuadrante (ticket c1e94a7b): las que le afectan y las que
+  // ha hecho él.
+  correccionesRecibidas      CorreccionCuadrante[]      @relation("CorreccionCuadranteEmpleado")
+  correccionesHechas         CorreccionCuadrante[]      @relation("CorreccionCuadranteAutor")
   // Custom requests: peticiones del empleado, gestionadas por OWNER/MANAGER.
   peticiones                 Peticion[]                 @relation("PeticionSolicitante")
   peticionesGestionadas      Peticion[]                 @relation("PeticionGestor")
@@ -454,6 +458,21 @@ model Turno {
   // Marca de cuándo se envió el aviso de "olvido de fichaje" para este turno
   // (null = aún no enviado). Evita avisar repetidamente en cada pasada del cron.
   avisoFichajeEnviadoAt DateTime?   @map("aviso_fichaje_enviado_at")
+  /// El turno se ha corregido desde el cuadro de discrepancias del informe
+  /// (ticket c1e94a7b): o se creó a partir de un fichaje que no tenía turno, o
+  /// se le cambió la sede para que cuadrara con dónde se fichó, o se marcó como
+  /// no realizado. Se pinta en AMARILLO en el cuadrante para que se vea de un
+  /// golpe qué se ha tocado a mano.
+  corregido             Boolean     @default(false)
+  /// El turno estaba publicado pero no se trabajó (nadie fichó) y se ha
+  /// confirmado al corregir. Sigue en el cuadrante —no se borra, para no perder
+  /// de vista lo que estaba previsto— pero sus horas NO cuentan en el informe de
+  /// horas: salen aparte, en la hoja de incidencias.
+  noRealizado           Boolean     @default(false) @map("no_realizado")
+  /// Lo que decía el cuadrante antes de la corrección, en texto, para poder
+  /// contarlo sin ir al historial ("Estaba en NEKSUS CARTAGENA 10:00-17:00").
+  notaCorreccion        String?     @map("nota_correccion")
+  correcciones          CorreccionCuadrante[]
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 
@@ -461,6 +480,38 @@ model Turno {
   @@index([tiendaId])
   @@index([tipoTurnoId])
   @@index([fecha])
+  @@index([corregido])
+}
+
+/// Historial de correcciones del cuadrante hechas desde el cuadro de
+/// discrepancias del informe (ticket c1e94a7b).
+///
+/// Se guarda el ANTES en texto y no por referencia: el turno se puede volver a
+/// tocar o la sede desaparecer, y el historial tiene que seguir contando lo que
+/// pasó. Es un registro de auditoría, no una vista.
+model CorreccionCuadrante {
+  id       String   @id @default(cuid())
+  /// Turno resultante (creado o modificado). null si se borró después.
+  turnoId  String?  @map("turno_id")
+  turno    Turno?   @relation(fields: [turnoId], references: [id], onDelete: SetNull)
+  /// Empleado al que le afecta la corrección.
+  userId   String   @map("user_id")
+  user     User     @relation("CorreccionCuadranteEmpleado", fields: [userId], references: [id], onDelete: Cascade)
+  /// Día corregido, a medianoche.
+  fecha    DateTime @db.Date
+  /// "sede_distinta" | "sin_turno" | "turno_sin_fichaje"
+  tipo     String
+  /// Qué decía el cuadrante antes ("NEKSUS CARTAGENA 10:00-17:00" o "sin turno").
+  antes    String
+  /// Qué dice después.
+  despues  String
+  /// Quién lo corrigió.
+  corregidoPorId String @map("corregido_por_id")
+  corregidoPor   User   @relation("CorreccionCuadranteAutor", fields: [corregidoPorId], references: [id])
+  createdAt      DateTime @default(now())
+
+  @@index([fecha])
+  @@index([userId])
 }
 
 // Catálogo de tipos de turno que cada cliente define (Mañana, Tarde,
