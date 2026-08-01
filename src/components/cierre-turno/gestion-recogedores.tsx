@@ -10,7 +10,7 @@
  * Si alguien lo olvida, administración le pone uno nuevo — no hay "ver PIN".
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { KeyRound, LockOpen, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -178,7 +178,8 @@ export function GestionRecogedores({ onCambio }: { onCambio?: () => void }) {
                   </thead>
                   <tbody>
                     {personas.map((p) => (
-                      <tr key={p.id} className="border-b border-slate-100 last:border-0">
+                      <Fragment key={p.id}>
+                      <tr className="border-b border-slate-100 last:border-0">
                         <td className="px-4 py-2 text-sm font-medium text-slate-800">
                           {p.nombre}
                           <span className="text-slate-400 text-xs ml-2">{p.rol}</span>
@@ -236,49 +237,59 @@ export function GestionRecogedores({ onCambio }: { onCambio?: () => void }) {
                           )}
                         </td>
                       </tr>
+
+                      {/* El campo del PIN va PEGADO a la persona, no al final de
+                          la tabla: con 36 filas, quien pulsaba "Poner PIN" en la
+                          segunda no veía aparecer nada y daba el botón por roto. */}
+                      {pinDe === p.id && (
+                        <tr className="border-b border-slate-100 bg-slate-50">
+                          <td colSpan={5} className="px-4 py-3">
+                            <div className="max-w-md space-y-3">
+                              <div>
+                                <Label htmlFor={`nuevo-pin-${p.id}`}>PIN para {p.nombre}</Label>
+                                <Input
+                                  id={`nuevo-pin-${p.id}`}
+                                  type="password"
+                                  inputMode="numeric"
+                                  autoComplete="new-password"
+                                  autoFocus
+                                  className="mt-1 tabular-nums"
+                                  value={pin}
+                                  onChange={(e) => setPin(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && pin && !guardando) void guardarPin(p);
+                                    if (e.key === "Escape") setPinDe(null);
+                                  }}
+                                  placeholder="Entre 4 y 8 dígitos"
+                                />
+                                <p className="text-xs text-slate-400 mt-1">
+                                  Nada de 1234 ni 0000. No podrás volver a verlo: apúntalo o
+                                  díselo ahora.
+                                </p>
+                              </div>
+                              <div className="flex gap-2 justify-end">
+                                <Button variant="ghost" size="sm" onClick={() => setPinDe(null)}>
+                                  Cancelar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  disabled={guardando || !pin}
+                                  onClick={() => void guardarPin(p)}
+                                >
+                                  {guardando ? "Guardando…" : "Guardar PIN"}
+                                </Button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>
               </div>
             )}
 
-            {pinDe && (
-              <div className="mt-4 rounded-md border border-slate-200 p-3 space-y-3 max-w-md">
-                <div>
-                  <Label htmlFor="nuevo-pin">
-                    PIN para {personas.find((p) => p.id === pinDe)?.nombre}
-                  </Label>
-                  <Input
-                    id="nuevo-pin"
-                    type="password"
-                    inputMode="numeric"
-                    autoComplete="new-password"
-                    className="mt-1 tabular-nums"
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    placeholder="Entre 4 y 8 dígitos"
-                  />
-                  <p className="text-xs text-slate-400 mt-1">
-                    Nada de 1234 ni 0000. No podrás volver a verlo: apúntalo o díselo ahora.
-                  </p>
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <Button variant="ghost" size="sm" onClick={() => setPinDe(null)}>
-                    Cancelar
-                  </Button>
-                  <Button
-                    size="sm"
-                    disabled={guardando || !pin}
-                    onClick={() => {
-                      const p = personas.find((x) => x.id === pinDe);
-                      if (p) void guardarPin(p);
-                    }}
-                  >
-                    {guardando ? "Guardando…" : "Guardar PIN"}
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </CardContent>
