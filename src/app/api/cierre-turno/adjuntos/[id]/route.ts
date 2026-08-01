@@ -1,9 +1,16 @@
 /**
  * GET /api/cierre-turno/adjuntos/[id] — descarga el fichero.
  *
- * Quién puede: su autor, el coordinador de la sede del cierre y cualquier
- * administrador. Mismo alcance que el resto del módulo, aplicado en la consulta
- * y no después, para que un id ajeno no devuelva nada.
+ * Quién puede: su autor, cualquiera de la MISMA SEDE del cierre, el coordinador
+ * y cualquier administrador. Aplicado en la consulta y no después, para que un
+ * id ajeno no devuelva nada.
+ *
+ * Por qué la sede y no solo el autor (ticket 2e6b91f4): al entrar a trabajar se
+ * le pide al comercial que revise el fondo de caja y el stock que le deja el
+ * turno anterior, y esos dos datos son justo el Excel de stock y el comprobante
+ * del TPV que van adjuntos al cierre de su compañero. Pedirle que revise algo
+ * que no puede abrir no tiene sentido. Es información de la tienda —cuánto
+ * efectivo y qué existencias—, no datos personales de nadie.
  */
 
 import { auth } from "@/lib/auth";
@@ -31,20 +38,25 @@ export const GET = withTenant(
     if (!id) return NextResponse.json({ error: "Falta el archivo." }, { status: 400 });
 
     const alcance = alcanceSegunRol(rol);
+    // Administración lo ve todo; el resto, lo de sus sedes. Un comercial con
+    // alcance "propio" también entra por aquí: sus sedes son la suya (y las que
+    // le hayan asignado), que es de donde tiene que revisar la caja y el stock.
     const sedesPropias =
-      alcance === "sede"
-        ? await sedesDelUsuario(prisma, { userId: session.user.id!, tiendaId: tiendaPropia })
-        : [];
+      alcance === "todos"
+        ? []
+        : await sedesDelUsuario(prisma, { userId: session.user.id!, tiendaId: tiendaPropia });
     const adjunto = await prisma.cierreCajaAdjunto.findFirst({
       where: {
         id,
         caja: {
           cierre:
-            alcance === "propio"
-              ? { userId }
-              : alcance === "sede"
-                ? { tiendaId: { in: sedesPropias } }
-                : {},
+            alcance === "todos"
+              ? {}
+              : {
+                  // Suyo o de su sede: si no tiene ninguna asignada, `in: []` no
+                  // devuelve nada y le quedan solo los propios.
+                  OR: [{ userId }, { tiendaId: { in: sedesPropias } }],
+                },
         },
       },
       select: { nombre: true, mime: true, contenido: true },

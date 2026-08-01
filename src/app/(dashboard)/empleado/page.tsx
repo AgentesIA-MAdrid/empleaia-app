@@ -19,6 +19,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   ChevronRight,
+  Paperclip,
   X as XIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -97,6 +98,10 @@ function formatFechaLarga(date: Date): string {
   const anio = date.getFullYear();
   return `${dia}, ${num} de ${mes} de ${anio}`;
 }
+
+/** Importe en euros, para el fondo de caja del turno anterior. */
+const eur = (n: number) =>
+  new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n);
 
 function formatHora(date: Date): string {
   return date.toLocaleTimeString("es-ES", {
@@ -239,6 +244,23 @@ export default function EmpleadoPage() {
   const [checklistActivo, setChecklistActivo] = useState(false);
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [pendingChecklistTipo, setPendingChecklistTipo] = useState<TipoFichaje | null>(null);
+  /**
+   * Lo que dejó el turno anterior en su tienda (ticket 2e6b91f4): el fondo de
+   * caja, el Excel del stock y la incidencia que escribiera. Se le pedía
+   * revisarlo en los puntos de control y no había forma de verlo.
+   */
+  const [cierreAnterior, setCierreAnterior] = useState<{
+    fecha: string;
+    quien: string;
+    sede: string | null;
+    incidencia: string | null;
+    caja: {
+      efectivo: number;
+      tarjeta: number;
+      confirmada: boolean;
+      adjuntos: { id: string; tipo: string; nombre: string }[];
+    } | null;
+  } | null>(null);
   const [checksMarcados, setChecksMarcados] = useState<Record<string, boolean>>({});
   // Confirmaciones ya hechas, en espera de que termine el Face ID.
   const [respuestasChecklist, setRespuestasChecklist] = useState<RespuestaChecklist[] | null>(null);
@@ -291,6 +313,22 @@ export default function EmpleadoPage() {
     }
   }, []);
 
+  /**
+   * El último cierre de su tienda, para poder revisar de verdad la caja y el
+   * stock que le dejan. Se pide una vez al cargar la pantalla: no es urgente y
+   * si falla no debe estorbar al fichaje.
+   */
+  const fetchCierreAnterior = useCallback(async () => {
+    try {
+      const res = await fetch("/api/cierre-turno/anterior");
+      if (!res.ok) return;
+      const data = (await res.json()) as { cierre: typeof cierreAnterior };
+      setCierreAnterior(data.cierre ?? null);
+    } catch {
+      /* sin conexión: el bloque simplemente no se pinta */
+    }
+  }, []);
+
   // Puntos de control configurados por la empresa (solo los activos).
   const fetchChecklist = useCallback(async () => {
     try {
@@ -322,7 +360,8 @@ export default function EmpleadoPage() {
     fetchFichajesHoy();
     void fetchChecklist();
     void fetchAccesoCierre();
-  }, [fetchEstado, fetchFichajesHoy, fetchChecklist, fetchAccesoCierre]);
+    void fetchCierreAnterior();
+  }, [fetchEstado, fetchFichajesHoy, fetchChecklist, fetchAccesoCierre, fetchCierreAnterior]);
 
   // Política de Face ID del tenant + ¿el usuario tiene template?
   useEffect(() => {
@@ -1217,6 +1256,78 @@ export default function EmpleadoPage() {
               Marca cada comprobación para confirmar que la has hecho. Quedan
               registradas junto a tu fichaje.
             </p>
+
+            {/* Lo que dejó el turno anterior (ticket 2e6b91f4). Va aquí y no en
+                otra pantalla porque es justo el momento en que se le pide
+                revisar la caja y el stock: si hay que ir a buscarlo, no se
+                revisa. Solo en la entrada — al salir, lo que cuenta es lo que
+                deja él. */}
+            {pendingChecklistTipo === "ENTRADA" && cierreAnterior && (
+              <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 space-y-2">
+                <p className="text-sm font-semibold text-sky-900">
+                  Lo que te deja el turno anterior
+                </p>
+                <p className="text-xs text-sky-800">
+                  {cierreAnterior.quien} ·{" "}
+                  {new Date(`${cierreAnterior.fecha}T00:00:00`).toLocaleDateString("es-ES", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  })}
+                  {cierreAnterior.sede ? ` · ${cierreAnterior.sede}` : ""}
+                </p>
+                {cierreAnterior.caja ? (
+                  <>
+                    <div className="flex gap-4 text-sm">
+                      <span className="text-sky-900">
+                        Efectivo:{" "}
+                        <strong className="tabular-nums">
+                          {eur(cierreAnterior.caja.efectivo)}
+                        </strong>
+                      </span>
+                      <span className="text-sky-900">
+                        Tarjeta:{" "}
+                        <strong className="tabular-nums">
+                          {eur(cierreAnterior.caja.tarjeta)}
+                        </strong>
+                      </span>
+                    </div>
+                    {cierreAnterior.caja.adjuntos.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {cierreAnterior.caja.adjuntos.map((a) => (
+                          <a
+                            key={a.id}
+                            href={`/api/cierre-turno/adjuntos/${a.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-md border border-sky-300 bg-white px-2 py-1 text-xs font-medium text-sky-800 hover:bg-sky-100"
+                          >
+                            <Paperclip className="h-3.5 w-3.5" />
+                            {a.tipo === "stock" ? "Stock" : a.tipo === "tpv" ? "TPV" : a.nombre}
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-sky-700">
+                        No dejó adjunto el Excel del stock ni el comprobante del TPV.
+                      </p>
+                    )}
+                    {!cierreAnterior.caja.confirmada && (
+                      <p className="text-xs text-amber-700">
+                        Su cierre de caja quedó sin confirmar.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs text-sky-700">No dejó cierre de caja.</p>
+                )}
+                {cierreAnterior.incidencia && (
+                  <p className="text-xs text-sky-900 border-t border-sky-200 pt-2">
+                    <strong>Incidencia que dejó:</strong> {cierreAnterior.incidencia}
+                  </p>
+                )}
+              </div>
+            )}
             <ul className="space-y-2">
               {checksDe(pendingChecklistTipo).map((item) => (
                 <li key={item.id}>
