@@ -455,11 +455,38 @@ async function informeResumen(
     horasExtra: Math.max(0, e.diferencia),
     diasAusencia: e.totalDiasAusencia,
   }));
+  // Turnos que estaban previstos y no se trabajaron (ticket c1e94a7b). Sus
+  // horas no cuentan en las cifras de arriba —se excluyen al leer el
+  // cuadrante— y van aparte, en la hoja "Incidencias" del Excel: son los días
+  // que hay que revisar con cada persona.
+  const incidenciasTurnos = (
+    await prisma.turno.findMany({
+      where: { ...roleFilter, fecha: { gte: inicio, lte: fin }, noRealizado: true },
+      select: {
+        fecha: true,
+        horaInicio: true,
+        horaFin: true,
+        notaCorreccion: true,
+        user: { select: { nombre: true, apellidos: true } },
+        tienda: { select: { nombre: true } },
+      },
+      orderBy: { fecha: "desc" },
+    })
+  ).map((t) => ({
+    Fecha: t.fecha.toISOString().slice(0, 10),
+    Empleado: `${t.user.nombre} ${t.user.apellidos}`.trim(),
+    Sede: t.tienda?.nombre ?? "",
+    Turno: `${t.horaInicio}-${t.horaFin}`,
+    Incidencia: "Turno previsto sin fichaje (no trabajado)",
+    Detalle: t.notaCorreccion ?? "",
+  }));
+
   return {
     tipo: "resumen",
     empleados: empleadosResumen,
     stats,
     total: empleados.length,
+    incidenciasTurnos,
   };
 }
 

@@ -336,6 +336,11 @@ async function leerTurnos(
       // En la variante de FICHAJES no se filtra a propósito: esas horas se
       // trabajaron de verdad y quitarlas falsearía el histórico.
       user: { activo: true },
+      // Los turnos confirmados como NO trabajados no suman horas previstas
+      // (ticket c1e94a7b): estaban en el cuadrante, nadie fichó y se ha
+      // confirmado al corregir la discrepancia. Siguen visibles en el cuadrante
+      // —en amarillo— y salen aparte, en la hoja de incidencias del Excel.
+      noRealizado: false,
     },
     select: {
       userId: true,
