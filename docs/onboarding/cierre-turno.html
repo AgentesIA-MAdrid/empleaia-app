@@ -89,6 +89,8 @@
       .boton.hueco { background: #fff; color: #1e1b4b; border: 0.3mm solid #1e1b4b; }
 
       .faq { border-top: 0.2mm solid #e4e4ec; padding-top: 3mm; margin-top: 3mm; }
+      .compacta .faq { padding-top: 2mm; margin-top: 2mm; }
+      .compacta .faq .body { font-size: 10pt; }
       .faq:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
 
       @page { size: A4; margin: 0; }
@@ -133,7 +135,18 @@
         </div>
       </div>
 
-      <div style="position:absolute; top:172mm; left:20mm; right:20mm;">
+      <div style="position:absolute; top:158mm; left:20mm; right:20mm; border:0.4mm solid #1e1b4b; border-radius:2mm; padding:4mm 5mm; display:flex; align-items:center; gap:4mm;">
+        <span class="paso-num" style="background:#1e1b4b; width:9mm; height:9mm; font-size:12pt;">+</span>
+        <div>
+          <span class="label" style="color:#1e1b4b;">Y los domingos, un paso más</span>
+          <p class="body" style="margin-top:1mm;">
+            <strong>Arqueo semanal</strong> — lo hace quien cierra la tienda ese día.
+            Página 6.
+          </p>
+        </div>
+      </div>
+
+      <div style="position:absolute; top:186mm; left:20mm; right:20mm;">
         <h2 class="heading">Por qué lo hacemos</h2>
         <p class="body" style="margin-top:3mm;">
           Lo que registras aquí es lo que luego se ve en los objetivos, en la caja de tu
@@ -144,7 +157,7 @@
           Cada persona cierra <strong>su</strong> caja: la del turno, no la de la tienda entera.
         </p>
 
-        <div class="info" style="margin-top:8mm;">
+        <div class="info" style="margin-top:6mm;">
           <span class="label">Lo primero de todo</span>
           <p class="body">
             El cierre <strong>no bloquea tu fichaje</strong>. Puedes fichar la salida aunque
@@ -454,16 +467,106 @@
       </div>
     </div>
 
-    <!-- =================== PASO 4 · INCIDENCIAS + FAQ =================== -->
+    <!-- ==================== PASO 4 · ARQUEO SEMANAL ==================== -->
     <div class="page" data-canvas-width="794" data-canvas-height="1123">
       <div class="marco">
         <div class="cabecera">
-          <span class="label" style="color:#d97706;">Paso 4</span>
+          <span class="label" style="color:#4338ca;">Paso 4 · solo los domingos</span>
           <span class="caption">empleaIA · Cierre de turno</span>
         </div>
 
         <div class="titulo-paso">
-          <span class="paso-num" style="background:#d97706;">4</span>
+          <span class="paso-num" style="background:#4338ca;">4</span>
+          <h2 class="display" style="font-size:26pt;">Arqueo semanal</h2>
+        </div>
+
+        <p class="body" style="margin-bottom:5mm;">
+          Los domingos, <strong>quien cierra la tienda</strong> prepara el arqueo de la
+          semana. Si te toca, te sale este paso solo; si no te sale, no es cosa tuya.
+        </p>
+
+        <div class="bloque">
+          <ol class="num body">
+            <li>
+              Cuenta <strong>todo el efectivo acumulado</strong> de la tienda: lo que se ha
+              ido cobrando durante la semana.
+            </li>
+            <li>Mételo en un sobre.</li>
+            <li>Escribe en la app cuánto hay y guarda.</li>
+            <li>Deja el sobre donde toca: pasará un responsable a recogerlo y firmarlo.</li>
+          </ol>
+        </div>
+
+        <div class="ojo" style="margin-bottom:6mm;">
+          <span class="label">El fondo de cambio NO se cuenta</span>
+          <p class="body">
+            El dinero de cambio se queda siempre en el cajón: no lo cuentes, no lo metas en
+            el sobre y no lo sumes. Al arqueo va <strong>solo lo cobrado</strong>.
+          </p>
+        </div>
+
+        <div class="pantalla" style="margin-bottom:6mm;">
+          <div class="pantalla-barra">
+            <span class="chip">1 Ventas</span>
+            <span class="chip">2 Cómo vas</span>
+            <span class="chip">3 Caja</span>
+            <span class="chip on">4 Arqueo semanal</span>
+            <span class="chip">5 Incidencias</span>
+          </div>
+          <div class="pantalla-cuerpo">
+            <div style="border-left:1.4mm solid #4338ca; background:#eef2ff; padding:3mm 4mm; margin-bottom:4mm;">
+              <p class="subheading" style="font-size:10.5pt; color:#312e81;">
+                Hoy cierras tú la tienda: toca el arqueo de la semana
+              </p>
+            </div>
+            <span class="caption" style="color:#3c3c48;">Efectivo que va al sobre</span>
+            <div class="campo" style="margin-top:1.2mm; text-align:right; color:#2a2a35;">719,32</div>
+            <p class="caption" style="margin-top:1.5mm;">
+              Cuéntalo primero. Al guardar te decimos si cuadra.
+            </p>
+          </div>
+        </div>
+
+        <div class="info">
+          <span class="label">Por qué no te decimos antes cuánto debería haber</span>
+          <p class="body">
+            Porque entonces teclearías esa cifra sin contar, y el arqueo no serviría para
+            nada. <strong>Cuenta primero</strong>. Al guardar, la app te dice si cuadra:
+          </p>
+          <p class="body" style="margin-top:2.5mm;">
+            ✓ <strong>Cuadra</strong> — el sobre queda a la espera de que lo recojan.
+          </p>
+          <p class="body" style="margin-top:1.5mm;">
+            ⚠ <strong>No cuadra</strong> — te dice cuánto falta o sobra. Cuéntalo en el paso
+            siguiente como incidencia: no lo dejes pasar.
+          </p>
+        </div>
+
+        <div class="aviso" style="margin-top:6mm;">
+          <span class="label">Sin arqueo no se cierra el turno</span>
+          <p class="body">
+            Es el único paso que es de la tienda y no tuyo, y por eso es obligatorio: si
+            queda sin hacer, el lunes nadie sabe cuánto dinero había.
+          </p>
+        </div>
+
+        <div class="pie">
+          <span class="caption">empleaIA · Cierre de turno</span>
+          <span class="caption">6</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- =================== PASO 5 · INCIDENCIAS + FAQ =================== -->
+    <div class="page" data-canvas-width="794" data-canvas-height="1123">
+      <div class="marco">
+        <div class="cabecera">
+          <span class="label" style="color:#d97706;">Paso 5</span>
+          <span class="caption">empleaIA · Cierre de turno</span>
+        </div>
+
+        <div class="titulo-paso">
+          <span class="paso-num" style="background:#d97706;">5</span>
           <h2 class="display" style="font-size:26pt;">Incidencias y cerrar</h2>
         </div>
 
@@ -478,16 +581,17 @@
           con tu cierre y la incidencia. No hace falta que llames a nadie.
         </p>
 
-        <div class="aviso" style="margin-bottom:8mm;">
+        <div class="aviso" style="margin-bottom:6mm;">
           <span class="label">Qué es una incidencia</span>
           <p class="body">
-            Falta o sobra dinero, un cobro que no cuadra con el TPV, una devolución rara, un
-            terminal que no aparece, el datáfono caído… Si dudas, ponlo. Se prefiere una
-            incidencia de más que un descuadre sin explicación.
+            Falta o sobra dinero, un cobro que no cuadra con el TPV, una devolución rara, el
+            datáfono caído… Si dudas, ponlo: se prefiere una incidencia de más que un
+            descuadre sin explicación.
           </p>
         </div>
 
-        <h2 class="heading" style="margin-bottom:4mm;">Lo que más se pregunta</h2>
+        <h2 class="heading" style="margin-bottom:3mm;">Lo que más se pregunta</h2>
+        <div class="compacta">
 
         <div class="faq">
           <p class="subheading">Me he equivocado en una cantidad y ya he cerrado el turno.</p>
@@ -513,17 +617,27 @@
           <p class="subheading">Trabajo en la oficina, no en tienda.</p>
           <p class="body">La oficina no hace cierres ni checks de fichaje. Esta guía no te aplica.</p>
         </div>
+        <div class="faq">
+          <p class="subheading">Es domingo y no me sale el paso del arqueo.</p>
+          <p class="body">O no eres quien cierra la tienda hoy, o un compañero ya lo ha hecho. En los dos casos, no tienes que hacer nada.</p>
+        </div>
+        <div class="faq">
+          <p class="subheading">El arqueo no me cuadra.</p>
+          <p class="body">Guárdalo igual con lo que hay de verdad —nunca con lo que debería haber— y explícalo como incidencia. Un sobre mal declarado es peor que un descuadre contado.</p>
+        </div>
 
-        <div style="margin-top:8mm; background:#1e1b4b; border-radius:2mm; padding:6mm;">
-          <p class="body" style="color:#ffffff; font-size:11.5pt;">
+        </div>
+
+        <div style="margin-top:5mm; background:#1e1b4b; border-radius:2mm; padding:4.5mm 5mm;">
+          <p class="body" style="color:#ffffff; font-size:11pt;">
             <strong style="color:#ffffff;">En resumen:</strong> confirma tu tienda, escribe tus
-            unidades, mira cómo vas, cuenta tu caja y avisa si algo ha pasado. Cinco minutos.
+            unidades, mira cómo vas, cuenta tu caja y avisa si algo ha pasado. Cinco minutos. Y los domingos, el sobre.
           </p>
         </div>
 
         <div class="pie">
           <span class="caption">empleaIA · Cierre de turno</span>
-          <span class="caption">6</span>
+          <span class="caption">7</span>
         </div>
       </div>
     </div>

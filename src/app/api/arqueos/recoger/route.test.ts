@@ -24,6 +24,7 @@ const yo = {
   id: "u_jefe",
   nombre: "Marta",
   apellidos: "Ruiz",
+  activo: true,
   puedeRecogerEfectivo: true,
   pinRecogidaHash: null as string | null,
   pinRecogidaIntentos: 0,
@@ -47,8 +48,15 @@ const prismaMock = {
     update: vi.fn(async () => ({}) as unknown),
   },
   arqueo: {
-    findUnique: vi.fn(async () => arqueo as unknown),
+    findMany: vi.fn(async () => [arqueo] as unknown[]),
     update: vi.fn(async () => ({}) as unknown),
+  },
+  // Alcance de sedes de quien opera la pantalla.
+  usuarioSede: { findMany: vi.fn(async () => [] as { tiendaId: string }[]) },
+  cierreTurno: { findUnique: vi.fn(async () => null as { tiendaId: string | null } | null) },
+  tienda: {
+    findMany: vi.fn(async () => [{ id: "t1" }]),
+    findFirst: vi.fn(async () => ({ id: "t1" }) as { id: string } | null),
   },
   cierreCaja: {
     groupBy: vi.fn(async () => [
@@ -126,7 +134,10 @@ beforeEach(async () => {
   arqueo.estado = "pendiente";
   arqueo.saldoEsperado = 480;
   prismaMock.user.findUnique.mockResolvedValue(yo);
-  prismaMock.arqueo.findUnique.mockResolvedValue(arqueo);
+  prismaMock.arqueo.findMany.mockResolvedValue([arqueo]);
+  prismaMock.usuarioSede.findMany.mockResolvedValue([]);
+  prismaMock.tienda.findFirst.mockResolvedValue({ id: "t1" });
+  prismaMock.cierreTurno.findUnique.mockResolvedValue(null);
   const { _setFeatureCatalogForTest } = await import("@/lib/tenant/features");
   _setFeatureCatalogForTest(["cierre_turno"]);
 });
@@ -234,8 +245,101 @@ describe("POST /api/arqueos/recoger", () => {
   });
 
   it("un arqueo que no existe da 404", async () => {
-    prismaMock.arqueo.findUnique.mockResolvedValue(null);
+    prismaMock.arqueo.findMany.mockResolvedValue([]);
     const res = await recoger({ arqueoId: "fantasma", pin: PIN });
     expect(res.status).toBe(404);
+  });
+});
+
+/**
+ * Entrega de varios sobres de una vez (ticket 6d24af90): el responsable no pasa
+ * cada semana y se encuentra dos o tres esperando.
+ */
+describe("POST /api/arqueos/recoger — varios sobres y firma de otra persona", () => {
+  const otroSobre = {
+    id: "arq2",
+    semana: "2026-W30",
+    tiendaId: "t1",
+    estado: "pendiente",
+    efectivoDeclarado: 320,
+    saldoEsperado: 320 as number | null,
+    tienda: { id: "t1", nombre: "Centro" },
+  };
+
+  it("firma los dos sobres con un solo PIN y devuelve el total", async () => {
+    prismaMock.arqueo.findMany.mockResolvedValue([arqueo, otroSobre]);
+    const res = await recoger({ arqueoIds: ["arq1", "arq2"], pin: PIN });
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { sobres: number; total: number };
+    expect(data.sobres).toBe(2);
+    expect(data.total).toBe(820);
+    expect(prismaMock.arqueo.update).toHaveBeenCalledTimes(2);
+  });
+
+  it("si uno de ellos ya estaba recogido, no se firma ninguno", async () => {
+    // Dos personas mirando la misma pantalla: el segundo no debe pisar al primero.
+    prismaMock.arqueo.findMany.mockResolvedValue([arqueo, { ...otroSobre, estado: "recogido" }]);
+    const res = await recoger({ arqueoIds: ["arq1", "arq2"], pin: PIN });
+    expect(res.status).toBe(409);
+    expect(prismaMock.arqueo.update).not.toHaveBeenCalled();
+  });
+
+  it("firma quien recoge de verdad, no quien tiene la sesión abierta", async () => {
+    // El móvil lo lleva el comercial; el dinero se lo lleva el responsable.
+    const responsable = {
+      id: "u_resp",
+      nombre: "Silvia",
+      apellidos: "Carrion",
+      activo: true,
+      puedeRecogerEfectivo: true,
+      pinRecogidaHash: PIN_HASH,
+      pinRecogidaIntentos: 0,
+      pinRecogidaBloqueoHasta: null as Date | null,
+    };
+    prismaMock.user.findUnique.mockResolvedValue(responsable);
+    const res = await recoger({ arqueoIds: ["arq1"], recogidoPorId: "u_resp", pin: PIN });
+    expect(res.status).toBe(200);
+    const [args] = prismaMock.arqueo.update.mock.calls[0] as unknown as [
+      { data: { recogidoPorId: string } },
+    ];
+    expect(args.data.recogidoPorId).toBe("u_resp");
+  });
+
+  it("no se puede firmar en nombre de alguien no autorizado", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "u_x",
+      nombre: "Luis",
+      apellidos: "Gil",
+      activo: true,
+      puedeRecogerEfectivo: false,
+      pinRecogidaHash: PIN_HASH,
+      pinRecogidaIntentos: 0,
+      pinRecogidaBloqueoHasta: null,
+    });
+    const res = await recoger({ arqueoIds: ["arq1"], recogidoPorId: "u_x", pin: PIN });
+    expect(res.status).toBe(403);
+    expect(prismaMock.arqueo.update).not.toHaveBeenCalled();
+  });
+
+  it("un sobre de una sede que no es suya no se firma", async () => {
+    prismaMock.arqueo.findMany.mockResolvedValue([
+      { ...otroSobre, tiendaId: "t_otra", tienda: { id: "t_otra", nombre: "Otra" } },
+    ]);
+    const res = await recoger({ arqueoIds: ["arq2"], pin: PIN });
+    expect(res.status).toBe(403);
+    expect(prismaMock.arqueo.update).not.toHaveBeenCalled();
+  });
+
+  it("con varios sobres no se admite un importe parcial", async () => {
+    // No se sabría a cuál de ellos aplicárselo.
+    prismaMock.arqueo.findMany.mockResolvedValue([arqueo, otroSobre]);
+    const res = await recoger({ arqueoIds: ["arq1", "arq2"], pin: PIN, efectivoRecogido: "100" });
+    expect(res.status).toBe(400);
+    expect(prismaMock.arqueo.update).not.toHaveBeenCalled();
+  });
+
+  it("sin ningún sobre elegido no se firma nada", async () => {
+    const res = await recoger({ arqueoIds: [], pin: PIN });
+    expect(res.status).toBe(400);
   });
 });

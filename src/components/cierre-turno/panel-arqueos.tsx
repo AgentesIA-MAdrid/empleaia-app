@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { GestionRecogedores } from "@/components/cierre-turno/gestion-recogedores";
+import { DialogoEntregaSobres } from "@/components/cierre-turno/dialogo-entrega-sobres";
 
 interface FilaArqueo {
   arqueoId: string | null;
@@ -111,6 +112,9 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
   /** Sin sede propia: la tienda que dice que está cubriendo hoy (ticket 8c05f3e1). */
   const [sedeElegida, setSedeElegida] = useState("");
   const [confirmandoSede, setConfirmandoSede] = useState(false);
+  /** Ventana de entrega: el responsable se lleva varios sobres de una vez. */
+  const [entregando, setEntregando] = useState(false);
+  const [sobresPendientes, setSobresPendientes] = useState<number | null>(null);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -157,6 +161,22 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
       setConfirmandoSede(false);
     }
   };
+
+  /** Cuántos sobres esperan, de TODAS las semanas: es lo que justifica el botón. */
+  const contarPendientes = useCallback(async () => {
+    try {
+      const res = await fetch("/api/arqueos/pendientes");
+      if (!res.ok) return;
+      const data = (await res.json()) as { pendientes: unknown[] };
+      setSobresPendientes(data.pendientes?.length ?? 0);
+    } catch {
+      /* sin conexión: el botón simplemente no se pinta */
+    }
+  }, []);
+
+  useEffect(() => {
+    void contarPendientes();
+  }, [contarPendientes]);
 
   useEffect(() => {
     void cargar();
@@ -264,6 +284,16 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
               <p className="text-sm text-slate-500 pb-2">
                 Semana {datos.semana} · {datos.semanaTexto}
               </p>
+            )}
+            {/* La entrega no va por semana: el responsable se lleva lo que haya
+                acumulado, sea de la semana que sea (ticket 6d24af90). */}
+            {sobresPendientes !== null && sobresPendientes > 0 && (
+              <div className="ml-auto pb-1">
+                <Button onClick={() => setEntregando(true)}>
+                  <Wallet className="h-4 w-4 mr-1.5" />
+                  Entregar sobres ({sobresPendientes})
+                </Button>
+              </div>
             )}
           </div>
         </CardContent>
@@ -601,6 +631,15 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
           .
         </p>
       )}
+
+      <DialogoEntregaSobres
+        abierto={entregando}
+        onCerrar={() => setEntregando(false)}
+        onFirmado={() => {
+          void cargar();
+          void contarPendientes();
+        }}
+      />
 
       {esAdmin && <GestionRecogedores onCambio={cargar} />}
     </div>
