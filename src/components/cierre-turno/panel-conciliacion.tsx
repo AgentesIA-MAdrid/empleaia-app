@@ -12,7 +12,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, HelpCircle, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronRight, HelpCircle, Upload } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -348,6 +349,7 @@ export function PanelConciliacion() {
                 <div className="grid md:grid-cols-2 gap-4 mt-3">
                   <Cuadre
                     titulo="Efectivo"
+                    href={`/admin/conciliacion/efectivo/${f.tiendaId}?desde=${desde}&hasta=${hasta}`}
                     izquierda={{ label: "Según cierres", valor: f.efectivo.segunCierres }}
                     derecha={{ label: "Según arqueos", valor: f.efectivo.segunArqueos }}
                     diferencia={f.efectivo.diferencia}
@@ -357,6 +359,7 @@ export function PanelConciliacion() {
                   />
                   <Cuadre
                     titulo="Tarjeta"
+                    href={`/admin/conciliacion/tarjeta/${f.tiendaId}?desde=${desde}&hasta=${hasta}`}
                     izquierda={{ label: "Según cierres", valor: f.tarjeta.segunCierres }}
                     derecha={{ label: "Según banco", valor: f.tarjeta.segunBanco }}
                     diferencia={f.tarjeta.diferencia}
@@ -590,8 +593,13 @@ export function PanelConciliacion() {
 }
 
 /** Un cuadre: dos importes, su diferencia y qué significa. */
+/**
+ * Un cuadre de una tienda. Es un ENLACE al detalle (ticket 1e73c9a4): "no
+ * cuadra" sin poder abrir qué día ni qué movimiento falla no sirve de nada.
+ */
 function Cuadre({
   titulo,
+  href,
   izquierda,
   derecha,
   diferencia,
@@ -600,6 +608,7 @@ function Cuadre({
   textoFalta,
 }: {
   titulo: string;
+  href: string;
   izquierda: { label: string; valor: number };
   derecha: { label: string; valor: number };
   diferencia: number;
@@ -608,8 +617,14 @@ function Cuadre({
   textoFalta: string;
 }) {
   return (
-    <div className="rounded-md border border-slate-200 p-3">
-      <p className="text-sm font-medium text-slate-700">{titulo}</p>
+    <Link
+      href={href}
+      className="block rounded-md border border-slate-200 p-3 hover:border-[var(--primary)] hover:bg-slate-50 transition-colors"
+    >
+      <p className="text-sm font-medium text-slate-700 flex items-center justify-between gap-2">
+        {titulo}
+        <ChevronRight className="h-4 w-4 text-slate-400" />
+      </p>
       <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
         <div>
           <p className="text-slate-500 text-xs">{izquierda.label}</p>
@@ -636,6 +651,6 @@ function Cuadre({
           Cuadra{diferencia !== 0 ? ` (diferencia de ${eur(diferencia)}, por debajo del umbral)` : ""}.
         </p>
       )}
-    </div>
+    </Link>
   );
 }
