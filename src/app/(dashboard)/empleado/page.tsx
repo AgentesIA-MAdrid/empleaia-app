@@ -249,6 +249,13 @@ export default function EmpleadoPage() {
    * caja, el Excel del stock y la incidencia que escribiera. Se le pedía
    * revisarlo en los puntos de control y no había forma de verlo.
    */
+  /** Fondo de caja registrado de su sede: contra esto cuenta el cajón al abrir. */
+  const [fondoCaja, setFondoCaja] = useState<{
+    fecha: string;
+    importe: number | null;
+    incidencia: string | null;
+    sede: string | null;
+  } | null>(null);
   const [cierreAnterior, setCierreAnterior] = useState<{
     fecha: string;
     quien: string;
@@ -322,8 +329,12 @@ export default function EmpleadoPage() {
     try {
       const res = await fetch("/api/cierre-turno/anterior");
       if (!res.ok) return;
-      const data = (await res.json()) as { cierre: typeof cierreAnterior };
+      const data = (await res.json()) as {
+        cierre: typeof cierreAnterior;
+        fondoCaja: typeof fondoCaja;
+      };
       setCierreAnterior(data.cierre ?? null);
+      setFondoCaja(data.fondoCaja ?? null);
     } catch {
       /* sin conexión: el bloque simplemente no se pinta */
     }
@@ -1262,11 +1273,44 @@ export default function EmpleadoPage() {
                 revisar la caja y el stock: si hay que ir a buscarlo, no se
                 revisa. Solo en la entrada — al salir, lo que cuenta es lo que
                 deja él. */}
-            {pendingChecklistTipo === "ENTRADA" && cierreAnterior && (
+            {pendingChecklistTipo === "ENTRADA" && (cierreAnterior || fondoCaja) && (
               <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 space-y-2">
                 <p className="text-sm font-semibold text-sky-900">
                   Lo que te deja el turno anterior
                 </p>
+
+                {/* Fondo de caja registrado: es contra lo que cuenta el cajón al
+                    abrir (ticket 7ab2c5d9). Va primero porque es lo primero que
+                    hace. */}
+                {fondoCaja && (
+                  <div className="rounded-md border border-sky-300 bg-white px-2.5 py-2">
+                    {fondoCaja.incidencia ? (
+                      <>
+                        <p className="text-sm font-semibold text-amber-700">
+                          Fondo de caja en incidencia
+                        </p>
+                        <p className="text-xs text-amber-800 mt-0.5">{fondoCaja.incidencia}</p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-sky-900">
+                        Fondo de caja que debería haber:{" "}
+                        <strong className="tabular-nums">{eur(fondoCaja.importe ?? 0)}</strong>
+                      </p>
+                    )}
+                    <p className="text-xs text-sky-700 mt-0.5">
+                      Registrado a{" "}
+                      {new Date(`${fondoCaja.fecha}T00:00:00`).toLocaleDateString("es-ES", {
+                        day: "numeric",
+                        month: "long",
+                      })}
+                      {fondoCaja.sede ? ` · ${fondoCaja.sede}` : ""}
+                    </p>
+                  </div>
+                )}
+                {/* El cierre anterior puede no existir (tienda nueva, primer
+                    día) y aun así haber fondo registrado. */}
+                {cierreAnterior && (
+                  <>
                 <p className="text-xs text-sky-800">
                   {cierreAnterior.quien} ·{" "}
                   {new Date(`${cierreAnterior.fecha}T00:00:00`).toLocaleDateString("es-ES", {
@@ -1325,6 +1369,8 @@ export default function EmpleadoPage() {
                   <p className="text-xs text-sky-900 border-t border-sky-200 pt-2">
                     <strong>Incidencia que dejó:</strong> {cierreAnterior.incidencia}
                   </p>
+                )}
+                  </>
                 )}
               </div>
             )}
