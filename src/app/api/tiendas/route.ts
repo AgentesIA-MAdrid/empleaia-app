@@ -74,6 +74,7 @@ export const POST = withTenant(
       esOficina = false,
       sinEfectivo = false,
       arqueoDiaSemana = 7,
+      codigoExterno,
       exigirFichajeEnSede = false,
     } = body as {
       nombre: string;
@@ -90,6 +91,7 @@ export const POST = withTenant(
       esOficina?: boolean;
       sinEfectivo?: boolean;
       arqueoDiaSemana?: number;
+      codigoExterno?: string | null;
       exigirFichajeEnSede?: boolean;
     };
 
@@ -160,6 +162,7 @@ export const POST = withTenant(
             typeof arqueoDiaSemana === "number" && arqueoDiaSemana >= 1 && arqueoDiaSemana <= 7
               ? arqueoDiaSemana
               : 7,
+          codigoExterno: String(codigoExterno ?? "").trim().toUpperCase() || null,
           exigirFichajeEnSede: Boolean(exigirFichajeEnSede),
         },
       });

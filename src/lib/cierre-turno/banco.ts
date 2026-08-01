@@ -24,6 +24,25 @@ export interface MapeoBanco {
   referencia?: number | null;
   /** Columna alternativa cuando el banco separa cargos y abonos. */
   importeHaber?: number | null;
+  /**
+   * Columnas que se SUMAN para formar el importe (ticket 4b8e1d05). El export
+   * de facturación trae una columna por medio de pago —"Efectivo" y "Tarjeta"—
+   * y lo facturado de esa línea es la suma: no son alternativas como el
+   * debe/haber de un banco, son partes del mismo importe.
+   */
+  importeSuma?: number[] | null;
+  /**
+   * Columna con el punto de venta, cuando el fichero trae varias tiendas
+   * mezcladas. El extracto del banco se sube por sede; el de facturación viene
+   * entero y cada línea dice a qué tienda pertenece.
+   */
+  sede?: number | null;
+  /**
+   * Aceptar importes negativos. En un extracto bancario un cargo no pinta nada
+   * en la conciliación de caja; en facturación, un abono SÍ —resta de lo
+   * facturado ese día— y descartarlo dejaría el cuadre inflado.
+   */
+  admitirNegativos?: boolean;
   /** Orden de los componentes de la fecha cuando viene como texto. */
   formatoFecha?: "dmy" | "mdy" | "ymd";
   /** Si la primera fila del fichero es cabecera. */
@@ -55,6 +74,8 @@ export interface MovimientoLeido {
   referencia: string;
   /** True si la referencia la hemos generado nosotros. */
   referenciaGenerada: boolean;
+  /** El punto de venta tal cual lo trae el fichero, si lo trae. */
+  sedeTexto?: string | null;
 }
 
 export interface ResultadoLecturaBanco {
@@ -71,11 +92,15 @@ function normalizar(s: string): string {
     .toLowerCase();
 }
 
-const CAB_FECHA = ["fecha", "fecha operacion", "fecha de operacion", "fecha valor", "f. valor", "fecha contable", "date"];
-const CAB_IMPORTE = ["importe", "importe (eur)", "cantidad", "amount", "movimiento", "importe eur"];
+const CAB_FECHA = ["fecha", "fecha operacion", "fecha de operacion", "fecha valor", "f. valor", "fecha contable", "fecha factura", "date"];
+const CAB_IMPORTE = ["importe", "importe (eur)", "cantidad", "amount", "movimiento", "importe eur", "total"];
 const CAB_HABER = ["haber", "abono", "abonos", "credito", "ingreso", "ingresos"];
 const CAB_CONCEPTO = ["concepto", "descripcion", "detalle", "observaciones", "concepto ampliado", "description"];
-const CAB_REFERENCIA = ["referencia", "ref", "n. movimiento", "num movimiento", "id", "numero de operacion"];
+const CAB_REFERENCIA = ["referencia", "ref", "n. movimiento", "num movimiento", "id", "numero de operacion", "factura", "n factura", "num factura"];
+/** Columnas que son parte del importe y hay que sumar (ver `importeSuma`). */
+const CAB_MEDIO_PAGO = ["efectivo", "tarjeta", "metalico", "contado", "financiado"];
+/** Columnas que dicen a qué tienda pertenece la línea (ver `sede`). */
+const CAB_SEDE = ["punto de venta", "pdv", "tienda", "sede", "centro", "establecimiento", "delegacion"];
 
 /**
  * Propone un mapeo a partir de la primera fila. Es una sugerencia para que el
@@ -88,10 +113,16 @@ export function proponerMapeo(primeraFila: string[]): {
 } {
   const mapeo: MapeoBanco = { ...MAPEO_BANCO_DEFECTO, concepto: null };
   const reconocidas = { fecha: false, importe: false, concepto: false, referencia: false };
+  const medios: number[] = [];
 
   primeraFila.forEach((celda, i) => {
     const c = normalizar(celda);
-    if (!reconocidas.fecha && CAB_FECHA.includes(c)) {
+    if (CAB_MEDIO_PAGO.includes(c)) {
+      // Una columna por medio de pago: el importe de la línea es la suma.
+      medios.push(i);
+    } else if (CAB_SEDE.includes(c)) {
+      mapeo.sede = i;
+    } else if (!reconocidas.fecha && CAB_FECHA.includes(c)) {
       mapeo.fecha = i;
       reconocidas.fecha = true;
     } else if (!reconocidas.importe && CAB_IMPORTE.includes(c)) {
@@ -113,8 +144,22 @@ export function proponerMapeo(primeraFila: string[]): {
     }
   });
 
+  if (medios.length > 0) {
+    mapeo.importeSuma = medios;
+    mapeo.importe = medios[0]!;
+    reconocidas.importe = true;
+    // Un fichero desglosado por medio de pago es de facturación, no un
+    // extracto: ahí los abonos cuentan y restan.
+    mapeo.admitirNegativos = true;
+  }
+
   // Sin ninguna cabecera reconocida, la primera fila es un movimiento.
-  mapeo.conCabecera = reconocidas.fecha || reconocidas.importe || reconocidas.concepto || reconocidas.referencia;
+  mapeo.conCabecera =
+    reconocidas.fecha ||
+    reconocidas.importe ||
+    reconocidas.concepto ||
+    reconocidas.referencia ||
+    mapeo.sede != null;
   return { mapeo, reconocidas };
 }
 
@@ -282,19 +327,41 @@ export function leerMovimientosBanco(
       return;
     }
 
-    let importe = parsearImporteBanco(celdas[mapeo.importe]);
-    // Extracto con debe/haber: si la columna principal viene vacía, se mira el
-    // haber. Un abono está en una de las dos, nunca en las dos.
-    if ((importe === null || importe === 0) && mapeo.importeHaber != null) {
-      const haber = parsearImporteBanco(celdas[mapeo.importeHaber]);
-      if (haber !== null && haber !== 0) importe = Math.abs(haber);
+    let importe: number | null;
+    if (mapeo.importeSuma && mapeo.importeSuma.length > 0) {
+      // Varias columnas que son partes del mismo importe (efectivo + tarjeta).
+      // Basta con que una traiga número: las demás vienen a 0 o vacías.
+      let suma = 0;
+      let alguna = false;
+      for (const col of mapeo.importeSuma) {
+        const parte = parsearImporteBanco(celdas[col]);
+        if (parte !== null) {
+          suma += parte;
+          alguna = true;
+        }
+      }
+      importe = alguna ? Math.round(suma * 100) / 100 : null;
+    } else {
+      importe = parsearImporteBanco(celdas[mapeo.importe]);
+      // Extracto con debe/haber: si la columna principal viene vacía, se mira el
+      // haber. Un abono está en una de las dos, nunca en las dos.
+      if ((importe === null || importe === 0) && mapeo.importeHaber != null) {
+        const haber = parsearImporteBanco(celdas[mapeo.importeHaber]);
+        if (haber !== null && haber !== 0) importe = Math.abs(haber);
+      }
     }
     if (importe === null) {
       ignoradas.push({ fila: nFila, motivo: "Sin importe reconocible" });
       return;
     }
     if (mapeo.soloPositivos) importe = Math.abs(importe);
-    if (importe <= 0) {
+    if (importe === 0) {
+      // Una factura sin cobro (financiada, a cargo de otro) no aporta nada al
+      // cuadre de caja, pero tampoco es un error del fichero.
+      ignoradas.push({ fila: nFila, motivo: "Sin importe cobrado" });
+      return;
+    }
+    if (importe < 0 && !mapeo.admitirNegativos) {
       ignoradas.push({ fila: nFila, motivo: "Es un cargo, no un ingreso" });
       return;
     }
@@ -303,7 +370,11 @@ export function leerMovimientosBanco(
       mapeo.concepto != null ? String(celdas[mapeo.concepto] ?? "").trim().slice(0, 300) || null : null;
     const refPropia =
       mapeo.referencia != null ? String(celdas[mapeo.referencia] ?? "").trim().slice(0, 120) : "";
-    const referencia = refPropia || referenciaSintetica({ fecha, importe, concepto, tiendaId });
+    const sedeTexto =
+      mapeo.sede != null ? String(celdas[mapeo.sede] ?? "").trim().slice(0, 200) || null : null;
+    const referencia =
+      refPropia ||
+      referenciaSintetica({ fecha, importe, concepto: concepto ?? sedeTexto, tiendaId });
 
     // Duplicados dentro del mismo fichero: dos filas idénticas sin referencia
     // propia colapsarían en la misma clave y la segunda se perdería al guardar.
@@ -314,7 +385,14 @@ export function leerMovimientosBanco(
     }
     vistas.add(referencia);
 
-    movimientos.push({ fecha, importe, concepto, referencia, referenciaGenerada: !refPropia });
+    movimientos.push({
+      fecha,
+      importe,
+      concepto,
+      referencia,
+      referenciaGenerada: !refPropia,
+      sedeTexto,
+    });
   });
 
   return { movimientos, ignoradas };
@@ -350,9 +428,36 @@ export function normalizarMapeo(valor: unknown): { ok: true; mapeo: MapeoBanco }
         v.importeHaber === null || v.importeHaber === undefined || v.importeHaber === ""
           ? null
           : col(v.importeHaber),
+      importeSuma: Array.isArray(v.importeSuma)
+        ? (v.importeSuma.map(col).filter((n): n is number => n !== null) ?? null)
+        : null,
+      sede: v.sede === null || v.sede === undefined || v.sede === "" ? null : col(v.sede),
+      admitirNegativos: v.admitirNegativos === true,
       formatoFecha,
       conCabecera: v.conCabecera !== false,
       soloPositivos: v.soloPositivos === true,
     },
   };
+}
+
+/**
+ * El código del punto de venta dentro del texto que trae el fichero de
+ * facturación (ticket 4b8e1d05).
+ *
+ * Viene como `"MY128022 - NEKSUS MADRID CC PLENILUNIO"`: delante el código del
+ * operador, detrás su nombre. Se casa por el CÓDIGO y no por el nombre, porque
+ * los nombres no coinciden con los nuestros —su "NEKSUS MAJADAHONDA CC GRAN
+ * PZA" es nuestra "NEKSUS CC GRAN PLAZA 2"— y adivinarlos acabaría atribuyendo
+ * el dinero de una tienda a otra.
+ */
+export function codigoDeSede(texto: string | null | undefined): string | null {
+  const s = String(texto ?? "").trim();
+  if (!s) return null;
+  // "CÓDIGO - Nombre": el código es lo de delante del primer guion suelto.
+  const conGuion = s.match(/^\s*([A-Za-z0-9._/-]{2,20})\s+[-–]\s+/);
+  if (conGuion) return conGuion[1]!.toUpperCase();
+  // Sin guion, vale si la primera palabra parece un código (letras y dígitos).
+  const primera = s.split(/\s+/)[0] ?? "";
+  if (/^[A-Za-z]{1,4}\d{3,}$/.test(primera)) return primera.toUpperCase();
+  return null;
 }

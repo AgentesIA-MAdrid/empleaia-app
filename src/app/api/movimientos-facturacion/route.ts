@@ -35,12 +35,52 @@ import { withFeature } from "@/lib/feature-guard/with-feature";
 import { parsearCSV } from "@/lib/cierre-turno/catalogo";
 import { leerHojaExcel } from "@/lib/cierre-turno/catalogo-excel";
 import {
+  codigoDeSede,
   leerMovimientosBanco,
   normalizarMapeo,
   proponerMapeo,
   MAPEO_BANCO_DEFECTO,
   type MapeoBanco,
 } from "@/lib/cierre-turno/banco";
+
+/**
+ * A qué tienda pertenece cada línea. El fichero viene con todas las tiendas
+ * mezcladas y las identifica con el código del operador, así que se casa por
+ * `Tienda.codigoExterno` (ticket 4b8e1d05). Lo que no case se queda sin tienda
+ * y se dice cuánto y de qué códigos: repartirlo a ojo sería peor que no
+ * importarlo.
+ */
+async function resolverSedes(textos: (string | null | undefined)[]): Promise<{
+  porCodigo: Map<string, string>;
+  desconocidos: Map<string, { texto: string; lineas: number }>;
+}> {
+  const codigos = new Set<string>();
+  for (const t of textos) {
+    const c = codigoDeSede(t);
+    if (c) codigos.add(c);
+  }
+  const tiendas =
+    codigos.size === 0
+      ? []
+      : await prisma.tienda.findMany({
+          where: { codigoExterno: { in: [...codigos] } },
+          select: { id: true, codigoExterno: true },
+        });
+  const porCodigo = new Map(
+    tiendas.filter((t) => t.codigoExterno).map((t) => [t.codigoExterno as string, t.id]),
+  );
+
+  const desconocidos = new Map<string, { texto: string; lineas: number }>();
+  for (const t of textos) {
+    const c = codigoDeSede(t);
+    const clave = c ?? String(t ?? "").trim();
+    if (!clave) continue;
+    if (c && porCodigo.has(c)) continue;
+    const previo = desconocidos.get(clave);
+    desconocidos.set(clave, { texto: String(t ?? "").trim(), lineas: (previo?.lineas ?? 0) + 1 });
+  }
+  return { porCodigo, desconocidos };
+}
 
 const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
 /** Tope del fichero: un extracto anual en xlsx no llega a esto. */
@@ -190,8 +230,17 @@ export const POST = withTenant(
       const mapeo = guardado?.ok ? guardado.mapeo : propuesta.mapeo;
       const muestra = leerMovimientosBanco(matriz.slice(0, 11), mapeo, tiendaId);
 
+      // Qué tiendas trae el fichero y cuáles no sabemos colocar: es lo primero
+      // que hay que arreglar antes de importar nada.
+      const sedes = await resolverSedes(muestra.movimientos.map((m) => m.sedeTexto));
+      const todasLasSedes = await resolverSedes(
+        leerMovimientosBanco(matriz, mapeo, tiendaId).movimientos.map((m) => m.sedeTexto),
+      );
+
       return NextResponse.json({
         previsualizacion: true,
+        sedesReconocidas: todasLasSedes.porCodigo.size,
+        sedesSinAsignar: [...todasLasSedes.desconocidos.values()].slice(0, 20),
         cabeceras: primera,
         filas: matriz.slice(0, 6).map((f) => f.map((c) => String(c ?? ""))),
         mapeo,
@@ -234,14 +283,21 @@ export const POST = withTenant(
       );
     }
 
+    // Cada línea a su tienda, por el código del operador. Si el fichero se sube
+    // acotado a una sede (`tiendaId`), esa manda.
+    const sedes = await resolverSedes(movimientos.map((m) => m.sedeTexto));
+    const sinSede = movimientos.filter(
+      (m) => !tiendaId && !sedes.porCodigo.get(codigoDeSede(m.sedeTexto) ?? ""),
+    );
+
     // Idempotente por referencia: `skipDuplicates` deja fuera lo ya importado
     // sin reventar la importación entera.
     const creados = await prisma.movimientoFacturacion.createMany({
       data: movimientos.map((m) => ({
-        tiendaId,
+        tiendaId: tiendaId ?? sedes.porCodigo.get(codigoDeSede(m.sedeTexto) ?? "") ?? null,
         fecha: m.fecha,
         importe: m.importe,
-        concepto: m.concepto,
+        concepto: m.concepto ?? m.sedeTexto,
         referencia: m.referencia,
       })),
       skipDuplicates: true,
@@ -268,6 +324,11 @@ export const POST = withTenant(
       ignoradas: ignoradas.slice(0, 20),
       totalIgnoradas: ignoradas.length,
       importe: Math.round(movimientos.reduce((n, m) => n + m.importe, 0) * 100) / 100,
+      // Lo que no se ha podido colocar en ninguna tienda: se importa igual (el
+      // total sigue siendo el del fichero) pero no cuadra contra ninguna sede
+      // hasta que se le ponga su código.
+      lineasSinSede: sinSede.length,
+      sedesSinAsignar: [...sedes.desconocidos.values()].slice(0, 20),
     });
   }),
 );

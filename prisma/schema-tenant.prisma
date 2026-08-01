@@ -119,6 +119,12 @@ model Tienda {
   /// sábado y arquean entonces, porque el domingo no hay nadie que cuente el
   /// dinero (ticket 2c9d84f1).
   arqueoDiaSemana     Int               @default(7) @map("arqueo_dia_semana")
+  /// Código de este punto de venta en el sistema de facturación del operador
+  /// (ticket 4b8e1d05). Su export trae "MY128022 - NEKSUS MADRID CC PLENILUNIO"
+  /// y los nombres no coinciden con los nuestros; el código sí es estable, así
+  /// que es por lo que se casa. Sin él, sus líneas se importan sin tienda y se
+  /// avisa, en vez de repartirlas a ojo.
+  codigoExterno       String?           @unique @map("codigo_externo")
   /// La sede vende, pero el dinero NO es nuestro: lo liquida un tercero (el
   /// caso de un córner en unos grandes almacenes, que factura él y liquida
   /// después — ticket 9d4e17c2).

@@ -42,6 +42,7 @@ export const PUT = withTenant(async (request: NextRequest,
       esOficina,
       sinEfectivo,
       arqueoDiaSemana,
+      codigoExterno,
       exigirFichajeEnSede,
     } = body as {
       nombre?: string;
@@ -59,6 +60,7 @@ export const PUT = withTenant(async (request: NextRequest,
       esOficina?: boolean;
       sinEfectivo?: boolean;
       arqueoDiaSemana?: number;
+      codigoExterno?: string | null;
       exigirFichajeEnSede?: boolean;
     };
 
@@ -113,6 +115,10 @@ export const PUT = withTenant(async (request: NextRequest,
           ...(typeof arqueoDiaSemana === "number" &&
             arqueoDiaSemana >= 1 &&
             arqueoDiaSemana <= 7 && { arqueoDiaSemana }),
+          // Código en el sistema de facturación: "" lo borra, ausente no lo toca.
+          ...(codigoExterno !== undefined && {
+            codigoExterno: String(codigoExterno ?? "").trim().toUpperCase() || null,
+          }),
           ...(exigirFichajeEnSede !== undefined && {
             exigirFichajeEnSede: Boolean(exigirFichajeEnSede),
           }),

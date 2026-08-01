@@ -31,6 +31,7 @@ interface Tienda {
   esOficina?: boolean;
   sinEfectivo?: boolean;
   arqueoDiaSemana?: number;
+  codigoExterno?: string | null;
   exigirFichajeEnSede?: boolean;
   // Responsable de la sede (dato informativo). Null si no se ha asignado.
   managerId?: string | null;
@@ -146,7 +147,7 @@ const COLORES = [
 const FORM_INICIAL = {
   nombre: "", direccion: "", ciudad: "", codigoPostal: "", telefono: "",
   email: "", latitud: "", longitud: "", radio: "200", color: "#6366f1",
-  managerId: "", esOficina: false, sinEfectivo: false, arqueoDiaSemana: 7, exigirFichajeEnSede: false,
+  managerId: "", esOficina: false, sinEfectivo: false, arqueoDiaSemana: 7, codigoExterno: "", exigirFichajeEnSede: false,
 };
 
 export default function TiendasPage() {
@@ -228,6 +229,7 @@ export default function TiendasPage() {
       color: t.color, managerId: t.managerId || "", esOficina: t.esOficina ?? false,
       sinEfectivo: t.sinEfectivo ?? false,
       arqueoDiaSemana: t.arqueoDiaSemana ?? 7,
+      codigoExterno: t.codigoExterno ?? "",
       exigirFichajeEnSede: t.exigirFichajeEnSede ?? false,
     });
     setDialogOpen(true);
@@ -501,6 +503,27 @@ export default function TiendasPage() {
                   </p>
                 </div>
               )}
+
+              {/* El export de facturación identifica la tienda con el código
+                  del operador y sus nombres no son los nuestros: sin esto, sus
+                  líneas se importan sin tienda (ticket 4b8e1d05). */}
+              <div className="col-span-2">
+                <label htmlFor="codigo-externo" className="text-sm font-medium text-slate-800 block mb-1">
+                  Código en el sistema de facturación
+                </label>
+                <input
+                  id="codigo-externo"
+                  type="text"
+                  className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                  placeholder="MY128022"
+                  value={form.codigoExterno}
+                  onChange={(e) => setForm((f) => ({ ...f, codigoExterno: e.target.value }))}
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  El que aparece delante del nombre en su export («MY128022 - NEKSUS MADRID CC
+                  PLENILUNIO»). Es por lo que se casa cada línea facturada con esta tienda.
+                </p>
+              </div>
 
               <div className="col-span-2 flex items-center justify-between rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
                 <span className="text-xs text-slate-500">
