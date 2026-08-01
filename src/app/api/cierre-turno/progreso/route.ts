@@ -16,6 +16,11 @@
  * La sede va con su NOMBRE, no como "tu sede": hay quien cubre en varias y lo
  * primero que necesita saber es de qué tienda le están hablando.
  *
+ * Y la sede es la que ha CONFIRMADO al empezar el cierre de hoy, no la de su
+ * ficha (ticket 8c05f3e1): un correturnos no tiene ninguna en la ficha y veía
+ * los dos cuadros de tienda vacíos con un "no tienes sede asignada", estando de
+ * hecho trabajando en una.
+ *
  * Salen TODOS los grupos del catálogo, tengan objetivo o no y haya vendido o
  * no: la lista es corta —una fila por subcategoría— y enseñar solo lo vendido
  * escondía justo lo que va flojo, que es lo que hay que mirar.
@@ -71,7 +76,14 @@ export const GET = withTenant(
     }
     const userId = session.user.id!;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tiendaId = ((session.user as any).tiendaId as string | null) ?? null;
+    const tiendaFicha = ((session.user as any).tiendaId as string | null) ?? null;
+
+    // La que confirmó al abrir el cierre manda sobre la de su ficha.
+    const cierreHoy = await prisma.cierreTurno.findUnique({
+      where: { userId_fecha: { userId, fecha: new Date(`${diaMadrid()}T00:00:00Z`) } },
+      select: { tiendaId: true },
+    });
+    const tiendaId = cierreHoy?.tiendaId ?? tiendaFicha;
 
     const mesPedido = new URL(req.url).searchParams.get("mes") ?? diaMadrid().slice(0, 7);
     const mesOk = normalizarMes(mesPedido);

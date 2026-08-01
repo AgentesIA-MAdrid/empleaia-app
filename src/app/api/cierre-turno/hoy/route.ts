@@ -2,6 +2,15 @@
  * GET /api/cierre-turno/hoy — el cierre de hoy del propio comercial, con lo que
  * ya tenga guardado. Sirve para que el asistente recupere el borrador si cierra
  * el móvil a media faena, en vez de empezar de cero.
+ *
+ * Devuelve también EN QUÉ TIENDA está trabajando hoy (ticket 8c05f3e1): la que
+ * ya tenga fijada el cierre o, si aún no hay, la que se le va a proponer para
+ * que confirme —mirando dónde fichó, su cuadrante y su ficha, por ese orden—
+ * junto a la lista de sedes activas para el desplegable.
+ *
+ * Por qué: el cierre usaba la sede de la ficha, y un correturnos sin sede veía
+ * "No tienes sede asignada" en los objetivos de tienda y en la caja estando de
+ * hecho trabajando en una.
  */
 
 import { auth } from "@/lib/auth";
@@ -11,6 +20,7 @@ import { NextResponse } from "next/server";
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
 import { diaMadrid, pasosPendientes } from "@/lib/cierre-turno/core";
+import { sugerirSedeDelDia } from "@/lib/cierre-turno/sede-del-dia";
 
 export const GET = withTenant(
   withFeature("cierre_turno", async () => {
@@ -24,28 +34,57 @@ export const GET = withTenant(
     const dia = diaMadrid();
     const fecha = new Date(`${dia}T00:00:00Z`);
 
+    // Pistas para proponerle su tienda de hoy: dónde fichó, qué dice el
+    // cuadrante y qué dice su ficha.
+    const [sedesActivas, entradaHoy, turnoHoy, cierre] = await Promise.all([
+      prisma.tienda.findMany({
+        where: { activa: true },
+        select: { id: true, nombre: true, latitud: true, longitud: true, sinEfectivo: true },
+        orderBy: { nombre: "asc" },
+      }),
+      prisma.fichaje.findFirst({
+        where: {
+          userId,
+          tipo: "ENTRADA",
+          timestamp: { gte: fecha, lt: new Date(fecha.getTime() + 86_400_000) },
+        },
+        select: { latitud: true, longitud: true },
+        orderBy: { timestamp: "asc" },
+      }),
+      prisma.turno.findFirst({
+        where: { userId, fecha, estado: "PUBLICADO" },
+        select: { tiendaId: true },
+      }),
+      prisma.cierreTurno.findUnique({
+        where: { userId_fecha: { userId, fecha } },
+        select: {
+          id: true,
+          tiendaId: true,
+          detalleJornada: true,
+          incidencia: true,
+          completadoEn: true,
+          ventas: { select: { articuloId: true, cantidad: true } },
+          caja: { select: { id: true, efectivo: true, tarjeta: true, confirmadoEn: true } },
+        },
+      }),
+    ]);
+
+    const sugerida = sugerirSedeDelDia({
+      fichaje: entradaHoy,
+      turnoTiendaId: turnoHoy?.tiendaId ?? null,
+      fichaTiendaId: tiendaId,
+      sedes: sedesActivas,
+    });
+
+    // La sede del día es la que confirmó al empezar; mientras no confirme, la
+    // de su ficha (que es lo que se usaba antes de existir el selector).
+    const sedeEfectivaId = cierre?.tiendaId ?? tiendaId;
+    const sede = sedesActivas.find((t) => t.id === sedeEfectivaId) ?? null;
     // Si su sede es de las que venden sin que el dinero sea nuestro (un córner
     // que liquida el tercero), el paso de caja no pide importes: pide el stock y
     // los tickets de las ventas facturadas (ticket 9d4e17c2).
-    const sede = tiendaId
-      ? await prisma.tienda.findUnique({
-          where: { id: tiendaId },
-          select: { nombre: true, sinEfectivo: true },
-        })
-      : null;
     const sedeSinEfectivo = sede?.sinEfectivo === true;
-
-    const cierre = await prisma.cierreTurno.findUnique({
-      where: { userId_fecha: { userId, fecha } },
-      select: {
-        id: true,
-        detalleJornada: true,
-        incidencia: true,
-        completadoEn: true,
-        ventas: { select: { articuloId: true, cantidad: true } },
-        caja: { select: { id: true, efectivo: true, tarjeta: true, confirmadoEn: true } },
-      },
-    });
+    const sedes = sedesActivas.map((t) => ({ id: t.id, nombre: t.nombre }));
 
     if (!cierre) {
       return NextResponse.json({
@@ -53,6 +92,10 @@ export const GET = withTenant(
         existe: false,
         sedeSinEfectivo,
         sedeNombre: sede?.nombre ?? null,
+        // Aún no ha confirmado dónde trabaja hoy: la pantalla se lo pregunta.
+        sedeCierre: null,
+        sugerida,
+        sedes,
         pendientes: ["ventas", "caja", "incidencias"],
       });
     }
@@ -62,6 +105,9 @@ export const GET = withTenant(
       existe: true,
       sedeSinEfectivo,
       sedeNombre: sede?.nombre ?? null,
+      sedeCierre: cierre.tiendaId,
+      sugerida,
+      sedes,
       cerrado: Boolean(cierre.completadoEn),
       detalleJornada: cierre.detalleJornada ?? "",
       incidencia: cierre.incidencia,

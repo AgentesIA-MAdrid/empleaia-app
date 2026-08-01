@@ -41,16 +41,29 @@ export const GET = withTenant(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const tiendaId = ((session.user as any).tiendaId as string | null) ?? null;
 
-    // Su sede, o la que pida SI es suya: quien cubre en varias necesita ver la
-    // caja de la tienda en la que entra hoy, no la de su sede principal.
+    const hoyFecha = new Date(`${diaMadrid()}T00:00:00Z`);
+    // La tienda que ha confirmado al empezar el cierre de hoy manda sobre todo
+    // lo demás (ticket 8c05f3e1): un correturnos cubre donde no es "suya" y
+    // necesita ver el fondo que le han dejado ALLÍ. La sede ya se validó como
+    // activa al confirmarla.
+    const confirmada = await prisma.cierreTurno.findUnique({
+      where: { userId_fecha: { userId, fecha: hoyFecha } },
+      select: { tiendaId: true },
+    });
+
+    // Si aún no ha confirmado: su sede, o la que pida SI es suya.
     const propias = await sedesDelUsuario(prisma, { userId, tiendaId });
     const pedida = new URL(req.url).searchParams.get("tiendaId");
-    const sedes = pedida && propias.includes(pedida) ? [pedida] : propias;
+    const sedes = confirmada?.tiendaId
+      ? [confirmada.tiendaId]
+      : pedida && propias.includes(pedida)
+        ? [pedida]
+        : propias;
     if (sedes.length === 0) {
       return NextResponse.json({ cierre: null, fondoCaja: null, motivo: "sin_sede" });
     }
 
-    const hoy = new Date(`${diaMadrid()}T00:00:00Z`);
+    const hoy = hoyFecha;
     const cierre = await prisma.cierreTurno.findFirst({
       where: {
         tiendaId: { in: sedes },

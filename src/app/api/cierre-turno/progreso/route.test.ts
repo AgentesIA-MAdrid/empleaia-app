@@ -51,7 +51,12 @@ const CIERRES = [
 
 const prismaMock = {
   objetivoVenta: { findMany: vi.fn(async () => OBJETIVOS) },
-  cierreTurno: { findMany: vi.fn(async () => CIERRES) },
+  cierreTurno: {
+    findMany: vi.fn(async () => CIERRES),
+    // La sede que confirmó al empezar el cierre de hoy. null = aún no ha dicho
+    // nada y vale la de su ficha.
+    findUnique: vi.fn(async () => null as { tiendaId: string | null } | null),
+  },
   cierreTurnoVenta: {
     groupBy: vi.fn(async () => [
       { cierreId: "c_ana", articuloId: "art_fibra", _sum: { cantidad: 2 } },
@@ -123,6 +128,8 @@ beforeEach(async () => {
   sesion.user = { id: "u_ana", rol: "EMPLEADO", tiendaId: "t1", name: "Ana" };
   prismaMock.objetivoVenta.findMany.mockResolvedValue(OBJETIVOS);
   prismaMock.tienda.findUnique.mockResolvedValue({ nombre: "NEKSUS ALCALA MARQUES" });
+  prismaMock.cierreTurno.findUnique.mockResolvedValue(null);
+  prismaMock.cierreTurno.findMany.mockResolvedValue(CIERRES);
   const { _setFeatureCatalogForTest } = await import("@/lib/tenant/features");
   _setFeatureCatalogForTest(["cierre_turno"]);
 });
@@ -164,6 +171,25 @@ describe("GET /api/cierre-turno/progreso", () => {
     expect(data.sedeTmt).toBeNull();
     // Lo suyo se sigue viendo.
     expect(data.propio.vendido).toBe(2);
+  });
+
+  it("manda la sede que confirmó hoy, no la de su ficha", async () => {
+    // Un correturnos sin sede en la ficha que confirma que está en t9: los dos
+    // cuadros de tienda tienen que ser los de t9 (ticket 8c05f3e1).
+    sesion.user = { id: "u_ana", rol: "EMPLEADO", tiendaId: null, name: "Ana" };
+    prismaMock.cierreTurno.findUnique.mockResolvedValue({ tiendaId: "t9" });
+    prismaMock.tienda.findUnique.mockResolvedValue({ nombre: "YOIGO CC LA VAGUADA" });
+    prismaMock.objetivoVenta.findMany.mockResolvedValue([
+      { id: "o_t9", mes: "2026-07", userId: null, tiendaId: "t9", articuloId: null, categoria: null, subcategoria: "FFTH", fuente: "propio", cantidad: 10 },
+    ]);
+    const { data } = await get();
+    expect(data.sedeNombre).toBe("YOIGO CC LA VAGUADA");
+    expect(data.sede?.objetivo).toBe(10);
+    // Y los objetivos se piden para esa tienda, no para la de la ficha.
+    const [args] = prismaMock.objetivoVenta.findMany.mock.calls[0] as unknown as [
+      { where: { OR: unknown[] } },
+    ];
+    expect(args.where.OR).toContainEqual({ tiendaId: "t9" });
   });
 
   it("el desglose por producto es solo lo que ha vendido él", async () => {

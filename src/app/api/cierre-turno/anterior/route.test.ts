@@ -34,7 +34,11 @@ const CIERRE = {
 };
 
 const prismaMock = {
-  cierreTurno: { findFirst: vi.fn(async () => CIERRE as unknown) },
+  cierreTurno: {
+    findFirst: vi.fn(async () => CIERRE as unknown),
+    // La sede que confirmó al empezar el cierre de hoy (ticket 8c05f3e1).
+    findUnique: vi.fn(async () => null as { tiendaId: string | null } | null),
+  },
   // Fondo de caja registrado de la sede (ticket 7ab2c5d9).
   fondoCaja: {
     findFirst: vi.fn(
@@ -98,6 +102,7 @@ beforeEach(async () => {
   vi.clearAllMocks();
   sesion.user = { id: "u_ana", rol: "EMPLEADO", tiendaId: "t1", name: "Ana" };
   prismaMock.cierreTurno.findFirst.mockResolvedValue(CIERRE);
+  prismaMock.cierreTurno.findUnique.mockResolvedValue(null);
   prismaMock.usuarioSede.findMany.mockResolvedValue([{ tiendaId: "t2", principal: false }]);
   prismaMock.fondoCaja.findFirst.mockResolvedValue({
     fecha: new Date("2026-07-31T00:00:00Z"),
@@ -144,6 +149,17 @@ describe("GET /api/cierre-turno/anterior", () => {
       { where: { tiendaId: { in: string[] } } },
     ];
     expect(args.where.tiendaId.in).toEqual(["t1", "t2"]);
+  });
+
+  it("la sede que ha confirmado hoy manda, aunque no sea suya", async () => {
+    // Un correturnos que cubre en t9: el fondo que le han dejado es el de t9, no
+    // el de las tiendas de su ficha (ticket 8c05f3e1).
+    prismaMock.cierreTurno.findUnique.mockResolvedValue({ tiendaId: "t9" });
+    await get();
+    const [args] = prismaMock.cierreTurno.findFirst.mock.calls[0] as unknown as [
+      { where: { tiendaId: { in: string[] } } },
+    ];
+    expect(args.where.tiendaId.in).toEqual(["t9"]);
   });
 
   it("puede pedir una de sus sedes: quien cubre en varias necesita la de hoy", async () => {

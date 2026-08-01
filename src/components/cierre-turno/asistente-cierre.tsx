@@ -13,6 +13,11 @@
  * El asistente NO condiciona el fichaje: se puede fichar la salida sin haber
  * cerrado (RD 8/2019, misma regla que el geofencing y el checklist de fichaje).
  *
+ * Lo primero que se le pregunta es en qué tienda ha trabajado hoy, con la
+ * respuesta ya elegida (ticket 8c05f3e1): el cierre usaba la sede de su ficha, y
+ * quien no tiene ninguna —un correturnos— se encontraba los objetivos de tienda
+ * y la caja en blanco con un "no tienes sede asignada", estando de hecho en una.
+ *
  * Vive en su propia pantalla (`/empleado/cierre-turno`) y, con `enDialogo`,
  * también dentro de una ventana emergente (ver `BotonCierreDia`): es el mismo
  * asistente, sin su cabecera de página porque el título lo pone el diálogo.
@@ -27,6 +32,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PASOS_CIERRE, type PasoCierre } from "@/lib/cierre-turno/core";
+import type { MotivoSede } from "@/lib/cierre-turno/sede-del-dia";
 import {
   agruparCatalogo,
   aplanarCatalogo,
@@ -146,6 +152,14 @@ const TONOS = {
  * el turno. El que no tiene objetivo se pinta apagado y sin barra —no hay nada
  * que cumplir— pero con lo vendido a la vista.
  */
+/** Por qué se le propone esa tienda. Se lo decimos: leerlo cambia la respuesta. */
+const PORQUE_SEDE: Record<MotivoSede, string> = {
+  ubicacion: "Es la tienda donde has fichado hoy.",
+  turno: "Es la tienda de tu turno de hoy en el cuadrante.",
+  ficha: "Es tu tienda habitual.",
+  ninguna: "No sabemos dónde estás hoy: dínoslo tú.",
+};
+
 function CuadroObjetivo({
   titulo,
   subtitulo,
@@ -284,6 +298,12 @@ export function AsistenteCierre({
   const [cerrado, setCerrado] = useState(false);
   const [progreso, setProgreso] = useState<Progreso | null>(null);
   const [cargandoProgreso, setCargandoProgreso] = useState(false);
+  /** En qué tienda dice él que ha trabajado hoy. null = aún no ha contestado. */
+  const [sedeConfirmada, setSedeConfirmada] = useState<string | null>(null);
+  const [sedes, setSedes] = useState<{ id: string; nombre: string }[]>([]);
+  const [sedeElegida, setSedeElegida] = useState("");
+  const [motivoSede, setMotivoSede] = useState<MotivoSede>("ninguna");
+  const [confirmandoSede, setConfirmandoSede] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -311,8 +331,19 @@ export function AsistenteCierre({
             ventas?: { articuloId: string; cantidad: number }[];
             caja?: { efectivo: number; tarjeta: number; confirmado: boolean } | null;
             sedeSinEfectivo?: boolean;
+            sedeCierre?: string | null;
+            sedes?: { id: string; nombre: string }[];
+            sugerida?: { sedeId: string | null; motivo: MotivoSede };
           };
-          if (!cancelado) setSedeSinEfectivo(hoy.sedeSinEfectivo === true);
+          if (!cancelado) {
+            setSedeSinEfectivo(hoy.sedeSinEfectivo === true);
+            setSedes(hoy.sedes ?? []);
+            setSedeConfirmada(hoy.sedeCierre ?? null);
+            // Preseleccionada la que se le propone: confirmar es un toque, no
+            // buscar su tienda en una lista de veinte.
+            setSedeElegida(hoy.sedeCierre ?? hoy.sugerida?.sedeId ?? "");
+            setMotivoSede(hoy.sugerida?.motivo ?? "ninguna");
+          }
           if (!cancelado && hoy.existe) {
             setDetalle(hoy.detalleJornada ?? "");
             setCantidades(
@@ -338,6 +369,36 @@ export function AsistenteCierre({
       cancelado = true;
     };
   }, []);
+
+  /** Deja fijada la tienda del día y arranca el cierre con ella. */
+  const confirmarSede = async () => {
+    if (!sedeElegida) {
+      toast({ title: "Falta un dato", description: "Dinos en qué tienda estás hoy.", variant: "destructive" });
+      return;
+    }
+    setConfirmandoSede(true);
+    try {
+      const res = await fetch("/api/cierre-turno/sede", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tiendaId: sedeElegida }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({ title: "No se pudo guardar", description: data.error ?? "Inténtalo de nuevo.", variant: "destructive" });
+        return;
+      }
+      setSedeConfirmada(sedeElegida);
+      setSedeSinEfectivo(data.sede?.sinEfectivo === true);
+      // El progreso del mes es por tienda: si la cambia, hay que volver a pedirlo.
+      setProgreso(null);
+      onGuardado?.();
+    } catch {
+      toast({ title: "Sin conexión", description: "No se ha podido guardar. Revisa la cobertura.", variant: "destructive" });
+    } finally {
+      setConfirmandoSede(false);
+    }
+  };
 
   const indice = PASOS_CIERRE.indexOf(paso);
 
@@ -494,7 +555,9 @@ export function AsistenteCierre({
     return () => {
       cancelado = true;
     };
-  }, [paso]);
+    // `sedeConfirmada` entra aquí porque los dos cuadros de tienda son de la sede
+    // elegida: si la cambia a media faena, hay que volver a pedir las cifras.
+  }, [paso, sedeConfirmada]);
 
   /** Paso 4: cierra el turno y, si hay incidencia, dispara el aviso. */
   const cerrarTurno = async () => {
@@ -571,6 +634,59 @@ export function AsistenteCierre({
     };
   }, [articulos]);
 
+  const nombreSedeConfirmada = sedes.find((t) => t.id === sedeConfirmada)?.nombre ?? null;
+
+  // Antes de nada, dónde ha trabajado hoy. Todo lo que viene después —los
+  // objetivos de tienda, la caja, el arqueo— cuelga de esta respuesta.
+  if (!cargando && !sedeConfirmada) {
+    return (
+      <div className={enDialogo ? "space-y-6" : "p-6 space-y-6 max-w-3xl"}>
+        {!enDialogo && (
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Cierre de turno</h1>
+          </div>
+        )}
+        <Card className="mx-auto max-w-md">
+          <CardContent className="p-6 text-center space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">
+                Confirma tu centro de trabajo de hoy
+              </h2>
+              <p className="text-sm text-slate-500 mt-1">{PORQUE_SEDE[motivoSede]}</p>
+            </div>
+            <div className="text-left">
+              <Label htmlFor="cierre-sede">Tienda</Label>
+              <select
+                id="cierre-sede"
+                className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-base"
+                value={sedeElegida}
+                onChange={(e) => setSedeElegida(e.target.value)}
+              >
+                <option value="">Elige tu tienda…</option>
+                {sedes.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button
+              className="w-full"
+              onClick={confirmarSede}
+              disabled={confirmandoSede || !sedeElegida}
+            >
+              {confirmandoSede ? "Guardando…" : "Confirmar y empezar"}
+            </Button>
+            <p className="text-xs text-slate-400">
+              Si hoy has cubierto en otra tienda, cámbiala aquí: tus ventas y tu caja
+              irán a la que elijas.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className={enDialogo ? "space-y-6" : "p-6 space-y-6 max-w-3xl"}>
       {!enDialogo && (
@@ -579,6 +695,23 @@ export function AsistenteCierre({
           <p className="text-slate-500 text-sm mt-1">
             Registra tus ventas del día, cierra la caja y avisa de cualquier incidencia.
           </p>
+        </div>
+      )}
+
+      {nombreSedeConfirmada && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+          <span className="text-slate-600">
+            Cerrando en <strong className="text-slate-900">{nombreSedeConfirmada}</strong>
+          </span>
+          {!cerrado && !cajaConfirmada && (
+            <button
+              type="button"
+              className="text-[var(--primary)] underline underline-offset-2"
+              onClick={() => setSedeConfirmada(null)}
+            >
+              No es esta
+            </button>
+          )}
         </div>
       )}
 

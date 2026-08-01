@@ -30,7 +30,7 @@ export const POST = withTenant(
     }
     const userId = session.user.id!;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tiendaId = (session.user as any).tiendaId as string | null;
+    const tiendaFicha = (session.user as any).tiendaId as string | null;
 
     const body = (await req.json().catch(() => null)) as {
       efectivo?: unknown;
@@ -48,7 +48,12 @@ export const POST = withTenant(
     const fecha = new Date(`${diaMadrid()}T00:00:00Z`);
     const cierre = await prisma.cierreTurno.findUnique({
       where: { userId_fecha: { userId, fecha } },
-      select: { id: true, completadoEn: true, caja: { select: { id: true, confirmadoEn: true } } },
+      select: {
+        id: true,
+        tiendaId: true,
+        completadoEn: true,
+        caja: { select: { id: true, confirmadoEn: true } },
+      },
     });
     if (!cierre) {
       return NextResponse.json(
@@ -71,7 +76,10 @@ export const POST = withTenant(
       where: { cierreId: cierre.id },
       create: {
         cierreId: cierre.id,
-        tiendaId,
+        // La sede que confirmó al empezar (ticket 8c05f3e1): el dinero tiene que
+        // caer en el arqueo de la tienda donde de verdad ha estado, no en la de
+        // su ficha.
+        tiendaId: cierre.tiendaId ?? tiendaFicha,
         fecha,
         efectivo: ef.importe,
         tarjeta: ta.importe,
