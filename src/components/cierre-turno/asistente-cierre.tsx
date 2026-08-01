@@ -117,7 +117,7 @@ const eur = (n: number) =>
  * objetivo sigue sin cumplirse.
  */
 const colorPct = (v: number | null) =>
-  v === null ? "text-slate-400" : v >= 100 ? "text-emerald-700 font-semibold" : "text-rose-600";
+  v === null ? "text-[var(--text-muted)]" : v >= 100 ? "text-[var(--success-text)] font-semibold" : "text-rose-600";
 
 /**
  * Color de cada cuadro del paso 2. Es lo que permite decir "mira el ámbar" sin
@@ -143,8 +143,8 @@ const TONOS = {
   },
   tmt: {
     borde: "border-amber-300",
-    fondo: "bg-amber-50",
-    texto: "text-amber-700",
+    fondo: "bg-[var(--warning-bg)]",
+    texto: "text-[var(--warning-text)]",
     barra: "warning" as const,
   },
 };
@@ -183,17 +183,17 @@ function CuadroObjetivo({
   return (
     <div className={`rounded-lg border ${tono.borde} ${tono.fondo} p-3`}>
       <p className={`text-sm font-semibold ${tono.texto}`}>{titulo}</p>
-      <p className="text-xs text-slate-500 mt-0.5">{subtitulo}</p>
+      <p className="text-xs text-[var(--text-muted)] mt-0.5">{subtitulo}</p>
 
       {dato === null ? (
-        <p className="text-sm text-slate-400 mt-3">No tienes sede asignada.</p>
+        <p className="text-sm text-[var(--text-muted)] mt-3">No tienes sede asignada.</p>
       ) : (
         <>
           <div className="mt-3 flex items-end justify-between gap-2">
             <span className={`text-3xl font-bold tabular-nums ${colorPct(pct)}`}>
               {pct === null ? "—" : `${pct} %`}
             </span>
-            <span className="text-xs text-slate-500 tabular-nums">
+            <span className="text-xs text-[var(--text-muted)] tabular-nums">
               {dato.vendido} / {dato.objetivo ?? "—"} uds
             </span>
           </div>
@@ -206,16 +206,16 @@ function CuadroObjetivo({
             />
           )}
           {dato.objetivo === null && (
-            <p className="text-xs text-slate-400 mt-2">Sin objetivo fijado este mes.</p>
+            <p className="text-xs text-[var(--text-muted)] mt-2">Sin objetivo fijado este mes.</p>
           )}
 
           {dato.grupos.length > 0 && (
-            <ul className="mt-3 space-y-2 border-t border-slate-200/70 pt-3">
+            <ul className="mt-3 space-y-2 border-t border-[var(--border)]/70 pt-3">
               {dato.grupos.map((g) => (
                 <li key={g.grupo}>
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-xs font-medium text-slate-700">{g.grupo}</span>
-                    <span className="text-xs tabular-nums text-slate-500">
+                    <span className="text-xs font-medium text-[var(--text-body)]">{g.grupo}</span>
+                    <span className="text-xs tabular-nums text-[var(--text-muted)]">
                       {g.vendido}
                       {g.objetivo === null ? "" : ` / ${g.objetivo}`}
                       {g.consecucion === null ? "" : ` · `}
@@ -259,7 +259,7 @@ const COLOR_CATEGORIA = [
   { fondo: "bg-sky-600", chip: "bg-sky-100 text-sky-800", borde: "border-l-sky-500" },
   { fondo: "bg-violet-600", chip: "bg-violet-100 text-violet-800", borde: "border-l-violet-500" },
   { fondo: "bg-teal-600", chip: "bg-teal-100 text-teal-800", borde: "border-l-teal-500" },
-  { fondo: "bg-amber-600", chip: "bg-amber-100 text-amber-800", borde: "border-l-amber-500" },
+  { fondo: "bg-amber-600", chip: "bg-[var(--warning-bg)] text-[var(--warning-text)]", borde: "border-l-amber-500" },
   { fondo: "bg-rose-600", chip: "bg-rose-100 text-rose-800", borde: "border-l-rose-500" },
 ];
 
@@ -735,22 +735,22 @@ export function AsistenteCierre({
       <div className={enDialogo ? "space-y-6" : "p-6 space-y-6 max-w-3xl"}>
         {!enDialogo && (
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Cierre de turno</h1>
+            <h1 className="text-2xl font-bold text-[var(--text-dark)]">Cierre de turno</h1>
           </div>
         )}
         <Card className="mx-auto max-w-md">
           <CardContent className="p-6 text-center space-y-4">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">
+              <h2 className="text-lg font-semibold text-[var(--text-dark)]">
                 Confirma tu centro de trabajo de hoy
               </h2>
-              <p className="text-sm text-slate-500 mt-1">{PORQUE_SEDE[motivoSede]}</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">{PORQUE_SEDE[motivoSede]}</p>
             </div>
             <div className="text-left">
               <Label htmlFor="cierre-sede">Tienda</Label>
               <select
                 id="cierre-sede"
-                className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-base"
+                className="mt-1 w-full rounded-md border border-[var(--border)] px-3 py-2 text-base"
                 value={sedeElegida}
                 onChange={(e) => setSedeElegida(e.target.value)}
               >
@@ -769,7 +769,7 @@ export function AsistenteCierre({
             >
               {confirmandoSede ? "Guardando…" : "Confirmar y empezar"}
             </Button>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[var(--text-muted)]">
               Si hoy has cubierto en otra tienda, cámbiala aquí: tus ventas y tu caja
               irán a la que elijas.
             </p>
@@ -783,17 +783,17 @@ export function AsistenteCierre({
     <div className={enDialogo ? "space-y-6" : "p-6 space-y-6 max-w-3xl"}>
       {!enDialogo && (
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Cierre de turno</h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">Cierre de turno</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-1">
             Registra tus ventas del día, cierra la caja y avisa de cualquier incidencia.
           </p>
         </div>
       )}
 
       {nombreSedeConfirmada && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-          <span className="text-slate-600">
-            Cerrando en <strong className="text-slate-900">{nombreSedeConfirmada}</strong>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--border)] bg-[var(--muted)] px-3 py-2 text-sm">
+          <span className="text-[var(--text-body)]">
+            Cerrando en <strong className="text-[var(--text-dark)]">{nombreSedeConfirmada}</strong>
           </span>
           {!cerrado && !cajaConfirmada && (
             <button
@@ -818,7 +818,7 @@ export function AsistenteCierre({
               className={
                 p === paso
                   ? "px-3 py-1.5 rounded-md text-sm font-semibold bg-[var(--primary)] text-white"
-                  : "px-3 py-1.5 rounded-md text-sm text-slate-500 hover:text-slate-800 border border-slate-200"
+                  : "px-3 py-1.5 rounded-md text-sm text-[var(--text-muted)] hover:text-[var(--text-dark)] border border-[var(--border)]"
               }
             >
               <span className="tabular-nums opacity-70 mr-1.5">{i + 1}</span>
@@ -829,7 +829,7 @@ export function AsistenteCierre({
       </ol>
 
       {cerrado ? (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 flex items-start gap-2">
+        <div className="rounded-md border border-[var(--success-bg)] bg-[var(--success-bg)] px-3 py-2 text-sm text-[var(--success-text)] flex items-start gap-2">
           <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
           <span>
             Tu turno de hoy ya está cerrado. Si algo no cuadra, pídeselo a un administrador:
@@ -837,8 +837,8 @@ export function AsistenteCierre({
           </span>
         </div>
       ) : cajaConfirmada ? (
-        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 flex items-start gap-2">
-          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-slate-400" />
+        <div className="rounded-md border border-[var(--border)] bg-[var(--muted)] px-3 py-2 text-sm text-[var(--text-body)] flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-[var(--text-muted)]" />
           <span>Caja confirmada. Ya no puedes cambiar los importes; te queda cerrar el turno.</span>
         </div>
       ) : null}
@@ -849,13 +849,13 @@ export function AsistenteCierre({
             {cargando ? (
               <div className="space-y-2">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-9 bg-slate-100 rounded animate-pulse" />
+                  <div key={i} className="h-9 bg-[var(--muted)] rounded animate-pulse" />
                 ))}
               </div>
             ) : catalogoVacio ? (
-              <div className="text-center py-8 text-slate-500 text-sm flex flex-col items-center gap-2">
-                <PackageOpen className="h-6 w-6 text-slate-400" />
-                <p className="font-medium text-slate-700">Todavía no hay catálogo de ventas</p>
+              <div className="text-center py-8 text-[var(--text-muted)] text-sm flex flex-col items-center gap-2">
+                <PackageOpen className="h-6 w-6 text-[var(--text-muted)]" />
+                <p className="font-medium text-[var(--text-body)]">Todavía no hay catálogo de ventas</p>
                 <p className="max-w-sm">
                   Tu empresa tiene que subir la lista de artículos y servicios antes de que
                   puedas registrar las ventas del día.
@@ -864,12 +864,12 @@ export function AsistenteCierre({
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-slate-50 border-b border-slate-200">
+                  <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
                     <tr>
-                      <th className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-3 py-2">
+                      <th className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-3 py-2">
                         Artículo o servicio
                       </th>
-                      <th className="text-right text-xs font-semibold uppercase tracking-wide text-slate-500 px-3 py-2 w-32">
+                      <th className="text-right text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-3 py-2 w-32">
                         Cantidad
                       </th>
                     </tr>
@@ -913,9 +913,9 @@ export function AsistenteCierre({
                         {grupo.articulos.map((a) => (
                           <tr
                             key={a.id}
-                            className={`border-b border-slate-100 last:border-0 border-l-4 ${color.borde}`}
+                            className={`border-b border-[var(--border)] last:border-0 border-l-4 ${color.borde}`}
                           >
-                            <td className="px-3 py-2 text-sm text-slate-800">
+                            <td className="px-3 py-2 text-sm text-[var(--text-dark)]">
                               {a.nombre}
                               {/* El mismo nombre en dos categorías es lo que
                                   hace que se rellene la fila equivocada: se
@@ -934,7 +934,7 @@ export function AsistenteCierre({
                                   subcategoría: ahí sí se dice, o serían dos
                                   filas idénticas y se rellenarían al azar. */}
                               {ambiguos.has(a.id) && a.subcategoria && (
-                                <span className="block text-xs text-slate-400">
+                                <span className="block text-xs text-[var(--text-muted)]">
                                   {a.subcategoria}
                                 </span>
                               )}
@@ -958,8 +958,8 @@ export function AsistenteCierre({
                     })}
                   </tbody>
                   <tfoot>
-                    <tr className="bg-slate-50">
-                      <td className="px-3 py-2 text-sm font-semibold text-slate-700">Total</td>
+                    <tr className="bg-[var(--muted)]">
+                      <td className="px-3 py-2 text-sm font-semibold text-[var(--text-body)]">Total</td>
                       <td className="px-3 py-2 text-right text-sm font-bold tabular-nums">
                         {totalUnidades}
                       </td>
@@ -973,14 +973,14 @@ export function AsistenteCierre({
               <Label htmlFor="detalle-jornada">Detalle de la jornada</Label>
               {/* Lo que no es una venta del catálogo no se declara arriba y, sin
                   esto, un día entero de gestiones parece un día vacío. */}
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">
                 Aquí va lo que no es una venta de la lista: duplicados, recargas, gestiones,
                 seguimiento. Rellénalo también los días flojos: es lo que los explica.
               </p>
               <textarea
                 id="detalle-jornada"
                 rows={4}
-                className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                className="mt-1 w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                 value={detalle}
                 onChange={(e) => setDetalle(e.target.value)}
                 placeholder="Duplicados, recargas, cambios de titular, una portabilidad que se cayó, un cliente que vuelve mañana a firmar…"
@@ -996,7 +996,7 @@ export function AsistenteCierre({
             {cargandoProgreso ? (
               <div className="space-y-2">
                 {[1, 2].map((i) => (
-                  <div key={i} className="h-9 bg-slate-100 rounded animate-pulse" />
+                  <div key={i} className="h-9 bg-[var(--muted)] rounded animate-pulse" />
                 ))}
               </div>
             ) : (
@@ -1040,7 +1040,7 @@ export function AsistenteCierre({
                 {(progreso?.porArticulo.length ?? 0) > 0 && (
                   <div className="mt-4 overflow-x-auto">
                     <table className="w-full">
-                      <thead className="bg-slate-50 border-b border-slate-200">
+                      <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
                         <tr>
                           {[
                             "Tus ventas por artículo",
@@ -1049,7 +1049,7 @@ export function AsistenteCierre({
                           ].map((h) => (
                             <th
                               key={h}
-                              className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-3 py-2"
+                              className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-3 py-2"
                             >
                               {h}
                             </th>
@@ -1058,13 +1058,13 @@ export function AsistenteCierre({
                       </thead>
                       <tbody>
                         {progreso?.porArticulo.map((a) => (
-                          <tr key={a.articuloId} className="border-b border-slate-100 last:border-0">
-                            <td className="px-3 py-2 text-sm text-slate-800">
+                          <tr key={a.articuloId} className="border-b border-[var(--border)] last:border-0">
+                            <td className="px-3 py-2 text-sm text-[var(--text-dark)]">
                               {a.nombre}
                               {/* Sin esta nota, sus unidades parecen perdidas:
                                   se ven aquí y no en el objetivo de arriba. */}
                               {!a.cuentaParaObjetivos && (
-                                <span className="block text-xs text-slate-400">
+                                <span className="block text-xs text-[var(--text-muted)]">
                                   No cuenta para los objetivos
                                 </span>
                               )}
@@ -1073,7 +1073,7 @@ export function AsistenteCierre({
                                 por grupo, en los cuadros de arriba. */}
                             <td className="px-3 py-2 text-sm tabular-nums">{a.vendido}</td>
                             {progreso?.preciosActivos && (
-                              <td className="px-3 py-2 text-sm tabular-nums text-slate-500">
+                              <td className="px-3 py-2 text-sm tabular-nums text-[var(--text-muted)]">
                                 {a.importe === null ? "—" : eur(a.importe)}
                               </td>
                             )}
@@ -1085,7 +1085,7 @@ export function AsistenteCierre({
                         ojos de quien lo lee: se suman, y se dice por qué la
                         cifra no cuadra con una sola línea del catálogo. */}
                     {progreso?.porArticulo.some((a) => a.productos > 1) && (
-                      <p className="text-xs text-slate-400 mt-2">
+                      <p className="text-xs text-[var(--text-muted)] mt-2">
                         Los productos que se llaman igual se suman en una sola fila, aunque el
                         catálogo los tenga en categorías distintas.
                       </p>
@@ -1093,7 +1093,7 @@ export function AsistenteCierre({
                   </div>
                 )}
 
-                <p className="text-xs text-slate-400 mt-3">
+                <p className="text-xs text-[var(--text-muted)] mt-3">
                   {progreso &&
                   progreso.propio.objetivo === null &&
                   progreso.sede?.objetivo == null &&
@@ -1159,7 +1159,7 @@ export function AsistenteCierre({
             {/* Adjuntos: se pueden seguir subiendo tras confirmar los importes,
                 porque los comprobantes del datáfono a veces salen después. */}
             <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-800">Documentación del cierre</p>
+              <p className="text-sm font-medium text-[var(--text-dark)]">Documentación del cierre</p>
               <input
                 ref={inputStock}
                 type="file"
@@ -1206,15 +1206,15 @@ export function AsistenteCierre({
               </div>
 
               {adjuntosCaja.length > 0 ? (
-                <ul className="divide-y divide-slate-100 rounded-md border border-slate-200">
+                <ul className="divide-y divide-slate-100 rounded-md border border-[var(--border)]">
                   {adjuntosCaja.map((a) => (
                     <li key={a.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
                       <span className="min-w-0">
-                        <span className="text-slate-400 text-xs uppercase tracking-wide mr-2">
+                        <span className="text-[var(--text-muted)] text-xs uppercase tracking-wide mr-2">
                           {a.tipo === "stock" ? "Stock" : "TPV"}
                         </span>
-                        <span className="text-slate-800 break-all">{a.nombre}</span>
-                        <span className="text-slate-400 text-xs ml-2 tabular-nums">{kb(a.tamañoBytes)}</span>
+                        <span className="text-[var(--text-dark)] break-all">{a.nombre}</span>
+                        <span className="text-[var(--text-muted)] text-xs ml-2 tabular-nums">{kb(a.tamañoBytes)}</span>
                       </span>
                       {!cerrado && (
                         <Button variant="ghost" size="sm" onClick={() => void quitarAdjunto(a.id)}>
@@ -1225,13 +1225,13 @@ export function AsistenteCierre({
                   ))}
                 </ul>
               ) : (
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[var(--text-muted)]">
                   Sin archivos todavía. Admite Excel, CSV, PDF y fotos, hasta 10 MB cada uno.
                 </p>
               )}
             </div>
 
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-[var(--text-muted)]">
               Al confirmar, los importes quedan cerrados: solo un administrador podrá
               corregirlos, y quedará registrado quién lo cambió y por qué. Los archivos sí
               puedes seguir añadiéndolos hasta que cierres el turno.
@@ -1267,8 +1267,8 @@ export function AsistenteCierre({
                 <div
                   className={
                     arqueoHecho.descuadre
-                      ? "rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 flex items-start gap-2"
-                      : "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 flex items-start gap-2"
+                      ? "rounded-md border border-[var(--warning-bg)] bg-[var(--warning-bg)] px-3 py-2 text-sm text-[var(--warning-text)] flex items-start gap-2"
+                      : "rounded-md border border-[var(--success-bg)] bg-[var(--success-bg)] px-3 py-2 text-sm text-[var(--success-text)] flex items-start gap-2"
                   }
                 >
                   {arqueoHecho.descuadre ? (
@@ -1298,7 +1298,7 @@ export function AsistenteCierre({
                     )}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-[var(--text-muted)]">
                   Si te has equivocado, un administrador puede corregirlo desde Arqueos.
                 </p>
               </>
@@ -1318,7 +1318,7 @@ export function AsistenteCierre({
                   />
                   {/* A ciegas a propósito: si ve antes lo que debería haber, lo
                       teclea sin contar y el arqueo no detecta nada. */}
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-[var(--text-muted)] mt-1">
                     Cuéntalo primero. Al guardar te decimos si cuadra.
                   </p>
                 </div>
@@ -1328,7 +1328,7 @@ export function AsistenteCierre({
                       tienda sale del sobre y, sin explicarlo aquí, aparece como
                       un descuadre que nadie sabe justificar tres días después
                       (ticket 7f52ba3e). */}
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5">
                     Si has pagado algo de la tienda con el dinero de la caja —folios, productos
                     de limpieza, una urgencia—, escríbelo aquí con el importe y adjunta el
                     ticket. Y cualquier otra cosa que no cuadre.
@@ -1336,7 +1336,7 @@ export function AsistenteCierre({
                   <textarea
                     id="arqueo-notas"
                     rows={2}
-                    className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                    className="mt-1 w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                     value={arqueoNotas}
                     onChange={(e) => setArqueoNotas(e.target.value)}
                     placeholder="12,50 € de folios y bolsas en el bazar de al lado, faltan 20 € que puse de cambio…"
@@ -1364,15 +1364,15 @@ export function AsistenteCierre({
                     {subiendo === "gasto" ? "Subiendo…" : "Adjuntar ticket del gasto"}
                   </Button>
                   {ticketsGasto.length > 0 ? (
-                    <ul className="mt-2 divide-y divide-slate-100 rounded-md border border-slate-200">
+                    <ul className="mt-2 divide-y divide-slate-100 rounded-md border border-[var(--border)]">
                       {ticketsGasto.map((a) => (
                         <li
                           key={a.id}
                           className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
                         >
                           <span className="min-w-0">
-                            <span className="text-slate-800 break-all">{a.nombre}</span>
-                            <span className="text-slate-400 text-xs ml-2 tabular-nums">
+                            <span className="text-[var(--text-dark)] break-all">{a.nombre}</span>
+                            <span className="text-[var(--text-muted)] text-xs ml-2 tabular-nums">
                               {kb(a.tamañoBytes)}
                             </span>
                           </span>
@@ -1385,7 +1385,7 @@ export function AsistenteCierre({
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-xs text-slate-400 mt-1.5">
+                    <p className="text-xs text-[var(--text-muted)] mt-1.5">
                       Una foto del ticket vale. Sin él, ese dinero parece que falta.
                     </p>
                   )}
@@ -1409,7 +1409,7 @@ export function AsistenteCierre({
                 otro después. Si el cuadrante está mal, la semana se quedaría sin
                 arquear sin que nadie se entere: se le avisa para que lo diga. */}
             {arqueo.pendienteEnSede && (
-              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 flex items-start gap-2">
+              <div className="rounded-md border border-[var(--warning-bg)] bg-[var(--warning-bg)] px-3 py-2 text-sm text-[var(--warning-text)] flex items-start gap-2">
                 <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
                 <span>
                   <strong>
@@ -1423,7 +1423,7 @@ export function AsistenteCierre({
             )}
 
             <div>
-              <p className="text-sm font-medium text-slate-800 mb-2">
+              <p className="text-sm font-medium text-[var(--text-dark)] mb-2">
                 ¿Ha habido alguna incidencia en el turno?
               </p>
               <div className="flex gap-2">
@@ -1447,12 +1447,12 @@ export function AsistenteCierre({
                 <textarea
                   id="incidencia"
                   rows={4}
-                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                  className="mt-1 w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                   value={incidencia}
                   onChange={(e) => setIncidencia(e.target.value)}
                   placeholder="Qué ha ocurrido, con qué importe o artículo, y qué has hecho."
                 />
-                <p className="text-xs text-slate-500 mt-2">
+                <p className="text-xs text-[var(--text-muted)] mt-2">
                   Al cerrar el turno, tus responsables recibirán un aviso con este cierre y la
                   incidencia.
                 </p>

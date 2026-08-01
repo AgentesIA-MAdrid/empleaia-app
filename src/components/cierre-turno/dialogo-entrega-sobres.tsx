@@ -165,19 +165,19 @@ export function DialogoEntregaSobres({
         {cargando ? (
           <div className="space-y-2 py-2">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />
+              <div key={i} className="h-12 bg-[var(--muted)] rounded animate-pulse" />
             ))}
           </div>
         ) : pendientes.length === 0 ? (
-          <p className="py-8 text-center text-sm text-slate-500">
+          <p className="py-8 text-center text-sm text-[var(--text-muted)]">
             No hay ningún sobre pendiente de recoger.
           </p>
         ) : paso === "sobres" ? (
           <>
-            <ul className="max-h-72 overflow-y-auto divide-y divide-slate-100 rounded-md border border-slate-200">
+            <ul className="max-h-72 overflow-y-auto divide-y divide-slate-100 rounded-md border border-[var(--border)]">
               {pendientes.map((p) => (
                 <li key={p.id}>
-                  <label className="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50">
+                  <label className="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-[var(--muted)]">
                     <input
                       type="checkbox"
                       className="mt-1 h-4 w-4 shrink-0 accent-[var(--primary)]"
@@ -186,25 +186,25 @@ export function DialogoEntregaSobres({
                     />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline justify-between gap-3">
-                        <span className="text-sm font-medium text-slate-800">{p.sede}</span>
-                        <span className="text-sm font-bold tabular-nums text-slate-900">
+                        <span className="text-sm font-medium text-[var(--text-dark)]">{p.sede}</span>
+                        <span className="text-sm font-bold tabular-nums text-[var(--text-dark)]">
                           {eur(p.importe)}
                         </span>
                       </span>
-                      <span className="block text-xs text-slate-500">
+                      <span className="block text-xs text-[var(--text-muted)]">
                         {p.semanaTexto}
                         {p.declaradoPor ? ` · lo preparó ${p.declaradoPor}` : ""}
                       </span>
                       {/* Un sobre de hace más de dos semanas es dinero parado en
                           un cajón: se dice, sin bloquear nada. */}
                       {p.diasEsperando >= 14 && (
-                        <span className="mt-1 inline-flex items-center gap-1 text-xs text-amber-700">
+                        <span className="mt-1 inline-flex items-center gap-1 text-xs text-[var(--warning-text)]">
                           <AlertTriangle className="h-3 w-3" />
                           Lleva {p.diasEsperando} días esperando
                         </span>
                       )}
                       {p.notas && (
-                        <span className="block text-xs text-slate-500 mt-0.5">«{p.notas}»</span>
+                        <span className="block text-xs text-[var(--text-muted)] mt-0.5">«{p.notas}»</span>
                       )}
                     </span>
                   </label>
@@ -213,9 +213,9 @@ export function DialogoEntregaSobres({
             </ul>
 
             <div className="flex items-center justify-between gap-3 pt-1">
-              <span className="text-sm text-slate-600">
+              <span className="text-sm text-[var(--text-body)]">
                 {seleccionados.length} de {pendientes.length} ·{" "}
-                <strong className="tabular-nums text-slate-900">{eur(total)}</strong>
+                <strong className="tabular-nums text-[var(--text-dark)]">{eur(total)}</strong>
               </span>
               <div className="flex gap-2">
                 <Button variant="ghost" size="sm" onClick={onCerrar}>
@@ -233,7 +233,7 @@ export function DialogoEntregaSobres({
           </>
         ) : (
           <>
-            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 flex items-center gap-2">
+            <div className="rounded-md border border-[var(--border)] bg-[var(--muted)] px-3 py-2 text-sm text-[var(--text-body)] flex items-center gap-2">
               <Wallet className="h-4 w-4 text-[var(--primary)] shrink-0" />
               <span>
                 Se entregan <strong>{seleccionados.length}</strong> sobre
@@ -246,7 +246,7 @@ export function DialogoEntregaSobres({
               <Label htmlFor="entrega-responsable">Responsable que se lo lleva</Label>
               <select
                 id="entrega-responsable"
-                className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-base"
+                className="mt-1 w-full rounded-md border border-[var(--border)] px-3 py-2 text-base"
                 value={responsable}
                 onChange={(e) => setResponsable(e.target.value)}
               >
@@ -258,7 +258,7 @@ export function DialogoEntregaSobres({
                 ))}
               </select>
               {autorizados.length === 0 && (
-                <p className="text-xs text-amber-700 mt-1">
+                <p className="text-xs text-[var(--warning-text)] mt-1">
                   Nadie tiene PIN de recogida todavía. Lo pone administración desde
                   «Quién puede recoger efectivo».
                 </p>
@@ -280,7 +280,7 @@ export function DialogoEntregaSobres({
                 }}
                 placeholder="••••"
               />
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-[var(--text-muted)] mt-1">
                 Que lo teclee el responsable en este dispositivo. Queda registrado que este
                 dinero se lo llevó él.
               </p>

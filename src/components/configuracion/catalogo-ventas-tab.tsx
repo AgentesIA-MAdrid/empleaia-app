@@ -623,18 +623,18 @@ export function CatalogoVentasTab() {
       </datalist>
 
       <div>
-        <h2 className="text-lg font-semibold text-slate-900">Catálogo de ventas</h2>
-        <p className="text-sm text-slate-500 mt-1 max-w-2xl">
+        <h2 className="text-lg font-semibold text-[var(--text-dark)]">Catálogo de ventas</h2>
+        <p className="text-sm text-[var(--text-muted)] mt-1 max-w-2xl">
           La lista de artículos y servicios que tu equipo registra al cerrar el turno, y sobre
           la que se fijan los objetivos de venta por comercial y por sede. Añádelos aquí uno a
           uno, o súbelos de golpe desde Excel o CSV si tienes muchos. Organízalos en{" "}
-          <strong className="font-medium text-slate-600">categorías y subcategorías</strong> para
+          <strong className="font-medium text-[var(--text-body)]">categorías y subcategorías</strong> para
           que no sea una lista interminable: se agrupan así tanto aquí como en el cierre de
           turno. Con las flechas de cada fila los colocas en el orden que quieras dentro de su
           bloque: es el mismo que verá tu equipo, y con el interruptor{" "}
-          <strong className="font-medium text-slate-600">Cuenta para objetivos</strong> eliges qué
+          <strong className="font-medium text-[var(--text-body)]">Cuenta para objetivos</strong> eliges qué
           artículos empujan los objetivos y cuáles no. La columna{" "}
-          <strong className="font-medium text-slate-600">Cómo se evalúa</strong> te dice de un
+          <strong className="font-medium text-[var(--text-body)]">Cómo se evalúa</strong> te dice de un
           vistazo con qué se le mide a cada uno este mes: con su propia cifra o con la de su
           subcategoría, que son las dos formas de poner un objetivo.
         </p>
@@ -642,19 +642,19 @@ export function CatalogoVentasTab() {
 
       {/* Quién ve el módulo. Va primero porque es la decisión que más se nota:
           el resto de esta pantalla solo afecta a cómo se registra la venta. */}
-      <Card className={enRodaje ? "border-amber-200 bg-amber-50/40" : undefined}>
+      <Card className={enRodaje ? "border-[var(--warning-bg)] bg-[var(--warning-bg)]/40" : undefined}>
         <CardContent className="pt-4 pb-4">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <p className="text-sm font-medium text-slate-900 flex items-center gap-2">
+              <p className="text-sm font-medium text-[var(--text-dark)] flex items-center gap-2">
                 {enRodaje ? (
-                  <EyeOff className="h-4 w-4 text-amber-600" />
+                  <EyeOff className="h-4 w-4 text-[var(--warning-text)]" />
                 ) : (
                   <Users className="h-4 w-4 text-[var(--primary)]" />
                 )}
                 {enRodaje ? "En rodaje: solo lo veis administración" : "Abierto a todo el equipo"}
               </p>
-              <p className="text-xs text-slate-600 mt-1 max-w-xl">
+              <p className="text-xs text-[var(--text-body)] mt-1 max-w-xl">
                 {enRodaje
                   ? "Prepáralo con calma —sube el catálogo, reparte los PIN de recogida, fija los objetivos del mes— y ábrelo cuando esté listo. Mientras, tu equipo no ve nada nuevo en su menú."
                   : "Tu equipo ve Cierre de turno y Arqueos en su menú. Puedes volver a guardarlo en rodaje si necesitas retocar algo."}
@@ -677,9 +677,9 @@ export function CatalogoVentasTab() {
           {/* Estrenarlo con una persona concreta. Solo tiene sentido mientras
               esté en rodaje: abierto, ya lo ve todo el mundo. */}
           {enRodaje && (
-            <div className="mt-4 pt-4 border-t border-amber-200/70">
-              <p className="text-sm font-medium text-slate-800">Estrenarlo con alguien del equipo</p>
-              <p className="text-xs text-slate-600 mt-1 max-w-xl">
+            <div className="mt-4 pt-4 border-t border-[var(--warning-bg)]/70">
+              <p className="text-sm font-medium text-[var(--text-dark)]">Estrenarlo con alguien del equipo</p>
+              <p className="text-xs text-[var(--text-body)] mt-1 max-w-xl">
                 Dale acceso a quien vaya a probarlo en su tienda. Solo verá Cierre de turno y
                 Arqueos: no toca nada de administración.
               </p>
@@ -689,13 +689,13 @@ export function CatalogoVentasTab() {
                   {pilotos.map((p) => (
                     <li key={p.id} className="flex items-center justify-between gap-3 text-sm">
                       <span>
-                        <span className="font-medium text-slate-800">{p.nombre}</span>
-                        <span className="text-slate-500">
+                        <span className="font-medium text-[var(--text-dark)]">{p.nombre}</span>
+                        <span className="text-[var(--text-muted)]">
                           {" "}
                           · {p.sede ?? "sin sede asignada"}
                         </span>
                         {!p.sede && (
-                          <span className="text-amber-700 text-xs block">
+                          <span className="text-[var(--warning-text)] text-xs block">
                             Sin sede, su cierre no entra en los cuadres y no podrá declarar
                             arqueos. Asígnale una en Empleados.
                           </span>
@@ -721,7 +721,7 @@ export function CatalogoVentasTab() {
                   </Label>
                   <select
                     id="piloto-nuevo"
-                    className="mt-1 w-64 rounded-md border border-slate-200 px-3 py-2 text-sm"
+                    className="mt-1 w-64 rounded-md border border-[var(--border)] px-3 py-2 text-sm"
                     value={pilotoElegido}
                     onChange={(e) => setPilotoElegido(e.target.value)}
                   >
@@ -751,10 +751,10 @@ export function CatalogoVentasTab() {
       <Card>
         <CardContent className="pt-4 pb-4 space-y-3">
           <div>
-            <p className="text-sm font-medium text-slate-900 flex items-center gap-2">
+            <p className="text-sm font-medium text-[var(--text-dark)] flex items-center gap-2">
               <Plus className="h-4 w-4 text-[var(--primary)]" /> Añadir un artículo
             </p>
-            <p className="text-xs text-slate-500 mt-1 max-w-xl">
+            <p className="text-xs text-[var(--text-muted)] mt-1 max-w-xl">
               Escribe cada concepto que vendéis: pospago, fibra, renove, prepago, energía… La
               categoría es opcional: agrupa los artículos en la tabla del cierre y es un dato para
               los informes (Telefonía, Servicios…). La subcategoría afina dentro de ella
@@ -768,7 +768,7 @@ export function CatalogoVentasTab() {
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex-1 min-w-[12rem]">
-              <label htmlFor="catalogo-nuevo-nombre" className="text-xs text-slate-500">
+              <label htmlFor="catalogo-nuevo-nombre" className="text-xs text-[var(--text-muted)]">
                 Artículo o servicio
               </label>
               <Input
@@ -784,7 +784,7 @@ export function CatalogoVentasTab() {
               />
             </div>
             <div className="flex-1 min-w-[10rem]">
-              <label htmlFor="catalogo-nueva-categoria" className="text-xs text-slate-500">
+              <label htmlFor="catalogo-nueva-categoria" className="text-xs text-[var(--text-muted)]">
                 Categoría (opcional)
               </label>
               <Input
@@ -801,7 +801,7 @@ export function CatalogoVentasTab() {
               />
             </div>
             <div className="flex-1 min-w-[10rem]">
-              <label htmlFor="catalogo-nueva-subcategoria" className="text-xs text-slate-500">
+              <label htmlFor="catalogo-nueva-subcategoria" className="text-xs text-[var(--text-muted)]">
                 Subcategoría (opcional)
               </label>
               <Input
@@ -819,7 +819,7 @@ export function CatalogoVentasTab() {
             </div>
             {preciosActivos && (
               <div className="w-32">
-                <label htmlFor="catalogo-nuevo-precio" className="text-xs text-slate-500">
+                <label htmlFor="catalogo-nuevo-precio" className="text-xs text-[var(--text-muted)]">
                   Precio
                 </label>
                 <Input
@@ -862,13 +862,13 @@ export function CatalogoVentasTab() {
               <Upload className="h-4 w-4 mr-2" />
               {subiendo ? "Importando…" : "Subir catálogo"}
             </Button>
-            <span className="text-sm text-slate-500">
+            <span className="text-sm text-[var(--text-muted)]">
               {activos.length > 0
                 ? `${activos.length} artículos activos`
                 : "Todavía no hay catálogo: tu equipo no puede registrar ventas."}
             </span>
           </div>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-[var(--text-muted)]">
             Basta una columna con el nombre, y si añades una segunda se usa como categoría. Para
             traer también las subcategorías, ponle a esa columna el encabezado{" "}
             <strong>Subcategoría</strong> (o Subfamilia, Subgrupo). Al
@@ -886,10 +886,10 @@ export function CatalogoVentasTab() {
         <CardContent className="pt-4 pb-4 space-y-3">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-slate-900 flex items-center gap-2">
+              <p className="text-sm font-medium text-[var(--text-dark)] flex items-center gap-2">
                 <Euro className="h-4 w-4 text-[var(--primary)]" /> Trabajar con precios
               </p>
-              <p className="text-xs text-slate-500 mt-1 max-w-xl">
+              <p className="text-xs text-[var(--text-muted)] mt-1 max-w-xl">
                 Enciéndelo si además de unidades quieres ver el importe vendido y poder cruzarlo
                 con el efectivo y la tarjeta de los cierres. Si tu equipo solo cuenta unidades,
                 déjalo apagado y no se te pedirá ningún precio.
@@ -905,7 +905,7 @@ export function CatalogoVentasTab() {
               }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                className={`inline-block h-4 w-4 transform rounded-full bg-[var(--card)] transition-transform ${
                   preciosActivos ? "translate-x-6" : "translate-x-1"
                 }`}
               />
@@ -915,19 +915,19 @@ export function CatalogoVentasTab() {
       </Card>
 
       {resumen && (
-        <Card className="border-slate-200">
+        <Card className="border-[var(--border)]">
           <CardContent className="pt-4 pb-4 text-sm space-y-2">
-            <p className="font-medium text-slate-800 flex items-center gap-2">
-              <FileSpreadsheet className="h-4 w-4 text-slate-400" />
+            <p className="font-medium text-[var(--text-dark)] flex items-center gap-2">
+              <FileSpreadsheet className="h-4 w-4 text-[var(--text-muted)]" />
               Resultado de la importación
             </p>
-            <p className="text-slate-600">
+            <p className="text-[var(--text-body)]">
               {resumen.creados} nuevos · {resumen.actualizados} actualizados ·{" "}
               {resumen.desactivados} desactivados
               {resumen.conCabecera ? " · la primera fila se ha tomado como encabezado" : ""}
             </p>
             {resumen.conPrecios && !preciosActivos && (
-              <p className="text-slate-600">
+              <p className="text-[var(--text-body)]">
                 La hoja traía precios y los hemos guardado, pero ahora mismo no se usan.
                 <Button
                   variant="link"
@@ -941,11 +941,11 @@ export function CatalogoVentasTab() {
             )}
             {resumen.totalIgnoradas > 0 && (
               <div>
-                <p className="text-amber-700">
+                <p className="text-[var(--warning-text)]">
                   {resumen.totalIgnoradas} fila{resumen.totalIgnoradas === 1 ? "" : "s"} sin
                   importar:
                 </p>
-                <ul className="mt-1 space-y-0.5 text-slate-500">
+                <ul className="mt-1 space-y-0.5 text-[var(--text-muted)]">
                   {resumen.ignoradas.map((ig) => (
                     <li key={`${ig.fila}-${ig.motivo}`}>
                       Fila {ig.fila}: {ig.motivo}
@@ -963,11 +963,11 @@ export function CatalogoVentasTab() {
           {cargando ? (
             <div className="p-4 space-y-2">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-9 bg-slate-100 rounded animate-pulse" />
+                <div key={i} className="h-9 bg-[var(--muted)] rounded animate-pulse" />
               ))}
             </div>
           ) : articulos.length === 0 ? (
-            <p className="text-center py-10 text-slate-400 text-sm">
+            <p className="text-center py-10 text-[var(--text-muted)] text-sm">
               Añade tu primer artículo ahí arriba, o sube tu tabla para empezar.
             </p>
           ) : (
@@ -975,19 +975,19 @@ export function CatalogoVentasTab() {
               {/* De qué mes son los distintivos: los objetivos son mensuales, y
                   un "objetivo propio" sin decir de cuándo no significa nada. */}
               {objetivosDelMes && (
-                <p className="px-4 pt-4 text-xs text-slate-500 max-w-3xl">
-                  La columna <strong className="font-medium text-slate-600">Cómo se evalúa</strong>{" "}
+                <p className="px-4 pt-4 text-xs text-[var(--text-muted)] max-w-3xl">
+                  La columna <strong className="font-medium text-[var(--text-body)]">Cómo se evalúa</strong>{" "}
                   mira los objetivos de {nombreDelMes(objetivosDelMes.mes).toLowerCase()}:{" "}
-                  <strong className="font-medium text-slate-600">Objetivo propio</strong> si alguien
-                  persigue ese producto, <strong className="font-medium text-slate-600">Grupo</strong>{" "}
+                  <strong className="font-medium text-[var(--text-body)]">Objetivo propio</strong> si alguien
+                  persigue ese producto, <strong className="font-medium text-[var(--text-body)]">Grupo</strong>{" "}
                   si la cifra está puesta sobre su subcategoría entera —se suman las unidades de
                   todos sus productos— y{" "}
-                  <strong className="font-medium text-slate-600">Unidades totales</strong> si solo
+                  <strong className="font-medium text-[var(--text-body)]">Unidades totales</strong> si solo
                   suma en el total. Se cambia en Objetivos de venta.
                 </p>
               )}
               <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
+                <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
                   <tr>
                     {[
                       "#",
@@ -1003,7 +1003,7 @@ export function CatalogoVentasTab() {
                       (h) => (
                         <th
                           key={h}
-                          className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3"
+                          className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-3"
                         >
                           {h}
                         </th>
@@ -1024,10 +1024,10 @@ export function CatalogoVentasTab() {
                           hay nada que encabezar: quien todavía no las use no
                           gana nada con una fila "Sin categoría" arriba. */}
                       {(grupo.categoria || grupos.length > 1) && (
-                        <tr className="bg-slate-50/80 border-y border-slate-200">
+                        <tr className="bg-[var(--muted)]/80 border-y border-[var(--border)]">
                           <td
                             colSpan={numColumnas}
-                            className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600"
+                            className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-body)]"
                           >
                             {grupo.categoria ?? "Sin categoría"}
                           </td>
@@ -1038,10 +1038,10 @@ export function CatalogoVentasTab() {
                           key={`sub-${grupo.categoria ?? "__sin__"}-${sub.subcategoria ?? "__sin__"}`}
                         >
                           {sub.subcategoria && (
-                            <tr className="border-b border-slate-100">
+                            <tr className="border-b border-[var(--border)]">
                               <td
                                 colSpan={numColumnas}
-                                className="px-4 py-1.5 pl-8 text-xs font-medium text-slate-500"
+                                className="px-4 py-1.5 pl-8 text-xs font-medium text-[var(--text-muted)]"
                               >
                                 {sub.subcategoria}
                               </td>
@@ -1050,9 +1050,9 @@ export function CatalogoVentasTab() {
                           {sub.articulos.map((a, j) => (
                             <tr
                               key={a.id}
-                              className={`border-b border-slate-100 last:border-0 ${a.activo ? "" : "opacity-50"}`}
+                              className={`border-b border-[var(--border)] last:border-0 ${a.activo ? "" : "opacity-50"}`}
                             >
-                              <td className="px-4 py-2.5 text-sm text-slate-400 tabular-nums">
+                              <td className="px-4 py-2.5 text-sm text-[var(--text-muted)] tabular-nums">
                                 {posiciones.get(a.id)}
                               </td>
                               <td className="px-4 py-2.5">
@@ -1147,7 +1147,7 @@ export function CatalogoVentasTab() {
                                   }`}
                                 >
                                   <span
-                                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-[var(--card)] transition-transform ${
                                       a.cuentaParaObjetivos ? "translate-x-5" : "translate-x-1"
                                     }`}
                                   />
@@ -1162,9 +1162,9 @@ export function CatalogoVentasTab() {
                               </td>
                               <td className="px-4 py-2.5 text-sm">
                                 {a.activo ? (
-                                  <span className="text-emerald-700">Activo</span>
+                                  <span className="text-[var(--success-text)]">Activo</span>
                                 ) : (
-                                  <span className="text-slate-500">Desactivado</span>
+                                  <span className="text-[var(--text-muted)]">Desactivado</span>
                                 )}
                               </td>
                               <td className="px-4 py-2.5 text-right whitespace-nowrap">

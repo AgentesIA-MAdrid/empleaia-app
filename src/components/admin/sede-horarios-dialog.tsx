@@ -214,14 +214,14 @@ export function SedeHorariosDialog({
 
         {loading ? (
           <div className="py-8 flex justify-center">
-            <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+            <Loader2 className="h-5 w-5 animate-spin text-[var(--text-muted)]" />
           </div>
         ) : (
           <div className="space-y-3 py-1">
             {/* Preset automático — rellena los tramos; luego se pueden editar. */}
-            <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-3">
-              <label className="text-xs font-medium text-slate-600">
-                Aplicar horario tipo <span className="font-normal text-slate-400">(puedes editarlo después)</span>
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--muted)]/60 p-3">
+              <label className="text-xs font-medium text-[var(--text-body)]">
+                Aplicar horario tipo <span className="font-normal text-[var(--text-muted)]">(puedes editarlo después)</span>
               </label>
               <select
                 value=""
@@ -238,15 +238,15 @@ export function SedeHorariosDialog({
               </select>
             </div>
             {DIAS.map((nombre, dia) => (
-              <div key={dia} className="rounded-lg border border-slate-100 p-3">
+              <div key={dia} className="rounded-lg border border-[var(--border)] p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-slate-800">{nombre}</span>
+                  <span className="text-sm font-medium text-[var(--text-dark)]">{nombre}</span>
                   <div className="flex items-center gap-2">
                     {tramos[dia].length > 0 && (
                       <button
                         type="button"
                         onClick={() => copiarATodos(dia)}
-                        className="text-xs text-slate-500 hover:text-[var(--primary)] inline-flex items-center gap-1"
+                        className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] inline-flex items-center gap-1"
                         title="Copiar este horario a todos los días"
                       >
                         <Copy className="h-3 w-3" /> A todos
@@ -262,7 +262,7 @@ export function SedeHorariosDialog({
                   </div>
                 </div>
                 {tramos[dia].length === 0 ? (
-                  <p className="text-xs text-slate-400">Cerrado</p>
+                  <p className="text-xs text-[var(--text-muted)]">Cerrado</p>
                 ) : (
                   <div className="space-y-2">
                     {tramos[dia].map((t, idx) => (
@@ -273,7 +273,7 @@ export function SedeHorariosDialog({
                           onChange={(e) => setTramo(dia, idx, "horaApertura", e.target.value)}
                           className="h-9 w-32"
                         />
-                        <span className="text-slate-400">–</span>
+                        <span className="text-[var(--text-muted)]">–</span>
                         <Input
                           type="time"
                           value={t.horaCierre}
@@ -283,7 +283,7 @@ export function SedeHorariosDialog({
                         <button
                           type="button"
                           onClick={() => removeTramo(dia, idx)}
-                          className="text-slate-400 hover:text-red-500 ml-auto"
+                          className="text-[var(--text-muted)] hover:text-[var(--danger)] ml-auto"
                           title="Eliminar tramo"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -297,9 +297,9 @@ export function SedeHorariosDialog({
 
             {/* Aplicar el mismo horario a otras sedes de una vez. */}
             {otrasSedes.length > 0 && (
-              <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-3">
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--muted)]/60 p-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-slate-600">
+                  <label className="text-xs font-medium text-[var(--text-body)]">
                     Aplicar este horario también a otras sedes
                   </label>
                   {replicarIds.size < otrasSedes.length ? (
@@ -314,7 +314,7 @@ export function SedeHorariosDialog({
                     <button
                       type="button"
                       onClick={() => setReplicarIds(new Set())}
-                      className="text-xs text-slate-500 hover:underline"
+                      className="text-xs text-[var(--text-muted)] hover:underline"
                     >
                       Quitar todas
                     </button>
@@ -322,7 +322,7 @@ export function SedeHorariosDialog({
                 </div>
                 <div className="mt-2 max-h-40 space-y-1 overflow-y-auto">
                   {otrasSedes.map((s) => (
-                    <label key={s.id} className="flex items-center gap-2 text-sm text-slate-700">
+                    <label key={s.id} className="flex items-center gap-2 text-sm text-[var(--text-body)]">
                       <input
                         type="checkbox"
                         checked={replicarIds.has(s.id)}
@@ -334,14 +334,14 @@ export function SedeHorariosDialog({
                             return next;
                           })
                         }
-                        className="h-4 w-4 rounded border-slate-300 text-[var(--primary)] focus:ring-[var(--primary)]"
+                        className="h-4 w-4 rounded border-[var(--border-strong)] text-[var(--primary)] focus:ring-[var(--primary)]"
                       />
                       {s.nombre}
                     </label>
                   ))}
                 </div>
                 {replicarIds.size > 0 && (
-                  <p className="mt-1.5 text-xs text-slate-400">
+                  <p className="mt-1.5 text-xs text-[var(--text-muted)]">
                     Al guardar, este horario se aplicará también a {replicarIds.size} sede
                     {replicarIds.size === 1 ? "" : "s"} (reemplaza el suyo).
                   </p>

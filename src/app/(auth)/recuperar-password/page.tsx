@@ -11,7 +11,7 @@ interface Branding {
 }
 
 const INPUT_CLASS =
-  "flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3.5 py-2 text-sm text-[var(--color-text-dark,#0F172A)] placeholder:text-[var(--color-text-muted,#94A3B8)] focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors";
+  "flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3.5 py-2 text-sm text-[var(--color-text-dark,#0F172A)] placeholder:text-[var(--color-text-muted,#94A3B8)] focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors";
 
 function RecuperarPasswordForm() {
   const [email, setEmail] = useState("");
@@ -50,13 +50,13 @@ function RecuperarPasswordForm() {
   if (done) {
     return (
       <div className="flex flex-col items-center gap-4 py-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50">
-          <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--success-bg)]">
+          <CheckCircle2 className="h-8 w-8 text-[var(--success-text)]" />
         </div>
         <div className="text-center">
-          <p className="text-slate-900 font-semibold text-lg">Revisa tu correo</p>
-          <p className="text-slate-500 text-sm mt-1 leading-relaxed">
-            Si existe una cuenta asociada a <strong className="text-slate-700">{email}</strong>,
+          <p className="text-[var(--text-dark)] font-semibold text-lg">Revisa tu correo</p>
+          <p className="text-[var(--text-muted)] text-sm mt-1 leading-relaxed">
+            Si existe una cuenta asociada a <strong className="text-[var(--text-body)]">{email}</strong>,
             recibirás un email con un enlace para restablecer tu contraseña.
             El enlace caduca en 1 hora.
           </p>
@@ -75,18 +75,18 @@ function RecuperarPasswordForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="flex items-start gap-3 rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800">
+        <div className="flex items-start gap-3 rounded-md border border-[var(--danger-bg)] bg-[var(--danger-bg)] px-3 py-2.5 text-sm text-[var(--danger-text)]">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
       )}
 
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
+        <label htmlFor="email" className="block text-sm font-medium text-[var(--text-body)] mb-1.5">
           Correo electrónico
         </label>
         <div className="relative">
-          <Mail className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Mail className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
           <input
             id="email"
             type="email"
@@ -98,7 +98,7 @@ function RecuperarPasswordForm() {
             className={`${INPUT_CLASS} pl-9`}
           />
         </div>
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-[var(--text-muted)]">
           Te enviaremos un enlace para crear una nueva contraseña.
         </p>
       </div>
@@ -115,7 +115,7 @@ function RecuperarPasswordForm() {
       <div className="pt-2 text-center">
         <Link
           href="/login"
-          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700"
+          className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text-body)]"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Volver al inicio de sesión
@@ -139,7 +139,7 @@ export default function RecuperarPasswordPage() {
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--muted)]">
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
         <div className="absolute -top-32 -right-32 h-72 w-72 rounded-full bg-[var(--primary-light)] blur-3xl opacity-60" />
         <div className="absolute -bottom-32 -left-32 h-72 w-72 rounded-full bg-[var(--primary-light)] blur-3xl opacity-50" />
@@ -157,14 +157,14 @@ export default function RecuperarPasswordPage() {
           ) : (
             <EmpleaIALogo appNombre={branding.appNombre} symbolSize={80} className="mb-4" />
           )}
-          <p className="text-sm text-slate-500">Recuperación de contraseña</p>
+          <p className="text-sm text-[var(--text-muted)]">Recuperación de contraseña</p>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
+        <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-sm">
           <div className="px-6 py-6 sm:px-8 sm:py-8">
             <div className="mb-6 text-center">
-              <h1 className="text-xl font-semibold text-slate-900">¿Olvidaste tu contraseña?</h1>
-              <p className="text-sm text-slate-500 mt-1">
+              <h1 className="text-xl font-semibold text-[var(--text-dark)]">¿Olvidaste tu contraseña?</h1>
+              <p className="text-sm text-[var(--text-muted)] mt-1">
                 Introduce tu email y te enviaremos un enlace para crear una nueva.
               </p>
             </div>

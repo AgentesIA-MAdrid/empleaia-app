@@ -6,7 +6,7 @@ import { registrarTenantAction, type RegistroResult } from "./actions";
 type Plan = { key: string; name: string; description: string | null };
 
 const INPUT_CLASS =
-  "flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3.5 py-2 text-sm text-[var(--color-text-dark,#0F172A)] placeholder:text-[var(--color-text-muted,#94A3B8)] focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors";
+  "flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3.5 py-2 text-sm text-[var(--color-text-dark,#0F172A)] placeholder:text-[var(--color-text-muted,#94A3B8)] focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors";
 
 export function RegistroForm({ planes }: { planes: Plan[] }) {
   const [state, formAction, pending] = useActionState<
@@ -67,7 +67,7 @@ export function RegistroForm({ planes }: { planes: Plan[] }) {
       <input type="hidden" name="billingPeriod" value="monthly" />
 
       {state?.kind === "error" && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-800">
+        <div className="rounded-lg border border-[var(--danger-bg)] bg-[var(--danger-bg)] px-3.5 py-2.5 text-sm text-[var(--danger-text)]">
           {state.message}
           {state.suggestions && state.suggestions.length > 0 && (
             <div className="mt-2">

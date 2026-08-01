@@ -24,7 +24,7 @@ export function TemplateActions({ userId }: { userId: string }) {
     <button
       onClick={reset}
       disabled={pending}
-      className="inline-flex items-center gap-1 text-xs text-red-700 hover:text-red-900 disabled:opacity-50"
+      className="inline-flex items-center gap-1 text-xs text-[var(--danger-text)] hover:text-[var(--danger-text)] disabled:opacity-50"
     >
       {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
       Resetear

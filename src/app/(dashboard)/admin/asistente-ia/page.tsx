@@ -39,7 +39,7 @@ async function AsistenteIAPage() {
         </div>
         <Link
           href="/admin/asistente-ia/configuracion"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white hover:bg-slate-50 px-3 py-2 text-sm font-medium"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] hover:bg-[var(--muted)] px-3 py-2 text-sm font-medium"
         >
           <Settings className="h-4 w-4" />
           Configuración
@@ -47,12 +47,12 @@ async function AsistenteIAPage() {
       </header>
 
       {!cfg || !cfg.activa ? (
-        <div className="rounded-xl border-2 border-dashed border-amber-300 bg-amber-50 p-8 text-center">
-          <Bot className="h-10 w-10 mx-auto text-amber-700" />
-          <h2 className="mt-3 font-semibold text-amber-900">
+        <div className="rounded-xl border-2 border-dashed border-amber-300 bg-[var(--warning-bg)] p-8 text-center">
+          <Bot className="h-10 w-10 mx-auto text-[var(--warning-text)]" />
+          <h2 className="mt-3 font-semibold text-[var(--warning-text)]">
             Aún no has configurado el asistente IA
           </h2>
-          <p className="mt-1 text-sm text-amber-800">
+          <p className="mt-1 text-sm text-[var(--warning-text)]">
             empleaIA usa <strong>BYOK</strong>: tú aportas tu propia API key de
             Anthropic, OpenAI o Google. El coste de tokens va directamente a tu
             cuenta del proveedor.

@@ -33,9 +33,9 @@ interface Empleado {
 
 const PRIORIDAD = ["ALTA", "MEDIA", "BAJA"];
 const PRIORIDAD_COLOR: Record<string, string> = {
-  ALTA: "bg-red-100 text-red-700 border-red-200",
-  MEDIA: "bg-amber-100 text-amber-700 border-amber-200",
-  BAJA: "bg-slate-100 text-slate-600 border-slate-200",
+  ALTA: "bg-[var(--danger-bg)] text-[var(--danger-text)] border-[var(--danger-bg)]",
+  MEDIA: "bg-[var(--warning-bg)] text-[var(--warning-text)] border-[var(--warning-bg)]",
+  BAJA: "bg-[var(--muted)] text-[var(--text-body)] border-[var(--border)]",
 };
 
 export default function AdminTareasPage() {
@@ -122,8 +122,8 @@ export default function AdminTareasPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Tareas</h1>
-          <p className="text-slate-500 text-sm mt-1">{pendientes} pendientes · {completadas} completadas</p>
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">Tareas</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-1">{pendientes} pendientes · {completadas} completadas</p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" /> Nueva tarea
@@ -131,14 +131,14 @@ export default function AdminTareasPage() {
       </div>
 
       {/* Filtro tabs */}
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+      <div className="flex gap-1 bg-[var(--muted)] p-1 rounded-xl w-fit">
         {(["pendientes", "completadas", "todas"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFiltro(f)}
             className={cn(
               "px-4 py-1.5 rounded-lg text-sm font-medium transition-all capitalize",
-              filtro === f ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              filtro === f ? "bg-[var(--card)] text-[var(--text-dark)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-body)]"
             )}
           >
             {f}
@@ -149,13 +149,13 @@ export default function AdminTareasPage() {
       {/* Lista */}
       {loading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map((i) => <div key={i} className="h-20 bg-slate-100 rounded-xl animate-pulse" />)}
+          {[1, 2, 3].map((i) => <div key={i} className="h-20 bg-[var(--muted)] rounded-xl animate-pulse" />)}
         </div>
       ) : tareasFiltradas.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <CheckSquare className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-            <p className="text-slate-400">No hay tareas {filtro !== "todas" ? filtro : ""}</p>
+            <p className="text-[var(--text-muted)]">No hay tareas {filtro !== "todas" ? filtro : ""}</p>
           </CardContent>
         </Card>
       ) : (
@@ -164,18 +164,18 @@ export default function AdminTareasPage() {
             <div
               key={tarea.id}
               className={cn(
-                "flex items-start gap-3 p-4 rounded-xl border bg-white hover:shadow-sm transition-all",
+                "flex items-start gap-3 p-4 rounded-xl border bg-[var(--card)] hover:shadow-sm transition-all",
                 tarea.completada ? "opacity-60" : ""
               )}
             >
               <button onClick={() => toggleCompletada(tarea)} className="mt-0.5 shrink-0">
                 {tarea.completada
                   ? <CheckSquare className="h-5 w-5 text-[var(--primary)]" />
-                  : <Square className="h-5 w-5 text-slate-300 hover:text-[var(--primary-lighter)] transition-colors" />}
+                  : <Square className="h-5 w-5 text-[var(--text-muted)] hover:text-[var(--primary-lighter)] transition-colors" />}
               </button>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className={cn("font-medium text-slate-900", tarea.completada && "line-through text-slate-400")}>
+                  <p className={cn("font-medium text-[var(--text-dark)]", tarea.completada && "line-through text-[var(--text-muted)]")}>
                     {tarea.titulo}
                   </p>
                   <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium", PRIORIDAD_COLOR[tarea.prioridad])}>
@@ -183,29 +183,29 @@ export default function AdminTareasPage() {
                   </span>
                 </div>
                 {tarea.descripcion && (
-                  <p className="text-sm text-slate-500 mt-0.5 truncate">{tarea.descripcion}</p>
+                  <p className="text-sm text-[var(--text-muted)] mt-0.5 truncate">{tarea.descripcion}</p>
                 )}
                 <div className="flex items-center gap-4 mt-1.5 flex-wrap">
                   {tarea.asignadoA && (
-                    <span className="flex items-center gap-1 text-xs text-slate-400">
+                    <span className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
                       <User className="h-3 w-3" />
                       {tarea.asignadoA.nombre} {tarea.asignadoA.apellidos}
                     </span>
                   )}
                   {tarea.fechaLimite && (
-                    <span className="flex items-center gap-1 text-xs text-slate-400">
+                    <span className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
                       <Calendar className="h-3 w-3" />
                       {format(new Date(tarea.fechaLimite), "d MMM yyyy", { locale: es })}
                     </span>
                   )}
-                  <span className="text-xs text-slate-300">
+                  <span className="text-xs text-[var(--text-muted)]">
                     por {tarea.creadoPor.nombre} {tarea.creadoPor.apellidos}
                   </span>
                 </div>
               </div>
               <button
                 onClick={() => handleDelete(tarea.id)}
-                className="shrink-0 text-slate-300 hover:text-red-500 transition-colors p-1"
+                className="shrink-0 text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors p-1"
               >
                 <Trash2 className="h-4 w-4" />
               </button>

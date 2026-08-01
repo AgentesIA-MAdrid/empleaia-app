@@ -49,7 +49,7 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--muted)]">
       {/* Sutiles blobs de color en el fondo */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
         <div className="absolute -top-32 -right-32 h-72 w-72 rounded-full bg-[var(--primary-light)] blur-3xl opacity-60" />
@@ -67,17 +67,17 @@ export default function AdminLoginPage() {
         </div>
 
         {/* Card formulario */}
-        <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
+        <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-sm">
           <div className="px-8 py-8">
             <div className="mb-6 text-center">
-              <h1 className="text-xl font-semibold text-slate-900">Iniciar sesión</h1>
-              <p className="text-sm text-slate-500 mt-1">
+              <h1 className="text-xl font-semibold text-[var(--text-dark)]">Iniciar sesión</h1>
+              <p className="text-sm text-[var(--text-muted)] mt-1">
                 Acceso exclusivo al control plane de empleaIA
               </p>
             </div>
 
             {error && (
-              <div className="mb-5 flex items-start gap-3 rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800 animate-fade-in">
+              <div className="mb-5 flex items-start gap-3 rounded-md border border-[var(--danger-bg)] bg-[var(--danger-bg)] px-3 py-2.5 text-sm text-[var(--danger-text)] animate-fade-in">
                 <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                 <span>{error}</span>
               </div>
@@ -100,7 +100,7 @@ export default function AdminLoginPage() {
                   required
                   autoComplete="username"
                   placeholder="admin@empleaia.es"
-                  className="flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3.5 py-2 text-sm text-[var(--color-text-dark,#0F172A)] placeholder:text-[var(--color-text-muted,#94A3B8)] focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors"
+                  className="flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3.5 py-2 text-sm text-[var(--color-text-dark,#0F172A)] placeholder:text-[var(--color-text-muted,#94A3B8)] focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors"
                 />
               </div>
 
@@ -121,12 +121,12 @@ export default function AdminLoginPage() {
                     required
                     autoComplete="current-password"
                     placeholder="••••••••"
-                    className="flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white pl-3.5 pr-11 py-2 text-sm text-[var(--color-text-dark,#0F172A)] placeholder:text-[var(--color-text-muted,#94A3B8)] focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors"
+                    className="flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] pl-3.5 pr-11 py-2 text-sm text-[var(--color-text-dark,#0F172A)] placeholder:text-[var(--color-text-muted,#94A3B8)] focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPwd((v) => !v)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition-colors"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition-colors"
                     aria-label={showPwd ? "Ocultar contraseña" : "Mostrar contraseña"}
                     tabIndex={-1}
                   >
@@ -145,13 +145,13 @@ export default function AdminLoginPage() {
               </button>
             </form>
 
-            <p className="mt-6 text-center text-xs text-slate-400">
+            <p className="mt-6 text-center text-xs text-[var(--text-muted)]">
               Solo personal autorizado de empleaIA.
             </p>
           </div>
         </div>
 
-        <p className="mt-4 text-center text-xs text-slate-400">
+        <p className="mt-4 text-center text-xs text-[var(--text-muted)]">
           empleaIA &mdash; {new Date().getFullYear()}
         </p>
       </div>

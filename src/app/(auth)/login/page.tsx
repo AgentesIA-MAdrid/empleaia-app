@@ -110,7 +110,7 @@ async function LoginPage({ searchParams }: LoginPageProps) {
   const logo = branding?.logo ?? null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--muted)]">
       {/* Sutiles blobs de color en el fondo */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
         <div className="absolute -top-32 -right-32 h-72 w-72 rounded-full bg-[var(--primary-light)] blur-3xl opacity-60" />
@@ -130,28 +130,28 @@ async function LoginPage({ searchParams }: LoginPageProps) {
           ) : (
             <EmpleaIALogo appNombre={appNombre} symbolSize={80} className="mb-4" />
           )}
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-[var(--text-muted)]">
             {empresa !== appNombre ? empresa : "Gestión inteligente de personal"}
           </p>
         </div>
 
         {/* Card formulario */}
-        <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
+        <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-sm">
           <div className="px-6 py-6 sm:px-8 sm:py-8">
             <div className="mb-6 text-center">
-              <h1 className="text-xl font-semibold text-slate-900">Iniciar sesión</h1>
-              <p className="text-sm text-slate-500 mt-1">Accede a tu espacio de trabajo</p>
+              <h1 className="text-xl font-semibold text-[var(--text-dark)]">Iniciar sesión</h1>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Accede a tu espacio de trabajo</p>
             </div>
 
             <TenantLoginForm action={loginAction} initialEmail={prefilledEmail ?? ""} />
 
-            <p className="mt-6 text-center text-xs text-slate-400">
+            <p className="mt-6 text-center text-xs text-[var(--text-muted)]">
               Acceso exclusivo para empleados de {empresa}.
             </p>
           </div>
         </div>
 
-        <p className="mt-4 text-center text-xs text-slate-400">
+        <p className="mt-4 text-center text-xs text-[var(--text-muted)]">
           {appNombre} &mdash; {new Date().getFullYear()}
         </p>
       </div>
@@ -182,7 +182,7 @@ export default async function LoginRoute(props: { searchParams: Promise<{ error?
   if (resolved.kind === "app" || resolved.kind === "apex") {
     const { email } = await props.searchParams;
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--muted)]">
         <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
           <div className="absolute -top-32 -right-32 h-72 w-72 rounded-full bg-[var(--primary-light)] blur-3xl opacity-60" />
           <div className="absolute -bottom-32 -left-32 h-72 w-72 rounded-full bg-[var(--primary-light)] blur-3xl opacity-50" />
@@ -190,20 +190,20 @@ export default async function LoginRoute(props: { searchParams: Promise<{ error?
         <div className="relative w-full max-w-md animate-fade-in">
           <div className="flex flex-col items-center mb-8">
             <EmpleaIALogo appNombre="empleaIA" symbolSize={80} className="mb-4" />
-            <p className="text-sm text-slate-500">Acceso a tu empresa</p>
+            <p className="text-sm text-[var(--text-muted)]">Acceso a tu empresa</p>
           </div>
-          <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-sm">
             <div className="px-6 py-6 sm:px-8 sm:py-8">
               <div className="mb-6 text-center">
-                <h1 className="text-xl font-semibold text-slate-900">Iniciar sesión</h1>
-                <p className="text-sm text-slate-500 mt-1">
+                <h1 className="text-xl font-semibold text-[var(--text-dark)]">Iniciar sesión</h1>
+                <p className="text-sm text-[var(--text-muted)] mt-1">
                   Indica tu correo y te llevamos al panel de tu empresa.
                 </p>
               </div>
               <GlobalLoginForm initialEmail={email ?? ""} />
             </div>
           </div>
-          <p className="mt-4 text-center text-xs text-slate-400">
+          <p className="mt-4 text-center text-xs text-[var(--text-muted)]">
             empleaIA &mdash; {new Date().getFullYear()}
           </p>
         </div>

@@ -21,7 +21,7 @@ async function NuevaDenunciaPage() {
         </div>
       </header>
 
-      <div className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white p-6">
+      <div className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] p-6">
         <NuevaDenunciaForm />
       </div>
 

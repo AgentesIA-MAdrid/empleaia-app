@@ -94,10 +94,10 @@ export default function ReservaEspaciosPage() {
   if (unavailable) {
     return (
       <div className="p-6">
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-[var(--warning-bg)] bg-[var(--warning-bg)]">
           <CardContent className="pt-4 pb-4 flex items-start gap-3">
-            <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="flex-1"><p className="text-sm font-semibold text-amber-900">Reserva de espacios — plan Pro o superior</p></div>
+            <Lock className="h-5 w-5 text-[var(--warning-text)] shrink-0 mt-0.5" />
+            <div className="flex-1"><p className="text-sm font-semibold text-[var(--warning-text)]">Reserva de espacios — plan Pro o superior</p></div>
             <Link href="/admin/planes"><Button size="sm">Ver planes</Button></Link>
           </CardContent>
         </Card>
@@ -111,8 +111,8 @@ export default function ReservaEspaciosPage() {
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center"><Building2 className="h-5 w-5 text-[var(--primary)]" /></div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Reserva de espacios</h1>
-            <p className="text-slate-500 text-sm mt-0.5">Salas, mesas y plazas reservables</p>
+            <h1 className="text-2xl font-bold text-[var(--text-dark)]">Reserva de espacios</h1>
+            <p className="text-[var(--text-muted)] text-sm mt-0.5">Salas, mesas y plazas reservables</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -124,12 +124,12 @@ export default function ReservaEspaciosPage() {
       <Card>
         <CardHeader><CardTitle className="text-base">Espacios ({espacios.length})</CardTitle></CardHeader>
         <CardContent>
-          {espacios.length === 0 ? <p className="text-slate-500 text-sm">Crea primero un espacio.</p> : (
+          {espacios.length === 0 ? <p className="text-[var(--text-muted)] text-sm">Crea primero un espacio.</p> : (
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {espacios.map((e) => (
-                <div key={e.id} className="rounded-md border border-slate-200 p-3">
-                  <p className="font-semibold text-sm text-slate-900">{e.nombre}</p>
-                  <p className="text-xs text-slate-500">Capacidad {e.capacidad}{e.ubicacion ? ` · ${e.ubicacion}` : ""}</p>
+                <div key={e.id} className="rounded-md border border-[var(--border)] p-3">
+                  <p className="font-semibold text-sm text-[var(--text-dark)]">{e.nombre}</p>
+                  <p className="text-xs text-[var(--text-muted)]">Capacidad {e.capacidad}{e.ubicacion ? ` · ${e.ubicacion}` : ""}</p>
                 </div>
               ))}
             </div>
@@ -140,19 +140,19 @@ export default function ReservaEspaciosPage() {
       <Card>
         <CardHeader><CardTitle className="text-base">Reservas próximas ({reservas.length})</CardTitle></CardHeader>
         <CardContent className="p-0">
-          {loading ? <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div> :
-            reservas.length === 0 ? <p className="text-slate-500 text-sm p-4">Sin reservas activas.</p> : (
+          {loading ? <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" /></div> :
+            reservas.length === 0 ? <p className="text-[var(--text-muted)] text-sm p-4">Sin reservas activas.</p> : (
             <div className="divide-y divide-slate-100">
               {reservas.map((r) => (
                 <div key={r.id} className="px-4 py-3 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm text-slate-900">{r.espacio.nombre}</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="font-medium text-sm text-[var(--text-dark)]">{r.espacio.nombre}</p>
+                    <p className="text-xs text-[var(--text-muted)]">
                       {new Date(r.inicio).toLocaleString("es-ES")} → {new Date(r.fin).toLocaleString("es-ES")}
                     </p>
-                    <p className="text-xs text-slate-400">{r.user.nombre} {r.user.apellidos}{r.motivo ? ` · ${r.motivo}` : ""}</p>
+                    <p className="text-xs text-[var(--text-muted)]">{r.user.nombre} {r.user.apellidos}{r.motivo ? ` · ${r.motivo}` : ""}</p>
                   </div>
-                  <Button size="sm" variant="ghost" className="text-red-500" onClick={() => deleteReserva(r.id)}><Trash2 className="h-4 w-4" /></Button>
+                  <Button size="sm" variant="ghost" className="text-[var(--danger)]" onClick={() => deleteReserva(r.id)}><Trash2 className="h-4 w-4" /></Button>
                 </div>
               ))}
             </div>

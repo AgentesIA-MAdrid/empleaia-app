@@ -72,21 +72,21 @@ export function FichaEmpleadoNav({ currentId }: { currentId: string }) {
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className="flex w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm text-slate-500 hover:border-[var(--primary)]/50"
+          className="flex w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm text-[var(--text-muted)] hover:border-[var(--primary)]/50"
         >
           <span className="flex items-center gap-2 truncate">
-            <Search className="h-4 w-4 shrink-0 text-slate-400" />
+            <Search className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
             Buscar empleado…
           </span>
-          <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+          <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
         </button>
         {open && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
             <div className="absolute right-0 z-50 mt-1 w-72 rounded-md border border-input bg-background shadow-lg">
-              <div className="border-b border-slate-100 p-2">
+              <div className="border-b border-[var(--border)] p-2">
                 <div className="relative">
-                  <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
                   <input
                     autoFocus
                     value={q}
@@ -103,20 +103,20 @@ export function FichaEmpleadoNav({ currentId }: { currentId: string }) {
                     type="button"
                     onClick={() => irA(e.id)}
                     className={cn(
-                      "flex w-full flex-col items-start px-3 py-1.5 text-left text-sm hover:bg-slate-50",
-                      e.id === currentId && "bg-slate-50",
+                      "flex w-full flex-col items-start px-3 py-1.5 text-left text-sm hover:bg-[var(--muted)]",
+                      e.id === currentId && "bg-[var(--muted)]",
                     )}
                   >
                     <span className="truncate">
                       {e.nombre} {e.apellidos}
                     </span>
                     {e.email && (
-                      <span className="truncate text-xs text-slate-400">{e.email}</span>
+                      <span className="truncate text-xs text-[var(--text-muted)]">{e.email}</span>
                     )}
                   </button>
                 ))}
                 {filtrados.length === 0 && (
-                  <p className="px-3 py-2 text-sm text-slate-400">Sin resultados</p>
+                  <p className="px-3 py-2 text-sm text-[var(--text-muted)]">Sin resultados</p>
                 )}
               </div>
             </div>

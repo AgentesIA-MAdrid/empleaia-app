@@ -69,15 +69,15 @@ function Elector({
 }) {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{titulo}</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">{titulo}</p>
       {opciones.length === 0 ? (
-        <p className="text-xs text-slate-400 mt-2">{vacio}</p>
+        <p className="text-xs text-[var(--text-muted)] mt-2">{vacio}</p>
       ) : (
-        <div className="mt-2 max-h-44 overflow-y-auto rounded-md border border-slate-200 divide-y divide-slate-100">
+        <div className="mt-2 max-h-44 overflow-y-auto rounded-md border border-[var(--border)] divide-y divide-slate-100">
           {opciones.map((o) => (
             <label
               key={o.id}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 cursor-pointer hover:bg-slate-50"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-[var(--text-body)] cursor-pointer hover:bg-[var(--muted)]"
             >
               <input
                 type="checkbox"
@@ -88,7 +88,7 @@ function Elector({
               <span className="flex-1">
                 {o.nombre}
                 {o.detalle && (
-                  <span className="block text-xs text-slate-400">{o.detalle}</span>
+                  <span className="block text-xs text-[var(--text-muted)]">{o.detalle}</span>
                 )}
               </span>
             </label>
@@ -264,7 +264,7 @@ export function GruposObjetivoDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <p className="text-xs text-slate-400 -mt-2">
+        <p className="text-xs text-[var(--text-muted)] -mt-2">
           Un grupo es un conjunto de comerciales y/o puntos de venta con objetivo propio (por
           ejemplo, TMT). Lo que venden sus miembros cuenta una sola vez, aunque estén dentro la
           tienda y su gente. Es independiente de los objetivos de cada persona y de cada sede.
@@ -272,29 +272,29 @@ export function GruposObjetivoDialog({
 
         {cargando ? (
           <div className="py-8 flex justify-center">
-            <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+            <Loader2 className="h-5 w-5 animate-spin text-[var(--text-muted)]" />
           </div>
         ) : (
           <div className="space-y-4">
             {/* Los que ya hay */}
-            <div className="rounded-lg border border-slate-200 divide-y divide-slate-100">
+            <div className="rounded-lg border border-[var(--border)] divide-y divide-slate-100">
               {grupos.length === 0 ? (
-                <p className="text-sm text-slate-400 px-3 py-6 text-center">
+                <p className="text-sm text-[var(--text-muted)] px-3 py-6 text-center">
                   Todavía no tienes ningún grupo. Crea el primero aquí abajo.
                 </p>
               ) : (
                 grupos.map((g) => (
                   <div key={g.id} className="flex items-center gap-2 px-3 py-2">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-800 truncate">
+                      <p className="text-sm font-medium text-[var(--text-dark)] truncate">
                         {g.nombre}
                         {!g.activo && (
-                          <span className="ml-2 text-xs font-normal text-amber-700">
+                          <span className="ml-2 text-xs font-normal text-[var(--warning-text)]">
                             Desactivado
                           </span>
                         )}
                       </p>
-                      <p className="text-xs text-slate-400">{describeMiembrosGrupo(g)}</p>
+                      <p className="text-xs text-[var(--text-muted)]">{describeMiembrosGrupo(g)}</p>
                     </div>
                     <Button variant="ghost" size="sm" onClick={() => editar(g)} title="Editar">
                       <Pencil className="h-3.5 w-3.5" />
@@ -316,9 +316,9 @@ export function GruposObjetivoDialog({
             </div>
 
             {/* Alta / edición */}
-            <div className="rounded-lg border border-slate-200 p-3 space-y-3">
+            <div className="rounded-lg border border-[var(--border)] p-3 space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-800">
+                <p className="text-sm font-semibold text-[var(--text-dark)]">
                   {editando ? "Editar grupo" : "Nuevo grupo"}
                 </p>
                 {editando && (

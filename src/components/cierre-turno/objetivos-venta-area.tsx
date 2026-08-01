@@ -87,8 +87,8 @@ export function ObjetivosVentaArea({
     <div className="p-6 space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">{titulo}</h1>
-          <p className="text-slate-500 text-sm mt-1 max-w-2xl">{descripcion}</p>
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">{titulo}</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-1 max-w-2xl">{descripcion}</p>
         </div>
         {mostrarCierreDia && (
           <BotonCierreDia onCambios={() => setRecargaSeguimiento((n) => n + 1)} />
@@ -104,8 +104,8 @@ export function ObjetivosVentaArea({
             <div className="flex items-center gap-3">
               <CalendarRange className="h-5 w-5 text-[var(--primary)]" />
               <div>
-                <p className="text-xl font-bold text-slate-900 leading-tight">{nombreDelMes(mes)}</p>
-                <p className="text-xs text-slate-400">{etiqueta}</p>
+                <p className="text-xl font-bold text-[var(--text-dark)] leading-tight">{nombreDelMes(mes)}</p>
+                <p className="text-xs text-[var(--text-muted)]">{etiqueta}</p>
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -145,7 +145,7 @@ export function ObjetivosVentaArea({
         </CardContent>
       </Card>
 
-      <div className="flex gap-2 border-b border-slate-200">
+      <div className="flex gap-2 border-b border-[var(--border)]">
         {(
           [
             { key: "definicion" as const, label: "Definición de objetivos" },
@@ -160,7 +160,7 @@ export function ObjetivosVentaArea({
             className={
               subarea === t.key
                 ? "px-3 py-2 text-sm font-semibold text-[var(--primary)] border-b-2 border-[var(--primary)] -mb-px"
-                : "px-3 py-2 text-sm text-slate-500 hover:text-slate-800"
+                : "px-3 py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-dark)]"
             }
           >
             {t.label}

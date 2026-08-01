@@ -139,7 +139,7 @@ export function PlantillaPlacementEditor({
 
   if (!url) {
     return (
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-[var(--text-muted)]">
         Adjunta primero el archivo para poder marcar sobre él dónde se colocará cada dato.
       </p>
     );
@@ -150,7 +150,7 @@ export function PlantillaPlacementEditor({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-[var(--text-muted)]">
           {campos.length === 0
             ? "Añade campos arriba para poder colocarlos en el documento."
             : seleccion !== null
@@ -177,17 +177,17 @@ export function PlantillaPlacementEditor({
                 key={i}
                 className={cn(
                   "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs transition-colors",
-                  activo ? "border-transparent text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+                  activo ? "border-transparent text-white" : "border-[var(--border)] bg-[var(--card)] text-[var(--text-body)] hover:border-[var(--border-strong)]",
                 )}
                 style={activo ? { backgroundColor: color } : undefined}
               >
                 <button type="button" className="inline-flex items-center gap-1" onClick={() => setSeleccion(activo ? null : i)}>
                   <MapPin className="h-3 w-3" style={activo ? undefined : { color }} />
                   {campo.label || `Campo ${i + 1}`}
-                  {campo.posicion && <span className={cn("text-[10px]", activo ? "text-white/80" : "text-slate-400")}>· pág. {campo.posicion.page + 1}</span>}
+                  {campo.posicion && <span className={cn("text-[10px]", activo ? "text-white/80" : "text-[var(--text-muted)]")}>· pág. {campo.posicion.page + 1}</span>}
                 </button>
                 {campo.posicion && (
-                  <button type="button" title="Quitar posición" onClick={() => setPosicion(i, undefined)} className={cn(activo ? "text-white/80 hover:text-white" : "text-slate-300 hover:text-red-500")}>
+                  <button type="button" title="Quitar posición" onClick={() => setPosicion(i, undefined)} className={cn(activo ? "text-white/80 hover:text-white" : "text-[var(--text-muted)] hover:text-[var(--danger)]")}>
                     <X className="h-3 w-3" />
                   </button>
                 )}
@@ -198,18 +198,18 @@ export function PlantillaPlacementEditor({
       )}
 
       {error ? (
-        <p className="text-xs text-amber-600">{error}</p>
+        <p className="text-xs text-[var(--warning-text)]">{error}</p>
       ) : cargando ? (
-        <div className="h-40 animate-pulse rounded-lg bg-slate-100" />
+        <div className="h-40 animate-pulse rounded-lg bg-[var(--muted)]" />
       ) : (
         <div className="space-y-3">
           {pages.map((pageSize, pageIndex) => (
             <div key={pageIndex} className="relative">
-              {pages.length > 1 && <p className="mb-1 text-[11px] text-slate-400">Página {pageIndex + 1}</p>}
+              {pages.length > 1 && <p className="mb-1 text-[11px] text-[var(--text-muted)]">Página {pageIndex + 1}</p>}
               <div
                 onClick={(e) => colocarEnPagina(pageIndex, e)}
                 className={cn(
-                  "relative mx-auto w-full max-w-sm overflow-hidden rounded-lg border border-slate-200 bg-slate-50 shadow-sm",
+                  "relative mx-auto w-full max-w-sm overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--muted)] shadow-sm",
                   seleccion !== null ? "cursor-crosshair" : "cursor-default",
                 )}
                 style={{ aspectRatio: String(pageSize.aspect || 0.7071) }}
@@ -218,7 +218,7 @@ export function PlantillaPlacementEditor({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={url} alt="Documento" className="pointer-events-none absolute inset-0 h-full w-full object-contain" />
                 ) : (
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-center text-[11px] text-slate-300">
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-center text-[11px] text-[var(--text-muted)]">
                     {kind === "pdf" ? "Vista a escala de la hoja (abre el documento para ver su contenido)" : "Hoja de referencia"}
                   </div>
                 )}

@@ -21,9 +21,9 @@ const ICONO = {
 
 const COLOR_ICONO = {
   default: "text-[var(--primary)]",
-  success: "text-emerald-500",
-  destructive: "text-red-500",
-  warning: "text-amber-500",
+  success: "text-[var(--success)]",
+  destructive: "text-[var(--danger)]",
+  warning: "text-[var(--warning)]",
 } as const;
 
 type Variante = keyof typeof ICONO;

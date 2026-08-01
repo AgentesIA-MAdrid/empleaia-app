@@ -46,13 +46,13 @@ async function ReclutamientoPage() {
       </header>
 
       <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-lg border bg-white p-4">
-          <p className="text-xs font-medium text-slate-500 uppercase">Ofertas</p>
+        <div className="rounded-lg border bg-[var(--card)] p-4">
+          <p className="text-xs font-medium text-[var(--text-muted)] uppercase">Ofertas</p>
           <p className="text-2xl font-bold mt-1">{ofertas.length}</p>
         </div>
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-          <p className="text-xs font-medium text-emerald-700 uppercase">Abiertas</p>
-          <p className="text-2xl font-bold mt-1 text-emerald-900">{abiertas}</p>
+        <div className="rounded-lg border border-[var(--success-bg)] bg-[var(--success-bg)] p-4">
+          <p className="text-xs font-medium text-[var(--success-text)] uppercase">Abiertas</p>
+          <p className="text-2xl font-bold mt-1 text-[var(--success-text)]">{abiertas}</p>
         </div>
         <div className="rounded-lg border border-[var(--primary)]/20 bg-[var(--primary)]/5 p-4">
           <p className="text-xs font-medium text-[var(--primary)] uppercase">Candidatos</p>
@@ -61,8 +61,8 @@ async function ReclutamientoPage() {
       </div>
 
       {ofertas.length === 0 ? (
-        <div className="rounded-lg border border-dashed bg-white p-12 text-center">
-          <Briefcase className="h-10 w-10 mx-auto text-slate-300" />
+        <div className="rounded-lg border border-dashed bg-[var(--card)] p-12 text-center">
+          <Briefcase className="h-10 w-10 mx-auto text-[var(--text-muted)]" />
           <p className="mt-3 text-sm text-[var(--color-text-body,#475569)]">
             Aún no hay ofertas creadas. Empieza con la primera.
           </p>
@@ -73,7 +73,7 @@ async function ReclutamientoPage() {
             <Link
               key={o.id}
               href={`/admin/reclutamiento/${o.id}`}
-              className="rounded-lg border bg-white p-5 hover:border-[var(--primary)] hover:shadow-sm transition-all"
+              className="rounded-lg border bg-[var(--card)] p-5 hover:border-[var(--primary)] hover:shadow-sm transition-all"
             >
               <div className="flex items-start justify-between gap-3">
                 <h3 className="font-semibold text-[var(--color-text-dark,#0F172A)]">
@@ -83,17 +83,17 @@ async function ReclutamientoPage() {
                   {ESTADO_OFERTA_LABEL[o.estado]}
                 </span>
               </div>
-              <div className="mt-2 flex items-center flex-wrap gap-2 text-xs text-slate-600">
+              <div className="mt-2 flex items-center flex-wrap gap-2 text-xs text-[var(--text-body)]">
                 {o.departamento && <span>{o.departamento}</span>}
                 {o.ubicacion && <span>· {o.ubicacion}</span>}
                 {o.modalidad && <span>· {o.modalidad}</span>}
               </div>
               {(o.salarioMinCents || o.salarioMaxCents) && (
-                <p className="mt-2 text-xs text-slate-700">
+                <p className="mt-2 text-xs text-[var(--text-body)]">
                   {formatSalary(o.salarioMinCents, o.salarioMaxCents)}
                 </p>
               )}
-              <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+              <div className="mt-3 flex items-center justify-between text-xs text-[var(--text-muted)]">
                 <span>{o._count.candidatos} candidato{o._count.candidatos === 1 ? "" : "s"}</span>
                 <span>{new Date(o.createdAt).toLocaleDateString("es-ES")}</span>
               </div>

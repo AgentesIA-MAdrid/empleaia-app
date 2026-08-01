@@ -75,7 +75,7 @@ async function FirmaDetallePage({ params }: Props) {
       </header>
 
       {solicitud.mensaje && (
-        <div className="rounded-lg border bg-slate-50 p-4 text-sm text-slate-700 italic">
+        <div className="rounded-lg border bg-[var(--muted)] p-4 text-sm text-[var(--text-body)] italic">
           &ldquo;{solicitud.mensaje}&rdquo;
         </div>
       )}
@@ -85,9 +85,9 @@ async function FirmaDetallePage({ params }: Props) {
           6b0f74d2). Si por lo que sea no hubo copia sellada, se sigue enseñando
           la preliminar: es mejor que dejar al empleado sin nada. */}
       {!solicitud.firma?.documentoFirmadoUrl && (
-        <div className="rounded-lg border bg-white p-6">
+        <div className="rounded-lg border bg-[var(--card)] p-6">
           <div className="flex items-center gap-3 mb-3">
-            <FileText className="h-5 w-5 text-slate-600" />
+            <FileText className="h-5 w-5 text-[var(--text-body)]" />
             <p className="font-medium">
               {solicitud.estado === "firmada" ? "Documento" : "Documento a firmar"}
             </p>
@@ -95,7 +95,7 @@ async function FirmaDetallePage({ params }: Props) {
           {solicitud.documento.url ? (
             <AbrirDocumentoLink url={solicitud.documento.url} />
           ) : (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-[var(--text-muted)]">
               El documento no tiene URL adjunta. Pide a tu administrador que lo
               adjunte antes de firmar.
             </p>
@@ -104,12 +104,12 @@ async function FirmaDetallePage({ params }: Props) {
       )}
 
       {solicitud.estado === "firmada" ? (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-5">
+        <div className="rounded-lg border border-[var(--success-bg)] bg-[var(--success-bg)] p-5">
           <div className="flex items-center gap-3">
-            <ShieldCheck className="h-6 w-6 text-emerald-700" />
+            <ShieldCheck className="h-6 w-6 text-[var(--success-text)]" />
             <div>
-              <p className="font-semibold text-emerald-900">Documento firmado</p>
-              <p className="text-sm text-emerald-800 mt-0.5">
+              <p className="font-semibold text-[var(--success-text)]">Documento firmado</p>
+              <p className="text-sm text-[var(--success-text)] mt-0.5">
                 Firmado el{" "}
                 {solicitud.firma?.firmadoEn
                   ? fechaHoraEnZona(solicitud.firma.firmadoEn, cfg?.zonaHoraria)
@@ -119,7 +119,7 @@ async function FirmaDetallePage({ params }: Props) {
             </div>
           </div>
           {solicitud.firma?.documentoFirmadoUrl && (
-            <div className="mt-4 border-t border-emerald-200 pt-3">
+            <div className="mt-4 border-t border-[var(--success-bg)] pt-3">
               <DescargarFirmadoButton
                 url={solicitud.firma.documentoFirmadoUrl}
                 nombre={solicitud.documento.nombre}
@@ -128,15 +128,15 @@ async function FirmaDetallePage({ params }: Props) {
           )}
         </div>
       ) : expirada ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-5">
-          <p className="font-semibold text-red-900">La solicitud ha expirado</p>
-          <p className="text-sm text-red-800 mt-1">
+        <div className="rounded-lg border border-[var(--danger-bg)] bg-[var(--danger-bg)] p-5">
+          <p className="font-semibold text-[var(--danger-text)]">La solicitud ha expirado</p>
+          <p className="text-sm text-[var(--danger-text)] mt-1">
             Pide a tu administrador que reenvíe la solicitud para firmar.
           </p>
         </div>
       ) : solicitud.estado === "pendiente" ? (
-        <div className="rounded-lg border bg-white p-6">
-          <p className="text-sm text-slate-700 mb-4">
+        <div className="rounded-lg border bg-[var(--card)] p-6">
+          <p className="text-sm text-[var(--text-body)] mb-4">
             Para firmar, teclea tu nombre y DNI/NIE y dibuja tu firma. Se
             estampará en el margen izquierdo de cada hoja del documento y se
             registrará con sello de tiempo, hash SHA-256, tu dirección IP y tu
@@ -145,7 +145,7 @@ async function FirmaDetallePage({ params }: Props) {
           <FirmarForm solicitudId={solicitud.id} nombrePorDefecto={nombrePorDefecto} />
         </div>
       ) : (
-        <div className="rounded-lg border bg-slate-50 p-5 text-sm text-slate-600">
+        <div className="rounded-lg border bg-[var(--muted)] p-5 text-sm text-[var(--text-body)]">
           Esta solicitud está {solicitud.estado}.
         </div>
       )}

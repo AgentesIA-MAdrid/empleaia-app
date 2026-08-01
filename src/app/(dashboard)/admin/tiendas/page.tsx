@@ -82,18 +82,18 @@ function SedeManagerCombobox({
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
       >
-        <span className={cn("truncate", !sel && "text-slate-400")}>
+        <span className={cn("truncate", !sel && "text-[var(--text-muted)]")}>
           {sel ? `${sel.nombre} ${sel.apellidos}` : "Sin responsable"}
         </span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+        <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background shadow-lg">
-            <div className="border-b border-slate-100 p-2">
+            <div className="border-b border-[var(--border)] p-2">
               <div className="relative">
-                <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
                 <input
                   autoFocus
                   value={q}
@@ -107,7 +107,7 @@ function SedeManagerCombobox({
               <button
                 type="button"
                 onClick={() => { onChange(""); setOpen(false); setQ(""); }}
-                className="flex w-full items-center px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-50"
+                className="flex w-full items-center px-3 py-1.5 text-sm text-[var(--text-muted)] hover:bg-[var(--muted)]"
               >
                 Sin responsable
               </button>
@@ -117,19 +117,19 @@ function SedeManagerCombobox({
                   type="button"
                   onClick={() => { onChange(e.id); setOpen(false); setQ(""); }}
                   className={cn(
-                    "flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm hover:bg-slate-50",
-                    e.id === value && "bg-slate-50",
+                    "flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm hover:bg-[var(--muted)]",
+                    e.id === value && "bg-[var(--muted)]",
                   )}
                 >
                   <span className="truncate">
                     {e.nombre} {e.apellidos}{" "}
-                    <span className="text-xs text-slate-400">({e.rol})</span>
+                    <span className="text-xs text-[var(--text-muted)]">({e.rol})</span>
                   </span>
                   {e.id === value && <Check className="h-4 w-4 shrink-0 text-[var(--primary)]" />}
                 </button>
               ))}
               {filtrados.length === 0 && (
-                <p className="px-3 py-2 text-sm text-slate-400">Sin resultados</p>
+                <p className="px-3 py-2 text-sm text-[var(--text-muted)]">Sin resultados</p>
               )}
             </div>
           </div>
@@ -289,8 +289,8 @@ export default function TiendasPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Sedes</h1>
-          <p className="text-slate-500 text-sm mt-1">{tiendas.length} sedes configuradas</p>
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">Sedes</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-1">{tiendas.length} sedes configuradas</p>
         </div>
         <Button onClick={abrirCrear}>
           <Plus className="h-4 w-4 mr-2" /> Nueva Sede
@@ -308,11 +308,11 @@ export default function TiendasPage() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-48 bg-slate-100 rounded-xl animate-pulse" />
+            <div key={i} className="h-48 bg-[var(--muted)] rounded-xl animate-pulse" />
           ))}
         </div>
       ) : tiendasFiltradas.length === 0 ? (
-        <div className="text-center py-12 text-slate-400 text-sm">
+        <div className="text-center py-12 text-[var(--text-muted)] text-sm">
           {filtro === "activas"
             ? "No hay sedes activas."
             : filtro === "inactivas"
@@ -327,7 +327,7 @@ export default function TiendasPage() {
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 rounded-full" style={{ backgroundColor: t.color }} />
-                    <h3 className="font-semibold text-slate-900 text-sm">{t.nombre}</h3>
+                    <h3 className="font-semibold text-[var(--text-dark)] text-sm">{t.nombre}</h3>
                   </div>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setHorariosTienda({ id: t.id, nombre: t.nombre })} title="Horarios de apertura">
@@ -339,47 +339,47 @@ export default function TiendasPage() {
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => abrirEditar(t)} title="Editar sede">
                       <Edit2 className="h-3.5 w-3.5" />
                     </Button>
-                    <button onClick={() => handleToggleActiva(t)} className="text-slate-400 hover:text-slate-600" title={t.activa ? "Desactivar" : "Activar"}>
+                    <button onClick={() => handleToggleActiva(t)} className="text-[var(--text-muted)] hover:text-[var(--text-body)]" title={t.activa ? "Desactivar" : "Activar"}>
                       {t.activa
-                        ? <ToggleRight className="h-5 w-5 text-emerald-500" />
+                        ? <ToggleRight className="h-5 w-5 text-[var(--success)]" />
                         : <ToggleLeft className="h-5 w-5" />
                       }
                     </button>
                   </div>
                 </div>
 
-                <div className="space-y-1.5 text-sm text-slate-600">
+                <div className="space-y-1.5 text-sm text-[var(--text-body)]">
                   <div className="flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                    <MapPin className="h-3.5 w-3.5 text-[var(--text-muted)] flex-shrink-0" />
                     <span className="truncate">{t.direccion}, {t.ciudad}</span>
                   </div>
                   {t.telefono && (
                     <div className="flex items-center gap-1.5">
-                      <Phone className="h-3.5 w-3.5 text-slate-400" />
+                      <Phone className="h-3.5 w-3.5 text-[var(--text-muted)]" />
                       <span>{t.telefono}</span>
                     </div>
                   )}
                   {t.email && (
                     <div className="flex items-center gap-1.5">
-                      <Mail className="h-3.5 w-3.5 text-slate-400" />
+                      <Mail className="h-3.5 w-3.5 text-[var(--text-muted)]" />
                       <span className="truncate">{t.email}</span>
                     </div>
                   )}
                   {t.manager && (
                     <div className="flex items-center gap-1.5">
-                      <UserCog className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                      <UserCog className="h-3.5 w-3.5 text-[var(--text-muted)] flex-shrink-0" />
                       <span className="truncate">{t.manager.nombre} {t.manager.apellidos}</span>
                     </div>
                   )}
                 </div>
 
-                <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs text-slate-500">
+                <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs text-[var(--text-muted)]">
                   <span className="flex items-center gap-1">
                     <Users className="h-3.5 w-3.5" />
                     {t._count?.empleados || 0} empleados
                   </span>
                   <span>Radio: {t.radio}m</span>
-                  {!t.activa && <span className="text-red-500 font-medium">Inactiva</span>}
+                  {!t.activa && <span className="text-[var(--danger)] font-medium">Inactiva</span>}
                 </div>
               </CardContent>
             </Card>
@@ -425,11 +425,11 @@ export default function TiendasPage() {
                   value={form.managerId}
                   onChange={(id) => setForm((f) => ({ ...f, managerId: id }))}
                 />
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Solo informativo: quién está al frente de esta sede. No cambia quién aprueba fichajes.
                 </p>
               </div>
-              <div className="col-span-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
+              <div className="col-span-2 rounded-lg border border-[var(--border)] bg-[var(--muted)] px-3 py-2.5">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -437,13 +437,13 @@ export default function TiendasPage() {
                     checked={form.esOficina}
                     onChange={(e) => setForm((f) => ({ ...f, esOficina: e.target.checked }))}
                   />
-                  <span className="text-sm font-medium text-slate-800">Esta sede es la oficina</span>
+                  <span className="text-sm font-medium text-[var(--text-dark)]">Esta sede es la oficina</span>
                 </label>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Los empleados con “horario de oficina por defecto” cubrirán aquí (9:00–17:00) los días
                   que no tengan turno en ninguna tienda. Solo una sede puede ser la oficina.
                 </p>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
                   En la oficina no se cierra turno ni se firman los puntos de control al fichar, sea
                   quien sea: es trabajo de oficina, no de tienda, y ahí no hay caja que cuadrar ni
                   stock que revisar.
@@ -457,11 +457,11 @@ export default function TiendasPage() {
                     checked={form.sinEfectivo}
                     onChange={(e) => setForm((f) => ({ ...f, sinEfectivo: e.target.checked }))}
                   />
-                  <span className="text-sm font-medium text-slate-800">
+                  <span className="text-sm font-medium text-[var(--text-dark)]">
                     El dinero de esta sede lo liquida un tercero
                   </span>
                 </label>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Para un córner que cobra el propio centro y nos liquida después. Su equipo registra
                   las ventas igual que el resto, pero el cierre no pide efectivo ni tarjeta: pide el
                   stock y los tickets de las ventas facturadas. Queda fuera de arqueos y de la
@@ -476,13 +476,13 @@ export default function TiendasPage() {
                 <div className="col-span-2">
                   <label
                     htmlFor="arqueo-dia"
-                    className="text-sm font-medium text-slate-800 block mb-1"
+                    className="text-sm font-medium text-[var(--text-dark)] block mb-1"
                   >
                     Día del arqueo semanal
                   </label>
                   <select
                     id="arqueo-dia"
-                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                    className="w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm"
                     value={form.arqueoDiaSemana}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, arqueoDiaSemana: Number(e.target.value) }))
@@ -496,7 +496,7 @@ export default function TiendasPage() {
                     <option value={2}>Martes</option>
                     <option value={1}>Lunes</option>
                   </select>
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">
                     El último día que abre. Ese día, a quien cierre la tienda le sale el arqueo
                     como paso obligatorio de su cierre de turno: cuenta el efectivo acumulado y
                     lo mete en el sobre.
@@ -508,25 +508,25 @@ export default function TiendasPage() {
                   del operador y sus nombres no son los nuestros: sin esto, sus
                   líneas se importan sin tienda (ticket 4b8e1d05). */}
               <div className="col-span-2">
-                <label htmlFor="codigo-externo" className="text-sm font-medium text-slate-800 block mb-1">
+                <label htmlFor="codigo-externo" className="text-sm font-medium text-[var(--text-dark)] block mb-1">
                   Código en el sistema de facturación
                 </label>
                 <input
                   id="codigo-externo"
                   type="text"
-                  className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm"
                   placeholder="MY128022"
                   value={form.codigoExterno}
                   onChange={(e) => setForm((f) => ({ ...f, codigoExterno: e.target.value }))}
                 />
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
                   El que aparece delante del nombre en su export («MY128022 - NEKSUS MADRID CC
                   PLENILUNIO»). Es por lo que se casa cada línea facturada con esta tienda.
                 </p>
               </div>
 
-              <div className="col-span-2 flex items-center justify-between rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
-                <span className="text-xs text-slate-500">
+              <div className="col-span-2 flex items-center justify-between rounded-lg bg-[var(--muted)] border border-[var(--border)] px-3 py-2">
+                <span className="text-xs text-[var(--text-muted)]">
                   Las coordenadas se calculan solas al guardar. Pulsa para previsualizarlas y afinar.
                 </span>
                 <Button type="button" variant="outline" size="sm" onClick={ubicar} disabled={geocoding}>
@@ -546,7 +546,7 @@ export default function TiendasPage() {
                 <Label>Radio geofencing (metros)</Label>
                 <Input className="mt-1" type="number" value={form.radio} onChange={(e) => setForm((f) => ({ ...f, radio: e.target.value }))} placeholder="200" />
               </div>
-              <div className="col-span-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
+              <div className="col-span-2 rounded-lg border border-[var(--border)] bg-[var(--muted)] px-3 py-2.5">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -554,9 +554,9 @@ export default function TiendasPage() {
                     checked={form.exigirFichajeEnSede}
                     onChange={(e) => setForm((f) => ({ ...f, exigirFichajeEnSede: e.target.checked }))}
                   />
-                  <span className="text-sm font-medium text-slate-800">Exigir fichar desde esta sede</span>
+                  <span className="text-sm font-medium text-[var(--text-dark)]">Exigir fichar desde esta sede</span>
                 </label>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Fuera del radio no se podrá fichar directamente: el empleado tendrá que explicar el
                   motivo y quedará como solicitud pendiente de tu aprobación en “Aprobaciones de
                   fichaje”. Necesita coordenadas en la sede.

@@ -55,10 +55,10 @@ export default function MarketplacePage() {
   if (unavailable) {
     return (
       <div className="p-6">
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-[var(--warning-bg)] bg-[var(--warning-bg)]">
           <CardContent className="pt-4 pb-4 flex items-start gap-3">
-            <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="flex-1"><p className="text-sm font-semibold text-amber-900">Marketplace — plan Pro o superior</p></div>
+            <Lock className="h-5 w-5 text-[var(--warning-text)] shrink-0 mt-0.5" />
+            <div className="flex-1"><p className="text-sm font-semibold text-[var(--warning-text)]">Marketplace — plan Pro o superior</p></div>
             <Link href="/admin/planes"><Button size="sm">Ver planes</Button></Link>
           </CardContent>
         </Card>
@@ -76,31 +76,31 @@ export default function MarketplacePage() {
       <div className="flex items-start gap-3">
         <div className="h-10 w-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center"><Boxes className="h-5 w-5 text-[var(--primary)]" /></div>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Marketplace de integraciones</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Conecta empleaIA con tus herramientas favoritas</p>
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">Marketplace de integraciones</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-0.5">Conecta empleaIA con tus herramientas favoritas</p>
         </div>
       </div>
 
-      <Card className="border-amber-200 bg-amber-50">
-        <CardContent className="pt-3 pb-3 text-xs text-amber-800">
+      <Card className="border-[var(--warning-bg)] bg-[var(--warning-bg)]">
+        <CardContent className="pt-3 pb-3 text-xs text-[var(--warning-text)]">
           <strong>Vista previa:</strong> el catálogo está disponible. La activación marca la integración como &quot;conectada&quot; en tu cuenta. La sincronización real con cada servicio se irá desplegando.
         </CardContent>
       </Card>
 
-      {loading ? <Loader2 className="h-6 w-6 animate-spin text-slate-400" /> :
+      {loading ? <Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" /> :
         Object.entries(porCategoria).map(([cat, list]) => (
           <div key={cat} className="space-y-3">
-            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">{CAT_LABEL[cat] ?? cat}</h2>
+            <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wide">{CAT_LABEL[cat] ?? cat}</h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {list.map((i) => (
-                <Card key={i.id} className={i.instalada ? "border-emerald-200" : ""}>
+                <Card key={i.id} className={i.instalada ? "border-[var(--success-bg)]" : ""}>
                   <CardContent className="pt-4 pb-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-slate-900">{i.nombre}</p>
-                        <p className="text-sm text-slate-600 mt-0.5 line-clamp-2">{i.descripcion}</p>
+                        <p className="font-semibold text-[var(--text-dark)]">{i.nombre}</p>
+                        <p className="text-sm text-[var(--text-body)] mt-0.5 line-clamp-2">{i.descripcion}</p>
                       </div>
-                      {i.instalada && <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />}
+                      {i.instalada && <CheckCircle2 className="h-5 w-5 text-[var(--success-text)] shrink-0" />}
                     </div>
                     <Button size="sm" variant={i.instalada ? "outline" : "default"} className="mt-3 w-full" onClick={() => toggleIntegracion(i)}>
                       {i.instalada ? "Desinstalar" : "Instalar"}

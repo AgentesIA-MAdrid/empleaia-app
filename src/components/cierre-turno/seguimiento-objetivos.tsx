@@ -85,8 +85,8 @@ interface Respuesta {
 
 /** Mismo criterio de color que la parrilla de definición: se cumple o no. */
 function colorConsecucion(v: number | null): string {
-  if (v === null) return "text-slate-400";
-  if (v >= 100) return "text-emerald-700 font-semibold";
+  if (v === null) return "text-[var(--text-muted)]";
+  if (v >= 100) return "text-[var(--success-text)] font-semibold";
   return "text-rose-600";
 }
 
@@ -96,8 +96,8 @@ function tonoConsecucion(v: number): "success" | "danger" {
 
 /** La desviación se lee de un vistazo: con signo y en verde o rojo. */
 function Desviacion({ valor }: { valor: number | null }) {
-  if (valor === null) return <span className="text-sm text-slate-400">—</span>;
-  const color = valor >= 0 ? "text-emerald-700 font-semibold" : "text-rose-600";
+  if (valor === null) return <span className="text-sm text-[var(--text-muted)]">—</span>;
+  const color = valor >= 0 ? "text-[var(--success-text)] font-semibold" : "text-rose-600";
   return (
     <span className={`text-sm tabular-nums ${color}`}>
       {valor > 0 ? "+" : ""}
@@ -107,7 +107,7 @@ function Desviacion({ valor }: { valor: number | null }) {
 }
 
 function Consecucion({ valor }: { valor: number | null }) {
-  if (valor === null) return <span className="text-sm tabular-nums text-slate-400">—</span>;
+  if (valor === null) return <span className="text-sm tabular-nums text-[var(--text-muted)]">—</span>;
   return (
     <div className="min-w-[7rem] space-y-1.5">
       <span className={`text-sm tabular-nums ${colorConsecucion(valor)}`}>{valor} %</span>
@@ -306,7 +306,7 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
                 <Label htmlFor="seg-sede">Punto de venta</Label>
                 <select
                   id="seg-sede"
-                  className="mt-1 w-48 rounded-md border border-slate-200 px-3 py-2 text-sm"
+                  className="mt-1 w-48 rounded-md border border-[var(--border)] px-3 py-2 text-sm"
                   value={tiendaId}
                   onChange={(e) => setTiendaId(e.target.value)}
                 >
@@ -323,7 +323,7 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
               <Label htmlFor="seg-comercial">Comercial</Label>
               <select
                 id="seg-comercial"
-                className="mt-1 w-48 rounded-md border border-slate-200 px-3 py-2 text-sm"
+                className="mt-1 w-48 rounded-md border border-[var(--border)] px-3 py-2 text-sm"
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
               >
@@ -339,7 +339,7 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
               <Label htmlFor="seg-concepto">Qué se sigue</Label>
               <select
                 id="seg-concepto"
-                className="mt-1 w-56 rounded-md border border-slate-200 px-3 py-2 text-sm"
+                className="mt-1 w-56 rounded-md border border-[var(--border)] px-3 py-2 text-sm"
                 value={concepto}
                 onChange={(e) => setConcepto(e.target.value)}
               >
@@ -356,7 +356,7 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
               <Label htmlFor="seg-vista">Ver</Label>
               <select
                 id="seg-vista"
-                className="mt-1 w-48 rounded-md border border-slate-200 px-3 py-2 text-sm"
+                className="mt-1 w-48 rounded-md border border-[var(--border)] px-3 py-2 text-sm"
                 value={vista}
                 onChange={(e) => setVista(e.target.value as Vista)}
               >
@@ -370,10 +370,10 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
             </Button>
           </div>
           {datos && (
-            <p className="text-xs text-slate-400 mt-3 max-w-3xl">
+            <p className="text-xs text-[var(--text-muted)] mt-3 max-w-3xl">
               Van {datos.transcurridos} de {datos.dias} días del mes
               {datos.restantes > 0 ? ` (quedan ${datos.restantes})` : " (mes cerrado)"}, contando
-              hasta el {diaCorto(datos.corte)}. <strong className="font-medium text-slate-500">
+              hasta el {diaCorto(datos.corte)}. <strong className="font-medium text-[var(--text-muted)]">
               Objetivo a día de hoy</strong> es la parte del objetivo del mes que tocaría llevar a
               estas alturas, repartido por días; la desviación es lo vendido menos esa cifra.
             </p>
@@ -389,11 +389,11 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         {[
-          { label: "Objetivo del mes", valor: num(cabecera.objetivo), color: "text-slate-900", barra: null },
+          { label: "Objetivo del mes", valor: num(cabecera.objetivo), color: "text-[var(--text-dark)]", barra: null },
           {
             label: `Vendido hasta el ${datos ? diaCorto(datos.corte) : "día"}`,
             valor: String(cabecera.vendido),
-            color: "text-slate-900",
+            color: "text-[var(--text-dark)]",
             barra: null,
           },
           {
@@ -411,7 +411,7 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
         ].map((k) => (
           <Card key={k.label}>
             <CardContent className="pt-4 pb-4">
-              <p className="text-sm text-slate-500">{k.label}</p>
+              <p className="text-sm text-[var(--text-muted)]">{k.label}</p>
               <p className={`text-2xl font-bold mt-1 tabular-nums ${k.color}`}>{k.valor}</p>
               {k.barra !== null && (
                 <ProgressBar value={k.barra} tone={tonoConsecucion(k.barra)} size="md" className="mt-2" />
@@ -421,7 +421,7 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
         ))}
       </div>
       {totales && vista !== "dia" && (
-        <p className="text-xs text-slate-400 -mt-3">
+        <p className="text-xs text-[var(--text-muted)] -mt-3">
           {totales.cumplen} de {totales.conObjetivo}{" "}
           {vista === "sede" ? "puntos de venta" : "comerciales"} con objetivo llegan al 100 %. Al
           ritmo de estos días quedan {num(totales.ritmoNecesario)} unidades por día para llegar a
@@ -434,11 +434,11 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
           {cargando ? (
             <div className="p-4 space-y-2">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />
+                <div key={i} className="h-10 bg-[var(--muted)] rounded animate-pulse" />
               ))}
             </div>
           ) : datos?.sinSede ? (
-            <p className="text-center py-10 text-slate-500 text-sm max-w-md mx-auto">
+            <p className="text-center py-10 text-[var(--text-muted)] text-sm max-w-md mx-auto">
               No tienes ninguna sede asignada, así que no hay seguimiento que hacer. Pídele a
               administración que te asigne tu punto de venta.
             </p>
@@ -461,8 +461,8 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
         </CardContent>
       </Card>
 
-      <p className="text-sm text-slate-500 max-w-2xl flex items-start gap-2">
-        <TrendingUp className="h-4 w-4 mt-0.5 shrink-0 text-slate-400" />
+      <p className="text-sm text-[var(--text-muted)] max-w-2xl flex items-start gap-2">
+        <TrendingUp className="h-4 w-4 mt-0.5 shrink-0 text-[var(--text-muted)]" />
         <span>
           Lo vendido sale de los cierres de turno de cada día, contando cada venta en la sede donde
           se hizo. Los objetivos se fijan en la subárea <strong>Definición de objetivos</strong>.
@@ -475,12 +475,12 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
 /** Cabecera de tabla con el estilo del resto del módulo. */
 function Cabeceras({ columnas }: { columnas: string[] }) {
   return (
-    <thead className="bg-slate-50 border-b border-slate-200">
+    <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
       <tr>
         {columnas.map((h) => (
           <th
             key={h}
-            className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3"
+            className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-3"
           >
             {h}
           </th>
@@ -507,7 +507,7 @@ function TablaFilas({
   vacio: string;
 }) {
   if (filas.length === 0) {
-    return <p className="text-center py-10 text-slate-400 text-sm">{vacio}</p>;
+    return <p className="text-center py-10 text-[var(--text-muted)] text-sm">{vacio}</p>;
   }
   return (
     <div className="overflow-x-auto">
@@ -529,48 +529,48 @@ function TablaFilas({
         />
         <tbody>
           {filas.map((f) => (
-            <tr key={f.sujetoId} className="border-b border-slate-100 last:border-0">
-              <td className="px-4 py-2.5 text-sm font-medium text-slate-800">{f.sujeto}</td>
+            <tr key={f.sujetoId} className="border-b border-[var(--border)] last:border-0">
+              <td className="px-4 py-2.5 text-sm font-medium text-[var(--text-dark)]">{f.sujeto}</td>
               {mostrarSede && (
-                <td className="px-4 py-2.5 text-sm text-slate-500">{f.sede ?? "Sin sede"}</td>
+                <td className="px-4 py-2.5 text-sm text-[var(--text-muted)]">{f.sede ?? "Sin sede"}</td>
               )}
-              <td className="px-4 py-2.5 text-sm tabular-nums text-slate-800">{num(f.objetivo)}</td>
-              <td className="px-4 py-2.5 text-sm tabular-nums text-slate-500">{num(f.objetivoAlDia)}</td>
-              <td className="px-4 py-2.5 text-sm tabular-nums text-slate-800">{f.vendido}</td>
-              <td className="px-4 py-2.5 text-sm tabular-nums text-slate-500">{f.vendidoDelDia}</td>
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-dark)]">{num(f.objetivo)}</td>
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-muted)]">{num(f.objetivoAlDia)}</td>
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-dark)]">{f.vendido}</td>
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-muted)]">{f.vendidoDelDia}</td>
               <td className="px-4 py-2.5">
                 <Desviacion valor={f.desviacion} />
               </td>
               <td className="px-4 py-2.5">
                 <Consecucion valor={f.consecucion} />
               </td>
-              <td className="px-4 py-2.5 text-sm tabular-nums text-slate-600">{f.mediaDiaria}</td>
-              <td className="px-4 py-2.5 text-sm tabular-nums text-slate-600">
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-body)]">{f.mediaDiaria}</td>
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-body)]">
                 {num(f.ritmoNecesario)}
               </td>
-              <td className="px-4 py-2.5 text-sm tabular-nums text-slate-600">{num(f.prevision)}</td>
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-body)]">{num(f.prevision)}</td>
             </tr>
           ))}
         </tbody>
         {totales && (
-          <tfoot className="bg-slate-50 border-t border-slate-200">
+          <tfoot className="bg-[var(--muted)] border-t border-[var(--border)]">
             <tr>
               <td
-                className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                className="px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]"
                 colSpan={mostrarSede ? 2 : 1}
               >
                 Total
               </td>
-              <td className="px-4 py-2.5 text-sm font-semibold tabular-nums text-slate-800">
+              <td className="px-4 py-2.5 text-sm font-semibold tabular-nums text-[var(--text-dark)]">
                 {num(totales.objetivo)}
               </td>
-              <td className="px-4 py-2.5 text-sm tabular-nums text-slate-500">
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-muted)]">
                 {num(totales.objetivoAlDia)}
               </td>
-              <td className="px-4 py-2.5 text-sm font-semibold tabular-nums text-slate-800">
+              <td className="px-4 py-2.5 text-sm font-semibold tabular-nums text-[var(--text-dark)]">
                 {totales.vendido}
               </td>
-              <td className="px-4 py-2.5 text-sm tabular-nums text-slate-500">
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-muted)]">
                 {totales.vendidoDelDia}
               </td>
               <td className="px-4 py-2.5">
@@ -579,13 +579,13 @@ function TablaFilas({
               <td className="px-4 py-2.5">
                 <Consecucion valor={totales.consecucion} />
               </td>
-              <td className="px-4 py-2.5 text-sm tabular-nums text-slate-600">
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-body)]">
                 {totales.mediaDiaria}
               </td>
-              <td className="px-4 py-2.5 text-sm tabular-nums text-slate-600">
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-body)]">
                 {num(totales.ritmoNecesario)}
               </td>
-              <td className="px-4 py-2.5 text-sm tabular-nums text-slate-600">
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-body)]">
                 {num(totales.prevision)}
               </td>
             </tr>
@@ -600,7 +600,7 @@ function TablaFilas({
 function TablaDias({ serie }: { serie: PuntoSerie[] }) {
   if (serie.length === 0) {
     return (
-      <p className="text-center py-10 text-slate-400 text-sm">
+      <p className="text-center py-10 text-[var(--text-muted)] text-sm">
         Este mes todavía no ha empezado, así que no hay días que seguir.
       </p>
     );
@@ -613,11 +613,11 @@ function TablaDias({ serie }: { serie: PuntoSerie[] }) {
         />
         <tbody>
           {serie.map((p) => (
-            <tr key={p.fecha} className="border-b border-slate-100 last:border-0">
-              <td className="px-4 py-2.5 text-sm font-medium text-slate-800">{diaCorto(p.fecha)}</td>
-              <td className="px-4 py-2.5 text-sm tabular-nums text-slate-800">{p.vendido}</td>
-              <td className="px-4 py-2.5 text-sm tabular-nums text-slate-800">{p.acumulado}</td>
-              <td className="px-4 py-2.5 text-sm tabular-nums text-slate-500">
+            <tr key={p.fecha} className="border-b border-[var(--border)] last:border-0">
+              <td className="px-4 py-2.5 text-sm font-medium text-[var(--text-dark)]">{diaCorto(p.fecha)}</td>
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-dark)]">{p.vendido}</td>
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-dark)]">{p.acumulado}</td>
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-muted)]">
                 {num(p.objetivoAcumulado)}
               </td>
               <td className="px-4 py-2.5">

@@ -74,10 +74,10 @@ export default function FormacionPage() {
   if (unavailable) {
     return (
       <div className="p-6">
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-[var(--warning-bg)] bg-[var(--warning-bg)]">
           <CardContent className="pt-4 pb-4 flex items-start gap-3">
-            <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="flex-1"><p className="text-sm font-semibold text-amber-900">Formación — plan Pro o superior</p></div>
+            <Lock className="h-5 w-5 text-[var(--warning-text)] shrink-0 mt-0.5" />
+            <div className="flex-1"><p className="text-sm font-semibold text-[var(--warning-text)]">Formación — plan Pro o superior</p></div>
             <Link href="/admin/planes"><Button size="sm">Ver planes</Button></Link>
           </CardContent>
         </Card>
@@ -91,22 +91,22 @@ export default function FormacionPage() {
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center"><GraduationCap className="h-5 w-5 text-[var(--primary)]" /></div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Formación</h1>
-            <p className="text-slate-500 text-sm mt-0.5">Asigna cursos al equipo y mide el progreso</p>
+            <h1 className="text-2xl font-bold text-[var(--text-dark)]">Formación</h1>
+            <p className="text-[var(--text-muted)] text-sm mt-0.5">Asigna cursos al equipo y mide el progreso</p>
           </div>
         </div>
         <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" /> Nuevo curso</Button>
       </div>
 
-      {loading ? <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div> :
-        cursos.length === 0 ? <Card><CardContent className="py-12 text-center text-slate-500 text-sm">Sin cursos.</CardContent></Card> : (
+      {loading ? <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" /></div> :
+        cursos.length === 0 ? <Card><CardContent className="py-12 text-center text-[var(--text-muted)] text-sm">Sin cursos.</CardContent></Card> : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {cursos.map((c) => (
             <Card key={c.id}>
               <CardHeader className="pb-2"><CardTitle className="text-base">{c.titulo}</CardTitle></CardHeader>
               <CardContent className="space-y-2">
-                {c.descripcion && <p className="text-sm text-slate-600 line-clamp-3">{c.descripcion}</p>}
-                <p className="text-xs text-slate-500">{c.duracionMin} min · {c._count.asignaciones} asignados</p>
+                {c.descripcion && <p className="text-sm text-[var(--text-body)] line-clamp-3">{c.descripcion}</p>}
+                <p className="text-xs text-[var(--text-muted)]">{c.duracionMin} min · {c._count.asignaciones} asignados</p>
                 {c.contenidoUrl && (
                   <a href={c.contenidoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-[var(--primary)] hover:underline">
                     Abrir contenido <ExternalLink className="h-3 w-3" />
@@ -123,16 +123,16 @@ export default function FormacionPage() {
           <DialogHeader><DialogTitle>Nuevo curso</DialogTitle></DialogHeader>
           <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto pr-1">
             <div><Label>Título</Label><Input className="mt-1" value={titulo} onChange={(e) => setTitulo(e.target.value)} /></div>
-            <div><Label>Descripción</Label><textarea className="mt-1 w-full min-h-[80px] rounded-md border border-slate-200 px-3 py-2 text-sm" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} /></div>
+            <div><Label>Descripción</Label><textarea className="mt-1 w-full min-h-[80px] rounded-md border border-[var(--border)] px-3 py-2 text-sm" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>URL contenido</Label><Input className="mt-1" value={contenidoUrl} onChange={(e) => setContenidoUrl(e.target.value)} placeholder="https://..." /></div>
               <div><Label>Duración (min)</Label><Input className="mt-1" type="number" value={duracion} onChange={(e) => setDuracion(e.target.value)} /></div>
             </div>
             <div>
               <Label>Asignar a empleados</Label>
-              <div className="mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-200 p-2 space-y-1">
+              <div className="mt-1 max-h-48 overflow-y-auto rounded-md border border-[var(--border)] p-2 space-y-1">
                 {empleados.map((e) => (
-                  <label key={e.id} className="flex items-center gap-2 px-2 py-1 hover:bg-slate-50 rounded cursor-pointer">
+                  <label key={e.id} className="flex items-center gap-2 px-2 py-1 hover:bg-[var(--muted)] rounded cursor-pointer">
                     <input type="checkbox" checked={asignados.includes(e.id)} onChange={() => toggleAsignado(e.id)} />
                     <span className="text-sm">{e.nombre} {e.apellidos}</span>
                   </label>

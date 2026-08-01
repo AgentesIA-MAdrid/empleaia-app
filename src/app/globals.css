@@ -1,4 +1,48 @@
+/* Cifras monoespaciadas del estándar. Tiene que ir en la PRIMERA línea del
+   fichero: @import "tailwindcss" se expande aquí mismo con todas sus reglas,
+   y un @import url() no puede ir detrás de ninguna regla. */
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap");
+
 @import "tailwindcss";
+
+/* ─── Estándar visual de la casa ─────────────────────────────────
+   Núcleo compartido con el resto de productos + el Royal Blue de empleaIA.
+   Sale de TuFacturaIA, que es la referencia.
+
+   Sus tokens van prefijados con --ds- porque Tailwind v4 guarda su tema en
+   variables con los mismos nombres que usaríamos (--text-*, --radius-*,
+   --ease-*): sin prefijo le cambiaríamos el valor a las utilidades en toda
+   la aplicación.
+
+   El puente a los nombres propios de empleaIA está tras el bloque :root.
+   ────────────────────────────────────────────────────────────────── */
+@import "./estandar/core.css";
+@import "./estandar/marca.css";
+
+
+/* Switzer — tipografía de interfaz del estándar (libre, Fontshare). */
+@font-face {
+  font-family: "Switzer";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/switzer/Switzer-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Switzer";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/switzer/Switzer-Medium.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Switzer";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/switzer/Switzer-Bold.woff2") format("woff2");
+}
+
 
 @theme inline {
   /* Identidad empleaIA — paleta primary (1:1 con landing) */
@@ -63,7 +107,9 @@
   --color-sidebar-text-muted: var(--sidebar-text-muted);
   --color-sidebar-hover-bg: var(--sidebar-hover-bg);
 
-  --font-sans: var(--font-inter);
+  /* Tipografía del estándar (Switzer). Inter sigue cargada en el layout
+     como reserva por si se revierte. */
+  --font-sans: "Switzer", var(--font-inter);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -160,6 +206,78 @@
   --dur-fn: 200ms;
 }
 
+/* ─── Puente al estándar visual ──────────────────────────────────
+   empleaIA tiene nombres propios (heredados de la landing) más los alias de
+   shadcn. Se redefinen aquí en términos del estándar: los componentes no
+   cambian ni una clase.
+
+   Como cuelgan de [data-theme], empleaIA gana modo oscuro por el mismo
+   mecanismo, sin una segunda paleta que mantener a mano.
+   ────────────────────────────────────────────────────────────────── */
+:root[data-theme="light"],
+:root[data-theme="dark"] {
+  /* Marca: NO se toca --primary. empleaIA es multi-tenant y cada empresa
+     cliente puede poner su color (colorPrimario, inyectado por
+     withTenantPage en el layout del subdominio). El estándar aporta las
+     superficies, el texto y los estados; el acento sigue siendo del cliente.
+     Solo se completa el texto sobre relleno de acento, que es blanco
+     siempre. */
+  --primary-foreground: var(--ds-fg-on-accent);
+
+  /* Texto */
+  --text-dark: var(--ds-fg);
+  --text-body: var(--ds-fg-soft);
+  --text-muted: var(--ds-muted);
+
+  /* Superficies */
+  --background: var(--ds-bg);
+  --foreground: var(--ds-fg);
+  --bg-subtle: var(--ds-bg);
+
+  /* Alias shadcn */
+  --card: var(--ds-bg-elev);
+  --card-foreground: var(--ds-fg);
+  --popover: var(--ds-bg-elev);
+  --popover-foreground: var(--ds-fg);
+  --secondary: var(--ds-muted-soft);
+  --secondary-foreground: var(--ds-fg);
+  --muted: var(--ds-muted-soft);
+  --muted-foreground: var(--ds-muted);
+  /* --accent-foreground tampoco: lo fija el color del tenant. */
+  --accent: var(--ds-brand-soft);
+  --destructive: var(--ds-danger);
+  --destructive-foreground: var(--ds-fg-on-accent);
+  --border: var(--ds-line);
+  --border-strong: var(--ds-line-strong);
+  --input: var(--ds-line-strong);
+  /* --ring lo fija el color del tenant (el foco lleva su marca). */
+
+  /* Estados semánticos */
+  --success: var(--ds-ok);
+  --success-bg: var(--ds-ok-soft);
+  --success-text: var(--ds-ok-fg-strong);
+  --warning: var(--ds-warn);
+  --warning-bg: var(--ds-warn-soft);
+  --warning-text: var(--ds-warn-fg-strong);
+  --danger: var(--ds-danger);
+  --danger-bg: var(--ds-danger-soft);
+  --danger-text: var(--ds-danger-fg-strong);
+  --neutral: var(--ds-muted);
+  --neutral-bg: var(--ds-muted-soft);
+  --neutral-text: var(--ds-fg-soft);
+
+  /* Barra lateral. Aquí SÍ es clara también en tema claro: es la seña de
+     empleaIA ("app sobria, sin washes") y el contraste lo da el borde.
+     En oscuro sigue al resto de superficies. */
+  --sidebar-bg: var(--ds-bg-elev);
+  --sidebar-active-bg: var(--ds-brand-soft);
+  /* active-text y active-border los pone el tenant con su color. */
+  --sidebar-text: var(--ds-fg-soft);
+  --sidebar-text-muted: var(--ds-muted);
+  --sidebar-hover-bg: var(--ds-muted-soft);
+}
+
+
 *,
 *::before,
 *::after {
@@ -174,7 +292,7 @@ body {
   height: 100%;
   background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont,
+  font-family: "Switzer", var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

@@ -38,11 +38,11 @@ interface TicketMessage {
 
 // Estado como texto de color (sin pill), estilo maqueta.
 const ESTADO_TEXT: Record<string, string> = {
-  nuevo: "text-slate-700",
-  en_revision: "text-blue-600",
+  nuevo: "text-[var(--text-body)]",
+  en_revision: "text-[var(--primary-dark)]",
   en_desarrollo: "text-indigo-600",
-  resuelto: "text-emerald-600",
-  descartado: "text-slate-400",
+  resuelto: "text-[var(--success-text)]",
+  descartado: "text-[var(--text-muted)]",
 };
 const ESTADO_LABEL: Record<string, string> = {
   nuevo: "Nuevo",
@@ -61,7 +61,7 @@ const TIPO_LABEL: Record<Tipo, string> = {
 // los que están pendientes de respuesta.
 function estadoVista(t: { estado: string; ultimo_autor?: "admin" | "user" | null }): { label: string; cls: string } {
   if (t.estado === "resuelto" || t.estado === "descartado") {
-    return { label: ESTADO_LABEL[t.estado] ?? t.estado, cls: ESTADO_TEXT[t.estado] ?? "text-slate-700" };
+    return { label: ESTADO_LABEL[t.estado] ?? t.estado, cls: ESTADO_TEXT[t.estado] ?? "text-[var(--text-body)]" };
   }
   // En desarrollo: estado propio que siempre se muestra (el equipo lo está
   // implementando), tenga o no respuesta del equipo en el hilo.
@@ -72,7 +72,7 @@ function estadoVista(t: { estado: string; ultimo_autor?: "admin" | "user" | null
   if (t.ultimo_autor === "admin") {
     return { label: "Respondido", cls: "text-orange-500" };
   }
-  return { label: ESTADO_LABEL[t.estado] ?? t.estado, cls: ESTADO_TEXT[t.estado] ?? "text-slate-700" };
+  return { label: ESTADO_LABEL[t.estado] ?? t.estado, cls: ESTADO_TEXT[t.estado] ?? "text-[var(--text-body)]" };
 }
 const fmtFecha = (iso: string) => new Date(iso).toLocaleDateString("es-ES");
 const MAX_FILES = 5;
@@ -321,13 +321,13 @@ export function FeedbackModal({
               onClick={() => setTab(t)}
               className={cn(
                 "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                tab === t ? "bg-white text-foreground shadow-sm" : "text-muted-foreground",
+                tab === t ? "bg-[var(--card)] text-foreground shadow-sm" : "text-muted-foreground",
               )}
             >
               <span className="inline-flex items-center justify-center gap-1.5">
                 {t === "enviar" ? "Enviar" : "Mis tickets"}
                 {t === "mis" && hayRespuestaSinLeer && (
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-red-500" aria-hidden />
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--danger)]" aria-hidden />
                 )}
               </span>
             </button>
@@ -345,7 +345,7 @@ export function FeedbackModal({
                     "flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
                     tipo === opt.value
                       ? "border-[var(--primary)] bg-[var(--primary-light)] text-[var(--primary)]"
-                      : "border-slate-200 text-slate-600 hover:border-[var(--primary)]",
+                      : "border-[var(--border)] text-[var(--text-body)] hover:border-[var(--primary)]",
                   )}
                 >
                   {opt.label}
@@ -404,13 +404,13 @@ export function FeedbackModal({
             {loadingTickets ? (
               <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-[var(--primary)]" /></div>
             ) : tickets.length === 0 ? (
-              <p className="py-8 text-center text-sm text-slate-400">Aún no has enviado ningún ticket.</p>
+              <p className="py-8 text-center text-sm text-[var(--text-muted)]">Aún no has enviado ningún ticket.</p>
             ) : (
               tickets.map((t) => (
-                <div key={t.id} className="rounded-lg border border-slate-100">
+                <div key={t.id} className="rounded-lg border border-[var(--border)]">
                   <button
                     onClick={() => toggleThread(t.id)}
-                    className="w-full px-4 py-3 text-left transition-colors hover:bg-slate-50"
+                    className="w-full px-4 py-3 text-left transition-colors hover:bg-[var(--muted)]"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <span className="flex min-w-0 items-center gap-1.5">
@@ -419,40 +419,40 @@ export function FeedbackModal({
                         {t.respuesta_sin_leer && (
                           <span
                             role="img"
-                            className="h-2 w-2 shrink-0 rounded-full bg-red-500"
+                            className="h-2 w-2 shrink-0 rounded-full bg-[var(--danger)]"
                             title="Tienes una respuesta sin leer"
                             aria-label="Tienes una respuesta sin leer"
                           />
                         )}
-                        <span className="text-xs font-semibold tracking-wide text-slate-500">{TIPO_LABEL[t.tipo]}</span>
+                        <span className="text-xs font-semibold tracking-wide text-[var(--text-muted)]">{TIPO_LABEL[t.tipo]}</span>
                       </span>
                       {(() => {
                         const v = estadoVista(t);
                         return <span className={cn("shrink-0 text-xs font-semibold", v.cls)}>{v.label}</span>;
                       })()}
                     </div>
-                    <p className="mt-1 whitespace-pre-wrap [overflow-wrap:anywhere] text-sm text-slate-900">{t.descripcion}</p>
-                    <p className="mt-1.5 text-xs text-slate-400">
+                    <p className="mt-1 whitespace-pre-wrap [overflow-wrap:anywhere] text-sm text-[var(--text-dark)]">{t.descripcion}</p>
+                    <p className="mt-1.5 text-xs text-[var(--text-muted)]">
                       {t.numero != null && <span className="mr-1.5">#{String(t.numero).padStart(4, "0")}</span>}
                       {fmtFecha(t.created_at)}
                     </p>
                   </button>
                   {expandedId === t.id && (
-                    <div className="border-t border-slate-100 p-3">
+                    <div className="border-t border-[var(--border)] p-3">
                       {loadingMessages ? (
                         <div className="flex justify-center py-3"><Loader2 className="h-4 w-4 animate-spin text-[var(--primary)]" /></div>
                       ) : (
                         <div className="space-y-2">
-                          {messages.length === 0 && <p className="text-xs text-slate-400">Sin respuestas todavía.</p>}
+                          {messages.length === 0 && <p className="text-xs text-[var(--text-muted)]">Sin respuestas todavía.</p>}
                           {messages.map((m) => (
                             <div
                               key={m.id}
                               className={cn(
                                 "rounded-lg px-3 py-2 text-sm [overflow-wrap:anywhere]",
-                                m.autor === "user" ? "bg-[var(--primary-light)] text-slate-700" : "bg-slate-50 text-slate-700",
+                                m.autor === "user" ? "bg-[var(--primary-light)] text-[var(--text-body)]" : "bg-[var(--muted)] text-[var(--text-body)]",
                               )}
                             >
-                              <span className="mb-0.5 block text-xs font-medium text-slate-400">
+                              <span className="mb-0.5 block text-xs font-medium text-[var(--text-muted)]">
                                 {m.autor === "user" ? "Tú" : "Soporte"}
                               </span>
                               {m.cuerpo && <Markdown className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0">{m.cuerpo}</Markdown>}

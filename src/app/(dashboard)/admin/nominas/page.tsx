@@ -275,14 +275,14 @@ export default function PrenominaPage() {
   if (unavailable) {
     return (
       <div className="p-6">
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-[var(--warning-bg)] bg-[var(--warning-bg)]">
           <CardContent className="pt-4 pb-4 flex items-start gap-3">
-            <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <Lock className="h-5 w-5 text-[var(--warning-text)] shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-900">
+              <p className="text-sm font-semibold text-[var(--warning-text)]">
                 Prenómina — plan Pro o superior
               </p>
-              <p className="text-sm text-amber-800 mt-0.5">
+              <p className="text-sm text-[var(--warning-text)] mt-0.5">
                 Calcula nóminas, gestiona conceptos manuales y exporta a Sage/A3.
               </p>
             </div>
@@ -304,8 +304,8 @@ export default function PrenominaPage() {
           <Calculator className="h-5 w-5 text-[var(--primary)]" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Prenómina</h1>
-          <p className="text-slate-500 text-sm mt-0.5">
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">Prenómina</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-0.5">
             Snapshot mensual con horas, extras, ausencias y conceptos editables — listo para tu gestor laboral
           </p>
         </div>
@@ -370,28 +370,28 @@ export default function PrenominaPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
           <Card>
             <CardContent className="pt-4 pb-4">
-              <p className="text-xs uppercase tracking-wide text-slate-500 font-medium">Empleados</p>
-              <p className="text-2xl font-bold mt-1 text-slate-900">{rows.length}</p>
+              <p className="text-xs uppercase tracking-wide text-[var(--text-muted)] font-medium">Empleados</p>
+              <p className="text-2xl font-bold mt-1 text-[var(--text-dark)]">{rows.length}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4 pb-4">
-              <p className="text-xs uppercase tracking-wide text-slate-500 font-medium">Días laborables</p>
-              <p className="text-2xl font-bold mt-1 text-slate-900">{diasLab}</p>
-              <p className="text-xs text-slate-500 mt-1">{horasTeoricas}h teóricas</p>
+              <p className="text-xs uppercase tracking-wide text-[var(--text-muted)] font-medium">Días laborables</p>
+              <p className="text-2xl font-bold mt-1 text-[var(--text-dark)]">{diasLab}</p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">{horasTeoricas}h teóricas</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4 pb-4">
-              <p className="text-xs uppercase tracking-wide text-slate-500 font-medium">Cerradas</p>
-              <p className="text-2xl font-bold mt-1 text-emerald-600">
+              <p className="text-xs uppercase tracking-wide text-[var(--text-muted)] font-medium">Cerradas</p>
+              <p className="text-2xl font-bold mt-1 text-[var(--success-text)]">
                 {rows.filter((r) => r.estado !== "BORRADOR").length} / {rows.length}
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4 pb-4">
-              <p className="text-xs uppercase tracking-wide text-slate-500 font-medium">Total bruto</p>
+              <p className="text-xs uppercase tracking-wide text-[var(--text-muted)] font-medium">Total bruto</p>
               <p className="text-2xl font-bold mt-1 text-[var(--primary)]">
                 {fmtMoney(totalGeneral, moneda)}
               </p>
@@ -402,11 +402,11 @@ export default function PrenominaPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
         </div>
       ) : rows.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-slate-500 text-sm">
+          <CardContent className="py-12 text-center text-[var(--text-muted)] text-sm">
             Sin prenominas para el periodo. Pulsa <strong>Calcular prenómina</strong> para generarlas a partir de los fichajes y ausencias del mes.
           </CardContent>
         </Card>
@@ -417,7 +417,7 @@ export default function PrenominaPage() {
           </CardHeader>
           <CardContent className="hidden md:block p-0 overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
                 <tr>
                   {[
                     "DNI",
@@ -433,7 +433,7 @@ export default function PrenominaPage() {
                   ].map((h) => (
                     <th
                       key={h}
-                      className={`text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500${(h === "DNI" || h === "Conceptos" || h === "Ausencias") ? " hidden lg:table-cell" : ""}`}
+                      className={`text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]${(h === "DNI" || h === "Conceptos" || h === "Ausencias") ? " hidden lg:table-cell" : ""}`}
                     >
                       {h}
                     </th>
@@ -442,28 +442,28 @@ export default function PrenominaPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {rows.map((r) => (
-                  <tr key={r.id} className="hover:bg-slate-50">
-                    <td className="hidden lg:table-cell px-4 py-3 text-slate-500 tabular-nums">{r.dni ?? "—"}</td>
-                    <td className="px-4 py-3 text-slate-900">
+                  <tr key={r.id} className="hover:bg-[var(--muted)]">
+                    <td className="hidden lg:table-cell px-4 py-3 text-[var(--text-muted)] tabular-nums">{r.dni ?? "—"}</td>
+                    <td className="px-4 py-3 text-[var(--text-dark)]">
                       {r.apellidos}, {r.nombre}
                     </td>
                     <td className="px-4 py-3">
                       <StatusPill tone={estadoTone(r.estado)} label={r.estado.toLowerCase()} />
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-slate-700">{r.diasTrabajados}</td>
-                    <td className="px-4 py-3 tabular-nums font-semibold text-slate-900">
+                    <td className="px-4 py-3 tabular-nums text-[var(--text-body)]">{r.diasTrabajados}</td>
+                    <td className="px-4 py-3 tabular-nums font-semibold text-[var(--text-dark)]">
                       {r.horasTrabajadas.toFixed(1)}h
                     </td>
                     <td className="px-4 py-3 tabular-nums">
-                      <span className={r.horasExtras > 0 ? "text-amber-600" : "text-slate-400"}>
+                      <span className={r.horasExtras > 0 ? "text-[var(--warning-text)]" : "text-[var(--text-muted)]"}>
                         {r.horasExtras > 0 ? `+${r.horasExtras.toFixed(1)}h` : "—"}
                       </span>
                     </td>
-                    <td className="hidden lg:table-cell px-4 py-3 tabular-nums text-slate-700">
+                    <td className="hidden lg:table-cell px-4 py-3 tabular-nums text-[var(--text-body)]">
                       {r.diasAusenciaPagada + r.diasAusenciaNoPagada}
                     </td>
                     <td className="hidden lg:table-cell px-4 py-3 tabular-nums">
-                      <span className={r.importeConceptos !== 0 ? "text-emerald-600" : "text-slate-400"}>
+                      <span className={r.importeConceptos !== 0 ? "text-[var(--success-text)]" : "text-[var(--text-muted)]"}>
                         {r.conceptos.length === 0 ? "—" : `${r.conceptos.length} (${fmtMoney(r.importeConceptos, r.moneda)})`}
                       </span>
                     </td>
@@ -489,7 +489,7 @@ export default function PrenominaPage() {
                             onClick={() => cerrar(r.id)}
                             title="Cerrar prenómina"
                           >
-                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                            <CheckCircle2 className="h-3.5 w-3.5 text-[var(--success-text)]" />
                           </Button>
                         )}
                         {r.estado === "CERRADA" && (
@@ -501,7 +501,7 @@ export default function PrenominaPage() {
                               onClick={() => enviar(r.id)}
                               title="Marcar como enviada al gestor"
                             >
-                              <Send className="h-3.5 w-3.5 text-blue-600" />
+                              <Send className="h-3.5 w-3.5 text-[var(--primary-dark)]" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -510,7 +510,7 @@ export default function PrenominaPage() {
                               onClick={() => reabrir(r.id)}
                               title="Reabrir (solo OWNER)"
                             >
-                              <LockOpen className="h-3.5 w-3.5 text-amber-600" />
+                              <LockOpen className="h-3.5 w-3.5 text-[var(--warning-text)]" />
                             </Button>
                           </>
                         )}
@@ -522,7 +522,7 @@ export default function PrenominaPage() {
                             onClick={() => reabrir(r.id)}
                             title="Reabrir (solo OWNER)"
                           >
-                            <LockOpen className="h-3.5 w-3.5 text-amber-600" />
+                            <LockOpen className="h-3.5 w-3.5 text-[var(--warning-text)]" />
                           </Button>
                         )}
                       </div>
@@ -538,23 +538,23 @@ export default function PrenominaPage() {
             {rows.map((r) => (
               <div
                 key={r.id}
-                className="rounded-lg border border-slate-200 bg-white p-4"
+                className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-medium text-slate-900 text-sm truncate">
+                    <p className="font-medium text-[var(--text-dark)] text-sm truncate">
                       {r.apellidos}, {r.nombre}
                     </p>
                     {r.dni && (
-                      <p className="text-xs text-slate-500 tabular-nums">{r.dni}</p>
+                      <p className="text-xs text-[var(--text-muted)] tabular-nums">{r.dni}</p>
                     )}
                   </div>
                   <StatusPill tone={estadoTone(r.estado)} label={r.estado.toLowerCase()} />
                 </div>
 
-                <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                <div className="mt-3 flex items-center justify-between gap-2 border-t border-[var(--border)] pt-3">
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-500 font-medium">Total bruto</p>
+                    <p className="text-xs uppercase tracking-wide text-[var(--text-muted)] font-medium">Total bruto</p>
                     <p className="text-lg font-bold tabular-nums text-[var(--primary)]">
                       {fmtMoney(r.totalBruto, r.moneda)}
                     </p>
@@ -577,7 +577,7 @@ export default function PrenominaPage() {
                         onClick={() => cerrar(r.id)}
                         title="Cerrar prenómina"
                       >
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        <CheckCircle2 className="h-4 w-4 text-[var(--success-text)]" />
                       </Button>
                     )}
                     {r.estado === "CERRADA" && (
@@ -589,7 +589,7 @@ export default function PrenominaPage() {
                           onClick={() => enviar(r.id)}
                           title="Marcar como enviada al gestor"
                         >
-                          <Send className="h-4 w-4 text-blue-600" />
+                          <Send className="h-4 w-4 text-[var(--primary-dark)]" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -598,7 +598,7 @@ export default function PrenominaPage() {
                           onClick={() => reabrir(r.id)}
                           title="Reabrir (solo OWNER)"
                         >
-                          <LockOpen className="h-4 w-4 text-amber-600" />
+                          <LockOpen className="h-4 w-4 text-[var(--warning-text)]" />
                         </Button>
                       </>
                     )}
@@ -610,7 +610,7 @@ export default function PrenominaPage() {
                         onClick={() => reabrir(r.id)}
                         title="Reabrir (solo OWNER)"
                       >
-                        <LockOpen className="h-4 w-4 text-amber-600" />
+                        <LockOpen className="h-4 w-4 text-[var(--warning-text)]" />
                       </Button>
                     )}
                   </div>
@@ -731,7 +731,7 @@ function DetalleDialog({
             <Row label="Importe nocturnidad" value={fmtMoney(prenomina.importeNocturnidad, prenomina.moneda)} />
             <Row label="Importe festivos" value={fmtMoney(prenomina.importeFestivos, prenomina.moneda)} />
             <Row label="Importe conceptos manuales" value={fmtMoney(prenomina.importeConceptos, prenomina.moneda)} />
-            <div className="border-t border-slate-200 mt-2 pt-2 flex justify-between font-bold text-base">
+            <div className="border-t border-[var(--border)] mt-2 pt-2 flex justify-between font-bold text-base">
               <span>Total bruto</span>
               <span className="text-[var(--primary)]">{fmtMoney(prenomina.totalBruto, prenomina.moneda)}</span>
             </div>
@@ -745,18 +745,18 @@ function DetalleDialog({
           </CardHeader>
           <CardContent>
             {prenomina.conceptos.length === 0 ? (
-              <p className="text-sm text-slate-400 py-2">Sin conceptos añadidos.</p>
+              <p className="text-sm text-[var(--text-muted)] py-2">Sin conceptos añadidos.</p>
             ) : (
               <div className="space-y-2 mb-3">
                 {prenomina.conceptos.map((c) => (
                   <div
                     key={c.id}
-                    className="flex items-center gap-3 px-3 py-2 rounded-md border border-slate-100 bg-slate-50"
+                    className="flex items-center gap-3 px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--muted)]"
                   >
-                    <span className="text-xs uppercase tracking-wide font-semibold text-slate-500 w-24">
+                    <span className="text-xs uppercase tracking-wide font-semibold text-[var(--text-muted)] w-24">
                       {TIPOS_CONCEPTO.find((t) => t.value === c.tipo)?.label ?? c.tipo}
                     </span>
-                    <span className="flex-1 text-sm text-slate-900">{c.descripcion}</span>
+                    <span className="flex-1 text-sm text-[var(--text-dark)]">{c.descripcion}</span>
                     <span className="text-sm font-semibold tabular-nums">
                       {fmtMoney(c.importe, prenomina.moneda)}
                     </span>
@@ -767,7 +767,7 @@ function DetalleDialog({
                         className="h-6 w-6"
                         onClick={() => removeConcepto(c.id)}
                       >
-                        <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                        <Trash2 className="h-3.5 w-3.5 text-[var(--danger)]" />
                       </Button>
                     )}
                   </div>
@@ -817,7 +817,7 @@ function DetalleDialog({
               </div>
             )}
             {!editable && (
-              <p className="text-xs text-slate-500 italic">
+              <p className="text-xs text-[var(--text-muted)] italic">
                 Prenómina cerrada. Reabre desde la tabla para editar conceptos.
               </p>
             )}
@@ -843,10 +843,10 @@ function Metric({
   value: string;
   tone?: "warning";
 }) {
-  const color = tone === "warning" ? "text-amber-600" : "text-slate-900";
+  const color = tone === "warning" ? "text-[var(--warning-text)]" : "text-[var(--text-dark)]";
   return (
-    <div className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2">
-      <p className="text-xs uppercase tracking-wide font-medium text-slate-500">{label}</p>
+    <div className="rounded-md border border-[var(--border)] bg-[var(--muted)] px-3 py-2">
+      <p className="text-xs uppercase tracking-wide font-medium text-[var(--text-muted)]">{label}</p>
       <p className={`text-base font-bold tabular-nums mt-0.5 ${color}`}>{value}</p>
     </div>
   );
@@ -854,7 +854,7 @@ function Metric({
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between py-1 text-slate-700">
+    <div className="flex justify-between py-1 text-[var(--text-body)]">
       <span>{label}</span>
       <span className="tabular-nums font-medium">{value}</span>
     </div>

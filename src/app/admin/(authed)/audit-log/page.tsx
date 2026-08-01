@@ -24,8 +24,8 @@ interface ApiResponse {
 
 const SEVERITY_TONE: Record<AuditEntry["severity"], string> = {
   info: "bg-sky-50 text-sky-800 ring-sky-200",
-  warning: "bg-amber-50 text-amber-800 ring-amber-200",
-  critical: "bg-red-50 text-red-800 ring-red-200",
+  warning: "bg-[var(--warning-bg)] text-[var(--warning-text)] ring-amber-200",
+  critical: "bg-[var(--danger-bg)] text-[var(--danger-text)] ring-red-200",
 };
 
 const SEVERITY_ICON: Record<AuditEntry["severity"], typeof Info> = {
@@ -89,14 +89,14 @@ export default function AuditLogPage() {
         </p>
       </header>
 
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
+      <div className="flex gap-1 bg-[var(--muted)] p-1 rounded-lg w-fit">
         {SEVERITY_FILTERS.map((f) => (
           <button
             key={f.value}
             onClick={() => setSeverity(f.value)}
             className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
               severity === f.value
-                ? "bg-white text-[var(--color-text-dark,#0F172A)] shadow-sm"
+                ? "bg-[var(--card)] text-[var(--color-text-dark,#0F172A)] shadow-sm"
                 : "text-[var(--color-text-body,#475569)] hover:text-[var(--color-text-dark,#0F172A)]"
             }`}
           >
@@ -105,14 +105,14 @@ export default function AuditLogPage() {
         ))}
       </div>
 
-      <div className="bg-white border border-[var(--color-border,#E2E8F0)] rounded-lg overflow-hidden">
+      <div className="bg-[var(--card)] border border-[var(--color-border,#E2E8F0)] rounded-lg overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16 text-[var(--color-text-body,#475569)]">
             <Loader2 className="h-5 w-5 animate-spin mr-2" />
             Cargando entradas…
           </div>
         ) : error ? (
-          <div className="px-4 py-3 text-sm text-red-800 bg-red-50">{error}</div>
+          <div className="px-4 py-3 text-sm text-[var(--danger-text)] bg-[var(--danger-bg)]">{error}</div>
         ) : !data || data.items.length === 0 ? (
           <div className="py-16 text-center text-[var(--color-text-muted,#94A3B8)]">
             <FileText className="h-10 w-10 mx-auto mb-2 text-slate-200" />
@@ -145,7 +145,7 @@ export default function AuditLogPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-[var(--color-text-dark,#0F172A)] font-mono">
+                        <code className="text-xs bg-[var(--muted)] px-1.5 py-0.5 rounded text-[var(--color-text-dark,#0F172A)] font-mono">
                           {e.action}
                         </code>
                       </td>

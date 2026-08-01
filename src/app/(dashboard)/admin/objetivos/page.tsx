@@ -36,8 +36,8 @@ const ESTADO_LABEL: Record<Objetivo["estado"], string> = {
 };
 const ESTADO_CLS: Record<Objetivo["estado"], string> = {
   activo: "bg-sky-50 text-sky-700",
-  completado: "bg-emerald-50 text-emerald-700",
-  cancelado: "bg-slate-100 text-slate-500",
+  completado: "bg-[var(--success-bg)] text-[var(--success-text)]",
+  cancelado: "bg-[var(--muted)] text-[var(--text-muted)]",
 };
 
 export default function ObjetivosPage() {
@@ -160,8 +160,8 @@ export default function ObjetivosPage() {
             <Target className="h-5 w-5 text-[var(--primary)]" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Objetivos (OKRs)</h1>
-            <p className="text-slate-500 text-sm mt-0.5">Define y sigue los objetivos del equipo y la empresa</p>
+            <h1 className="text-2xl font-bold text-[var(--text-dark)]">Objetivos (OKRs)</h1>
+            <p className="text-[var(--text-muted)] text-sm mt-0.5">Define y sigue los objetivos del equipo y la empresa</p>
           </div>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
@@ -173,7 +173,7 @@ export default function ObjetivosPage() {
         <Card className="border-[var(--primary)]/20 bg-[var(--primary)]/5">
           <CardContent className="py-4 flex items-start gap-3">
             <TrendingUp className="h-5 w-5 text-[var(--primary)] shrink-0 mt-0.5" />
-            <div className="text-sm text-slate-700">
+            <div className="text-sm text-[var(--text-body)]">
               <p>
                 ¿Buscas los objetivos de venta por producto (pospago, fibra, renove…)? Se fijan
                 por comercial y por punto de venta en{" "}
@@ -182,7 +182,7 @@ export default function ObjetivosPage() {
                 </Link>
                 , y se comparan solos con lo que el equipo registra al cerrar el turno.
               </p>
-              <p className="text-slate-500 mt-1">
+              <p className="text-[var(--text-muted)] mt-1">
                 Los productos sobre los que fijar objetivo se definen en Configuración →
                 Catálogo de ventas.
               </p>
@@ -193,13 +193,13 @@ export default function ObjetivosPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
         </div>
       ) : objetivos.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <Target className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500 text-sm">Aún no hay objetivos. Crea el primero.</p>
+            <Target className="h-10 w-10 text-[var(--text-muted)] mx-auto mb-3" />
+            <p className="text-[var(--text-muted)] text-sm">Aún no hay objetivos. Crea el primero.</p>
           </CardContent>
         </Card>
       ) : (
@@ -210,7 +210,7 @@ export default function ObjetivosPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <CardTitle className="text-base leading-snug">{o.titulo}</CardTitle>
-                    <p className="text-xs text-slate-500 mt-1">{o.periodo}</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">{o.periodo}</p>
                   </div>
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${ESTADO_CLS[o.estado]}`}>
                     {ESTADO_LABEL[o.estado]}
@@ -219,10 +219,10 @@ export default function ObjetivosPage() {
               </CardHeader>
               <CardContent className="flex-1 flex flex-col gap-3">
                 {o.descripcion && (
-                  <p className="text-sm text-slate-600 line-clamp-3">{o.descripcion}</p>
+                  <p className="text-sm text-[var(--text-body)] line-clamp-3">{o.descripcion}</p>
                 )}
 
-                <div className="flex items-center gap-2 text-xs text-slate-500">
+                <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
                   {o.asignadoA ? (
                     <>
                       <EmployeeAvatar nombre={o.asignadoA.nombre} apellidos={o.asignadoA.apellidos} seed={o.asignadoA.id} size="sm" />
@@ -236,9 +236,9 @@ export default function ObjetivosPage() {
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+                  <div className="flex items-center justify-between text-xs text-[var(--text-muted)] mb-1">
                     <span>Progreso</span>
-                    <span className="font-semibold text-slate-900 tabular-nums">{o.progreso}%</span>
+                    <span className="font-semibold text-[var(--text-dark)] tabular-nums">{o.progreso}%</span>
                   </div>
                   <ProgressBar value={o.progreso} className="w-full" />
                   <input
@@ -253,24 +253,24 @@ export default function ObjetivosPage() {
                   />
                 </div>
 
-                <div className="flex items-center gap-1 mt-auto pt-2 border-t border-slate-100">
+                <div className="flex items-center gap-1 mt-auto pt-2 border-t border-[var(--border)]">
                   {o.estado === "activo" && (
                     <>
-                      <Button size="sm" variant="ghost" className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" onClick={() => updateEstado(o.id, "completado")}>
+                      <Button size="sm" variant="ghost" className="text-[var(--success-text)] hover:text-[var(--success-text)] hover:bg-[var(--success-bg)]" onClick={() => updateEstado(o.id, "completado")}>
                         <CheckCircle2 className="h-4 w-4 mr-1" /> Completar
                       </Button>
-                      <Button size="sm" variant="ghost" className="text-slate-500" onClick={() => updateEstado(o.id, "cancelado")}>
+                      <Button size="sm" variant="ghost" className="text-[var(--text-muted)]" onClick={() => updateEstado(o.id, "cancelado")}>
                         <XCircle className="h-4 w-4 mr-1" /> Cancelar
                       </Button>
                     </>
                   )}
                   {o.estado !== "activo" && (
-                    <Button size="sm" variant="ghost" className="text-slate-500" onClick={() => updateEstado(o.id, "activo")}>
+                    <Button size="sm" variant="ghost" className="text-[var(--text-muted)]" onClick={() => updateEstado(o.id, "activo")}>
                       Reabrir
                     </Button>
                   )}
                   <div className="flex-1" />
-                  <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => handleDelete(o.id)}>
+                  <Button size="sm" variant="ghost" className="text-[var(--danger)] hover:text-[var(--danger-text)] hover:bg-[var(--danger-bg)]" onClick={() => handleDelete(o.id)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -293,7 +293,7 @@ export default function ObjetivosPage() {
             <div>
               <Label>Descripción (opcional)</Label>
               <textarea
-                className="mt-1 w-full min-h-[80px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                className="mt-1 w-full min-h-[80px] rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                 value={descripcion}
                 onChange={(e) => setDescripcion(e.target.value)}
                 rows={3}

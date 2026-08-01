@@ -33,7 +33,7 @@ export function TenantLoginForm({ action, initialEmail = "" }: Props) {
   return (
     <>
       {errorMessage && (
-        <div className="mb-5 flex items-start gap-3 rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800 animate-fade-in">
+        <div className="mb-5 flex items-start gap-3 rounded-md border border-[var(--danger-bg)] bg-[var(--danger-bg)] px-3 py-2.5 text-sm text-[var(--danger-text)] animate-fade-in">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
           <span>{errorMessage}</span>
         </div>
@@ -55,7 +55,7 @@ export function TenantLoginForm({ action, initialEmail = "" }: Props) {
             required
             defaultValue={initialEmail}
             placeholder="usuario@empresa.com"
-            className="flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3.5 py-2 text-sm text-[var(--color-text-dark,#0F172A)] shadow-[var(--shadow-soft-sm)] placeholder:text-[var(--color-text-muted,#94A3B8)] focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:shadow-[var(--shadow-focus-ring)] transition-all duration-150"
+            className="flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3.5 py-2 text-sm text-[var(--color-text-dark,#0F172A)] shadow-[var(--shadow-soft-sm)] placeholder:text-[var(--color-text-muted,#94A3B8)] focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:shadow-[var(--shadow-focus-ring)] transition-all duration-150"
           />
         </div>
 
@@ -73,7 +73,7 @@ export function TenantLoginForm({ action, initialEmail = "" }: Props) {
             autoComplete="current-password"
             required
             placeholder="••••••••"
-            className="flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3.5 py-2 text-sm text-[var(--color-text-dark,#0F172A)] shadow-[var(--shadow-soft-sm)] placeholder:text-[var(--color-text-muted,#94A3B8)] focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:shadow-[var(--shadow-focus-ring)] transition-all duration-150"
+            className="flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3.5 py-2 text-sm text-[var(--color-text-dark,#0F172A)] shadow-[var(--shadow-soft-sm)] placeholder:text-[var(--color-text-muted,#94A3B8)] focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:shadow-[var(--shadow-focus-ring)] transition-all duration-150"
           />
         </div>
 
@@ -93,7 +93,7 @@ export function TenantLoginForm({ action, initialEmail = "" }: Props) {
         <div className="text-center pt-1">
           <a
             href="/recuperar-password"
-            className="text-sm text-slate-500 hover:text-[var(--primary)] hover:underline transition-colors"
+            className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline transition-colors"
           >
             ¿Olvidaste tu contraseña?
           </a>

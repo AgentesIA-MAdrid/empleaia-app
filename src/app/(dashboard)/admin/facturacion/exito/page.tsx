@@ -28,9 +28,9 @@ async function ExitoPage({ searchParams }: PageProps) {
 
   return (
     <div className="p-6 max-w-xl mx-auto">
-      <div className="rounded-2xl border border-[var(--color-border,#E2E8F0)] bg-white p-8 text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50">
-          <CheckCircle2 className="h-9 w-9 text-emerald-500" />
+      <div className="rounded-2xl border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] p-8 text-center">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[var(--success-bg)]">
+          <CheckCircle2 className="h-9 w-9 text-[var(--success)]" />
         </div>
         <h1 className="mt-4 text-2xl font-bold text-[var(--color-text-dark,#0F172A)]">
           ¡Pago confirmado!
@@ -53,7 +53,7 @@ async function ExitoPage({ searchParams }: PageProps) {
           </Link>
           <Link
             href="/admin/planes"
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white hover:bg-[var(--bg-subtle,#F8FAFC)] px-5 py-3 text-sm font-semibold text-[var(--color-text-dark,#0F172A)] transition-colors"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] hover:bg-[var(--bg-subtle,#F8FAFC)] px-5 py-3 text-sm font-semibold text-[var(--color-text-dark,#0F172A)] transition-colors"
           >
             Ver planes
           </Link>

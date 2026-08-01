@@ -16,8 +16,8 @@ type Size = keyof typeof SIZE_CLASSES;
  * bg-color-100 + text-color-700 según el sistema.
  */
 const PALETTE = [
-  { bg: "bg-emerald-100", text: "text-emerald-700" },
-  { bg: "bg-amber-100", text: "text-amber-700" },
+  { bg: "bg-[var(--success-bg)]", text: "text-[var(--success-text)]" },
+  { bg: "bg-[var(--warning-bg)]", text: "text-[var(--warning-text)]" },
   { bg: "bg-rose-100", text: "text-rose-700" },
   { bg: "bg-sky-100", text: "text-sky-700" },
   { bg: "bg-violet-100", text: "text-violet-700" },

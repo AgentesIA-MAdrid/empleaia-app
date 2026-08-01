@@ -58,7 +58,7 @@ export function FaceIdManager({ mode, userId }: Props) {
         type="button"
         onClick={reset}
         disabled={pending}
-        className="inline-flex items-center gap-1.5 text-sm text-red-700 hover:text-red-900 disabled:opacity-60"
+        className="inline-flex items-center gap-1.5 text-sm text-[var(--danger-text)] hover:text-[var(--danger-text)] disabled:opacity-60"
       >
         {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
         Eliminar mi Face ID
@@ -68,7 +68,7 @@ export function FaceIdManager({ mode, userId }: Props) {
 
   if (phase === "idle") {
     return (
-      <div className="rounded-lg border bg-white p-6 space-y-4">
+      <div className="rounded-lg border bg-[var(--card)] p-6 space-y-4">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center">
             <ScanFace className="h-5 w-5 text-[var(--primary)]" />
@@ -77,7 +77,7 @@ export function FaceIdManager({ mode, userId }: Props) {
             <h3 className="font-semibold text-[var(--color-text-dark,#0F172A)]">
               Registrar mi rostro
             </h3>
-            <p className="text-sm text-slate-600 mt-1">
+            <p className="text-sm text-[var(--text-body)] mt-1">
               Te pediremos acceso a la cámara durante un momento. Asegúrate de
               estar bien iluminado y mirar de frente.
             </p>
@@ -97,11 +97,11 @@ export function FaceIdManager({ mode, userId }: Props) {
 
   if (phase === "consent") {
     return (
-      <div className="rounded-lg border bg-white p-6 space-y-4">
+      <div className="rounded-lg border bg-[var(--card)] p-6 space-y-4">
         <h3 className="font-semibold text-[var(--color-text-dark,#0F172A)]">
           Consentimiento para tratamiento de dato biométrico
         </h3>
-        <p className="text-sm text-slate-700 leading-relaxed">
+        <p className="text-sm text-[var(--text-body)] leading-relaxed">
           Al continuar, autorizas a tu empresa a almacenar un vector matemático
           (no una foto) generado a partir de la geometría de tu rostro, con la
           única finalidad de verificar tu identidad cuando fiches. El dato se
@@ -125,7 +125,7 @@ export function FaceIdManager({ mode, userId }: Props) {
           <button
             type="button"
             onClick={() => setPhase("idle")}
-            className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-slate-50"
+            className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-[var(--muted)]"
           >
             Cancelar
           </button>
@@ -144,7 +144,7 @@ export function FaceIdManager({ mode, userId }: Props) {
 
   if (phase === "capturing" || phase === "uploading") {
     return (
-      <div className="rounded-lg border bg-white p-6">
+      <div className="rounded-lg border bg-[var(--card)] p-6">
         <FaceCapture
           cta="Capturar mi rostro"
           pending={pending}
@@ -154,7 +154,7 @@ export function FaceIdManager({ mode, userId }: Props) {
           }}
         />
         {error && (
-          <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          <div className="mt-3 rounded-md border border-[var(--danger-bg)] bg-[var(--danger-bg)] px-3 py-2 text-sm text-[var(--danger-text)]">
             {error}
           </div>
         )}
@@ -164,12 +164,12 @@ export function FaceIdManager({ mode, userId }: Props) {
 
   if (phase === "done") {
     return (
-      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-6 text-center">
-        <ScanFace className="h-10 w-10 mx-auto text-emerald-700" />
-        <p className="mt-2 font-semibold text-emerald-900">
+      <div className="rounded-lg border border-[var(--success-bg)] bg-[var(--success-bg)] p-6 text-center">
+        <ScanFace className="h-10 w-10 mx-auto text-[var(--success-text)]" />
+        <p className="mt-2 font-semibold text-[var(--success-text)]">
           ¡Tu rostro está registrado!
         </p>
-        <p className="mt-1 text-sm text-emerald-800">
+        <p className="mt-1 text-sm text-[var(--success-text)]">
           Ahora puedes usar Face ID al fichar.
         </p>
       </div>
@@ -178,16 +178,16 @@ export function FaceIdManager({ mode, userId }: Props) {
 
   if (phase === "error") {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-6 space-y-3">
-        <p className="font-semibold text-red-900">No se pudo registrar</p>
-        <p className="text-sm text-red-800">{error}</p>
+      <div className="rounded-lg border border-[var(--danger-bg)] bg-[var(--danger-bg)] p-6 space-y-3">
+        <p className="font-semibold text-[var(--danger-text)]">No se pudo registrar</p>
+        <p className="text-sm text-[var(--danger-text)]">{error}</p>
         <button
           type="button"
           onClick={() => {
             setPhase("idle");
             setError(null);
           }}
-          className="rounded-lg bg-red-600 hover:bg-red-700 px-4 py-2 text-sm font-medium text-white"
+          className="rounded-lg bg-[var(--danger)] hover:bg-[var(--danger-text)] px-4 py-2 text-sm font-medium text-white"
         >
           Reintentar
         </button>

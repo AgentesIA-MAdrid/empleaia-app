@@ -20,9 +20,9 @@ async function CanceladoPage() {
 
   return (
     <div className="p-6 max-w-xl mx-auto">
-      <div className="rounded-2xl border border-[var(--color-border,#E2E8F0)] bg-white p-8 text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-          <XCircle className="h-9 w-9 text-slate-400" />
+      <div className="rounded-2xl border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] p-8 text-center">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[var(--muted)]">
+          <XCircle className="h-9 w-9 text-[var(--text-muted)]" />
         </div>
         <h1 className="mt-4 text-2xl font-bold text-[var(--color-text-dark,#0F172A)]">
           Pago cancelado
@@ -40,7 +40,7 @@ async function CanceladoPage() {
           </Link>
           <Link
             href="/admin"
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white hover:bg-[var(--bg-subtle,#F8FAFC)] px-5 py-3 text-sm font-semibold text-[var(--color-text-dark,#0F172A)] transition-colors"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] hover:bg-[var(--bg-subtle,#F8FAFC)] px-5 py-3 text-sm font-semibold text-[var(--color-text-dark,#0F172A)] transition-colors"
           >
             Ir al dashboard
           </Link>

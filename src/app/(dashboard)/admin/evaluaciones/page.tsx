@@ -87,12 +87,12 @@ export default function AdminEvaluacionesPage() {
   if (unavailable) {
     return (
       <div className="p-6">
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-[var(--warning-bg)] bg-[var(--warning-bg)]">
           <CardContent className="pt-4 pb-4 flex items-start gap-3">
-            <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <Lock className="h-5 w-5 text-[var(--warning-text)] shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-900">Evaluaciones — plan Pro o superior</p>
-              <p className="text-sm text-amber-800 mt-0.5">Ciclos de evaluación 360 con feedback estructurado.</p>
+              <p className="text-sm font-semibold text-[var(--warning-text)]">Evaluaciones — plan Pro o superior</p>
+              <p className="text-sm text-[var(--warning-text)] mt-0.5">Ciclos de evaluación 360 con feedback estructurado.</p>
             </div>
             <Link href="/admin/planes"><Button size="sm">Ver planes</Button></Link>
           </CardContent>
@@ -107,17 +107,17 @@ export default function AdminEvaluacionesPage() {
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center"><Star className="h-5 w-5 text-[var(--primary)]" /></div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Evaluaciones de desempeño</h1>
-            <p className="text-slate-500 text-sm mt-0.5">Ciclos de evaluación entre manager y empleado</p>
+            <h1 className="text-2xl font-bold text-[var(--text-dark)]">Evaluaciones de desempeño</h1>
+            <p className="text-[var(--text-muted)] text-sm mt-0.5">Ciclos de evaluación entre manager y empleado</p>
           </div>
         </div>
         <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" /> Nueva evaluación</Button>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>
+        <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" /></div>
       ) : evals.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-slate-500 text-sm">Aún no hay evaluaciones.</CardContent></Card>
+        <Card><CardContent className="py-12 text-center text-[var(--text-muted)] text-sm">Aún no hay evaluaciones.</CardContent></Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {evals.map((ev) => (
@@ -125,21 +125,21 @@ export default function AdminEvaluacionesPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-base">{ev.ciclo}</CardTitle>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${ev.estado === "completada" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{ev.estado}</span>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${ev.estado === "completada" ? "bg-[var(--success-bg)] text-[var(--success-text)]" : "bg-[var(--warning-bg)] text-[var(--warning-text)]"}`}>{ev.estado}</span>
                 </div>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col gap-2 text-sm">
-                <div className="flex items-center gap-2 text-slate-600">
+                <div className="flex items-center gap-2 text-[var(--text-body)]">
                   <EmployeeAvatar nombre={ev.evaluadoA.nombre} apellidos={ev.evaluadoA.apellidos} seed={ev.evaluadoA.id} size="sm" />
                   <span><strong>Evaluado:</strong> {ev.evaluadoA.nombre} {ev.evaluadoA.apellidos}</span>
                 </div>
-                <div className="text-xs text-slate-500">
+                <div className="text-xs text-[var(--text-muted)]">
                   Evaluador: {ev.evaluador.nombre} {ev.evaluador.apellidos}
                 </div>
-                <div className="flex items-center gap-1 mt-auto pt-2 border-t border-slate-100">
+                <div className="flex items-center gap-1 mt-auto pt-2 border-t border-[var(--border)]">
                   <Link href={`/admin/evaluaciones/${ev.id}`}><Button size="sm" variant="ghost">Abrir</Button></Link>
                   <div className="flex-1" />
-                  <Button size="sm" variant="ghost" className="text-red-500" onClick={() => handleDelete(ev.id)}><Trash2 className="h-4 w-4" /></Button>
+                  <Button size="sm" variant="ghost" className="text-[var(--danger)]" onClick={() => handleDelete(ev.id)}><Trash2 className="h-4 w-4" /></Button>
                 </div>
               </CardContent>
             </Card>
@@ -166,7 +166,7 @@ export default function AdminEvaluacionesPage() {
                 <SelectContent>{empleados.map((e) => (<SelectItem key={e.id} value={e.id}>{e.nombre} {e.apellidos}</SelectItem>))}</SelectContent>
               </Select>
             </div>
-            <p className="text-xs text-slate-500">Se usa la plantilla por defecto (3 preguntas escala 1-5 + comentarios). El evaluador completará la evaluación desde su perfil.</p>
+            <p className="text-xs text-[var(--text-muted)]">Se usa la plantilla por defecto (3 preguntas escala 1-5 + comentarios). El evaluador completará la evaluación desde su perfil.</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>

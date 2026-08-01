@@ -32,8 +32,8 @@ async function FichaEmpleadoPage({
   if (rol !== "OWNER" && rol !== "MANAGER") {
     return (
       <div className="p-6 max-w-3xl mx-auto">
-        <h1 className="text-2xl font-bold text-slate-900">Acceso restringido</h1>
-        <p className="text-sm text-slate-500 mt-2">
+        <h1 className="text-2xl font-bold text-[var(--text-dark)]">Acceso restringido</h1>
+        <p className="text-sm text-[var(--text-muted)] mt-2">
           Solo administradores y managers pueden consultar la ficha del empleado.
         </p>
       </div>
@@ -161,7 +161,7 @@ async function FichaEmpleadoPage({
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <Link
           href="/admin/empleados"
-          className="inline-flex items-center text-sm text-slate-500 hover:text-slate-900"
+          className="inline-flex items-center text-sm text-[var(--text-muted)] hover:text-[var(--text-dark)]"
         >
           <ChevronLeft className="h-4 w-4 mr-1" /> Volver a empleados
         </Link>

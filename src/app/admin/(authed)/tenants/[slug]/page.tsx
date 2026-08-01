@@ -72,11 +72,11 @@ interface TenantDetail {
 }
 
 const STATUS_TONE: Record<TenantStatus, string> = {
-  active: "bg-emerald-50 text-emerald-800",
-  pending: "bg-slate-100 text-slate-600",
+  active: "bg-[var(--success-bg)] text-[var(--success-text)]",
+  pending: "bg-[var(--muted)] text-[var(--text-body)]",
   provisioning: "bg-sky-50 text-sky-800",
   suspended: "bg-orange-50 text-orange-800",
-  deleted: "bg-red-50 text-red-800",
+  deleted: "bg-[var(--danger-bg)] text-[var(--danger-text)]",
 };
 
 const STATUS_LABEL: Record<TenantStatus, string> = {
@@ -89,13 +89,13 @@ const STATUS_LABEL: Record<TenantStatus, string> = {
 
 const SUB_STATUS_TONE: Record<SubscriptionStatus, string> = {
   trialing: "bg-sky-50 text-sky-800",
-  active: "bg-emerald-50 text-emerald-800",
-  past_due: "bg-amber-50 text-amber-800",
+  active: "bg-[var(--success-bg)] text-[var(--success-text)]",
+  past_due: "bg-[var(--warning-bg)] text-[var(--warning-text)]",
   unpaid: "bg-orange-50 text-orange-800",
-  canceled: "bg-red-50 text-red-800",
-  paused: "bg-slate-100 text-slate-600",
-  incomplete: "bg-amber-50 text-amber-800",
-  incomplete_expired: "bg-red-50 text-red-800",
+  canceled: "bg-[var(--danger-bg)] text-[var(--danger-text)]",
+  paused: "bg-[var(--muted)] text-[var(--text-body)]",
+  incomplete: "bg-[var(--warning-bg)] text-[var(--warning-text)]",
+  incomplete_expired: "bg-[var(--danger-bg)] text-[var(--danger-text)]",
 };
 
 const SUB_STATUS_LABEL: Record<SubscriptionStatus, string> = {
@@ -230,7 +230,7 @@ export default function TenantDetailPage({
           Cargando tenant…
         </div>
       ) : error ? (
-        <div className="px-4 py-3 text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg">
+        <div className="px-4 py-3 text-sm text-[var(--danger-text)] bg-[var(--danger-bg)] border border-[var(--danger-bg)] rounded-lg">
           {error}
         </div>
       ) : !tenant ? (
@@ -252,7 +252,7 @@ export default function TenantDetailPage({
                   {STATUS_LABEL[tenant.status]}
                 </span>
               </div>
-              <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-[var(--color-text-dark,#0F172A)] font-mono mt-1 inline-block">
+              <code className="text-xs bg-[var(--muted)] px-1.5 py-0.5 rounded text-[var(--color-text-dark,#0F172A)] font-mono mt-1 inline-block">
                 {tenant.slug}
               </code>
             </div>
@@ -271,8 +271,8 @@ export default function TenantDetailPage({
             <div
               className={`px-4 py-3 rounded-lg text-sm border ${
                 actionError
-                  ? "bg-red-50 border-red-200 text-red-800"
-                  : "bg-emerald-50 border-emerald-200 text-emerald-800"
+                  ? "bg-[var(--danger-bg)] border-[var(--danger-bg)] text-[var(--danger-text)]"
+                  : "bg-[var(--success-bg)] border-[var(--success-bg)] text-[var(--success-text)]"
               }`}
               role="status"
             >
@@ -281,7 +281,7 @@ export default function TenantDetailPage({
           )}
 
           {/* Datos */}
-          <section className="bg-white border border-[var(--color-border,#E2E8F0)] rounded-lg p-5">
+          <section className="bg-[var(--card)] border border-[var(--color-border,#E2E8F0)] rounded-lg p-5">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-text-body,#475569)] mb-4">
               Datos
             </h2>
@@ -303,11 +303,11 @@ export default function TenantDetailPage({
                     <span className="inline-flex items-center gap-1.5">
                       {tenant.customDomain}
                       {tenant.customDomainVerified ? (
-                        <span className="text-emerald-700 text-xs">
+                        <span className="text-[var(--success-text)] text-xs">
                           (verificado)
                         </span>
                       ) : (
-                        <span className="text-amber-700 text-xs">
+                        <span className="text-[var(--warning-text)] text-xs">
                           (pendiente)
                         </span>
                       )}
@@ -333,7 +333,7 @@ export default function TenantDetailPage({
                 </dt>
                 <dd className="text-[var(--color-text-dark,#0F172A)] mt-0.5">
                   {tenant.stripeCustomerId ? (
-                    <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded font-mono">
+                    <code className="text-xs bg-[var(--muted)] px-1.5 py-0.5 rounded font-mono">
                       {tenant.stripeCustomerId}
                     </code>
                   ) : (
@@ -347,7 +347,7 @@ export default function TenantDetailPage({
           </section>
 
           {/* Suscripción */}
-          <section className="bg-white border border-[var(--color-border,#E2E8F0)] rounded-lg p-5">
+          <section className="bg-[var(--card)] border border-[var(--color-border,#E2E8F0)] rounded-lg p-5">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-text-body,#475569)] mb-4">
               Suscripción
             </h2>
@@ -401,7 +401,7 @@ export default function TenantDetailPage({
                 )}
                 {sub.cancelAtPeriodEnd && (
                   <div className="sm:col-span-2">
-                    <span className="inline-flex items-center gap-1.5 text-xs text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full">
+                    <span className="inline-flex items-center gap-1.5 text-xs text-[var(--warning-text)] bg-[var(--warning-bg)] px-2.5 py-1 rounded-full">
                       <AlertTriangle className="h-3.5 w-3.5" />
                       Se cancela al final del periodo
                     </span>
@@ -416,7 +416,7 @@ export default function TenantDetailPage({
           </section>
 
           {/* Features */}
-          <section className="bg-white border border-[var(--color-border,#E2E8F0)] rounded-lg p-5">
+          <section className="bg-[var(--card)] border border-[var(--color-border,#E2E8F0)] rounded-lg p-5">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-text-body,#475569)] mb-4">
               Features
             </h2>
@@ -467,7 +467,7 @@ export default function TenantDetailPage({
           </section>
 
           {/* Cuota */}
-          <section className="bg-white border border-[var(--color-border,#E2E8F0)] rounded-lg p-5">
+          <section className="bg-[var(--card)] border border-[var(--color-border,#E2E8F0)] rounded-lg p-5">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-text-body,#475569)] mb-4">
               Cuota (periodo en curso)
             </h2>
@@ -515,7 +515,7 @@ export default function TenantDetailPage({
           </section>
 
           {/* Acciones */}
-          <section className="bg-white border border-[var(--color-border,#E2E8F0)] rounded-lg p-5">
+          <section className="bg-[var(--card)] border border-[var(--color-border,#E2E8F0)] rounded-lg p-5">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-text-body,#475569)] mb-4">
               Acciones
             </h2>
@@ -536,7 +536,7 @@ export default function TenantDetailPage({
                       );
                     }
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-amber-200 text-amber-800 hover:bg-amber-50 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-[var(--warning-bg)] text-[var(--warning-text)] hover:bg-[var(--warning-bg)] disabled:opacity-50"
                 >
                   <Pause className="h-4 w-4" />
                   Suspender acceso
@@ -552,7 +552,7 @@ export default function TenantDetailPage({
                       `Tenant ${tenant.slug} restaurado`,
                     );
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-emerald-200 text-emerald-800 hover:bg-emerald-50 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-[var(--success-bg)] text-[var(--success-text)] hover:bg-[var(--success-bg)] disabled:opacity-50"
                 >
                   <Play className="h-4 w-4" />
                   Restaurar acceso
@@ -580,7 +580,7 @@ export default function TenantDetailPage({
                   setActionError(null);
                   setModal("cancel");
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-red-200 text-red-800 hover:bg-red-50 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-[var(--danger-bg)] text-[var(--danger-text)] hover:bg-[var(--danger-bg)] disabled:opacity-50"
               >
                 <XCircle className="h-4 w-4" />
                 Cancelar suscripción
@@ -598,21 +598,21 @@ export default function TenantDetailPage({
           aria-modal="true"
           aria-labelledby="extend-title"
         >
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
+          <div className="bg-[var(--card)] rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
             <h2
               id="extend-title"
-              className="text-lg font-semibold text-slate-900"
+              className="text-lg font-semibold text-[var(--text-dark)]"
             >
               Extender periodo de suscripción
             </h2>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-[var(--text-body)]">
               Suma días al fin de periodo de la suscripción.{" "}
               <strong>Solo afecta a la BD local, no a Stripe.</strong>
             </p>
             <div>
               <label
                 htmlFor="extend-dias"
-                className="block text-sm font-medium text-slate-900 mb-1"
+                className="block text-sm font-medium text-[var(--text-dark)] mb-1"
               >
                 Días (1–365)
               </label>
@@ -623,13 +623,13 @@ export default function TenantDetailPage({
                 max={365}
                 value={extendDias}
                 onChange={(e) => setExtendDias(e.target.value)}
-                className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20"
+                className="w-full h-10 rounded-lg border border-[var(--border-strong)] px-3 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20"
               />
             </div>
             <div>
               <label
                 htmlFor="extend-motivo"
-                className="block text-sm font-medium text-slate-900 mb-1"
+                className="block text-sm font-medium text-[var(--text-dark)] mb-1"
               >
                 Motivo (mínimo 10 caracteres)
               </label>
@@ -638,18 +638,18 @@ export default function TenantDetailPage({
                 rows={3}
                 value={extendMotivo}
                 onChange={(e) => setExtendMotivo(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20"
+                className="w-full rounded-lg border border-[var(--border-strong)] px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20"
               />
             </div>
             {actionError && (
-              <p className="text-sm text-red-700">{actionError}</p>
+              <p className="text-sm text-[var(--danger-text)]">{actionError}</p>
             )}
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setModal(null)}
                 disabled={pending}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--text-body)] hover:bg-[var(--muted)] disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -683,31 +683,31 @@ export default function TenantDetailPage({
           aria-modal="true"
           aria-labelledby="cancel-title"
         >
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
+          <div className="bg-[var(--card)] rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                <AlertTriangle className="h-5 w-5 text-red-700" />
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--danger-bg)] flex items-center justify-center">
+                <AlertTriangle className="h-5 w-5 text-[var(--danger-text)]" />
               </div>
               <div className="flex-1">
                 <h2
                   id="cancel-title"
-                  className="text-lg font-semibold text-slate-900"
+                  className="text-lg font-semibold text-[var(--text-dark)]"
                 >
                   Cancelar suscripción
                 </h2>
-                <p className="text-sm text-slate-600 mt-1">
+                <p className="text-sm text-[var(--text-body)] mt-1">
                   Marca la suscripción como cancelada en la BD local.
                 </p>
               </div>
             </div>
-            <div className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+            <div className="px-3 py-2 rounded-lg bg-[var(--warning-bg)] border border-[var(--warning-bg)] text-sm text-[var(--warning-text)]">
               Esto <strong>NO</strong> cancela el cobro en Stripe; cancela
               también en Stripe si aplica.
             </div>
             <div>
               <label
                 htmlFor="cancel-motivo"
-                className="block text-sm font-medium text-slate-900 mb-1"
+                className="block text-sm font-medium text-[var(--text-dark)] mb-1"
               >
                 Motivo (mínimo 10 caracteres)
               </label>
@@ -716,18 +716,18 @@ export default function TenantDetailPage({
                 rows={3}
                 value={cancelMotivo}
                 onChange={(e) => setCancelMotivo(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20"
+                className="w-full rounded-lg border border-[var(--border-strong)] px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20"
               />
             </div>
             {actionError && (
-              <p className="text-sm text-red-700">{actionError}</p>
+              <p className="text-sm text-[var(--danger-text)]">{actionError}</p>
             )}
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setModal(null)}
                 disabled={pending}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--text-body)] hover:bg-[var(--muted)] disabled:opacity-50"
               >
                 Cerrar
               </button>
@@ -742,7 +742,7 @@ export default function TenantDetailPage({
                   );
                   if (ok) setModal(null);
                 }}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 inline-flex items-center gap-1.5"
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-[var(--danger)] text-white hover:bg-[var(--danger-text)] disabled:opacity-50 inline-flex items-center gap-1.5"
               >
                 {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 Cancelar suscripción

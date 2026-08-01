@@ -263,8 +263,8 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">{titulo}</h1>
-        <p className="text-slate-500 text-sm mt-1 max-w-2xl">{descripcion}</p>
+        <h1 className="text-2xl font-bold text-[var(--text-dark)]">{titulo}</h1>
+        <p className="text-[var(--text-muted)] text-sm mt-1 max-w-2xl">{descripcion}</p>
       </div>
 
       <Card>
@@ -281,7 +281,7 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
               />
             </div>
             {datos && (
-              <p className="text-sm text-slate-500 pb-2">
+              <p className="text-sm text-[var(--text-muted)] pb-2">
                 Semana {datos.semana} · {datos.semanaTexto}
               </p>
             )}
@@ -307,16 +307,16 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         {[
-          { label: "Efectivo declarado", valor: eur(totalDeclarado), color: "text-slate-900" },
+          { label: "Efectivo declarado", valor: eur(totalDeclarado), color: "text-[var(--text-dark)]" },
           {
             label: "Sin recoger",
             valor: String(pendientes),
-            color: pendientes ? "text-amber-600" : "text-slate-900",
+            color: pendientes ? "text-[var(--warning-text)]" : "text-[var(--text-dark)]",
           },
           {
             label: "Con descuadre",
             valor: String(descuadres),
-            color: descuadres ? "text-rose-600" : "text-slate-900",
+            color: descuadres ? "text-rose-600" : "text-[var(--text-dark)]",
           },
           {
             label: "Umbral de descuadre",
@@ -326,7 +326,7 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
         ].map((k) => (
           <Card key={k.label}>
             <CardContent className="pt-4 pb-4">
-              <p className="text-sm text-slate-500">{k.label}</p>
+              <p className="text-sm text-[var(--text-muted)]">{k.label}</p>
               <p className={`text-2xl font-bold mt-1 tabular-nums ${k.color}`}>{k.valor}</p>
             </CardContent>
           </Card>
@@ -337,7 +337,7 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
         <Card>
           <CardContent className="pt-4 pb-4 space-y-2">
             {[1, 2].map((i) => (
-              <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />
+              <div key={i} className="h-12 bg-[var(--muted)] rounded animate-pulse" />
             ))}
           </CardContent>
         </Card>
@@ -349,10 +349,10 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
         <Card className="mx-auto max-w-md">
           <CardContent className="p-6 text-center space-y-4">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">
+              <h2 className="text-lg font-semibold text-[var(--text-dark)]">
                 Confirma tu centro de trabajo de hoy
               </h2>
-              <p className="text-sm text-slate-500 mt-1">
+              <p className="text-sm text-[var(--text-muted)] mt-1">
                 {PORQUE_SEDE[datos.sugerida?.motivo ?? "ninguna"]}
               </p>
             </div>
@@ -360,7 +360,7 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
               <Label htmlFor="arqueo-sede">Tienda</Label>
               <select
                 id="arqueo-sede"
-                className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-base"
+                className="mt-1 w-full rounded-md border border-[var(--border)] px-3 py-2 text-base"
                 value={sedeElegida || (datos.sugerida?.sedeId ?? "")}
                 onChange={(e) => setSedeElegida(e.target.value)}
               >
@@ -379,7 +379,7 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
             >
               {confirmandoSede ? "Guardando…" : "Confirmar y ver la caja"}
             </Button>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[var(--text-muted)]">
               Es la misma tienda que confirmas al cerrar tu turno: solo hace falta decirlo
               una vez al día.
             </p>
@@ -388,7 +388,7 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
       ) : (datos?.filas.length ?? 0) === 0 ? (
         <Card>
           <CardContent className="pt-4 pb-4">
-            <p className="text-center py-8 text-slate-400 text-sm">
+            <p className="text-center py-8 text-[var(--text-muted)] text-sm">
               No hay puntos de venta que arquear.
             </p>
           </CardContent>
@@ -400,10 +400,10 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
               <CardContent className="pt-4 pb-4 space-y-3">
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                   <div>
-                    <p className="font-semibold text-slate-900 flex items-center gap-2">
+                    <p className="font-semibold text-[var(--text-dark)] flex items-center gap-2">
                       <Wallet className="h-4 w-4 text-[var(--primary)]" /> {f.sede}
                     </p>
-                    <p className="text-sm text-slate-500 mt-0.5">
+                    <p className="text-sm text-[var(--text-muted)] mt-0.5">
                       {f.estado === "sin_declarar"
                         ? "Todavía nadie ha declarado el efectivo de esta semana."
                         : f.estado === "recogido"
@@ -416,10 +416,10 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold tabular-nums text-slate-900">
+                    <p className="text-2xl font-bold tabular-nums text-[var(--text-dark)]">
                       {f.declarado === null ? "—" : eur(f.declarado)}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-[var(--text-muted)]">
                       {f.esperado === null ? (
                         "Sin acumulado calculable"
                       ) : (
@@ -436,30 +436,30 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                     ha entrado y lo que debería haber. El fondo de cambio no
                     aparece porque no se arquea. */}
                 {f.esperado !== null ? (
-                  <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <div className="rounded-md border border-[var(--border)] bg-[var(--muted)] px-3 py-2 text-sm text-[var(--text-body)] flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span>
                       Venía de{" "}
-                      <span className="tabular-nums font-medium text-slate-800">
+                      <span className="tabular-nums font-medium text-[var(--text-dark)]">
                         {eur(f.arranque?.importe ?? 0)}
                       </span>
                       {f.arranque && (
-                        <span className="text-slate-400"> ({fechaCorta(f.arranque.fecha)})</span>
+                        <span className="text-[var(--text-muted)]"> ({fechaCorta(f.arranque.fecha)})</span>
                       )}
                     </span>
-                    <span className="text-slate-300">+</span>
+                    <span className="text-[var(--text-muted)]">+</span>
                     <span>
                       cobrado{" "}
-                      <span className="tabular-nums font-medium text-slate-800">
+                      <span className="tabular-nums font-medium text-[var(--text-dark)]">
                         {eur(f.cobradoDesdeArranque)}
                       </span>
                     </span>
-                    <span className="text-slate-300">=</span>
-                    <span className="font-semibold text-slate-900">
+                    <span className="text-[var(--text-muted)]">=</span>
+                    <span className="font-semibold text-[var(--text-dark)]">
                       acumulado <span className="tabular-nums">{eur(f.esperado)}</span>
                     </span>
                   </div>
                 ) : (
-                  <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                  <div className="rounded-md border border-[var(--border)] bg-[var(--muted)] px-3 py-2 text-sm text-[var(--text-body)]">
                     {f.sinSaldoMotivo === "arranque_en_incidencia" ? (
                       <>
                         La caja de esta sede quedó pendiente de aclarar
@@ -483,8 +483,8 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                   <div
                     className={
                       f.descuadre
-                        ? "rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 flex items-start gap-2"
-                        : "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 flex items-start gap-2"
+                        ? "rounded-md border border-[var(--warning-bg)] bg-[var(--warning-bg)] px-3 py-2 text-sm text-[var(--warning-text)] flex items-start gap-2"
+                        : "rounded-md border border-[var(--success-bg)] bg-[var(--success-bg)] px-3 py-2 text-sm text-[var(--success-text)] flex items-start gap-2"
                     }
                   >
                     {f.descuadre ? (
@@ -502,7 +502,7 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                   </div>
                 )}
 
-                {f.notas && <p className="text-sm text-slate-600">«{f.notas}»</p>}
+                {f.notas && <p className="text-sm text-[var(--text-body)]">«{f.notas}»</p>}
 
                 {/* Declarar / corregir. Un arqueo recogido ya no se toca.
                     Y solo administración: el arqueo lo prepara quien cierra la
@@ -514,7 +514,7 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                 {/* Al equipo se le dice dónde se hace, para que no busque aquí
                     un botón que ya no está. */}
                 {f.estado === "sin_declarar" && !esAdmin && (
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-[var(--text-muted)]">
                     El arqueo se prepara al cerrar la tienda el último día que abre, desde tu
                     Cierre de turno.
                     Si hay algo que corregir, lo hace administración.
@@ -524,7 +524,7 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                 {f.estado !== "recogido" && esAdmin && (
                   <>
                     {declarando === f.tiendaId ? (
-                      <div className="rounded-md border border-slate-200 p-3 space-y-3">
+                      <div className="rounded-md border border-[var(--border)] p-3 space-y-3">
                         <div className="grid sm:grid-cols-2 gap-3">
                           <div>
                             <Label htmlFor={`efectivo-${f.tiendaId}`}>
@@ -586,8 +586,8 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                     )}
 
                     {firmando !== null && firmando === f.arqueoId && (
-                      <div className="rounded-md border border-slate-200 p-3 space-y-3">
-                        <p className="text-sm text-slate-600">
+                      <div className="rounded-md border border-[var(--border)] p-3 space-y-3">
+                        <p className="text-sm text-[var(--text-body)]">
                           Firma la recogida con tu PIN. Queda registrado que este dinero lo has
                           recogido tú, y se envía el resguardo por correo.
                         </p>
@@ -638,7 +638,7 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
 
       {/* A quién esperar: se anuncia sin exponer nada del PIN. */}
       {(datos?.autorizados.length ?? 0) > 0 && (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-[var(--text-muted)]">
           Pueden recoger efectivo:{" "}
           {datos?.autorizados
             .filter((a) => a.conPin)

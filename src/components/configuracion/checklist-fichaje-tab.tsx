@@ -162,7 +162,7 @@ export function ChecklistFichajeTab() {
   }
 
   if (cargando) {
-    return <div className="h-40 bg-slate-100 rounded-xl animate-pulse" />;
+    return <div className="h-40 bg-[var(--muted)] rounded-xl animate-pulse" />;
   }
 
   return (
@@ -183,10 +183,10 @@ export function ChecklistFichajeTab() {
               onChange={(e) => setActivo(e.target.checked)}
             />
             <span>
-              <strong className="block text-slate-900">
+              <strong className="block text-[var(--text-dark)]">
                 Pedir las comprobaciones al fichar
               </strong>
-              <span className="text-slate-500">
+              <span className="text-[var(--text-muted)]">
                 Antes de registrar la entrada o la salida, el empleado tiene que
                 marcar todos los puntos de su lista. Queda guardado junto al
                 fichaje.
@@ -202,11 +202,11 @@ export function ChecklistFichajeTab() {
           <Card key={tipo}>
             <CardHeader>
               <CardTitle className="text-base">{titulo}</CardTitle>
-              <p className="text-sm text-slate-500">{ayuda}</p>
+              <p className="text-sm text-[var(--text-muted)]">{ayuda}</p>
             </CardHeader>
             <CardContent className="space-y-3">
               {propios.length === 0 && (
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-[var(--text-muted)]">
                   Sin comprobaciones: no se le pedirá nada al fichar la{" "}
                   {tipo === "SALIDA" ? "salida" : "entrada"}.
                 </p>

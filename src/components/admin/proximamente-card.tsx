@@ -37,7 +37,7 @@ export function ProximamenteCard({
             <h1 className="text-2xl font-bold tracking-tight text-[var(--color-text-dark,#0F172A)]">
               {title}
             </h1>
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--warning-bg)] px-2.5 py-0.5 text-xs font-semibold text-[var(--warning-text)]">
               <Sparkles className="h-3 w-3" />
               Próximamente
             </span>
@@ -48,7 +48,7 @@ export function ProximamenteCard({
         </div>
       </header>
 
-      <div className="rounded-xl border border-[var(--color-border,#E2E8F0)] bg-white p-6">
+      <div className="rounded-xl border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] p-6">
         <h2 className="font-semibold text-[var(--color-text-dark,#0F172A)] mb-3">
           Lo que incluirá
         </h2>

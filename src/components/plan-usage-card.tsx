@@ -43,7 +43,7 @@ export function PlanUsageCard() {
           <CardTitle className="text-base">Uso del plan</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-12 animate-pulse rounded bg-gray-100" />
+          <div className="h-12 animate-pulse rounded bg-[var(--muted)]" />
         </CardContent>
       </Card>
     );
@@ -74,23 +74,23 @@ export function PlanUsageCard() {
           return (
             <div key={row.key}>
               <div className="flex items-center justify-between text-sm mb-1">
-                <span className="flex items-center gap-2 text-gray-700">
+                <span className="flex items-center gap-2 text-[var(--text-body)]">
                   <Icon className="h-4 w-4" />
                   {row.label}
                 </span>
-                <span className="font-medium text-gray-900">
+                <span className="font-medium text-[var(--text-dark)]">
                   {current ?? "—"}
                   {max !== null ? ` / ${max}` : " / sin límite"}
                 </span>
               </div>
               {max !== null && (
-                <div className="h-2 rounded bg-gray-100 overflow-hidden">
+                <div className="h-2 rounded bg-[var(--muted)] overflow-hidden">
                   <div
                     className={
                       overLimit
-                        ? "h-full bg-red-500"
+                        ? "h-full bg-[var(--danger)]"
                         : nearLimit
-                          ? "h-full bg-amber-500"
+                          ? "h-full bg-[var(--warning)]"
                           : "h-full bg-indigo-500"
                     }
                     style={{ width: `${Math.min(100, Math.round(ratio * 100))}%` }}
@@ -100,7 +100,7 @@ export function PlanUsageCard() {
               {(nearLimit || overLimit) && (
                 <Link
                   href={`/admin/configuracion/facturacion?upgrade=${row.key}`}
-                  className="mt-2 inline-flex items-center gap-1 text-xs text-amber-700 hover:underline"
+                  className="mt-2 inline-flex items-center gap-1 text-xs text-[var(--warning-text)] hover:underline"
                 >
                   <AlertTriangle className="h-3 w-3" />
                   {overLimit

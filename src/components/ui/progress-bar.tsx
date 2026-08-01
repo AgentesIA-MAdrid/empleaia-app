@@ -16,9 +16,9 @@ export interface ProgressBarProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const FILL: Record<NonNullable<ProgressBarProps["tone"]>, string> = {
   primary: "bg-[var(--primary)]",
-  success: "bg-emerald-500",
-  warning: "bg-amber-500",
-  danger: "bg-red-500",
+  success: "bg-[var(--success)]",
+  warning: "bg-[var(--warning)]",
+  danger: "bg-[var(--danger)]",
 };
 
 export function ProgressBar({
@@ -42,14 +42,14 @@ export function ProgressBar({
       className={cn("flex items-center gap-2", className)}
       {...rest}
     >
-      <div className={cn("flex-1 rounded-full bg-slate-100 overflow-hidden", heightClass)}>
+      <div className={cn("flex-1 rounded-full bg-[var(--muted)] overflow-hidden", heightClass)}>
         <div
           className={cn("h-full rounded-full transition-[width] duration-300", FILL[tone])}
           style={{ width: `${clamped}%` }}
         />
       </div>
       {showLabel && (
-        <span className="text-xs font-medium text-slate-600 tabular-nums shrink-0">
+        <span className="text-xs font-medium text-[var(--text-body)] tabular-nums shrink-0">
           {label ?? `${Math.round(clamped)}%`}
         </span>
       )}

@@ -135,7 +135,7 @@ export function CalendarioTab({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-gray-500 mb-3">
+          <p className="text-sm text-[var(--text-muted)] mb-3">
             Días en que tus empleados deben fichar normalmente.
           </p>
           <div className="flex gap-2 flex-wrap">
@@ -149,7 +149,7 @@ export function CalendarioTab({
                   className={
                     active
                       ? "px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium"
-                      : "px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200"
+                      : "px-4 py-2 rounded-lg bg-[var(--muted)] text-[var(--text-body)] text-sm font-medium hover:bg-gray-200"
                   }
                 >
                   {d.label}
@@ -174,7 +174,7 @@ export function CalendarioTab({
             onChange={(e) => onUpdateConfig({ zonaHoraria: e.target.value })}
             placeholder="Europe/Madrid"
           />
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-[var(--text-muted)] mt-1">
             Solo afecta cómo se muestran fechas en informes y exports. NO
             afecta el cálculo de quotas (sigue en hora del servidor).
           </p>
@@ -255,18 +255,18 @@ export function CalendarioTab({
 
           <div className="space-y-1">
             {festivos.length === 0 && (
-              <p className="text-sm text-gray-400 italic">Sin festivos definidos.</p>
+              <p className="text-sm text-[var(--text-muted)] italic">Sin festivos definidos.</p>
             )}
             {festivos.map((f) => (
               <div
                 key={f.id}
-                className="flex items-center justify-between py-2 border-b border-gray-100"
+                className="flex items-center justify-between py-2 border-b border-[var(--border)]"
               >
                 <div>
-                  <span className="text-sm font-medium text-gray-800">
+                  <span className="text-sm font-medium text-[var(--text-dark)]">
                     {f.nombre}
                   </span>
-                  <span className="text-xs text-gray-500 ml-2">
+                  <span className="text-xs text-[var(--text-muted)] ml-2">
                     {f.fecha.slice(0, 10)} ·{" "}
                     {f.ambito === "local"
                       ? `Local${f.tienda ? ` — ${f.tienda.nombre}` : ""}`
@@ -276,7 +276,7 @@ export function CalendarioTab({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-red-500"
+                  className="text-[var(--danger)]"
                   onClick={() => eliminarFestivo(f.id)}
                 >
                   <Trash2 className="h-3.5 w-3.5" />

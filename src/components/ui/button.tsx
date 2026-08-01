@@ -20,9 +20,9 @@ const buttonVariants = cva(
           "text-white bg-gradient-to-b from-red-500 to-red-700 shadow-sm hover:shadow-md active:translate-y-0",
         // .btn-secondary — glass sutil
         outline:
-          "border border-[var(--primary)]/30 bg-white/80 text-[var(--primary-dark)] backdrop-blur-sm shadow-[var(--shadow-soft-sm)] hover:border-[var(--primary)] hover:bg-white hover:shadow-[var(--shadow-soft)]",
+          "border border-[var(--primary)]/30 bg-[var(--card)]/80 text-[var(--primary-dark)] backdrop-blur-sm shadow-[var(--shadow-soft-sm)] hover:border-[var(--primary)] hover:bg-[var(--card)] hover:shadow-[var(--shadow-soft)]",
         secondary:
-          "bg-[var(--bg-subtle,#F8FAFC)] text-[var(--color-text-dark,#0F172A)] hover:bg-slate-100",
+          "bg-[var(--bg-subtle,#F8FAFC)] text-[var(--color-text-dark,#0F172A)] hover:bg-[var(--muted)]",
         // .btn-ghost — plano
         ghost:
           "font-medium text-[var(--color-text-dark,#0F172A)] hover:bg-[var(--bg-subtle,#F8FAFC)]",

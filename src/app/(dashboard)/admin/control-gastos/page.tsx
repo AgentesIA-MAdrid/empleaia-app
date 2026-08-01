@@ -21,9 +21,9 @@ interface Gasto {
 }
 
 const ESTADO_CLS: Record<Gasto["estado"], string> = {
-  pendiente: "bg-amber-50 text-amber-700",
-  aprobado: "bg-emerald-50 text-emerald-700",
-  rechazado: "bg-red-50 text-red-700",
+  pendiente: "bg-[var(--warning-bg)] text-[var(--warning-text)]",
+  aprobado: "bg-[var(--success-bg)] text-[var(--success-text)]",
+  rechazado: "bg-[var(--danger-bg)] text-[var(--danger-text)]",
 };
 
 export default function ControlGastosPage() {
@@ -80,12 +80,12 @@ export default function ControlGastosPage() {
   if (unavailable) {
     return (
       <div className="p-6">
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-[var(--warning-bg)] bg-[var(--warning-bg)]">
           <CardContent className="pt-4 pb-4 flex items-start gap-3">
-            <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <Lock className="h-5 w-5 text-[var(--warning-text)] shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-900">Control de gastos — plan Pro o superior</p>
-              <p className="text-sm text-amber-800 mt-0.5">Los empleados registran tickets; los managers aprueban.</p>
+              <p className="text-sm font-semibold text-[var(--warning-text)]">Control de gastos — plan Pro o superior</p>
+              <p className="text-sm text-[var(--warning-text)] mt-0.5">Los empleados registran tickets; los managers aprueban.</p>
             </div>
             <Link href="/admin/planes"><Button size="sm">Ver planes</Button></Link>
           </CardContent>
@@ -100,41 +100,41 @@ export default function ControlGastosPage() {
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center"><CreditCard className="h-5 w-5 text-[var(--primary)]" /></div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Control de gastos</h1>
-            <p className="text-slate-500 text-sm mt-0.5">Tickets y reembolsos de empresa</p>
+            <h1 className="text-2xl font-bold text-[var(--text-dark)]">Control de gastos</h1>
+            <p className="text-[var(--text-muted)] text-sm mt-0.5">Tickets y reembolsos de empresa</p>
           </div>
         </div>
         <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" /> Nuevo gasto</Button>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>
+        <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" /></div>
       ) : gastos.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-slate-500 text-sm">Sin gastos registrados.</CardContent></Card>
+        <Card><CardContent className="py-12 text-center text-[var(--text-muted)] text-sm">Sin gastos registrados.</CardContent></Card>
       ) : (
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b border-slate-200">
+                <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
                   <tr>{["Fecha", "Empleado", "Concepto", "Categoría", "Importe", "Estado", ""].map((h) => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">{h}</th>
+                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">{h}</th>
                   ))}</tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {gastos.map((g) => (
-                    <tr key={g.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 text-slate-700">{new Date(g.fecha).toLocaleDateString("es-ES")}</td>
-                      <td className="px-4 py-3 text-slate-700">{g.user.nombre} {g.user.apellidos}</td>
-                      <td className="px-4 py-3 text-slate-900">{g.concepto}</td>
-                      <td className="px-4 py-3 text-slate-500 capitalize">{g.categoria}</td>
-                      <td className="px-4 py-3 font-semibold text-slate-900 tabular-nums">{Number(g.importe).toFixed(2)} {g.moneda}</td>
+                    <tr key={g.id} className="hover:bg-[var(--muted)]">
+                      <td className="px-4 py-3 text-[var(--text-body)]">{new Date(g.fecha).toLocaleDateString("es-ES")}</td>
+                      <td className="px-4 py-3 text-[var(--text-body)]">{g.user.nombre} {g.user.apellidos}</td>
+                      <td className="px-4 py-3 text-[var(--text-dark)]">{g.concepto}</td>
+                      <td className="px-4 py-3 text-[var(--text-muted)] capitalize">{g.categoria}</td>
+                      <td className="px-4 py-3 font-semibold text-[var(--text-dark)] tabular-nums">{Number(g.importe).toFixed(2)} {g.moneda}</td>
                       <td className="px-4 py-3"><span className={`text-xs font-medium px-2 py-0.5 rounded-md ${ESTADO_CLS[g.estado]}`}>{g.estado}</span></td>
                       <td className="px-4 py-3 text-right">
                         {g.estado === "pendiente" && (
                           <div className="flex gap-1 justify-end">
-                            <Button size="sm" variant="ghost" className="text-emerald-600" onClick={() => handleReview(g.id, "aprobado")}><CheckCircle2 className="h-4 w-4" /></Button>
-                            <Button size="sm" variant="ghost" className="text-red-500" onClick={() => handleReview(g.id, "rechazado")}><XCircle className="h-4 w-4" /></Button>
+                            <Button size="sm" variant="ghost" className="text-[var(--success-text)]" onClick={() => handleReview(g.id, "aprobado")}><CheckCircle2 className="h-4 w-4" /></Button>
+                            <Button size="sm" variant="ghost" className="text-[var(--danger)]" onClick={() => handleReview(g.id, "rechazado")}><XCircle className="h-4 w-4" /></Button>
                           </div>
                         )}
                       </td>
@@ -169,7 +169,7 @@ export default function ControlGastosPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Notas</Label><textarea className="mt-1 w-full min-h-[60px] rounded-md border border-slate-200 px-3 py-2 text-sm" value={notas} onChange={(e) => setNotas(e.target.value)} /></div>
+            <div><Label>Notas</Label><textarea className="mt-1 w-full min-h-[60px] rounded-md border border-[var(--border)] px-3 py-2 text-sm" value={notas} onChange={(e) => setNotas(e.target.value)} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>

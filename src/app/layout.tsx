@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
@@ -72,8 +73,17 @@ export default async function RootLayout({
     }
   `;
 
+  // Preferencia de tema. Sin cookie se asume claro: la del sistema no viaja
+  // al servidor, así que la primera visita entra en claro y basta un clic.
+  const tema = (await cookies()).get("empleaia-theme")?.value === "dark" ? "dark" : "light";
+
   return (
-    <html lang="es" className={`${inter.variable} h-full`} suppressHydrationWarning>
+    // El tema sale de una cookie y lo pinta el SERVIDOR. Nada de un script en
+    // el <head> que lo ajuste antes de hidratar: React avisa por consola de
+    // cualquier <script> dentro de su árbol (no lo ejecuta al navegar en
+    // cliente), y con next/script pasa igual. Al venir del servidor no hay
+    // parpadeo ni desajuste de hidratación, que era justo lo que se quería.
+    <html lang="es" data-theme={tema} className={`${inter.variable} h-full`} suppressHydrationWarning>
       <head>
         <style dangerouslySetInnerHTML={{ __html: cssVars }} />
       </head>

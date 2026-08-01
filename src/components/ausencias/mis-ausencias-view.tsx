@@ -40,10 +40,10 @@ interface Ausencia {
 }
 
 const ESTADO_CONFIG = {
-  PENDIENTE: { label: "Pendiente", color: "bg-amber-100 text-amber-700", icon: Clock },
-  APROBADA: { label: "Aprobada", color: "bg-emerald-100 text-emerald-700", icon: CheckCircle },
-  RECHAZADA: { label: "Rechazada", color: "bg-red-100 text-red-700", icon: XCircle },
-  CANCELADA: { label: "Cancelada", color: "bg-slate-100 text-slate-600", icon: X },
+  PENDIENTE: { label: "Pendiente", color: "bg-[var(--warning-bg)] text-[var(--warning-text)]", icon: Clock },
+  APROBADA: { label: "Aprobada", color: "bg-[var(--success-bg)] text-[var(--success-text)]", icon: CheckCircle },
+  RECHAZADA: { label: "Rechazada", color: "bg-[var(--danger-bg)] text-[var(--danger-text)]", icon: XCircle },
+  CANCELADA: { label: "Cancelada", color: "bg-[var(--muted)] text-[var(--text-body)]", icon: X },
 };
 
 const TABS = ["Todas", "Pendiente", "Aprobada", "Rechazada"] as const;
@@ -157,8 +157,8 @@ export function MisAusenciasView() {
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Mis Ausencias</h1>
-          <p className="text-slate-500 text-sm mt-1">Gestiona tus solicitudes de ausencia</p>
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">Mis Ausencias</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-1">Gestiona tus solicitudes de ausencia</p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" /> Nueva Solicitud
@@ -168,7 +168,7 @@ export function MisAusenciasView() {
       {/* Tabs + toggle de vista */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         {vista === "lista" ? (
-          <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+          <div className="flex gap-1 bg-[var(--muted)] p-1 rounded-xl w-fit">
             {TABS.map((tab) => (
               <button
                 key={tab}
@@ -176,8 +176,8 @@ export function MisAusenciasView() {
                 className={cn(
                   "px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
                   tabActiva === tab
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "bg-[var(--card)] text-[var(--text-dark)] shadow-sm"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-body)]"
                 )}
               >
                 {tab}
@@ -190,12 +190,12 @@ export function MisAusenciasView() {
             ))}
           </div>
         ) : <div />}
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
+        <div className="flex gap-1 bg-[var(--muted)] p-1 rounded-xl">
           <button
             onClick={() => setVista("lista")}
             className={cn(
               "px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5",
-              vista === "lista" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              vista === "lista" ? "bg-[var(--card)] text-[var(--text-dark)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-body)]"
             )}
           >
             <List className="h-4 w-4" /> Lista
@@ -204,7 +204,7 @@ export function MisAusenciasView() {
             onClick={() => setVista("calendario")}
             className={cn(
               "px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5",
-              vista === "calendario" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              vista === "calendario" ? "bg-[var(--card)] text-[var(--text-dark)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-body)]"
             )}
           >
             <CalendarDays className="h-4 w-4" /> Calendario
@@ -218,14 +218,14 @@ export function MisAusenciasView() {
       ) : loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-24 bg-slate-100 rounded-xl animate-pulse" />
+            <div key={i} className="h-24 bg-[var(--muted)] rounded-xl animate-pulse" />
           ))}
         </div>
       ) : ausenciasFiltradas.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <Calendar className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500">No tienes ausencias en esta categoría</p>
+            <Calendar className="h-10 w-10 text-[var(--text-muted)] mx-auto mb-3" />
+            <p className="text-[var(--text-muted)]">No tienes ausencias en esta categoría</p>
           </CardContent>
         </Card>
       ) : (
@@ -243,19 +243,19 @@ export function MisAusenciasView() {
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-slate-900">{a.tipoAusencia.nombre}</span>
+                        <span className="font-semibold text-[var(--text-dark)]">{a.tipoAusencia.nombre}</span>
                         <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium", config.color)}>
                           <Icon className="h-3 w-3" />
                           {config.label}
                         </span>
                       </div>
-                      <p className="text-sm text-slate-600 mt-1">
+                      <p className="text-sm text-[var(--text-body)] mt-1">
                         {formatFecha(a.fechaInicio)} — {formatFecha(a.fechaFin)}
-                        <span className="text-slate-400 ml-2">({a.dias} {a.dias === 1 ? "día" : "días"})</span>
+                        <span className="text-[var(--text-muted)] ml-2">({a.dias} {a.dias === 1 ? "día" : "días"})</span>
                       </p>
-                      {a.motivo && <p className="text-xs text-slate-400 mt-1">{a.motivo}</p>}
+                      {a.motivo && <p className="text-xs text-[var(--text-muted)] mt-1">{a.motivo}</p>}
                       {a.comentarioAdmin && (
-                        <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                        <p className="text-xs text-[var(--danger)] mt-1 flex items-center gap-1">
                           <AlertCircle className="h-3 w-3" />
                           {a.comentarioAdmin}
                         </p>
@@ -265,7 +265,7 @@ export function MisAusenciasView() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-slate-400 hover:text-red-500"
+                        className="text-[var(--text-muted)] hover:text-[var(--danger)]"
                         onClick={() => handleCancelar(a.id)}
                       >
                         <X className="h-4 w-4" />
@@ -346,7 +346,7 @@ export function MisAusenciasView() {
             <div>
               <Label>Motivo (opcional)</Label>
               <textarea
-                className="mt-1 w-full rounded-lg border border-slate-200 p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                className="mt-1 w-full rounded-lg border border-[var(--border)] p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                 rows={3}
                 placeholder="Describe el motivo de la ausencia..."
                 value={form.motivo}

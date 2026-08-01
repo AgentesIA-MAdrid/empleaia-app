@@ -17,14 +17,14 @@ export function UpsellCTA({
   message?: string;
 }) {
   return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+    <div className="rounded-xl border border-[var(--warning-bg)] bg-[var(--warning-bg)] p-4 text-[var(--warning-text)]">
       <p className="text-sm">
         {message ??
           "Esta función está disponible en planes superiores o como addon."}
       </p>
       <Link
         href={`/admin/configuracion/facturacion?upgrade=${encodeURIComponent(feature)}`}
-        className="mt-2 inline-block text-sm font-medium text-amber-700 hover:underline"
+        className="mt-2 inline-block text-sm font-medium text-[var(--warning-text)] hover:underline"
       >
         Ver opciones →
       </Link>

@@ -40,7 +40,7 @@ export function ComentarioForm({ denunciaId }: { denunciaId: string }) {
         value={contenido}
         onChange={(e) => setContenido(e.target.value)}
         placeholder="Escribe un comentario o nota de seguimiento…"
-        className="w-full min-h-[80px] rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] resize-y"
+        className="w-full min-h-[80px] rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] resize-y"
       />
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <label className="flex items-center gap-1.5 text-xs text-[var(--color-text-body,#475569)] cursor-pointer">
@@ -60,7 +60,7 @@ export function ComentarioForm({ denunciaId }: { denunciaId: string }) {
           Añadir comentario
         </button>
       </div>
-      {error && <p className="text-xs text-red-700">{error}</p>}
+      {error && <p className="text-xs text-[var(--danger-text)]">{error}</p>}
     </form>
   );
 }

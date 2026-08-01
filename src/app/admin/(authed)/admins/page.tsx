@@ -52,7 +52,7 @@ const ROLE_DESC: Record<Role, string> = {
 
 const ROLE_TONE: Record<Role, string> = {
   SUPER_ADMIN: "bg-indigo-50 text-indigo-800",
-  SUPPORT: "bg-slate-100 text-slate-700",
+  SUPPORT: "bg-[var(--muted)] text-[var(--text-body)]",
 };
 
 function fmtDate(value: string | null): string {
@@ -196,7 +196,7 @@ export default function AdminsPage() {
       {/* Leyenda: qué puede hacer cada rol */}
       <div className="grid gap-3 sm:grid-cols-2">
         {(["SUPER_ADMIN", "SUPPORT"] as Role[]).map((r) => (
-          <div key={r} className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white p-3">
+          <div key={r} className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] p-3">
             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${ROLE_TONE[r]}`}>
               {ROLE_LABEL[r]}
             </span>
@@ -209,8 +209,8 @@ export default function AdminsPage() {
         <div
           className={`flex items-start gap-2 px-4 py-3 rounded-lg text-sm border ${
             actionError
-              ? "bg-red-50 border-red-200 text-red-800"
-              : "bg-emerald-50 border-emerald-200 text-emerald-800"
+              ? "bg-[var(--danger-bg)] border-[var(--danger-bg)] text-[var(--danger-text)]"
+              : "bg-[var(--success-bg)] border-[var(--success-bg)] text-[var(--success-text)]"
           }`}
           role="status"
         >
@@ -230,14 +230,14 @@ export default function AdminsPage() {
       )}
 
       {/* Super-admins */}
-      <div className="bg-white border border-[var(--color-border,#E2E8F0)] rounded-lg overflow-hidden">
+      <div className="bg-[var(--card)] border border-[var(--color-border,#E2E8F0)] rounded-lg overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16 text-[var(--color-text-body,#475569)]">
             <Loader2 className="h-5 w-5 animate-spin mr-2" />
             Cargando administradores…
           </div>
         ) : error ? (
-          <div className="px-4 py-3 text-sm text-red-800 bg-red-50 border-b border-red-200">
+          <div className="px-4 py-3 text-sm text-[var(--danger-text)] bg-[var(--danger-bg)] border-b border-[var(--danger-bg)]">
             {error}
           </div>
         ) : !data || data.admins.length === 0 ? (
@@ -280,7 +280,7 @@ export default function AdminsPage() {
                           value={a.role}
                           disabled={pendingId === a.id}
                           onChange={(e) => void changeRole(a, e.target.value as Role)}
-                          className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-2 py-1 text-xs focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 disabled:opacity-50"
+                          className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-2 py-1 text-xs focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 disabled:opacity-50"
                           title="Cambiar rol"
                         >
                           <option value="SUPER_ADMIN">Administrador completo</option>
@@ -297,11 +297,11 @@ export default function AdminsPage() {
                     </td>
                     <td className="px-4 py-3">
                       {a.active ? (
-                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-800">
+                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-[var(--success-bg)] text-[var(--success-text)]">
                           Activo
                         </span>
                       ) : (
-                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-slate-100 text-slate-600">
+                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-[var(--muted)] text-[var(--text-body)]">
                           Inactivo
                         </span>
                       )}
@@ -315,7 +315,7 @@ export default function AdminsPage() {
                           type="button"
                           disabled={pendingId === a.id}
                           onClick={() => void deactivate(a)}
-                          className="inline-flex items-center gap-1 text-xs text-red-700 hover:text-red-900 disabled:opacity-50"
+                          className="inline-flex items-center gap-1 text-xs text-[var(--danger-text)] hover:text-[var(--danger-text)] disabled:opacity-50"
                           title="Desactivar administrador"
                         >
                           {pendingId === a.id ? (
@@ -346,7 +346,7 @@ export default function AdminsPage() {
             <Clock className="h-4 w-4 text-[var(--color-text-muted,#94A3B8)]" />
             Invitaciones pendientes
           </h2>
-          <div className="bg-white border border-[var(--color-border,#E2E8F0)] rounded-lg overflow-hidden">
+          <div className="bg-[var(--card)] border border-[var(--color-border,#E2E8F0)] rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-[var(--bg-subtle,#F8FAFC)] border-b border-[var(--color-border,#E2E8F0)]">
@@ -454,17 +454,17 @@ function InviteModal({
     >
       <form
         onSubmit={submit}
-        className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4"
+        className="bg-[var(--card)] rounded-lg shadow-xl max-w-md w-full p-6 space-y-4"
       >
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--primary)]/10 flex items-center justify-center">
             <UserPlus className="h-5 w-5 text-[var(--primary)]" />
           </div>
           <div className="flex-1">
-            <h2 id="invite-title" className="text-lg font-semibold text-slate-900">
+            <h2 id="invite-title" className="text-lg font-semibold text-[var(--text-dark)]">
               Invitar administrador
             </h2>
-            <p className="text-sm text-slate-600 mt-1">
+            <p className="text-sm text-[var(--text-body)] mt-1">
               Recibirá un email con un enlace para crear su cuenta. Caduca en 7 días.
             </p>
           </div>
@@ -473,7 +473,7 @@ function InviteModal({
         <div>
           <label
             htmlFor="invite-email"
-            className="block text-sm font-medium text-slate-900 mb-1.5"
+            className="block text-sm font-medium text-[var(--text-dark)] mb-1.5"
           >
             Correo electrónico
           </label>
@@ -485,14 +485,14 @@ function InviteModal({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="nuevo.admin@empleaia.es"
-            className="flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors"
+            className="flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors"
           />
         </div>
 
         <div>
           <label
             htmlFor="invite-role"
-            className="block text-sm font-medium text-slate-900 mb-1.5"
+            className="block text-sm font-medium text-[var(--text-dark)] mb-1.5"
           >
             Rol
           </label>
@@ -500,21 +500,21 @@ function InviteModal({
             id="invite-role"
             value={role}
             onChange={(e) => setRole(e.target.value as Role)}
-            className="flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors"
+            className="flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors"
           >
             <option value="SUPPORT">Soporte (solo lectura)</option>
             <option value="SUPER_ADMIN">Administrador completo</option>
           </select>
         </div>
 
-        {error && <p className="text-sm text-red-700">{error}</p>}
+        {error && <p className="text-sm text-[var(--danger-text)]">{error}</p>}
 
         <div className="flex justify-end gap-2 pt-2">
           <button
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+            className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--text-body)] hover:bg-[var(--muted)] disabled:opacity-50"
           >
             Cancelar
           </button>

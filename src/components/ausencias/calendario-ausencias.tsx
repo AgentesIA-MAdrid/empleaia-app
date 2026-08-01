@@ -179,7 +179,7 @@ export function CalendarioAusencias({
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <h2 className="text-base font-semibold text-slate-900">
+        <h2 className="text-base font-semibold text-[var(--text-dark)]">
           {MESES[month]} {year}
         </h2>
         <Button
@@ -191,18 +191,18 @@ export function CalendarioAusencias({
         </Button>
       </div>
 
-      <div className="rounded-xl border border-slate-200 overflow-hidden">
+      <div className="rounded-xl border border-[var(--border)] overflow-hidden">
         {/* Cabecera días de la semana */}
-        <div className="grid grid-cols-7 bg-slate-50 text-center text-xs font-medium text-slate-500">
+        <div className="grid grid-cols-7 bg-[var(--muted)] text-center text-xs font-medium text-[var(--text-muted)]">
           {DOW.map((d) => (
-            <div key={d} className="py-2 border-b border-slate-200">{d}</div>
+            <div key={d} className="py-2 border-b border-[var(--border)]">{d}</div>
           ))}
         </div>
         {/* Rejilla de días */}
         <div className="grid grid-cols-7">
           {celdas.map((dia, idx) => {
             if (dia === null) {
-              return <div key={`empty-${idx}`} className="min-h-[88px] border-b border-r border-slate-100 bg-slate-50/40" />;
+              return <div key={`empty-${idx}`} className="min-h-[88px] border-b border-r border-[var(--border)] bg-[var(--muted)]/40" />;
             }
             const clave = claveDia(year, month, dia);
             const ausDia = ausenciasDeDia(clave);
@@ -212,13 +212,13 @@ export function CalendarioAusencias({
               <div
                 key={clave}
                 className={cn(
-                  "min-h-[88px] border-b border-r border-slate-100 p-1.5 align-top",
+                  "min-h-[88px] border-b border-r border-[var(--border)] p-1.5 align-top",
                   (idx + 1) % 7 === 0 && "border-r-0",
                 )}
               >
                 <div className={cn(
                   "text-xs font-medium mb-1 inline-flex h-5 w-5 items-center justify-center rounded-full",
-                  esHoy ? "bg-[var(--primary)] text-white" : "text-slate-500",
+                  esHoy ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)]",
                 )}>
                   {dia}
                 </div>
@@ -233,12 +233,12 @@ export function CalendarioAusencias({
                         onClick={() => editable && setFestivoSel(f)}
                         title={`${f.nombre}${f.ambito === "local" && f.tienda ? ` · ${f.tienda.nombre}` : ""}`}
                         className={cn(
-                          "block w-full truncate rounded px-1 py-0.5 text-left text-[10px] font-medium bg-emerald-100 text-emerald-700",
+                          "block w-full truncate rounded px-1 py-0.5 text-left text-[10px] font-medium bg-[var(--success-bg)] text-[var(--success-text)]",
                           editable && "hover:bg-emerald-200 cursor-pointer",
                         )}
                       >
                         🎉 {f.nombre}
-                        {nExcep > 0 && <span className="ml-1 text-emerald-500">−{nExcep}</span>}
+                        {nExcep > 0 && <span className="ml-1 text-[var(--success)]">−{nExcep}</span>}
                       </button>
                     );
                   })}
@@ -263,9 +263,9 @@ export function CalendarioAusencias({
       </div>
 
       {/* Leyenda */}
-      <div className="flex items-center gap-4 text-xs text-slate-500">
+      <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded bg-emerald-100" /> Festivo
+          <span className="inline-block h-3 w-3 rounded bg-[var(--success-bg)]" /> Festivo
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-3 w-3 rounded bg-slate-400 opacity-60" /> Pendiente
@@ -280,7 +280,7 @@ export function CalendarioAusencias({
           </DialogHeader>
           {festivoActual && (
             <div className="space-y-4 py-1">
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-[var(--text-muted)]">
                 {festivoActual.fecha.slice(0, 10)} ·{" "}
                 {festivoActual.ambito === "local"
                   ? `Local${festivoActual.tienda ? ` — ${festivoActual.tienda.nombre}` : ""}`
@@ -288,11 +288,11 @@ export function CalendarioAusencias({
               </p>
 
               <div>
-                <p className="text-sm font-medium text-slate-700 mb-2">
+                <p className="text-sm font-medium text-[var(--text-body)] mb-2">
                   Trabajan este día (festivo quitado)
                 </p>
                 {excepcionesActuales.length === 0 ? (
-                  <p className="text-sm text-slate-400 italic">
+                  <p className="text-sm text-[var(--text-muted)] italic">
                     Nadie: el festivo aplica a toda la plantilla{festivoActual.ambito === "local" ? " de la sede" : ""}.
                   </p>
                 ) : (
@@ -300,13 +300,13 @@ export function CalendarioAusencias({
                     {excepcionesActuales.map((e) => (
                       <div
                         key={e.userId}
-                        className="flex items-center justify-between rounded-md bg-slate-50 px-2 py-1.5 text-sm"
+                        className="flex items-center justify-between rounded-md bg-[var(--muted)] px-2 py-1.5 text-sm"
                       >
-                        <span className="text-slate-700">{nombreEmpleado(e.userId)}</span>
+                        <span className="text-[var(--text-body)]">{nombreEmpleado(e.userId)}</span>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 px-2 text-slate-400 hover:text-emerald-600"
+                          className="h-6 px-2 text-[var(--text-muted)] hover:text-[var(--success-text)]"
                           disabled={procesando}
                           onClick={() => restaurarFestivo(e.userId)}
                           title="Restaurar festivo para esta persona"
@@ -321,7 +321,7 @@ export function CalendarioAusencias({
 
               <div className="flex items-end gap-2">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-slate-700 mb-1">
+                  <p className="text-sm font-medium text-[var(--text-body)] mb-1">
                     Asignar día de trabajo a…
                   </p>
                   <Select value={nuevoUserId} onValueChange={setNuevoUserId}>

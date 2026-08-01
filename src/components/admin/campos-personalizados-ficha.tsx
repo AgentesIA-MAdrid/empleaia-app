@@ -133,7 +133,7 @@ export function CamposPersonalizadosFicha({
           <SlidersHorizontal className="h-4 w-4 text-[var(--primary)]" />
           Campos personalizados
           {!puedeEditar && (
-            <span className="text-xs font-normal text-slate-400">(solo lectura)</span>
+            <span className="text-xs font-normal text-[var(--text-muted)]">(solo lectura)</span>
           )}
         </CardTitle>
       </CardHeader>
@@ -141,13 +141,13 @@ export function CamposPersonalizadosFicha({
         {loading ? (
           <div className="space-y-2">
             {[1, 2].map((i) => (
-              <div key={i} className="h-9 bg-slate-100 rounded animate-pulse" />
+              <div key={i} className="h-9 bg-[var(--muted)] rounded animate-pulse" />
             ))}
           </div>
         ) : (
           <>
             {campos.length === 0 ? (
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-[var(--text-muted)]">
                 No hay campos personalizados.
                 {puedeEditar && " Añade uno para que aparezca en la ficha de todos los empleados."}
               </p>
@@ -162,7 +162,7 @@ export function CamposPersonalizadosFicha({
                           type="button"
                           onClick={() => eliminarCampo(c)}
                           title="Eliminar este campo (afecta a todos los empleados)"
-                          className="text-slate-300 hover:text-red-500 transition-colors"
+                          className="text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -183,7 +183,7 @@ export function CamposPersonalizadosFicha({
             )}
 
             {puedeEditar && (
-              <div className="mt-4 border-t border-slate-100 pt-4">
+              <div className="mt-4 border-t border-[var(--border)] pt-4">
                 {nuevoOpen ? (
                   <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
                     <div className="flex-1">

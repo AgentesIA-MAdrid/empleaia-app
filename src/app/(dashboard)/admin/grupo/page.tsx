@@ -61,10 +61,10 @@ export default function GrupoPage() {
   if (unavailable) {
     return (
       <div className="p-6">
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-[var(--warning-bg)] bg-[var(--warning-bg)]">
           <CardContent className="pt-4 pb-4 flex items-start gap-3">
-            <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="flex-1"><p className="text-sm font-semibold text-amber-900">Multi-empresa — plan Pro o superior</p></div>
+            <Lock className="h-5 w-5 text-[var(--warning-text)] shrink-0 mt-0.5" />
+            <div className="flex-1"><p className="text-sm font-semibold text-[var(--warning-text)]">Multi-empresa — plan Pro o superior</p></div>
             <Link href="/admin/planes"><Button size="sm">Ver planes</Button></Link>
           </CardContent>
         </Card>
@@ -78,29 +78,29 @@ export default function GrupoPage() {
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center"><Building className="h-5 w-5 text-[var(--primary)]" /></div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Grupo empresarial</h1>
-            <p className="text-slate-500 text-sm mt-0.5">Gestiona varios CIFs bajo el mismo tenant</p>
+            <h1 className="text-2xl font-bold text-[var(--text-dark)]">Grupo empresarial</h1>
+            <p className="text-[var(--text-muted)] text-sm mt-0.5">Gestiona varios CIFs bajo el mismo tenant</p>
           </div>
         </div>
         <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" /> Nueva empresa</Button>
       </div>
 
-      {loading ? <Loader2 className="h-6 w-6 animate-spin text-slate-400" /> :
-        empresas.length === 0 ? <Card><CardContent className="py-12 text-center text-slate-500 text-sm">Sin empresas registradas.</CardContent></Card> : (
+      {loading ? <Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" /> :
+        empresas.length === 0 ? <Card><CardContent className="py-12 text-center text-[var(--text-muted)] text-sm">Sin empresas registradas.</CardContent></Card> : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {empresas.map((e) => (
             <Card key={e.id}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">{e.nombre}</CardTitle>
-                <p className="text-xs text-slate-500 mt-0.5 font-mono">{e.cif}</p>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5 font-mono">{e.cif}</p>
               </CardHeader>
-              <CardContent className="space-y-1 text-sm text-slate-600">
+              <CardContent className="space-y-1 text-sm text-[var(--text-body)]">
                 {e.direccion && <p>{e.direccion}{e.codigoPostal ? `, ${e.codigoPostal}` : ""}{e.ciudad ? ` · ${e.ciudad}` : ""}</p>}
                 {e.telefono && <p>{e.telefono}</p>}
                 {e.email && <p>{e.email}</p>}
-                <p className="text-xs text-slate-400 pt-2 border-t border-slate-100">{e._count.usuarios} empleado(s)</p>
+                <p className="text-xs text-[var(--text-muted)] pt-2 border-t border-[var(--border)]">{e._count.usuarios} empleado(s)</p>
                 <div className="flex justify-end">
-                  <Button size="sm" variant="ghost" className="text-red-500" onClick={() => handleDelete(e.id)}><Trash2 className="h-4 w-4" /></Button>
+                  <Button size="sm" variant="ghost" className="text-[var(--danger)]" onClick={() => handleDelete(e.id)}><Trash2 className="h-4 w-4" /></Button>
                 </div>
               </CardContent>
             </Card>

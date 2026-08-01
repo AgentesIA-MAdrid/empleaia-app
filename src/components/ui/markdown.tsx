@@ -117,7 +117,7 @@ export function Markdown({ children, className }: { children: string; className?
         i++;
       }
       blocks.push(
-        <blockquote key={key++} className="my-1.5 border-l-2 border-slate-300 pl-3 text-slate-500">
+        <blockquote key={key++} className="my-1.5 border-l-2 border-[var(--border-strong)] pl-3 text-[var(--text-muted)]">
           {renderInline(buf.join(" "), `q${key}`)}
         </blockquote>,
       );

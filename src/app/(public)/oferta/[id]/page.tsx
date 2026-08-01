@@ -29,11 +29,11 @@ async function OfertaPublicaPage({ params }: Props) {
 
   if (!oferta || oferta.estado !== "abierta") {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
-        <div className="max-w-md w-full rounded-lg border bg-white p-8 text-center">
-          <Briefcase className="h-10 w-10 mx-auto text-slate-300" />
-          <h1 className="mt-3 font-semibold text-slate-900">Oferta no disponible</h1>
-          <p className="mt-2 text-sm text-slate-600">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--muted)]">
+        <div className="max-w-md w-full rounded-lg border bg-[var(--card)] p-8 text-center">
+          <Briefcase className="h-10 w-10 mx-auto text-[var(--text-muted)]" />
+          <h1 className="mt-3 font-semibold text-[var(--text-dark)]">Oferta no disponible</h1>
+          <p className="mt-2 text-sm text-[var(--text-body)]">
             Esta oferta no existe o ya no está aceptando candidaturas.
           </p>
         </div>
@@ -48,7 +48,7 @@ async function OfertaPublicaPage({ params }: Props) {
   const salario = formatSalary(oferta.salarioMinCents, oferta.salarioMaxCents);
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4">
+    <div className="min-h-screen bg-[var(--muted)] py-12 px-4">
       <div className="max-w-3xl mx-auto space-y-6">
         <header className="flex items-start gap-4">
           <div className="flex-shrink-0 h-12 w-12 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center">
@@ -61,7 +61,7 @@ async function OfertaPublicaPage({ params }: Props) {
             <p className="text-sm text-[var(--color-text-body,#475569)] mt-1">
               en <strong>{empresa}</strong>
             </p>
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-600">
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-[var(--text-body)]">
               {oferta.departamento && (
                 <span className="inline-flex items-center gap-1">
                   <Building2 className="h-3.5 w-3.5" />
@@ -75,7 +75,7 @@ async function OfertaPublicaPage({ params }: Props) {
                 </span>
               )}
               {oferta.modalidad && (
-                <span className="capitalize inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs">
+                <span className="capitalize inline-flex items-center gap-1 rounded-full bg-[var(--muted)] px-2 py-0.5 text-xs">
                   {oferta.modalidad}
                 </span>
               )}
@@ -89,28 +89,28 @@ async function OfertaPublicaPage({ params }: Props) {
           </div>
         </header>
 
-        <div className="rounded-lg border bg-white p-6">
+        <div className="rounded-lg border bg-[var(--card)] p-6">
           <h2 className="font-semibold mb-3">Descripción del puesto</h2>
-          <p className="text-sm text-slate-700 whitespace-pre-wrap">
+          <p className="text-sm text-[var(--text-body)] whitespace-pre-wrap">
             {oferta.descripcion}
           </p>
           {oferta.fechaCierre && (
-            <p className="mt-4 text-xs text-amber-700">
+            <p className="mt-4 text-xs text-[var(--warning-text)]">
               Cierra el {new Date(oferta.fechaCierre).toLocaleDateString("es-ES")}
             </p>
           )}
         </div>
 
-        <div className="rounded-lg border bg-white p-6">
+        <div className="rounded-lg border bg-[var(--card)] p-6">
           <h2 className="font-semibold mb-1">Postular para esta oferta</h2>
-          <p className="text-sm text-slate-600 mb-4">
+          <p className="text-sm text-[var(--text-body)] mb-4">
             Rellena el formulario y nos pondremos en contacto contigo si tu
             perfil encaja.
           </p>
           <PostularForm ofertaId={oferta.id} />
         </div>
 
-        <p className="text-center text-xs text-slate-400">
+        <p className="text-center text-xs text-[var(--text-muted)]">
           {empresa} — proceso gestionado con empleaIA
         </p>
       </div>

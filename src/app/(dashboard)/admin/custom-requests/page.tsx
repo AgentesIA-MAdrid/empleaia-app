@@ -21,10 +21,10 @@ interface Peticion {
 }
 
 const ESTADO_CLS: Record<Peticion["estado"], string> = {
-  pendiente: "bg-amber-50 text-amber-700",
+  pendiente: "bg-[var(--warning-bg)] text-[var(--warning-text)]",
   en_proceso: "bg-sky-50 text-sky-700",
-  resuelta: "bg-emerald-50 text-emerald-700",
-  rechazada: "bg-red-50 text-red-700",
+  resuelta: "bg-[var(--success-bg)] text-[var(--success-text)]",
+  rechazada: "bg-[var(--danger-bg)] text-[var(--danger-text)]",
 };
 
 const TIPOS: Record<string, string> = {
@@ -86,10 +86,10 @@ export default function CustomRequestsPage() {
   if (unavailable) {
     return (
       <div className="p-6">
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-[var(--warning-bg)] bg-[var(--warning-bg)]">
           <CardContent className="pt-4 pb-4 flex items-start gap-3">
-            <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="flex-1"><p className="text-sm font-semibold text-amber-900">Peticiones — plan Pro o superior</p></div>
+            <Lock className="h-5 w-5 text-[var(--warning-text)] shrink-0 mt-0.5" />
+            <div className="flex-1"><p className="text-sm font-semibold text-[var(--warning-text)]">Peticiones — plan Pro o superior</p></div>
             <Link href="/admin/planes"><Button size="sm">Ver planes</Button></Link>
           </CardContent>
         </Card>
@@ -103,15 +103,15 @@ export default function CustomRequestsPage() {
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center"><ClipboardList className="h-5 w-5 text-[var(--primary)]" /></div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Peticiones</h1>
-            <p className="text-slate-500 text-sm mt-0.5">Certificados, anticipos, cambios de datos y más</p>
+            <h1 className="text-2xl font-bold text-[var(--text-dark)]">Peticiones</h1>
+            <p className="text-[var(--text-muted)] text-sm mt-0.5">Certificados, anticipos, cambios de datos y más</p>
           </div>
         </div>
         <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" /> Nueva petición</Button>
       </div>
 
-      {loading ? <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div> :
-        peticiones.length === 0 ? <Card><CardContent className="py-12 text-center text-slate-500 text-sm">Sin peticiones.</CardContent></Card> : (
+      {loading ? <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" /></div> :
+        peticiones.length === 0 ? <Card><CardContent className="py-12 text-center text-[var(--text-muted)] text-sm">Sin peticiones.</CardContent></Card> : (
         <div className="space-y-3">
           {peticiones.map((p) => (
             <Card key={p.id}>
@@ -119,15 +119,15 @@ export default function CustomRequestsPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-semibold text-slate-900">{p.titulo}</p>
+                      <p className="font-semibold text-[var(--text-dark)]">{p.titulo}</p>
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-md ${ESTADO_CLS[p.estado]}`}>{p.estado.replace("_", " ")}</span>
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5">{TIPOS[p.tipo] ?? p.tipo} · {p.solicitante.nombre} {p.solicitante.apellidos}</p>
-                    <p className="text-sm text-slate-600 mt-2">{p.descripcion}</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-0.5">{TIPOS[p.tipo] ?? p.tipo} · {p.solicitante.nombre} {p.solicitante.apellidos}</p>
+                    <p className="text-sm text-[var(--text-body)] mt-2">{p.descripcion}</p>
                     {p.respuesta && (
-                      <div className="mt-2 rounded-md bg-slate-50 px-3 py-2 text-sm">
-                        <p className="text-xs text-slate-400 mb-0.5">Respuesta de {p.gestor ? `${p.gestor.nombre} ${p.gestor.apellidos}` : "—"}:</p>
-                        <p className="text-slate-700">{p.respuesta}</p>
+                      <div className="mt-2 rounded-md bg-[var(--muted)] px-3 py-2 text-sm">
+                        <p className="text-xs text-[var(--text-muted)] mb-0.5">Respuesta de {p.gestor ? `${p.gestor.nombre} ${p.gestor.apellidos}` : "—"}:</p>
+                        <p className="text-[var(--text-body)]">{p.respuesta}</p>
                       </div>
                     )}
                   </div>
@@ -153,7 +153,7 @@ export default function CustomRequestsPage() {
               </Select>
             </div>
             <div><Label>Título</Label><Input className="mt-1" value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Necesito certificado de empresa" /></div>
-            <div><Label>Detalle</Label><textarea className="mt-1 w-full min-h-[100px] rounded-md border border-slate-200 px-3 py-2 text-sm" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} /></div>
+            <div><Label>Detalle</Label><textarea className="mt-1 w-full min-h-[100px] rounded-md border border-[var(--border)] px-3 py-2 text-sm" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
@@ -166,12 +166,12 @@ export default function CustomRequestsPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>Gestionar: {respondiendo?.titulo}</DialogTitle></DialogHeader>
           <div className="space-y-3 py-2">
-            <p className="text-sm text-slate-600">{respondiendo?.descripcion}</p>
-            <div><Label>Respuesta</Label><textarea className="mt-1 w-full min-h-[100px] rounded-md border border-slate-200 px-3 py-2 text-sm" value={respuesta} onChange={(e) => setRespuesta(e.target.value)} /></div>
+            <p className="text-sm text-[var(--text-body)]">{respondiendo?.descripcion}</p>
+            <div><Label>Respuesta</Label><textarea className="mt-1 w-full min-h-[100px] rounded-md border border-[var(--border)] px-3 py-2 text-sm" value={respuesta} onChange={(e) => setRespuesta(e.target.value)} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => handleResponder("en_proceso")}>Marcar en proceso</Button>
-            <Button variant="outline" className="text-red-600" onClick={() => handleResponder("rechazada")}>Rechazar</Button>
+            <Button variant="outline" className="text-[var(--danger-text)]" onClick={() => handleResponder("rechazada")}>Rechazar</Button>
             <Button onClick={() => handleResponder("resuelta")}>Resolver</Button>
           </DialogFooter>
         </DialogContent>

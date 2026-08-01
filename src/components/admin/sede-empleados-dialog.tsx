@@ -97,12 +97,12 @@ export function SedeEmpleadosDialog({
 
         {loading ? (
           <div className="py-8 flex justify-center">
-            <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+            <Loader2 className="h-5 w-5 animate-spin text-[var(--text-muted)]" />
           </div>
         ) : (
           <div className="space-y-3 py-1">
             <div className="relative">
-              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
               <Input
                 placeholder="Buscar empleado…"
                 className="pl-9"
@@ -110,31 +110,31 @@ export function SedeEmpleadosDialog({
                 onChange={(e) => setBusqueda(e.target.value)}
               />
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[var(--text-muted)]">
               {seleccionados.size} asignado{seleccionados.size === 1 ? "" : "s"} a esta sede.
               Un empleado puede pertenecer a varias sedes.
             </p>
-            <div className="max-h-[50vh] overflow-y-auto divide-y divide-slate-100 rounded-lg border border-slate-100">
+            <div className="max-h-[50vh] overflow-y-auto divide-y divide-slate-100 rounded-lg border border-[var(--border)]">
               {filtrados.length === 0 ? (
-                <p className="py-8 text-center text-sm text-slate-400">Sin empleados</p>
+                <p className="py-8 text-center text-sm text-[var(--text-muted)]">Sin empleados</p>
               ) : (
                 filtrados.map((e) => (
                   <label
                     key={e.id}
-                    className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 cursor-pointer"
+                    className="flex items-center gap-3 px-3 py-2.5 hover:bg-[var(--muted)] cursor-pointer"
                   >
                     <input
                       type="checkbox"
-                      className="h-4 w-4 rounded border-slate-300 accent-[var(--primary)]"
+                      className="h-4 w-4 rounded border-[var(--border-strong)] accent-[var(--primary)]"
                       checked={seleccionados.has(e.id)}
                       onChange={() => toggle(e.id)}
                     />
                     <EmployeeAvatar nombre={e.nombre} apellidos={e.apellidos} seed={e.id} />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-900 truncate">
+                      <p className="text-sm font-medium text-[var(--text-dark)] truncate">
                         {e.nombre} {e.apellidos}
                       </p>
-                      <p className="text-xs text-slate-500 truncate">
+                      <p className="text-xs text-[var(--text-muted)] truncate">
                         {e.email} · {getLabelRol(e.rol)}
                       </p>
                     </div>

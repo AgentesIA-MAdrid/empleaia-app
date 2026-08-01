@@ -74,7 +74,7 @@ async function DenunciaDetallePage({ params }: Props) {
             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${ESTADO_TONE[denuncia.estado]}`}>
               {ESTADO_LABEL[denuncia.estado]}
             </span>
-            <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+            <span className="inline-flex items-center rounded-full bg-[var(--muted)] px-2.5 py-0.5 text-xs font-medium text-[var(--text-body)]">
               {CATEGORIA_LABEL[denuncia.categoria]}
             </span>
             {denuncia.esAnonima && (
@@ -92,10 +92,10 @@ async function DenunciaDetallePage({ params }: Props) {
             <div
               className={`rounded-lg border px-4 py-3 ${
                 acuse.level === "danger"
-                  ? "border-red-200 bg-red-50"
+                  ? "border-[var(--danger-bg)] bg-[var(--danger-bg)]"
                   : acuse.level === "warning"
-                    ? "border-amber-200 bg-amber-50"
-                    : "border-slate-200 bg-white"
+                    ? "border-[var(--warning-bg)] bg-[var(--warning-bg)]"
+                    : "border-[var(--border)] bg-[var(--card)]"
               }`}
             >
               <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted,#94A3B8)]">
@@ -104,9 +104,9 @@ async function DenunciaDetallePage({ params }: Props) {
               <p
                 className={`text-sm font-semibold mt-0.5 ${
                   acuse.level === "danger"
-                    ? "text-red-800"
+                    ? "text-[var(--danger-text)]"
                     : acuse.level === "warning"
-                      ? "text-amber-800"
+                      ? "text-[var(--warning-text)]"
                       : "text-[var(--color-text-dark,#0F172A)]"
                 }`}
               >
@@ -121,10 +121,10 @@ async function DenunciaDetallePage({ params }: Props) {
             <div
               className={`rounded-lg border px-4 py-3 ${
                 resolucion.level === "danger"
-                  ? "border-red-200 bg-red-50"
+                  ? "border-[var(--danger-bg)] bg-[var(--danger-bg)]"
                   : resolucion.level === "warning"
-                    ? "border-amber-200 bg-amber-50"
-                    : "border-slate-200 bg-white"
+                    ? "border-[var(--warning-bg)] bg-[var(--warning-bg)]"
+                    : "border-[var(--border)] bg-[var(--card)]"
               }`}
             >
               <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted,#94A3B8)]">
@@ -133,9 +133,9 @@ async function DenunciaDetallePage({ params }: Props) {
               <p
                 className={`text-sm font-semibold mt-0.5 ${
                   resolucion.level === "danger"
-                    ? "text-red-800"
+                    ? "text-[var(--danger-text)]"
                     : resolucion.level === "warning"
-                      ? "text-amber-800"
+                      ? "text-[var(--warning-text)]"
                       : "text-[var(--color-text-dark,#0F172A)]"
                 }`}
               >
@@ -151,7 +151,7 @@ async function DenunciaDetallePage({ params }: Props) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <div className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white p-6">
+          <div className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] p-6">
             <h2 className="font-semibold text-[var(--color-text-dark,#0F172A)] mb-3">
               Descripción
             </h2>
@@ -165,7 +165,7 @@ async function DenunciaDetallePage({ params }: Props) {
             )}
           </div>
 
-          <div className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white p-6">
+          <div className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] p-6">
             <h2 className="font-semibold text-[var(--color-text-dark,#0F172A)] mb-3">
               Comentarios y seguimiento
             </h2>
@@ -180,7 +180,7 @@ async function DenunciaDetallePage({ params }: Props) {
                     key={c.id}
                     className={`rounded-lg p-3 ${
                       c.esInterno
-                        ? "bg-amber-50 border border-amber-200"
+                        ? "bg-[var(--warning-bg)] border border-[var(--warning-bg)]"
                         : "bg-[var(--bg-subtle,#F8FAFC)]"
                     }`}
                   >
@@ -189,7 +189,7 @@ async function DenunciaDetallePage({ params }: Props) {
                       <span>·</span>
                       <span>{fechaHoraEnZona(c.createdAt, zonaCliente)}</span>
                       {c.esInterno && (
-                        <span className="ml-auto rounded-full bg-amber-200 px-2 py-0.5 text-amber-900">
+                        <span className="ml-auto rounded-full bg-amber-200 px-2 py-0.5 text-[var(--warning-text)]">
                           Interno
                         </span>
                       )}
@@ -208,7 +208,7 @@ async function DenunciaDetallePage({ params }: Props) {
         </div>
 
         <aside className="space-y-4">
-          <div className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white p-4">
+          <div className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] p-4">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted,#94A3B8)]">
               Informante
             </h3>

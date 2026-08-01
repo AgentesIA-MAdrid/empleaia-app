@@ -256,7 +256,7 @@ export function FaceCapture({ onCapture, pending, captureSnapshot }: Props) {
               </div>
             ) : (
               <div className="text-center text-white space-y-2 px-4">
-                <AlertCircle className="h-8 w-8 mx-auto text-red-400" />
+                <AlertCircle className="h-8 w-8 mx-auto text-[var(--danger)]" />
                 <p className="text-sm">{error}</p>
               </div>
             )}
@@ -279,14 +279,14 @@ export function FaceCapture({ onCapture, pending, captureSnapshot }: Props) {
             />
             <div className="absolute left-2 top-1/2 -translate-y-1/2">
               {turns.a ? (
-                <Check className="h-6 w-6 text-emerald-400" />
+                <Check className="h-6 w-6 text-[var(--success)]" />
               ) : (
                 <ChevronLeft className={`h-7 w-7 text-white ${phase === "capturing" ? "animate-pulse" : "opacity-60"}`} />
               )}
             </div>
             <div className="absolute right-2 top-1/2 -translate-y-1/2">
               {turns.b ? (
-                <Check className="h-6 w-6 text-emerald-400" />
+                <Check className="h-6 w-6 text-[var(--success)]" />
               ) : (
                 <ChevronRight className={`h-7 w-7 text-white ${phase === "capturing" ? "animate-pulse" : "opacity-60"}`} />
               )}
@@ -298,7 +298,7 @@ export function FaceCapture({ onCapture, pending, captureSnapshot }: Props) {
       </div>
 
       {phase !== "error" && phase !== "captured" && (
-        <p className="text-center text-sm text-slate-600">{hint}</p>
+        <p className="text-center text-sm text-[var(--text-body)]">{hint}</p>
       )}
 
       {phase === "ready" && (
@@ -312,13 +312,13 @@ export function FaceCapture({ onCapture, pending, captureSnapshot }: Props) {
         </button>
       )}
       {phase === "capturing" && (
-        <div className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-amber-100 px-5 py-3 text-sm font-medium text-amber-900">
+        <div className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--warning-bg)] px-5 py-3 text-sm font-medium text-[var(--warning-text)]">
           <Loader2 className="h-4 w-4 animate-spin" />
           {hint}
         </div>
       )}
       {phase === "captured" && (
-        <div className="w-full text-center text-sm text-emerald-700 font-medium">
+        <div className="w-full text-center text-sm text-[var(--success-text)] font-medium">
           ✓ {hint} {pending ? "Procesando…" : ""}
         </div>
       )}

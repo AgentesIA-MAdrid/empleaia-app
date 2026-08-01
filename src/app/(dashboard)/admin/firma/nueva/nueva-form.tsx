@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
 const INPUT =
-  "flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20";
+  "flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20";
 
 interface Props {
   documentos: Array<{ id: string; nombre: string }>;
@@ -66,23 +66,23 @@ export function NuevaSolicitudForm({ documentos, empleados }: Props) {
       </label>
       <label className="grid gap-1.5">
         <span className="text-sm font-medium">
-          Mensaje <span className="text-slate-400 font-normal">(opcional)</span>
+          Mensaje <span className="text-[var(--text-muted)] font-normal">(opcional)</span>
         </span>
         <textarea
           name="mensaje"
           maxLength={1000}
           rows={3}
-          className="w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] resize-y"
+          className="w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] resize-y"
         />
       </label>
       <label className="grid gap-1.5">
         <span className="text-sm font-medium">
-          Fecha límite <span className="text-slate-400 font-normal">(opcional)</span>
+          Fecha límite <span className="text-[var(--text-muted)] font-normal">(opcional)</span>
         </span>
         <input type="datetime-local" name="expiraEn" className={INPUT} />
       </label>
 
-      {error && <p className="text-sm text-red-700">{error}</p>}
+      {error && <p className="text-sm text-[var(--danger-text)]">{error}</p>}
 
       <button
         type="submit"

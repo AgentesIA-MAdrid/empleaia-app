@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { ThemeToggle } from "./theme-toggle";
 import { useFeatures } from "@/lib/hooks/use-features";
 import { Lock } from "lucide-react";
 import {
@@ -263,7 +264,7 @@ function getRolColor(rol: string) {
   switch (rol) {
     case "OWNER": return "bg-violet-100 text-violet-700";
     case "MANAGER": return "bg-sky-100 text-sky-700";
-    default: return "bg-emerald-100 text-emerald-700";
+    default: return "bg-[var(--success-bg)] text-[var(--success-text)]";
   }
 }
 
@@ -345,16 +346,16 @@ export function Sidebar({
           href="/admin/planes"
           className={cn(
             "group flex items-center gap-3 rounded-md pl-3 pr-3 py-2 text-sm transition-colors",
-            "text-slate-400 hover:text-slate-700 hover:bg-amber-50",
+            "text-[var(--text-muted)] hover:text-[var(--text-body)] hover:bg-[var(--warning-bg)]",
             collapsed && "justify-center px-2"
           )}
           title={collapsed ? `${item.label} — requiere plan superior` : undefined}
         >
-          <Icon className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-amber-600" />
+          <Icon className="h-4 w-4 shrink-0 text-[var(--text-muted)] group-hover:text-[var(--warning-text)]" />
           {!collapsed && (
             <>
               <span className="flex-1 truncate">{item.label}</span>
-              <span className="inline-flex items-center gap-1 text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded-full font-medium shrink-0">
+              <span className="inline-flex items-center gap-1 text-[10px] bg-[var(--warning-bg)] text-[var(--warning-text)] px-1.5 py-0.5 rounded-full font-medium shrink-0">
                 <Lock className="h-3 w-3" />
                 Plan
               </span>
@@ -371,7 +372,7 @@ export function Sidebar({
           "group relative flex items-center gap-3 rounded-md pl-3 pr-3 py-2 text-sm font-medium transition-colors",
           active
             ? "bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]"
-            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+            : "text-[var(--text-body)] hover:bg-[var(--muted)] hover:text-[var(--text-dark)]",
           collapsed && "justify-center px-2"
         )}
         title={collapsed ? item.label : undefined}
@@ -385,14 +386,14 @@ export function Sidebar({
         <Icon
           className={cn(
             "h-4 w-4 shrink-0 transition-colors",
-            active ? "text-[var(--sidebar-active-text)]" : "text-slate-400 group-hover:text-slate-700"
+            active ? "text-[var(--sidebar-active-text)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-body)]"
           )}
         />
         {!collapsed && (
           <>
             <span className="flex-1 truncate">{item.label}</span>
             {item.badge !== undefined && item.badge > 0 && (
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white leading-none">
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--danger)] px-1 text-xs font-bold text-white leading-none">
                 {item.badge > 99 ? "99+" : item.badge}
               </span>
             )}
@@ -415,14 +416,14 @@ export function Sidebar({
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 flex flex-col bg-[var(--sidebar-bg)] text-slate-700 border-r border-slate-200 transition-all duration-300 overflow-hidden",
+          "fixed inset-y-0 left-0 z-30 flex flex-col bg-[var(--sidebar-bg)] text-[var(--text-body)] border-r border-[var(--border)] transition-all duration-300 overflow-hidden",
           "lg:relative lg:translate-x-0",
           collapsed ? "w-16" : "w-64",
           isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
         {/* Header */}
-        <div className="flex h-16 items-center justify-between px-3 border-b border-slate-200 shrink-0">
+        <div className="flex h-16 items-center justify-between px-3 border-b border-[var(--border)] shrink-0">
           {!collapsed && (
             <div className="flex items-center overflow-hidden">
               {branding?.logo ? (
@@ -450,7 +451,7 @@ export function Sidebar({
           <button
             onClick={() => setCollapsed((c) => !c)}
             className={cn(
-              "hidden lg:flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0",
+              "hidden lg:flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-muted)] hover:text-[var(--text-body)] hover:bg-[var(--muted)] transition-colors shrink-0",
               collapsed && "mx-auto"
             )}
           >
@@ -460,7 +461,7 @@ export function Sidebar({
 
         {/* User info */}
         {!collapsed ? (
-          <div className="px-3 py-3 border-b border-slate-200 shrink-0">
+          <div className="px-3 py-3 border-b border-[var(--border)] shrink-0">
             <div className="flex items-center gap-2">
               <Avatar className="h-8 w-8 shrink-0">
                 <AvatarFallback className="bg-[var(--primary-light)] text-[var(--primary)] text-xs font-semibold">
@@ -468,7 +469,7 @@ export function Sidebar({
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-900 truncate leading-tight">{fullName}</p>
+                <p className="text-sm font-semibold text-[var(--text-dark)] truncate leading-tight">{fullName}</p>
                 <span className={cn("inline-block rounded-full px-2 py-0.5 text-xs font-medium mt-0.5", getRolColor(user.rol))}>
                   {getRolLabel(user.rol)}
                 </span>
@@ -476,7 +477,7 @@ export function Sidebar({
             </div>
           </div>
         ) : (
-          <div className="flex justify-center py-3 border-b border-slate-200 shrink-0">
+          <div className="flex justify-center py-3 border-b border-[var(--border)] shrink-0">
             <Avatar className="h-8 w-8">
               <AvatarFallback className="bg-[var(--primary-light)] text-[var(--primary)] text-xs font-semibold">
                 {getInitials(user.nombre, user.apellidos)}
@@ -517,7 +518,7 @@ export function Sidebar({
                 {!collapsed && (
                   <button
                     onClick={() => toggleSection(section.key)}
-                    className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider hover:text-slate-600 transition-colors"
+                    className="w-full flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider hover:text-[var(--text-body)] transition-colors"
                   >
                     <span>{section.label}</span>
                     {isSectionCollapsed
@@ -538,7 +539,7 @@ export function Sidebar({
         </nav>
 
         {/* Bottom */}
-        <div className="mt-auto border-t border-slate-200 p-2 space-y-0.5 shrink-0">
+        <div className="mt-auto border-t border-[var(--border)] p-2 space-y-0.5 shrink-0">
           <NotificationsBell variant="sidebar" collapsed={collapsed} />
 
           {user.rol === "OWNER" && (
@@ -548,7 +549,7 @@ export function Sidebar({
                 "group relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 isActive("/admin/configuracion")
                   ? "bg-[var(--sidebar-active-bg)] text-[var(--sidebar-active-text)]"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+                  : "text-[var(--text-body)] hover:bg-[var(--muted)] hover:text-[var(--text-dark)]",
                 collapsed && "justify-center px-2"
               )}
               title={collapsed ? "Configuración" : undefined}
@@ -562,22 +563,24 @@ export function Sidebar({
               <Settings
                 className={cn(
                   "h-4 w-4 shrink-0 transition-colors",
-                  isActive("/admin/configuracion") ? "text-[var(--sidebar-active-text)]" : "text-slate-400 group-hover:text-slate-700"
+                  isActive("/admin/configuracion") ? "text-[var(--sidebar-active-text)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-body)]"
                 )}
               />
               {!collapsed && <span className="flex-1 text-left text-sm">Configuración</span>}
             </Link>
           )}
 
+          <ThemeToggle collapsed={collapsed} />
+
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
             className={cn(
-              "group flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors",
+              "group flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-[var(--text-body)] hover:bg-[var(--danger-bg)] hover:text-[var(--danger-text)] transition-colors",
               collapsed && "justify-center px-2"
             )}
             title={collapsed ? "Cerrar sesión" : undefined}
           >
-            <LogOut className="h-4 w-4 shrink-0 text-slate-400 group-hover:text-red-500 transition-colors" />
+            <LogOut className="h-4 w-4 shrink-0 text-[var(--text-muted)] group-hover:text-[var(--danger)] transition-colors" />
             {!collapsed && <span>Cerrar sesión</span>}
           </button>
         </div>

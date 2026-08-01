@@ -34,8 +34,8 @@ interface FichajeEditable {
 }
 
 const ESTADO_INDICATOR: Record<EmpleadoPresencia["estado"], string> = {
-  trabajando: "bg-emerald-500",
-  en_pausa: "bg-amber-500",
+  trabajando: "bg-[var(--success)]",
+  en_pausa: "bg-[var(--warning)]",
   sin_fichar: "bg-slate-300",
   ausente: "bg-red-400",
 };
@@ -119,8 +119,8 @@ export default function PresenciaPage() {
     <div className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Presencia</h1>
-          <p className="text-slate-500 text-sm mt-1 capitalize">
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">Presencia</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-1 capitalize">
             {format(new Date(fechaSeleccionada + "T12:00:00"), "EEEE, d 'de' MMMM yyyy", { locale: es })}
           </p>
         </div>
@@ -146,14 +146,14 @@ export default function PresenciaPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         {[
-          { label: "Total empleados", value: stats.total, color: "text-slate-900" },
-          { label: "Trabajando", value: stats.trabajando, color: "text-emerald-600" },
-          { label: "En pausa", value: stats.enPausa, color: "text-amber-600" },
-          { label: "Sin fichar", value: stats.sinFichar, color: "text-slate-400" },
+          { label: "Total empleados", value: stats.total, color: "text-[var(--text-dark)]" },
+          { label: "Trabajando", value: stats.trabajando, color: "text-[var(--success-text)]" },
+          { label: "En pausa", value: stats.enPausa, color: "text-[var(--warning-text)]" },
+          { label: "Sin fichar", value: stats.sinFichar, color: "text-[var(--text-muted)]" },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="pt-4 pb-4">
-              <p className="text-sm text-slate-500">{s.label}</p>
+              <p className="text-sm text-[var(--text-muted)]">{s.label}</p>
               <p className={cn("text-3xl font-bold mt-1", s.color)}>{s.value}</p>
             </CardContent>
           </Card>
@@ -163,7 +163,7 @@ export default function PresenciaPage() {
       {/* Filtros */}
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
           <Input
             placeholder="Buscar empleado..."
             className="pl-9"
@@ -171,7 +171,7 @@ export default function PresenciaPage() {
             onChange={(e) => setBusqueda(e.target.value)}
           />
         </div>
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+        <div className="flex gap-1 bg-[var(--muted)] p-1 rounded-lg">
           {["todos", "trabajando", "en_pausa", "sin_fichar"].map((f) => (
             <button
               key={f}
@@ -179,8 +179,8 @@ export default function PresenciaPage() {
               className={cn(
                 "px-3 py-1 rounded-md text-sm font-medium transition-all capitalize",
                 filtroEstado === f
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
+                  ? "bg-[var(--card)] text-[var(--text-dark)] shadow-sm"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-body)]"
               )}
             >
               {f === "todos" ? "Todos" : f.replace("_", " ")}
@@ -195,26 +195,26 @@ export default function PresenciaPage() {
           {loading ? (
             <div className="p-6 space-y-3">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-14 bg-slate-100 rounded-lg animate-pulse" />
+                <div key={i} className="h-14 bg-[var(--muted)] rounded-lg animate-pulse" />
               ))}
             </div>
           ) : empleadosFiltrados.length === 0 ? (
-            <div className="py-12 text-center text-slate-400">No se encontraron empleados</div>
+            <div className="py-12 text-center text-[var(--text-muted)]">No se encontraron empleados</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="border-b border-slate-200 bg-slate-50">
+                <thead className="border-b border-[var(--border)] bg-[var(--muted)]">
                   <tr>
-                    <th className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3">Empleado</th>
-                    <th className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3">Estado</th>
-                    <th className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3">Entrada</th>
-                    <th className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3">Horas hoy</th>
-                    <th className="hidden md:table-cell text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3">Fichajes</th>
+                    <th className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-3">Empleado</th>
+                    <th className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-3">Estado</th>
+                    <th className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-3">Entrada</th>
+                    <th className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-3">Horas hoy</th>
+                    <th className="hidden md:table-cell text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-3">Fichajes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {empleadosFiltrados.map((e) => (
-                    <tr key={e.id} className="hover:bg-slate-50 transition-colors">
+                    <tr key={e.id} className="hover:bg-[var(--muted)] transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <div className="relative">
@@ -223,7 +223,7 @@ export default function PresenciaPage() {
                             </div>
                             <span className={cn("absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white", ESTADO_INDICATOR[e.estado])} />
                           </div>
-                          <span className="font-medium text-slate-900 text-sm">
+                          <span className="font-medium text-[var(--text-dark)] text-sm">
                             {e.nombre} {e.apellidos}
                           </span>
                         </div>
@@ -231,16 +231,16 @@ export default function PresenciaPage() {
                       <td className="px-4 py-3">
                         <FichajeStatusPill estado={e.estado} />
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-600">
+                      <td className="px-4 py-3 text-sm text-[var(--text-body)]">
                         {e.horaEntrada ? formatHora(e.horaEntrada) : "—"}
                       </td>
-                      <td className="px-4 py-3 text-sm font-medium text-slate-900">
+                      <td className="px-4 py-3 text-sm font-medium text-[var(--text-dark)]">
                         {e.horasHoy > 0 ? `${e.horasHoy.toFixed(1)}h` : "—"}
                       </td>
                       <td className="hidden md:table-cell px-4 py-3">
                         <div className="flex gap-1 flex-wrap">
                           {e.fichajes.map((f, i) => (
-                            <span key={i} className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md">
+                            <span key={i} className="text-xs bg-[var(--muted)] text-[var(--text-body)] px-1.5 py-0.5 rounded-md">
                               {f.tipo.charAt(0)} {formatHora(f.timestamp)}
                             </span>
                           ))}

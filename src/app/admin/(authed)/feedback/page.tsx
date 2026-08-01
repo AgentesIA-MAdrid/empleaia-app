@@ -49,19 +49,19 @@ interface JobEvent { id: string; phase: string; detail: string | null; created_a
 
 const TIPO_LABEL: Record<Tipo, string> = { bug: "Bug", mejora: "Mejora", pregunta: "Pregunta" };
 const ESTADO_BADGE: Record<Estado, string> = {
-  nuevo: "bg-amber-100 text-amber-700",
+  nuevo: "bg-[var(--warning-bg)] text-[var(--warning-text)]",
   en_revision: "bg-sky-100 text-sky-700",
   en_desarrollo: "bg-indigo-100 text-indigo-700",
-  resuelto: "bg-emerald-100 text-emerald-700",
-  descartado: "bg-slate-100 text-slate-500",
+  resuelto: "bg-[var(--success-bg)] text-[var(--success-text)]",
+  descartado: "bg-[var(--muted)] text-[var(--text-muted)]",
 };
 const JOB_BADGE: Record<JobStatus, string> = {
-  encolado: "bg-slate-100 text-slate-600",
+  encolado: "bg-[var(--muted)] text-[var(--text-body)]",
   ejecutando: "bg-indigo-100 text-indigo-700",
-  pr_abierto: "bg-emerald-100 text-emerald-700",
+  pr_abierto: "bg-[var(--success-bg)] text-[var(--success-text)]",
   desplegado: "bg-teal-100 text-teal-700",
-  sin_cambios: "bg-slate-100 text-slate-600",
-  fallido: "bg-red-100 text-red-700",
+  sin_cambios: "bg-[var(--muted)] text-[var(--text-body)]",
+  fallido: "bg-[var(--danger-bg)] text-[var(--danger-text)]",
 };
 const LIVE: JobStatus[] = ["encolado", "ejecutando"];
 
@@ -135,7 +135,7 @@ export default function AdminFeedbackPage() {
   return (
     <div className="mx-auto max-w-7xl p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Feedback / Soporte</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-dark)]">Feedback / Soporte</h1>
         <Button variant="outline" size="sm" onClick={cargar}><RefreshCw className="mr-2 h-4 w-4" /> Recargar</Button>
       </div>
 
@@ -144,32 +144,32 @@ export default function AdminFeedbackPage() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Buscar (nº, empresa, usuario, texto)…"
-          className="min-w-[16rem] flex-1 rounded-md border border-slate-200 px-3 py-1.5 text-sm"
+          className="min-w-[16rem] flex-1 rounded-md border border-[var(--border)] px-3 py-1.5 text-sm"
         />
-        <select value={fTipo} onChange={(e) => setFTipo(e.target.value)} className="rounded-md border border-slate-200 px-3 py-1.5 text-sm">
+        <select value={fTipo} onChange={(e) => setFTipo(e.target.value)} className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm">
           <option value="">Todos los tipos</option>
           {(["bug", "mejora", "pregunta"] as Tipo[]).map((t) => <option key={t} value={t}>{TIPO_LABEL[t]}</option>)}
         </select>
-        <select value={fEstado} onChange={(e) => setFEstado(e.target.value)} className="rounded-md border border-slate-200 px-3 py-1.5 text-sm">
+        <select value={fEstado} onChange={(e) => setFEstado(e.target.value)} className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm">
           <option value="_activos">Pendientes (sin resueltos ni descartados)</option>
           <option value="_todos">Todos los estados</option>
           {(["nuevo", "en_revision", "en_desarrollo", "resuelto", "descartado"] as Estado[]).map((e) => <option key={e} value={e}>{e}</option>)}
         </select>
-        <select value={fJob} onChange={(e) => setFJob(e.target.value)} className="rounded-md border border-slate-200 px-3 py-1.5 text-sm">
+        <select value={fJob} onChange={(e) => setFJob(e.target.value)} className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm">
           <option value="">Claudia: todos</option>
           <option value="_sin">Sin job</option>
           {(["encolado", "ejecutando", "pr_abierto", "desplegado", "sin_cambios", "fallido"] as JobStatus[]).map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)]">
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-[var(--primary)]" /></div>
         ) : filtrados.length === 0 ? (
-          <p className="py-16 text-center text-slate-400">{tickets.length === 0 ? "No hay tickets." : "Ningún ticket coincide con los filtros."}</p>
+          <p className="py-16 text-center text-[var(--text-muted)]">{tickets.length === 0 ? "No hay tickets." : "Ningún ticket coincide con los filtros."}</p>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="bg-[var(--muted)] text-xs uppercase tracking-wide text-[var(--text-muted)]">
               <tr>
                 <th className="px-4 py-3 text-left">#</th>
                 <th className="px-4 py-3 text-left">Empresa / Usuario</th>
@@ -182,14 +182,14 @@ export default function AdminFeedbackPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtrados.map((t) => (
-                <tr key={t.id} onClick={() => setSel(t)} className="cursor-pointer hover:bg-slate-50">
-                  <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-400">{t.numero != null ? `#${String(t.numero).padStart(4, "0")}` : "—"}</td>
+                <tr key={t.id} onClick={() => setSel(t)} className="cursor-pointer hover:bg-[var(--muted)]">
+                  <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-[var(--text-muted)]">{t.numero != null ? `#${String(t.numero).padStart(4, "0")}` : "—"}</td>
                   <td className="px-4 py-3">
-                    <div className="font-medium text-slate-800">{t.org_nombre || "—"}</div>
-                    <div className="text-xs text-slate-400">{t.user_name || t.user_email || "—"}</div>
+                    <div className="font-medium text-[var(--text-dark)]">{t.org_nombre || "—"}</div>
+                    <div className="text-xs text-[var(--text-muted)]">{t.user_name || t.user_email || "—"}</div>
                   </td>
-                  <td className="px-4 py-3"><span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">{TIPO_LABEL[t.tipo]}</span></td>
-                  <td className="max-w-xs truncate px-4 py-3 text-slate-600">{t.descripcion}</td>
+                  <td className="px-4 py-3"><span className="rounded-full bg-[var(--muted)] px-2 py-0.5 text-xs">{TIPO_LABEL[t.tipo]}</span></td>
+                  <td className="max-w-xs truncate px-4 py-3 text-[var(--text-body)]">{t.descripcion}</td>
                   <td className="px-4 py-3">
                     <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", ESTADO_BADGE[t.estado])}>{t.estado}</span>
                     {(t.estado === "nuevo" || t.estado === "en_revision") && (() => {
@@ -199,11 +199,11 @@ export default function AdminFeedbackPage() {
                         ? ["encolado", "ejecutando", "pr_abierto", "desplegado"].includes(t.ai_job_status)
                         : false;
                       if (t.ultimo_autor === "user" && !claudeActivo)
-                        return <span className="ml-1.5 text-xs font-semibold text-yellow-600">● cliente respondió</span>;
+                        return <span className="ml-1.5 text-xs font-semibold text-[var(--warning-text)]">● cliente respondió</span>;
                       if (t.ultimo_autor === "admin")
                         return <span className="ml-1.5 text-xs font-medium text-orange-500">✓ respondido</span>;
                       if (t.ultimo_autor === null && !claudeActivo)
-                        return <span className="ml-1.5 text-xs text-slate-400">sin responder</span>;
+                        return <span className="ml-1.5 text-xs text-[var(--text-muted)]">sin responder</span>;
                       return null;
                     })()}
                   </td>
@@ -227,14 +227,14 @@ export default function AdminFeedbackPage() {
                           onClick={(e) => { e.stopPropagation(); reintentar(t.id); }}
                           title="Reintentar con Claudia"
                           aria-label="Reintentar con Claudia"
-                          className="inline-flex shrink-0 items-center justify-center rounded-md border border-slate-200 p-1 text-slate-500 hover:bg-slate-50 hover:text-[var(--primary)]"
+                          className="inline-flex shrink-0 items-center justify-center rounded-md border border-[var(--border)] p-1 text-[var(--text-muted)] hover:bg-[var(--muted)] hover:text-[var(--primary)]"
                         >
                           <RefreshCw className="h-3.5 w-3.5" />
                         </button>
                       )}
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-400">{fmt(t.created_at)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-xs text-[var(--text-muted)]">{fmt(t.created_at)}</td>
                 </tr>
               ))}
             </tbody>
@@ -456,17 +456,17 @@ function DetalleTicket({
       <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {ticket.numero != null && <span className="font-mono text-xs text-slate-400">#{String(ticket.numero).padStart(4, "0")}</span>}
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">{TIPO_LABEL[ticket.tipo]}</span>
+            {ticket.numero != null && <span className="font-mono text-xs text-[var(--text-muted)]">#{String(ticket.numero).padStart(4, "0")}</span>}
+            <span className="rounded-full bg-[var(--muted)] px-2 py-0.5 text-xs">{TIPO_LABEL[ticket.tipo]}</span>
             {ticket.org_nombre || "—"}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Metadatos */}
-          <div className="rounded-lg border border-slate-100 bg-slate-50/60 p-3 text-sm">
-            <p className="text-slate-700">{ticket.descripcion}</p>
-            <p className="mt-1 text-xs text-slate-400">{ticket.user_name || ticket.user_email || "—"} · {ticket.pagina} · {fmt(ticket.created_at)}</p>
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--muted)]/60 p-3 text-sm">
+            <p className="text-[var(--text-body)]">{ticket.descripcion}</p>
+            <p className="mt-1 text-xs text-[var(--text-muted)]">{ticket.user_name || ticket.user_email || "—"} · {ticket.pagina} · {fmt(ticket.created_at)}</p>
             {screenshots.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {screenshots.map((id) => (
@@ -510,7 +510,7 @@ function DetalleTicket({
                 {job.status === "pr_abierto" && (
                   <Button
                     size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-700"
+                    className="bg-[var(--success)] hover:bg-[var(--success-text)]"
                     onClick={mergearPr}
                     disabled={busy}
                     title="Mergear el PR (squash) y resolver el ticket"
@@ -520,13 +520,13 @@ function DetalleTicket({
                 )}
               </div>
             )}
-            {job?.error && <p className="mt-2 text-xs text-red-600">{job.error}</p>}
+            {job?.error && <p className="mt-2 text-xs text-[var(--danger-text)]">{job.error}</p>}
             {/* Resumen borrador → publicar */}
             {job?.resumen_cliente && !job.resumen_publicado_at && (
               <div className="mt-3 border-t border-indigo-100 pt-3">
                 <p className="mb-1 text-xs font-medium text-indigo-900">Resumen para el cliente (borrador):</p>
                 <textarea
-                  className="w-full rounded-md border border-indigo-200 bg-white px-3 py-2 text-sm"
+                  className="w-full rounded-md border border-indigo-200 bg-[var(--card)] px-3 py-2 text-sm"
                   rows={3}
                   value={resumenEdit}
                   onChange={(e) => setResumenEdit(e.target.value)}
@@ -538,42 +538,42 @@ function DetalleTicket({
                 <Button size="sm" className="mt-2" onClick={publicarResumen} disabled={busy}>Publicar al cliente</Button>
               </div>
             )}
-            {job?.resumen_publicado_at && <p className="mt-2 text-xs text-emerald-600">Resumen publicado al cliente.</p>}
+            {job?.resumen_publicado_at && <p className="mt-2 text-xs text-[var(--success-text)]">Resumen publicado al cliente.</p>}
           </div>
 
           {/* Hilo */}
           <div className="space-y-2">
             {messages.map((m) => (
-              <div key={m.id} className={cn("rounded-lg px-3 py-2 text-sm", m.internal ? "bg-amber-50" : m.autor === "user" ? "bg-slate-50" : "bg-[var(--primary-light)]")}>
-                <span className="mb-0.5 block text-xs font-medium text-slate-400">
+              <div key={m.id} className={cn("rounded-lg px-3 py-2 text-sm", m.internal ? "bg-[var(--warning-bg)]" : m.autor === "user" ? "bg-[var(--muted)]" : "bg-[var(--primary-light)]")}>
+                <span className="mb-0.5 block text-xs font-medium text-[var(--text-muted)]">
                   {m.is_ai ? "Claudia" : m.autor === "admin" ? "Equipo" : "Usuario"}
-                  {m.internal && <span className="ml-1 rounded bg-amber-200 px-1 text-[10px] text-amber-800">solo equipo</span>}
-                  {!m.internal && m.autor === "admin" && <span className="ml-1 rounded bg-emerald-200 px-1 text-[10px] text-emerald-800">enviado al cliente</span>}
-                  <span className="ml-1 font-normal text-slate-400">
+                  {m.internal && <span className="ml-1 rounded bg-amber-200 px-1 text-[10px] text-[var(--warning-text)]">solo equipo</span>}
+                  {!m.internal && m.autor === "admin" && <span className="ml-1 rounded bg-emerald-200 px-1 text-[10px] text-[var(--success-text)]">enviado al cliente</span>}
+                  <span className="ml-1 font-normal text-[var(--text-muted)]">
                     {new Date(m.created_at).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </span>
-                <Markdown className="text-slate-700 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">{m.cuerpo}</Markdown>
+                <Markdown className="text-[var(--text-body)] [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">{m.cuerpo}</Markdown>
               </div>
             ))}
           </div>
 
           {/* Compositor */}
-          <div className="rounded-lg border border-slate-200 p-3">
+          <div className="rounded-lg border border-[var(--border)] p-3">
             <div className="mb-2 flex gap-1 rounded-md bg-muted p-1 text-sm">
               {([["cliente", "Al cliente"], ["interna", "Nota interna"], ["claude", "A Claudia"]] as const).map(([k, label]) => (
-                <button key={k} onClick={() => setModo(k)} className={cn("flex-1 rounded px-2 py-1 font-medium", modo === k ? "bg-white shadow-sm" : "text-slate-500")}>{label}</button>
+                <button key={k} onClick={() => setModo(k)} className={cn("flex-1 rounded px-2 py-1 font-medium", modo === k ? "bg-[var(--card)] shadow-sm" : "text-[var(--text-muted)]")}>{label}</button>
               ))}
             </div>
             <textarea
-              className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+              className="w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm"
               rows={3}
               placeholder={modo === "claude" ? "Instrucciones extra (opcional). Claudia leerá toda la conversación automáticamente." : modo === "interna" ? "Nota visible solo para el equipo…" : "Respuesta que verá el cliente…"}
               value={composer}
               onChange={(e) => setComposer(e.target.value)}
             />
             {modo === "claude" && (
-              <p className="mt-1 text-xs text-slate-400">Claudia recibe el ticket y todas las respuestas; las instrucciones son opcionales.</p>
+              <p className="mt-1 text-xs text-[var(--text-muted)]">Claudia recibe el ticket y todas las respuestas; las instrucciones son opcionales.</p>
             )}
             <div className="mt-2 flex justify-end">
               <Button size="sm" onClick={enviar} disabled={busy || (modo !== "claude" && !composer.trim())}>
@@ -584,7 +584,7 @@ function DetalleTicket({
           </div>
 
           {/* Acciones de estado */}
-          <div className="flex gap-2 border-t border-slate-100 pt-3">
+          <div className="flex gap-2 border-t border-[var(--border)] pt-3">
             {ticket.estado !== "resuelto" && ticket.estado !== "descartado" && (
               <Button
                 size="sm"
@@ -598,10 +598,10 @@ function DetalleTicket({
                 {ticket.estado === "en_desarrollo" ? "Reenviar a Claudia (implementar)" : "En desarrollo → Claudia"}
               </Button>
             )}
-            <Button size="sm" variant="outline" className="text-emerald-600" onClick={() => cambiarEstado("resuelto")} disabled={busy}>
+            <Button size="sm" variant="outline" className="text-[var(--success-text)]" onClick={() => cambiarEstado("resuelto")} disabled={busy}>
               <CheckCircle2 className="mr-1.5 h-4 w-4" /> Resuelto
             </Button>
-            <Button size="sm" variant="outline" className="text-slate-500" onClick={() => cambiarEstado("descartado")} disabled={busy}>
+            <Button size="sm" variant="outline" className="text-[var(--text-muted)]" onClick={() => cambiarEstado("descartado")} disabled={busy}>
               <XCircle className="mr-1.5 h-4 w-4" /> Descartar
             </Button>
           </div>

@@ -15,7 +15,7 @@ interface InitialConfig {
 }
 
 const INPUT =
-  "flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20";
+  "flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20";
 
 const MODELOS_DEFAULT: Record<string, string[]> = {
   anthropic: ["claude-sonnet-4-6", "claude-haiku-4-5-20251001", "claude-opus-4-7"],
@@ -141,7 +141,7 @@ export function ConfigForm({ initial }: { initial: InitialConfig | null }) {
         <span className="text-sm font-medium">
           API Key{" "}
           {initial && (
-            <span className="text-slate-400 font-normal">
+            <span className="text-[var(--text-muted)] font-normal">
               (opcional — deja vacío para conservar la actual)
             </span>
           )}
@@ -154,16 +154,16 @@ export function ConfigForm({ initial }: { initial: InitialConfig | null }) {
           placeholder={initial ? "•••••••• (se conserva si lo dejas vacío)" : "sk-ant-... / sk-... / AIza..."}
           className={INPUT}
         />
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-[var(--text-muted)]">
           Se cifra con AES-256-GCM antes de guardarse. No se muestra nunca de vuelta.
         </span>
       </label>
 
-      <details className="rounded-lg border bg-slate-50">
-        <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-slate-700">
+      <details className="rounded-lg border bg-[var(--muted)]">
+        <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-[var(--text-body)]">
           Opciones avanzadas
         </summary>
-        <div className="p-4 border-t bg-white grid gap-4">
+        <div className="p-4 border-t bg-[var(--card)] grid gap-4">
           <label className="grid gap-1.5">
             <span className="text-sm font-medium">URL del endpoint (opcional)</span>
             <input
@@ -182,7 +182,7 @@ export function ConfigForm({ initial }: { initial: InitialConfig | null }) {
               rows={5}
               maxLength={10_000}
               placeholder="Sobreescribe las instrucciones por defecto del asistente."
-              className="w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] resize-y"
+              className="w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] resize-y"
             />
           </label>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -196,8 +196,8 @@ export function ConfigForm({ initial }: { initial: InitialConfig | null }) {
         <div
           className={`flex items-start gap-2 rounded-md border px-3 py-2.5 text-sm ${
             testResult.ok
-              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-              : "border-red-200 bg-red-50 text-red-900"
+              ? "border-[var(--success-bg)] bg-[var(--success-bg)] text-[var(--success-text)]"
+              : "border-[var(--danger-bg)] bg-[var(--danger-bg)] text-[var(--danger-text)]"
           }`}
         >
           {testResult.ok ? (
@@ -210,13 +210,13 @@ export function ConfigForm({ initial }: { initial: InitialConfig | null }) {
       )}
 
       {saveOk && (
-        <div className="flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900">
+        <div className="flex items-start gap-2 rounded-md border border-[var(--success-bg)] bg-[var(--success-bg)] px-3 py-2.5 text-sm text-[var(--success-text)]">
           <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
           Configuración guardada.
         </div>
       )}
       {error && (
-        <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-900">
+        <div className="flex items-start gap-2 rounded-md border border-[var(--danger-bg)] bg-[var(--danger-bg)] px-3 py-2.5 text-sm text-[var(--danger-text)]">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
           {error}
         </div>
@@ -236,7 +236,7 @@ export function ConfigForm({ initial }: { initial: InitialConfig | null }) {
             type="button"
             onClick={probar}
             disabled={testingConn || pending}
-            className="inline-flex items-center justify-center gap-2 rounded-lg border bg-white hover:bg-slate-50 px-4 py-2.5 text-sm font-medium disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border bg-[var(--card)] hover:bg-[var(--muted)] px-4 py-2.5 text-sm font-medium disabled:opacity-60"
           >
             {testingConn && <Loader2 className="h-4 w-4 animate-spin" />}
             Probar conexión
@@ -247,7 +247,7 @@ export function ConfigForm({ initial }: { initial: InitialConfig | null }) {
             type="button"
             onClick={borrar}
             disabled={pending}
-            className="ml-auto inline-flex items-center gap-1.5 text-sm text-red-700 hover:text-red-900 disabled:opacity-60"
+            className="ml-auto inline-flex items-center gap-1.5 text-sm text-[var(--danger-text)] hover:text-[var(--danger-text)] disabled:opacity-60"
           >
             <Trash2 className="h-3.5 w-3.5" />
             Borrar configuración

@@ -141,10 +141,10 @@ function tipoLabel(tipo: TipoFichaje): string {
 
 function tipoColor(tipo: TipoFichaje): string {
   const colors: Record<TipoFichaje, string> = {
-    ENTRADA: "bg-emerald-50 text-emerald-800",
-    PAUSA: "bg-amber-50 text-amber-800",
+    ENTRADA: "bg-[var(--success-bg)] text-[var(--success-text)]",
+    PAUSA: "bg-[var(--warning-bg)] text-[var(--warning-text)]",
     VUELTA_PAUSA: "bg-sky-50 text-sky-800",
-    SALIDA: "bg-red-50 text-red-800",
+    SALIDA: "bg-[var(--danger-bg)] text-[var(--danger-text)]",
   };
   return colors[tipo];
 }
@@ -762,9 +762,9 @@ export default function EmpleadoPage() {
         <div className="flex items-center gap-2">
           <span className="relative flex h-3 w-3">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-[var(--success)]" />
           </span>
-          <span className="text-emerald-600 font-semibold text-lg">Trabajando</span>
+          <span className="text-[var(--success-text)] font-semibold text-lg">Trabajando</span>
         </div>
       );
     }
@@ -772,10 +772,10 @@ export default function EmpleadoPage() {
       return (
         <div className="flex items-center gap-2">
           <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500" />
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--warning)] opacity-75" />
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-[var(--warning)]" />
           </span>
-          <span className="text-amber-600 font-semibold text-lg">En pausa</span>
+          <span className="text-[var(--warning-text)] font-semibold text-lg">En pausa</span>
         </div>
       );
     }
@@ -784,7 +784,7 @@ export default function EmpleadoPage() {
         <span className="relative flex h-3 w-3">
           <span className="relative inline-flex rounded-full h-3 w-3 bg-slate-400" />
         </span>
-        <span className="text-slate-500 font-semibold text-lg">Sin fichar</span>
+        <span className="text-[var(--text-muted)] font-semibold text-lg">Sin fichar</span>
       </div>
     );
   }
@@ -793,8 +793,8 @@ export default function EmpleadoPage() {
     if (locationStatus === "idle") return null;
     const configs = {
       checking: { icon: <Loader2 className="h-4 w-4 animate-spin text-sky-500" />, text: "Obteniendo ubicación…", cls: "text-sky-600" },
-      found: { icon: <CheckCircle2 className="h-4 w-4 text-emerald-500" />, text: "Ubicación confirmada", cls: "text-emerald-600" },
-      denied: { icon: <MapPinOff className="h-4 w-4 text-amber-500" />, text: "Ubicación no disponible", cls: "text-amber-600" },
+      found: { icon: <CheckCircle2 className="h-4 w-4 text-[var(--success)]" />, text: "Ubicación confirmada", cls: "text-[var(--success-text)]" },
+      denied: { icon: <MapPinOff className="h-4 w-4 text-[var(--warning)]" />, text: "Ubicación no disponible", cls: "text-[var(--warning-text)]" },
       outside: { icon: <XCircle className="h-4 w-4 text-rose-500" />, text: "Fuera del rango de la sede", cls: "text-rose-600" },
     };
     const c = configs[locationStatus];
@@ -837,10 +837,10 @@ export default function EmpleadoPage() {
     // No tiene sentido renderizar los botones; le obligamos a enrolar.
     if (faceRequired && hasFaceTemplate === false) {
       return (
-        <div className="w-full max-w-md mx-auto rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center space-y-3">
-          <ScanFace className="h-8 w-8 text-amber-600 mx-auto" />
-          <h3 className="font-semibold text-amber-900">Face ID requerido</h3>
-          <p className="text-sm text-amber-800">
+        <div className="w-full max-w-md mx-auto rounded-2xl border border-[var(--warning-bg)] bg-[var(--warning-bg)] p-5 text-center space-y-3">
+          <ScanFace className="h-8 w-8 text-[var(--warning-text)] mx-auto" />
+          <h3 className="font-semibold text-[var(--warning-text)]">Face ID requerido</h3>
+          <p className="text-sm text-[var(--warning-text)]">
             Tu empresa exige reconocimiento facial para fichar. Registra tu rostro
             (solo se guarda un vector cifrado, nunca tu foto) y vuelve aquí.
           </p>
@@ -862,7 +862,7 @@ export default function EmpleadoPage() {
           disabled={isLoading}
           className={cn(
             "w-full max-w-xs mx-auto flex items-center justify-center gap-3 rounded-2xl py-6 text-white text-2xl font-bold shadow-lg transition-all duration-200",
-            "bg-emerald-500 hover:bg-emerald-600 active:scale-95",
+            "bg-[var(--success)] hover:bg-[var(--success)] active:scale-95",
             isLoading && "opacity-60 cursor-not-allowed"
           )}
         >
@@ -884,7 +884,7 @@ export default function EmpleadoPage() {
             disabled={isLoading}
             className={cn(
               "flex-1 flex flex-col items-center justify-center gap-2 rounded-2xl py-5 text-white font-bold shadow-lg transition-all duration-200",
-              "bg-amber-500 hover:bg-amber-600 active:scale-95",
+              "bg-[var(--warning)] hover:bg-amber-600 active:scale-95",
               isLoading && "opacity-60 cursor-not-allowed"
             )}
           >
@@ -923,7 +923,7 @@ export default function EmpleadoPage() {
           disabled={isLoading}
           className={cn(
             "flex-1 flex flex-col items-center justify-center gap-2 rounded-2xl py-5 text-white font-bold shadow-lg transition-all duration-200",
-            "bg-emerald-500 hover:bg-emerald-600 active:scale-95",
+            "bg-[var(--success)] hover:bg-[var(--success)] active:scale-95",
             isLoading && "opacity-60 cursor-not-allowed"
           )}
         >
@@ -959,7 +959,7 @@ export default function EmpleadoPage() {
   if (loadingEstado) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-4 text-slate-500">
+        <div className="flex flex-col items-center gap-4 text-[var(--text-muted)]">
           <Loader2 className="h-10 w-10 animate-spin text-[var(--primary)]" />
           <p className="text-sm">Cargando estado de fichaje…</p>
         </div>
@@ -973,17 +973,17 @@ export default function EmpleadoPage() {
       <Card
         className={cn(
           "overflow-hidden border-2 transition-colors duration-500",
-          estado === "trabajando" && "border-emerald-200",
-          estado === "en_pausa" && "border-amber-200",
-          estado === "sin_fichar" && "border-slate-200"
+          estado === "trabajando" && "border-[var(--success-bg)]",
+          estado === "en_pausa" && "border-[var(--warning-bg)]",
+          estado === "sin_fichar" && "border-[var(--border)]"
         )}
       >
         {/* Gradient accent bar */}
         <div
           className={cn(
             "h-2 w-full transition-colors duration-500",
-            estado === "trabajando" && "bg-emerald-500",
-            estado === "en_pausa" && "bg-amber-500",
+            estado === "trabajando" && "bg-[var(--success)]",
+            estado === "en_pausa" && "bg-[var(--warning)]",
             estado === "sin_fichar" && "bg-[var(--primary)]"
           )}
         />
@@ -991,7 +991,7 @@ export default function EmpleadoPage() {
         <CardContent className="p-8 space-y-6">
           {/* Date */}
           <div className="text-center">
-            <p className="text-slate-500 text-sm font-medium tracking-wide uppercase">
+            <p className="text-[var(--text-muted)] text-sm font-medium tracking-wide uppercase">
               {formatFechaLarga(now)}
             </p>
           </div>
@@ -1001,7 +1001,7 @@ export default function EmpleadoPage() {
             <div className="inline-flex items-center justify-center gap-2 mb-1">
               <Clock className="h-6 w-6 text-[var(--primary)]" />
             </div>
-            <p className="text-5xl sm:text-6xl lg:text-7xl font-mono font-bold tracking-tight text-slate-900 tabular-nums">
+            <p className="text-5xl sm:text-6xl lg:text-7xl font-mono font-bold tracking-tight text-[var(--text-dark)] tabular-nums">
               {formatHora(now)}
             </p>
           </div>
@@ -1010,7 +1010,7 @@ export default function EmpleadoPage() {
           <div className="flex items-center justify-between px-2">
             <EstadoBadge />
             {minutosHoy > 0 && (
-              <span className="text-sm text-slate-500 font-medium">
+              <span className="text-sm text-[var(--text-muted)] font-medium">
                 {minutosATexto(minutosHoy)}
               </span>
             )}
@@ -1018,14 +1018,14 @@ export default function EmpleadoPage() {
 
           {/* Tienda */}
           {tiendaNombre && (
-            <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 rounded-md px-3 py-2">
+            <div className="flex items-center gap-2 text-sm text-[var(--text-body)] bg-[var(--muted)] rounded-md px-3 py-2">
               <Store className="h-4 w-4 text-[var(--primary)] shrink-0" />
               <span>{tiendaNombre}</span>
             </div>
           )}
 
           {/* Divider */}
-          <div className="border-t border-slate-200" />
+          <div className="border-t border-[var(--border)]" />
 
           {/* Action buttons (con gate por device) */}
           <DeviceGatedFichaje>
@@ -1047,11 +1047,11 @@ export default function EmpleadoPage() {
         <Card>
           <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="flex-1 min-w-0">
-              <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+              <h2 className="font-semibold text-[var(--text-dark)] flex items-center gap-2">
                 <ClipboardList className="h-4 w-4 text-[var(--primary)] shrink-0" />
                 Cierre de turno
               </h2>
-              <p className="text-sm text-slate-500 mt-1">
+              <p className="text-sm text-[var(--text-muted)] mt-1">
                 {accesoCierre.cerrado
                   ? "Ya has cerrado tu turno de hoy. Puedes repasar lo que registraste."
                   : accesoCierre.empezado
@@ -1064,7 +1064,7 @@ export default function EmpleadoPage() {
               className={cn(
                 "inline-flex items-center justify-center gap-2 rounded-lg px-5 h-11 text-sm font-semibold shrink-0 transition-colors",
                 accesoCierre.cerrado
-                  ? "border border-slate-200 text-slate-700 hover:bg-slate-50"
+                  ? "border border-[var(--border)] text-[var(--text-body)] hover:bg-[var(--muted)]"
                   : "bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white",
               )}
             >
@@ -1083,8 +1083,8 @@ export default function EmpleadoPage() {
       {fichajesHoy.length > 0 && (
         <Card>
           <CardContent className="p-0">
-            <div className="px-6 py-4 border-b border-slate-200">
-              <h2 className="font-semibold text-sm text-slate-500 uppercase tracking-wide">
+            <div className="px-6 py-4 border-b border-[var(--border)]">
+              <h2 className="font-semibold text-sm text-[var(--text-muted)] uppercase tracking-wide">
                 Registros de hoy
               </h2>
             </div>
@@ -1101,7 +1101,7 @@ export default function EmpleadoPage() {
                       {tipoLabel(f.tipo)}
                     </span>
                   </div>
-                  <span className="font-mono text-sm font-medium text-slate-900">
+                  <span className="font-mono text-sm font-medium text-[var(--text-dark)]">
                     {formatHoraCorta(f.timestamp)}
                   </span>
                 </li>
@@ -1117,15 +1117,15 @@ export default function EmpleadoPage() {
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+          <div className="bg-[var(--card)] rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-start justify-between">
               <h2 className="font-semibold text-lg flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-amber-600" />
+                <MapPin className="h-5 w-5 text-[var(--warning-text)]" />
                 Estás fuera de tu sede
               </h2>
               <button
                 onClick={() => setFueraSede(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-[var(--text-muted)] hover:text-[var(--text-body)]"
                 aria-label="Cerrar"
                 disabled={enviandoFueraSede}
               >
@@ -1138,12 +1138,12 @@ export default function EmpleadoPage() {
               todas formas explicando el motivo: quedará pendiente de aprobación por tu responsable.
             </p>
             <div>
-              <label htmlFor="motivo-fuera-sede" className="text-sm font-medium text-slate-800">
+              <label htmlFor="motivo-fuera-sede" className="text-sm font-medium text-[var(--text-dark)]">
                 Motivo
               </label>
               <textarea
                 id="motivo-fuera-sede"
-                className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                className="mt-1 w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                 rows={3}
                 value={motivoFueraSede}
                 onChange={(e) => setMotivoFueraSede(e.target.value)}
@@ -1169,17 +1169,17 @@ export default function EmpleadoPage() {
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+          <div className="bg-[var(--card)] rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-start justify-between">
               <h2 className="font-semibold text-lg flex items-center gap-2">
-                <Clock className="h-5 w-5 text-amber-600" />
+                <Clock className="h-5 w-5 text-[var(--warning-text)]" />
                 {fueraHorario.motivo === "antes"
                   ? "Tu turno todavía no ha empezado"
                   : "Tu turno ya ha terminado"}
               </h2>
               <button
                 onClick={() => setFueraHorario(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-[var(--text-muted)] hover:text-[var(--text-body)]"
                 aria-label="Cerrar"
                 disabled={enviandoFueraHorario}
               >
@@ -1232,12 +1232,12 @@ export default function EmpleadoPage() {
             )}
             {fueraHorario.ajustable && (
             <div>
-              <label htmlFor="motivo-fuera-horario" className="text-sm font-medium text-slate-800">
-                Motivo <span className="font-normal text-slate-400">(opcional)</span>
+              <label htmlFor="motivo-fuera-horario" className="text-sm font-medium text-[var(--text-dark)]">
+                Motivo <span className="font-normal text-[var(--text-muted)]">(opcional)</span>
               </label>
               <textarea
                 id="motivo-fuera-horario"
-                className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                className="mt-1 w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                 rows={3}
                 value={motivoFueraHorario}
                 onChange={(e) => setMotivoFueraHorario(e.target.value)}
@@ -1275,7 +1275,7 @@ export default function EmpleadoPage() {
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+          <div className="bg-[var(--card)] rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-start justify-between">
               <h2 className="font-semibold text-lg flex items-center gap-2">
                 <ClipboardCheck className="h-5 w-5 text-[var(--primary)]" />
@@ -1283,7 +1283,7 @@ export default function EmpleadoPage() {
               </h2>
               <button
                 onClick={() => setPendingChecklistTipo(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-[var(--text-muted)] hover:text-[var(--text-body)]"
                 aria-label="Cerrar"
               >
                 <XIcon className="h-5 w-5" />
@@ -1309,13 +1309,13 @@ export default function EmpleadoPage() {
                     abrir (ticket 7ab2c5d9). Va primero porque es lo primero que
                     hace. */}
                 {fondoCaja && (
-                  <div className="rounded-md border border-sky-300 bg-white px-2.5 py-2">
+                  <div className="rounded-md border border-sky-300 bg-[var(--card)] px-2.5 py-2">
                     {fondoCaja.incidencia ? (
                       <>
-                        <p className="text-sm font-semibold text-amber-700">
+                        <p className="text-sm font-semibold text-[var(--warning-text)]">
                           Caja pendiente de aclarar
                         </p>
-                        <p className="text-xs text-amber-800 mt-0.5">{fondoCaja.incidencia}</p>
+                        <p className="text-xs text-[var(--warning-text)] mt-0.5">{fondoCaja.incidencia}</p>
                       </>
                     ) : (
                       <p className="text-sm text-sky-900">
@@ -1373,7 +1373,7 @@ export default function EmpleadoPage() {
                             href={`/api/cierre-turno/adjuntos/${a.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 rounded-md border border-sky-300 bg-white px-2 py-1 text-xs font-medium text-sky-800 hover:bg-sky-100"
+                            className="inline-flex items-center gap-1.5 rounded-md border border-sky-300 bg-[var(--card)] px-2 py-1 text-xs font-medium text-sky-800 hover:bg-sky-100"
                           >
                             <Paperclip className="h-3.5 w-3.5" />
                             {a.tipo === "stock" ? "Stock" : a.tipo === "tpv" ? "TPV" : a.tipo === "gasto" ? "Gasto" : a.nombre}
@@ -1386,7 +1386,7 @@ export default function EmpleadoPage() {
                       </p>
                     )}
                     {!cierreAnterior.caja.confirmada && (
-                      <p className="text-xs text-amber-700">
+                      <p className="text-xs text-[var(--warning-text)]">
                         Su cierre de caja quedó sin confirmar.
                       </p>
                     )}
@@ -1410,8 +1410,8 @@ export default function EmpleadoPage() {
                     className={cn(
                       "flex items-start gap-3 rounded-lg border p-3 text-sm cursor-pointer transition-colors",
                       checksMarcados[item.id]
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                        : "border-slate-200 hover:bg-slate-50",
+                        ? "border-[var(--success-bg)] bg-[var(--success-bg)] text-[var(--success-text)]"
+                        : "border-[var(--border)] hover:bg-[var(--muted)]",
                     )}
                   >
                     <input
@@ -1453,7 +1453,7 @@ export default function EmpleadoPage() {
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+          <div className="bg-[var(--card)] rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-start justify-between">
               <h2 className="font-semibold text-lg flex items-center gap-2">
                 <ScanFace className="h-5 w-5 text-[var(--primary)]" />
@@ -1461,7 +1461,7 @@ export default function EmpleadoPage() {
               </h2>
               <button
                 onClick={() => { setPendingFaceTipo(null); setFaceError(null); }}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-[var(--text-muted)] hover:text-[var(--text-body)]"
                 aria-label="Cerrar"
                 disabled={faceVerifying}
               >
@@ -1478,13 +1478,13 @@ export default function EmpleadoPage() {
               onCapture={(emb, snap) => void handleFaceCapture(emb, snap)}
             />
             {faceSavePhoto && (
-              <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+              <p className="text-[11px] text-[var(--warning-text)] bg-[var(--warning-bg)] border border-[var(--warning-bg)] rounded-md px-3 py-2">
                 Tu empresa guarda una foto cifrada del momento del fichaje para auditoría.
                 Solo accede personal autorizado.
               </p>
             )}
             {faceError && (
-              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+              <div className="rounded-md border border-[var(--danger-bg)] bg-[var(--danger-bg)] px-3 py-2 text-sm text-[var(--danger-text)]">
                 {faceError}
               </div>
             )}

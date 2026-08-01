@@ -36,7 +36,7 @@ async function PerfilPage() {
         </div>
       </header>
 
-      <div className="rounded-xl border border-[var(--color-border,#E2E8F0)] bg-white p-6">
+      <div className="rounded-xl border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] p-6">
         <PerfilForm empleado={empleado} />
       </div>
     </div>

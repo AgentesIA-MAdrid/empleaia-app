@@ -58,29 +58,29 @@ async function CanalDenunciasPage() {
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white p-4">
+        <div className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] p-4">
           <p className="text-xs font-medium text-[var(--color-text-muted,#94A3B8)] uppercase">Total</p>
           <p className="text-2xl font-bold mt-1 text-[var(--color-text-dark,#0F172A)]">{denuncias.length}</p>
         </div>
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <p className="text-xs font-medium text-amber-700 uppercase">Abiertas</p>
-          <p className="text-2xl font-bold mt-1 text-amber-900">{totalAbiertas}</p>
+        <div className="rounded-lg border border-[var(--warning-bg)] bg-[var(--warning-bg)] p-4">
+          <p className="text-xs font-medium text-[var(--warning-text)] uppercase">Abiertas</p>
+          <p className="text-2xl font-bold mt-1 text-[var(--warning-text)]">{totalAbiertas}</p>
         </div>
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-          <p className="text-xs font-medium text-red-700 uppercase">Pendientes de acuse</p>
-          <p className="text-2xl font-bold mt-1 text-red-900">{totalSinAcuse}</p>
+        <div className="rounded-lg border border-[var(--danger-bg)] bg-[var(--danger-bg)] p-4">
+          <p className="text-xs font-medium text-[var(--danger-text)] uppercase">Pendientes de acuse</p>
+          <p className="text-2xl font-bold mt-1 text-[var(--danger-text)]">{totalSinAcuse}</p>
         </div>
       </div>
 
       {denuncias.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-[var(--color-border,#E2E8F0)] bg-white p-12 text-center">
-          <ShieldAlert className="h-10 w-10 mx-auto text-slate-300" />
+        <div className="rounded-lg border border-dashed border-[var(--color-border,#E2E8F0)] bg-[var(--card)] p-12 text-center">
+          <ShieldAlert className="h-10 w-10 mx-auto text-[var(--text-muted)]" />
           <p className="mt-3 text-sm text-[var(--color-text-body,#475569)]">
             Aún no hay denuncias registradas en el canal.
           </p>
         </div>
       ) : (
-        <div className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white overflow-hidden">
+        <div className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] overflow-hidden">
           <table className="w-full">
             <thead className="bg-[var(--bg-subtle,#F8FAFC)] border-b border-[var(--color-border,#E2E8F0)]">
               <tr>
@@ -126,16 +126,16 @@ async function CanalDenunciasPage() {
                     </td>
                     <td className="px-4 py-3 text-sm">
                       {d.acuseReciboAt ? (
-                        <span className="text-emerald-700">
+                        <span className="text-[var(--success-text)]">
                           ✓ {new Date(d.acuseReciboAt).toLocaleDateString("es-ES")}
                         </span>
                       ) : (
                         <span
                           className={
                             acuse?.level === "danger"
-                              ? "text-red-700 font-medium"
+                              ? "text-[var(--danger-text)] font-medium"
                               : acuse?.level === "warning"
-                                ? "text-amber-700 font-medium"
+                                ? "text-[var(--warning-text)] font-medium"
                                 : "text-[var(--color-text-muted,#94A3B8)]"
                           }
                         >
@@ -145,16 +145,16 @@ async function CanalDenunciasPage() {
                     </td>
                     <td className="px-4 py-3 text-sm">
                       {d.resolucionAt ? (
-                        <span className="text-emerald-700">
+                        <span className="text-[var(--success-text)]">
                           ✓ {new Date(d.resolucionAt).toLocaleDateString("es-ES")}
                         </span>
                       ) : (
                         <span
                           className={
                             resolucion?.level === "danger"
-                              ? "text-red-700 font-medium"
+                              ? "text-[var(--danger-text)] font-medium"
                               : resolucion?.level === "warning"
-                                ? "text-amber-700 font-medium"
+                                ? "text-[var(--warning-text)] font-medium"
                                 : "text-[var(--color-text-muted,#94A3B8)]"
                           }
                         >

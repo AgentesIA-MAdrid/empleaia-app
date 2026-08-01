@@ -6,7 +6,7 @@ import { Loader2, ShieldCheck, Eraser } from "lucide-react";
 import { validarDni } from "@/lib/firmas/dni";
 
 const INPUT =
-  "flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20";
+  "flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20";
 
 /**
  * Formulario de firma manuscrita: el empleado confirma que ha leído el
@@ -106,12 +106,12 @@ export function FirmarForm({
 
   return (
     <div className="space-y-4">
-      <label className="flex items-start gap-2.5 text-sm text-slate-700">
+      <label className="flex items-start gap-2.5 text-sm text-[var(--text-body)]">
         <input
           type="checkbox"
           checked={leido}
           onChange={(e) => setLeido(e.target.checked)}
-          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[var(--primary)] focus:ring-[var(--primary)]"
+          className="mt-0.5 h-4 w-4 rounded border-[var(--border-strong)] text-[var(--primary)] focus:ring-[var(--primary)]"
         />
         <span>He leído el documento y estoy de acuerdo con su contenido.</span>
       </label>
@@ -145,7 +145,7 @@ export function FirmarForm({
           <button
             type="button"
             onClick={borrar}
-            className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-[var(--primary)]"
+            className="inline-flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--primary)]"
           >
             <Eraser className="h-3.5 w-3.5" /> Borrar
           </button>
@@ -158,18 +158,18 @@ export function FirmarForm({
           onPointerMove={mover}
           onPointerUp={terminar}
           onPointerLeave={terminar}
-          className="w-full touch-none rounded-lg border border-dashed border-slate-300 bg-slate-50"
+          className="w-full touch-none rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--muted)]"
         />
-        <span className="text-xs text-slate-400">Dibuja tu firma con el ratón o el dedo.</span>
+        <span className="text-xs text-[var(--text-muted)]">Dibuja tu firma con el ratón o el dedo.</span>
       </div>
 
-      {error && <p className="text-sm text-red-700">{error}</p>}
+      {error && <p className="text-sm text-[var(--danger-text)]">{error}</p>}
 
       <button
         type="button"
         disabled={pending}
         onClick={firmar}
-        className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-lg bg-[var(--success)] hover:bg-[var(--success-text)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm disabled:opacity-60"
       >
         {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
         {pending ? "Firmando…" : "Firmar ahora"}

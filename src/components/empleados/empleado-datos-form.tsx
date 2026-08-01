@@ -71,9 +71,9 @@ const ESTADOS_CIVILES = [
 const GENEROS = ["Femenino", "Masculino", "No binario", "Prefiero no decirlo"];
 
 const INPUT =
-  "flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20";
-const LABEL = "text-sm font-medium text-slate-700";
-const SECTION = "text-base font-semibold text-slate-900";
+  "flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20";
+const LABEL = "text-sm font-medium text-[var(--text-body)]";
+const SECTION = "text-base font-semibold text-[var(--text-dark)]";
 
 // Componentes de campo a nivel de módulo (no anidados): de lo contrario
 // React los remonta en cada render y los inputs pierden el foco.
@@ -100,7 +100,7 @@ function TextField({
     <label className="grid gap-1.5">
       <span className={LABEL}>
         {label}
-        {required && <span className="text-red-500"> *</span>}
+        {required && <span className="text-[var(--danger)]"> *</span>}
       </span>
       <input
         className={INPUT}
@@ -110,7 +110,7 @@ function TextField({
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
       />
-      {hint && <span className="text-xs text-slate-400">{hint}</span>}
+      {hint && <span className="text-xs text-[var(--text-muted)]">{hint}</span>}
     </label>
   );
 }
@@ -132,7 +132,7 @@ function SelectField({
     <label className="grid gap-1.5">
       <span className={LABEL}>
         {label}
-        {required && <span className="text-red-500"> *</span>}
+        {required && <span className="text-[var(--danger)]"> *</span>}
       </span>
       <select className={INPUT} value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">Selecciona una opción</option>
@@ -351,11 +351,11 @@ export function EmpleadoDatosForm({
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
-            className="h-4 w-4 rounded border-slate-300 accent-[var(--primary)]"
+            className="h-4 w-4 rounded border-[var(--border-strong)] accent-[var(--primary)]"
             checked={Boolean(form.compartirCumpleanos)}
             onChange={(e) => set("compartirCumpleanos", e.target.checked)}
           />
-          <span className="text-sm text-slate-700">Compartir cumpleaños con el equipo</span>
+          <span className="text-sm text-[var(--text-body)]">Compartir cumpleaños con el equipo</span>
         </label>
       </section>
 
@@ -393,11 +393,11 @@ export function EmpleadoDatosForm({
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                className="h-4 w-4 rounded border-slate-300 accent-[var(--primary)]"
+                className="h-4 w-4 rounded border-[var(--border-strong)] accent-[var(--primary)]"
                 checked={Boolean(form.teletrabajo)}
                 onChange={(e) => set("teletrabajo", e.target.checked)}
               />
-              <span className="text-sm text-slate-700">Empleado en teletrabajo</span>
+              <span className="text-sm text-[var(--text-body)]">Empleado en teletrabajo</span>
             </label>
             <div className="grid sm:grid-cols-2 gap-4">
               <TextField label="Grupo de cotización" value={txt("grupoCotizacion")} onChange={(v) => set("grupoCotizacion", v)} />
@@ -448,8 +448,8 @@ export function EmpleadoDatosForm({
         </>
       )}
 
-      {error && <p className="text-sm text-red-700">{error}</p>}
-      {savedAt && <p className="text-sm text-emerald-700">Cambios guardados.</p>}
+      {error && <p className="text-sm text-[var(--danger-text)]">{error}</p>}
+      {savedAt && <p className="text-sm text-[var(--success-text)]">Cambios guardados.</p>}
 
       {!soloLectura && (
         <button

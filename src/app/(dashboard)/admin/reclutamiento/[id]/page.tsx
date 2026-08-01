@@ -51,7 +51,7 @@ async function OfertaDetallePage({ params }: Props) {
               {ESTADO_OFERTA_LABEL[oferta.estado]}
             </span>
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[var(--text-body)]">
             {oferta.departamento && <span>{oferta.departamento}</span>}
             {oferta.ubicacion && <span>· {oferta.ubicacion}</span>}
             {oferta.modalidad && <span>· {oferta.modalidad}</span>}
@@ -62,12 +62,12 @@ async function OfertaDetallePage({ params }: Props) {
         </div>
       </header>
 
-      <div className="rounded-lg border bg-white p-6">
+      <div className="rounded-lg border bg-[var(--card)] p-6">
         <h2 className="font-semibold mb-2">Descripción</h2>
-        <p className="text-sm text-slate-700 whitespace-pre-wrap">{oferta.descripcion}</p>
+        <p className="text-sm text-[var(--text-body)] whitespace-pre-wrap">{oferta.descripcion}</p>
       </div>
 
-      <div className="rounded-lg border bg-white p-6">
+      <div className="rounded-lg border bg-[var(--card)] p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold">
             Candidatos · {oferta.candidatos.length}
@@ -75,16 +75,16 @@ async function OfertaDetallePage({ params }: Props) {
         </div>
 
         {oferta.candidatos.length === 0 ? (
-          <p className="text-sm text-slate-500 italic mb-4">
+          <p className="text-sm text-[var(--text-muted)] italic mb-4">
             Aún no hay candidatos. Añade el primero.
           </p>
         ) : (
           <div className="rounded-lg border overflow-hidden mb-4">
             <table className="w-full">
-              <thead className="bg-slate-50 border-b">
+              <thead className="bg-[var(--muted)] border-b">
                 <tr>
                   {["Candidato", "Email", "CV", "Estado", "Recibido"].map((h) => (
-                    <th key={h} className="text-left text-xs font-semibold uppercase tracking-wide text-slate-600 px-4 py-2">
+                    <th key={h} className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-body)] px-4 py-2">
                       {h}
                     </th>
                   ))}
@@ -95,9 +95,9 @@ async function OfertaDetallePage({ params }: Props) {
                   <tr key={c.id}>
                     <td className="px-4 py-2 text-sm font-medium">
                       {c.nombre} {c.apellidos}
-                      {c.telefono && <p className="text-xs text-slate-500">{c.telefono}</p>}
+                      {c.telefono && <p className="text-xs text-[var(--text-muted)]">{c.telefono}</p>}
                     </td>
-                    <td className="px-4 py-2 text-sm text-slate-600">{c.email}</td>
+                    <td className="px-4 py-2 text-sm text-[var(--text-body)]">{c.email}</td>
                     <td className="px-4 py-2 text-sm">
                       <div className="flex gap-2">
                         {c.cvUrl && <a className="text-[var(--primary)] hover:underline" href={c.cvUrl} target="_blank" rel="noreferrer">CV</a>}
@@ -112,7 +112,7 @@ async function OfertaDetallePage({ params }: Props) {
                         label={ESTADO_CANDIDATO_LABEL[c.estado]}
                       />
                     </td>
-                    <td className="px-4 py-2 text-xs text-slate-500 tabular-nums">
+                    <td className="px-4 py-2 text-xs text-[var(--text-muted)] tabular-nums">
                       {new Date(c.createdAt).toLocaleDateString("es-ES")}
                     </td>
                   </tr>
@@ -122,11 +122,11 @@ async function OfertaDetallePage({ params }: Props) {
           </div>
         )}
 
-        <details className="rounded-lg border bg-slate-50">
-          <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-slate-700">
+        <details className="rounded-lg border bg-[var(--muted)]">
+          <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-[var(--text-body)]">
             + Añadir candidato
           </summary>
-          <div className="p-4 border-t bg-white">
+          <div className="p-4 border-t bg-[var(--card)]">
             <CandidatoForm ofertaId={oferta.id} />
           </div>
         </details>

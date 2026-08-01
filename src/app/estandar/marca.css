@@ -1,0 +1,34 @@
+/* MARCA — empleaIA (fichaje + RR.HH.).
+   Royal Blue #2563EB. NO es el azul por defecto de Tailwind aunque coincida
+   con su blue-600: está documentado como marca en brand-tokens.md ("Royal
+   Blue + Navy + Sky") y es el mismo que usa la landing pública, así que
+   cambiarlo rompería la coherencia con el material de marketing.
+
+   Queda cerca del azul de Tecnocloud (#4260A4). Son distinguibles —este es
+   más saturado y luminoso—, pero si algún día se quiere separarlos más, esta
+   es la palanca y solo hay que tocar este archivo (y la landing). */
+
+:root[data-theme="light"] {
+  --ds-brand: #2563EB;
+  --ds-brand-2: #1e40af;              /* navy de apoyo, ya en su paleta */
+  --ds-brand-soft: rgba(37,99,235,0.08);
+  --ds-brand-fg: #1d4ed8;
+  --ds-brand-fg-strong: #1e40af;      /* 8.6:1 sobre blanco — texto <18px */
+  --ds-focus-ring: #2563EB;
+
+  --ds-app-mesh:
+    radial-gradient(70% 55% at 8% -5%, color-mix(in oklch, var(--ds-brand) 20%, transparent), transparent 60%),
+    radial-gradient(65% 55% at 100% 15%, color-mix(in oklch, var(--ds-brand-2) 16%, transparent), transparent 62%),
+    radial-gradient(80% 70% at 55% 110%, color-mix(in oklch, var(--ds-brand) 10%, transparent), transparent 65%);
+}
+
+:root[data-theme="dark"] {
+  /* Aclarado para que la etiqueta blanca del botón primario mantenga
+     contraste sobre superficie oscura. */
+  --ds-brand: #3b82f6;
+  --ds-brand-2: #93b4fd;
+  --ds-brand-soft: rgba(59,130,246,0.14);
+  --ds-brand-fg: #93b4fd;
+  --ds-brand-fg-strong: #c3d5fe;
+  --ds-focus-ring: #3b82f6;
+}

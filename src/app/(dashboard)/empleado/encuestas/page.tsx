@@ -88,16 +88,16 @@ export default function EmpleadoEncuestasPage() {
           <CardHeader>
             <CardTitle>{activeEncuesta.titulo}</CardTitle>
             {activeEncuesta.descripcion && (
-              <p className="text-sm text-slate-500 mt-1">{activeEncuesta.descripcion}</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">{activeEncuesta.descripcion}</p>
             )}
-            <p className="text-xs text-slate-400 mt-2">
+            <p className="text-xs text-[var(--text-muted)] mt-2">
               {activeEncuesta.anonima ? "Esta encuesta es anónima — tu identidad no se asocia a la respuesta." : "Esta encuesta NO es anónima — quien la creó verá tu nombre."}
             </p>
           </CardHeader>
           <CardContent className="space-y-5">
             {activeEncuesta.preguntas.map((p) => (
               <div key={p.idx} className="space-y-2">
-                <p className="text-sm font-medium text-slate-900">{p.idx + 1}. {p.texto}</p>
+                <p className="text-sm font-medium text-[var(--text-dark)]">{p.idx + 1}. {p.texto}</p>
                 {p.tipo === "escala_1_5" && (
                   <div className="flex items-center gap-2">
                     {[1, 2, 3, 4, 5].map((n) => (
@@ -108,18 +108,18 @@ export default function EmpleadoEncuestasPage() {
                         className={`h-10 w-10 rounded-md border text-sm font-semibold transition ${
                           respuestas[p.idx] === n
                             ? "bg-[var(--primary)] text-white border-[var(--primary)]"
-                            : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                            : "bg-[var(--card)] text-[var(--text-body)] border-[var(--border)] hover:border-[var(--border-strong)]"
                         }`}
                       >
                         {n}
                       </button>
                     ))}
-                    <span className="text-xs text-slate-400 ml-2">1 = poco · 5 = mucho</span>
+                    <span className="text-xs text-[var(--text-muted)] ml-2">1 = poco · 5 = mucho</span>
                   </div>
                 )}
                 {p.tipo === "texto" && (
                   <textarea
-                    className="w-full min-h-[80px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                    className="w-full min-h-[80px] rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                     value={(respuestas[p.idx] as string) ?? ""}
                     onChange={(e) => setRespuestas((prev) => ({ ...prev, [p.idx]: e.target.value }))}
                   />
@@ -127,7 +127,7 @@ export default function EmpleadoEncuestasPage() {
                 {p.tipo === "opcion" && p.opciones && (
                   <div className="space-y-1">
                     {p.opciones.map((opt) => (
-                      <label key={opt} className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 cursor-pointer hover:bg-slate-50">
+                      <label key={opt} className="flex items-center gap-2 rounded-md border border-[var(--border)] px-3 py-2 cursor-pointer hover:bg-[var(--muted)]">
                         <Input
                           type="radio"
                           name={`q-${p.idx}`}
@@ -158,18 +158,18 @@ export default function EmpleadoEncuestasPage() {
           <ClipboardList className="h-5 w-5 text-[var(--primary)]" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Encuestas</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Tu opinión cuenta — ayuda a mejorar la empresa</p>
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">Encuestas</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-0.5">Tu opinión cuenta — ayuda a mejorar la empresa</p>
         </div>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>
+        <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" /></div>
       ) : encuestas.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <ClipboardList className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500 text-sm">No hay encuestas activas.</p>
+            <ClipboardList className="h-10 w-10 text-[var(--text-muted)] mx-auto mb-3" />
+            <p className="text-[var(--text-muted)] text-sm">No hay encuestas activas.</p>
           </CardContent>
         </Card>
       ) : (
@@ -178,14 +178,14 @@ export default function EmpleadoEncuestasPage() {
             <Card key={e.id}>
               <CardContent className="pt-4 pb-4 flex items-start gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-slate-900">{e.titulo}</p>
-                  {e.descripcion && <p className="text-sm text-slate-500 mt-0.5 line-clamp-2">{e.descripcion}</p>}
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="font-semibold text-[var(--text-dark)]">{e.titulo}</p>
+                  {e.descripcion && <p className="text-sm text-[var(--text-muted)] mt-0.5 line-clamp-2">{e.descripcion}</p>}
+                  <p className="text-xs text-[var(--text-muted)] mt-1">
                     {e.preguntas.length} pregunta(s) · {e.anonima ? "Anónima" : "Nominal"}
                   </p>
                 </div>
                 {e.yaRespondida ? (
-                  <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">
+                  <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-[var(--success-bg)] text-[var(--success-text)]">
                     <CheckCircle2 className="h-3.5 w-3.5" /> Respondida
                   </span>
                 ) : (

@@ -152,13 +152,13 @@ export function PanelAprobaciones() {
                       {fmt(s.fechaHora)}
                     </p>
                     {s.clase === "fuera_horario" && (
-                      <p className="mt-0.5 inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+                      <p className="mt-0.5 inline-flex items-center gap-1.5 rounded-md bg-[var(--warning-bg)] px-2 py-0.5 text-xs font-medium text-[var(--warning-text)]">
                         <Clock className="h-3.5 w-3.5" />
                         Fichaje fuera del horario del turno · hora ajustada al cuadrante
                       </p>
                     )}
                     {s.clase === "fuera_sede" && (
-                      <p className="mt-0.5 inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+                      <p className="mt-0.5 inline-flex items-center gap-1.5 rounded-md bg-[var(--warning-bg)] px-2 py-0.5 text-xs font-medium text-[var(--warning-text)]">
                         <MapPin className="h-3.5 w-3.5" />
                         Fichaje fuera de la sede
                         {typeof s.distancia === "number" ? ` · a ${s.distancia} m` : ""}
@@ -171,7 +171,7 @@ export function PanelAprobaciones() {
                   <div className="flex shrink-0 gap-2">
                     <Button
                       size="sm"
-                      className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                      className="gap-1.5 bg-[var(--success)] hover:bg-[var(--success-text)]"
                       disabled={procesando === s.id}
                       onClick={() => resolver(s.id, "APROBADA")}
                     >

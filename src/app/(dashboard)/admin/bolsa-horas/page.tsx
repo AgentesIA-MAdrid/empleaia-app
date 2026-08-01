@@ -122,8 +122,8 @@ export default function BolsaHorasPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Bolsa de Horas</h1>
-          <p className="text-slate-500 text-sm mt-1">Gestión de horas extra y compensaciones</p>
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">Bolsa de Horas</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-1">Gestión de horas extra y compensaciones</p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" /> Registrar movimiento
@@ -134,35 +134,35 @@ export default function BolsaHorasPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
-              <TrendingUp className="h-5 w-5 text-emerald-600" />
+            <div className="w-10 h-10 rounded-lg bg-[var(--success-bg)] flex items-center justify-center shrink-0">
+              <TrendingUp className="h-5 w-5 text-[var(--success-text)]" />
             </div>
             <div>
-              <p className="text-xs text-slate-500">Total acumulado</p>
-              <p className="text-xl font-bold text-emerald-600">{formatHoras(totalAcumulado)}</p>
+              <p className="text-xs text-[var(--text-muted)]">Total acumulado</p>
+              <p className="text-xl font-bold text-[var(--success-text)]">{formatHoras(totalAcumulado)}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
-              <TrendingDown className="h-5 w-5 text-red-500" />
+            <div className="w-10 h-10 rounded-lg bg-[var(--danger-bg)] flex items-center justify-center shrink-0">
+              <TrendingDown className="h-5 w-5 text-[var(--danger)]" />
             </div>
             <div>
-              <p className="text-xs text-slate-500">Total consumido</p>
-              <p className="text-xl font-bold text-red-500">{formatHoras(totalConsumido)}</p>
+              <p className="text-xs text-[var(--text-muted)]">Total consumido</p>
+              <p className="text-xl font-bold text-[var(--danger)]">{formatHoras(totalConsumido)}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-              totalSaldo >= 0 ? "bg-[var(--primary-light)]" : "bg-amber-50")}>
-              <Timer className={cn("h-5 w-5", totalSaldo >= 0 ? "text-[var(--primary)]" : "text-amber-600")} />
+              totalSaldo >= 0 ? "bg-[var(--primary-light)]" : "bg-[var(--warning-bg)]")}>
+              <Timer className={cn("h-5 w-5", totalSaldo >= 0 ? "text-[var(--primary)]" : "text-[var(--warning-text)]")} />
             </div>
             <div>
-              <p className="text-xs text-slate-500">Saldo total equipo</p>
-              <p className={cn("text-xl font-bold", totalSaldo >= 0 ? "text-[var(--primary)]" : "text-amber-600")}>
+              <p className="text-xs text-[var(--text-muted)]">Saldo total equipo</p>
+              <p className={cn("text-xl font-bold", totalSaldo >= 0 ? "text-[var(--primary)]" : "text-[var(--warning-text)]")}>
                 {totalSaldo >= 0 ? "+" : ""}{formatHoras(totalSaldo)}
               </p>
             </div>
@@ -187,12 +187,12 @@ export default function BolsaHorasPage() {
 
       {/* Lista por empleado */}
       {loading ? (
-        <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />)}</div>
+        <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-16 bg-[var(--muted)] rounded-xl animate-pulse" />)}</div>
       ) : empleadosConSaldo.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <Timer className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-            <p className="text-slate-400">No hay movimientos registrados</p>
+            <p className="text-[var(--text-muted)]">No hay movimientos registrados</p>
           </CardContent>
         </Card>
       ) : (
@@ -200,7 +200,7 @@ export default function BolsaHorasPage() {
           {empleadosConSaldo.map((emp) => {
             const isExpanded = expandidos.has(emp.id);
             return (
-              <div key={emp.id} className="bg-white rounded-xl border hover:shadow-sm transition-all">
+              <div key={emp.id} className="bg-[var(--card)] rounded-xl border hover:shadow-sm transition-all">
                 {/* Fila empleado */}
                 <button
                   className="w-full flex items-center gap-4 p-4 text-left"
@@ -210,18 +210,18 @@ export default function BolsaHorasPage() {
                     {emp.nombre[0]}{emp.apellidos[0]}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-slate-900 text-sm">{emp.nombre} {emp.apellidos}</p>
-                    <p className="text-xs text-slate-400">{emp.entradas.length} movimientos</p>
+                    <p className="font-medium text-[var(--text-dark)] text-sm">{emp.nombre} {emp.apellidos}</p>
+                    <p className="text-xs text-[var(--text-muted)]">{emp.entradas.length} movimientos</p>
                   </div>
                   <div className="flex items-center gap-4 shrink-0">
                     <div className="text-right">
-                      <p className="text-xs text-slate-400">Saldo</p>
-                      <p className={cn("font-bold text-sm", emp.saldo >= 0 ? "text-emerald-600" : "text-red-500")}>
+                      <p className="text-xs text-[var(--text-muted)]">Saldo</p>
+                      <p className={cn("font-bold text-sm", emp.saldo >= 0 ? "text-[var(--success-text)]" : "text-[var(--danger)]")}>
                         {emp.saldo >= 0 ? "+" : ""}{formatHoras(emp.saldo)}
                       </p>
                     </div>
                     {emp.entradas.length > 0 && (
-                      isExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />
+                      isExpanded ? <ChevronUp className="h-4 w-4 text-[var(--text-muted)]" /> : <ChevronDown className="h-4 w-4 text-[var(--text-muted)]" />
                     )}
                   </div>
                 </button>
@@ -230,38 +230,38 @@ export default function BolsaHorasPage() {
                 {isExpanded && emp.entradas.length > 0 && (
                   <div className="border-t">
                     <table className="w-full text-sm">
-                      <thead className="bg-slate-50">
+                      <thead className="bg-[var(--muted)]">
                         <tr>
-                          <th className="text-left text-xs font-semibold text-slate-400 px-4 py-2">Fecha</th>
-                          <th className="text-left text-xs font-semibold text-slate-400 px-4 py-2">Tipo</th>
-                          <th className="text-left text-xs font-semibold text-slate-400 px-4 py-2">Concepto</th>
-                          <th className="text-right text-xs font-semibold text-slate-400 px-4 py-2">Horas</th>
+                          <th className="text-left text-xs font-semibold text-[var(--text-muted)] px-4 py-2">Fecha</th>
+                          <th className="text-left text-xs font-semibold text-[var(--text-muted)] px-4 py-2">Tipo</th>
+                          <th className="text-left text-xs font-semibold text-[var(--text-muted)] px-4 py-2">Concepto</th>
+                          <th className="text-right text-xs font-semibold text-[var(--text-muted)] px-4 py-2">Horas</th>
                           <th className="px-4 py-2"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {emp.entradas.map((entrada) => (
-                          <tr key={entrada.id} className="hover:bg-slate-50">
-                            <td className="px-4 py-2 text-slate-600 text-xs">
+                          <tr key={entrada.id} className="hover:bg-[var(--muted)]">
+                            <td className="px-4 py-2 text-[var(--text-body)] text-xs">
                               {format(new Date(entrada.fecha), "d MMM yyyy", { locale: es })}
                             </td>
                             <td className="px-4 py-2">
                               <span className={cn("inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium",
-                                entrada.tipo === "ACUMULACION" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-500")}>
+                                entrada.tipo === "ACUMULACION" ? "bg-[var(--success-bg)] text-[var(--success-text)]" : "bg-[var(--danger-bg)] text-[var(--danger)]")}>
                                 {entrada.tipo === "ACUMULACION"
                                   ? <TrendingUp className="h-3 w-3" />
                                   : <TrendingDown className="h-3 w-3" />}
                                 {entrada.tipo === "ACUMULACION" ? "Acumulación" : "Consumo"}
                               </span>
                             </td>
-                            <td className="px-4 py-2 text-slate-700">{entrada.concepto}</td>
+                            <td className="px-4 py-2 text-[var(--text-body)]">{entrada.concepto}</td>
                             <td className={cn("px-4 py-2 text-right font-semibold",
-                              entrada.tipo === "ACUMULACION" ? "text-emerald-600" : "text-red-500")}>
+                              entrada.tipo === "ACUMULACION" ? "text-[var(--success-text)]" : "text-[var(--danger)]")}>
                               {entrada.tipo === "ACUMULACION" ? "+" : "-"}{formatHoras(entrada.horas)}
                             </td>
                             <td className="px-4 py-2">
                               <button onClick={() => handleEliminar(entrada.id)}
-                                className="p-1 text-slate-300 hover:text-red-400 transition-colors">
+                                className="p-1 text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors">
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
                             </td>
@@ -298,10 +298,10 @@ export default function BolsaHorasPage() {
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ACUMULACION">
-                      <span className="flex items-center gap-1.5"><TrendingUp className="h-3.5 w-3.5 text-emerald-600" /> Acumulación</span>
+                      <span className="flex items-center gap-1.5"><TrendingUp className="h-3.5 w-3.5 text-[var(--success-text)]" /> Acumulación</span>
                     </SelectItem>
                     <SelectItem value="CONSUMO">
-                      <span className="flex items-center gap-1.5"><TrendingDown className="h-3.5 w-3.5 text-red-500" /> Consumo</span>
+                      <span className="flex items-center gap-1.5"><TrendingDown className="h-3.5 w-3.5 text-[var(--danger)]" /> Consumo</span>
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -325,7 +325,7 @@ export default function BolsaHorasPage() {
                 onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))} />
             </div>
             <div className={cn("rounded-lg p-3 text-sm flex items-center gap-2",
-              form.tipo === "ACUMULACION" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600")}>
+              form.tipo === "ACUMULACION" ? "bg-[var(--success-bg)] text-[var(--success-text)]" : "bg-[var(--danger-bg)] text-[var(--danger-text)]")}>
               {form.tipo === "ACUMULACION"
                 ? <TrendingUp className="h-4 w-4 shrink-0" />
                 : <TrendingDown className="h-4 w-4 shrink-0" />}

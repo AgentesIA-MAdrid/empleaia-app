@@ -357,8 +357,8 @@ export default function AdminDocumentosPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Archivos</h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">Archivos</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-1">
             {vista === "carpetas"
               ? `${documentos.length} documentos en ${carpetas.length} carpetas`
               : `${plantillas.length} plantilla${plantillas.length === 1 ? "" : "s"} de documentos`}
@@ -383,12 +383,12 @@ export default function AdminDocumentosPage() {
       </div>
 
       {/* Pestañas: Carpetas / Plantillas */}
-      <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+      <div className="inline-flex rounded-lg border border-[var(--border)] bg-[var(--muted)] p-1">
         <button
           onClick={() => { setVista("carpetas"); }}
           className={cn(
             "inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-            vista === "carpetas" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700",
+            vista === "carpetas" ? "bg-[var(--card)] text-[var(--text-dark)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-body)]",
           )}
         >
           <Folder className="h-4 w-4" /> Carpetas
@@ -397,7 +397,7 @@ export default function AdminDocumentosPage() {
           onClick={() => { setVista("plantillas"); setCarpeta(null); }}
           className={cn(
             "inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-            vista === "plantillas" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700",
+            vista === "plantillas" ? "bg-[var(--card)] text-[var(--text-dark)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-body)]",
           )}
         >
           <LayoutTemplate className="h-4 w-4" /> Plantillas
@@ -406,22 +406,22 @@ export default function AdminDocumentosPage() {
 
       {vista === "plantillas" ? (
         loading ? (
-          <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-20 bg-slate-100 rounded-xl animate-pulse" />)}</div>
+          <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-20 bg-[var(--muted)] rounded-xl animate-pulse" />)}</div>
         ) : plantillas.length === 0 ? (
           <Card><CardContent className="py-12 text-center">
             <LayoutTemplate className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-            <p className="text-slate-400">Aún no hay plantillas. Crea una para reutilizar los documentos que envías a todos tus empleados.</p>
+            <p className="text-[var(--text-muted)]">Aún no hay plantillas. Crea una para reutilizar los documentos que envías a todos tus empleados.</p>
           </CardContent></Card>
         ) : (
           <div className="space-y-2">
             {plantillas.map((p) => (
-              <div key={p.id} className="flex items-center gap-4 p-4 bg-white rounded-xl border hover:shadow-sm transition-all">
+              <div key={p.id} className="flex items-center gap-4 p-4 bg-[var(--card)] rounded-xl border hover:shadow-sm transition-all">
                 <div className="w-10 h-10 bg-[var(--primary-light)] rounded-lg flex items-center justify-center shrink-0">
                   <LayoutTemplate className="h-5 w-5 text-[var(--primary)]" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-slate-900 truncate">{p.nombre}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="font-medium text-[var(--text-dark)] truncate">{p.nombre}</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-0.5">
                     {nombreCarpeta(p.tipo)}
                     {p.campos.length > 0 && ` · ${p.campos.length} campo${p.campos.length === 1 ? "" : "s"} a rellenar`}
                     {(p.solicitarFirma || esCarpetaFirmaObligatoria(p.tipo)) && " · firma"}
@@ -431,10 +431,10 @@ export default function AdminDocumentosPage() {
                   <Button size="sm" onClick={() => abrirEnviar(p)}>
                     <Send className="h-3.5 w-3.5 mr-1.5" /> Enviar
                   </Button>
-                  <button className="p-2 text-slate-400 hover:text-[var(--primary)] transition-colors" onClick={() => abrirEditarPlantilla(p)} title="Editar">
+                  <button className="p-2 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors" onClick={() => abrirEditarPlantilla(p)} title="Editar">
                     <Pencil className="h-4 w-4" />
                   </button>
-                  <button className="p-2 text-slate-400 hover:text-red-500 transition-colors" onClick={() => borrarPlantilla(p.id)} title="Eliminar">
+                  <button className="p-2 text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors" onClick={() => borrarPlantilla(p.id)} title="Eliminar">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
@@ -444,14 +444,14 @@ export default function AdminDocumentosPage() {
         )
       ) : loading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => <div key={i} className="h-44 bg-slate-100 rounded-2xl animate-pulse" />)}
+          {[1, 2, 3, 4].map((i) => <div key={i} className="h-44 bg-[var(--muted)] rounded-2xl animate-pulse" />)}
         </div>
       ) : carpeta === null ? (
         // ─── Vista de carpetas ───
         carpetas.length === 0 ? (
           <Card><CardContent className="py-12 text-center">
             <FolderOpen className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-            <p className="text-slate-400">No hay tipos de carpeta. Crea uno en “Gestionar tipos”.</p>
+            <p className="text-[var(--text-muted)]">No hay tipos de carpeta. Crea uno en “Gestionar tipos”.</p>
           </CardContent></Card>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -459,13 +459,13 @@ export default function AdminDocumentosPage() {
               <button
                 key={c.slug}
                 onClick={() => setCarpeta(c.slug)}
-                className="group rounded-2xl border border-slate-200 bg-white p-6 text-center transition-all hover:border-[var(--primary)] hover:shadow-md"
+                className="group rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 text-center transition-all hover:border-[var(--primary)] hover:shadow-md"
               >
                 <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-[var(--primary-light)]">
                   <Folder className="h-10 w-10 text-[var(--primary)]" />
                 </div>
-                <p className="font-semibold text-slate-900">{c.nombre}</p>
-                <p className="text-sm text-slate-400">{c.count} {c.count === 1 ? "elemento" : "elementos"}</p>
+                <p className="font-semibold text-[var(--text-dark)]">{c.nombre}</p>
+                <p className="text-sm text-[var(--text-muted)]">{c.count} {c.count === 1 ? "elemento" : "elementos"}</p>
               </button>
             ))}
           </div>
@@ -473,37 +473,37 @@ export default function AdminDocumentosPage() {
       ) : (
         // ─── Vista de una carpeta ───
         <div className="space-y-3">
-          <button onClick={() => setCarpeta(null)} className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-[var(--primary)]">
+          <button onClick={() => setCarpeta(null)} className="inline-flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--primary)]">
             <ArrowLeft className="h-4 w-4" /> Todas las carpetas
           </button>
-          <h2 className="text-lg font-semibold text-slate-800">{nombreCarpeta(carpeta)}</h2>
+          <h2 className="text-lg font-semibold text-[var(--text-dark)]">{nombreCarpeta(carpeta)}</h2>
           {docsCarpeta.length === 0 ? (
             <Card><CardContent className="py-12 text-center">
               <FolderOpen className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-              <p className="text-slate-400">Esta carpeta está vacía</p>
+              <p className="text-[var(--text-muted)]">Esta carpeta está vacía</p>
             </CardContent></Card>
           ) : (
             <div className="space-y-2">
               {docsCarpeta.map((doc) => (
-                <div key={doc.id} className="flex items-center gap-4 p-4 bg-white rounded-xl border hover:shadow-sm transition-all">
+                <div key={doc.id} className="flex items-center gap-4 p-4 bg-[var(--card)] rounded-xl border hover:shadow-sm transition-all">
                   <div className="w-10 h-10 bg-[var(--primary-light)] rounded-lg flex items-center justify-center shrink-0">
                     <FileText className="h-5 w-5 text-[var(--primary)]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-slate-900 truncate">{doc.nombre}</p>
-                    {doc.descripcion && <p className="text-sm text-slate-500 truncate">{doc.descripcion}</p>}
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className="font-medium text-[var(--text-dark)] truncate">{doc.nombre}</p>
+                    {doc.descripcion && <p className="text-sm text-[var(--text-muted)] truncate">{doc.descripcion}</p>}
+                    <p className="text-xs text-[var(--text-muted)] mt-0.5">
                       {doc.user ? `${doc.user.nombre} ${doc.user.apellidos} · ` : "General · "}
                       {format(new Date(doc.createdAt), "d MMM yyyy", { locale: es })}
                     </p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {isSafeDocUrl(doc.url) && (
-                      <button type="button" onClick={() => openDocInNewTab(doc.url)} title="Abrir documento" className="p-2 text-slate-400 hover:text-[var(--primary)] transition-colors">
+                      <button type="button" onClick={() => openDocInNewTab(doc.url)} title="Abrir documento" className="p-2 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors">
                         <Download className="h-4 w-4" />
                       </button>
                     )}
-                    <button className="p-2 text-slate-400 hover:text-red-500 transition-colors" onClick={() => handleDelete(doc.id)}>
+                    <button className="p-2 text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors" onClick={() => handleDelete(doc.id)}>
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -520,12 +520,12 @@ export default function AdminDocumentosPage() {
           <DialogHeader><DialogTitle>Añadir documento</DialogTitle></DialogHeader>
 
           {/* Modo: documento nuevo o adjuntar una plantilla */}
-          <div className="inline-flex w-full rounded-lg border border-slate-200 bg-slate-50 p-1">
+          <div className="inline-flex w-full rounded-lg border border-[var(--border)] bg-[var(--muted)] p-1">
             <button
               onClick={() => setDocMode("nuevo")}
               className={cn(
                 "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                docMode === "nuevo" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700",
+                docMode === "nuevo" ? "bg-[var(--card)] text-[var(--text-dark)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-body)]",
               )}
             >
               Documento nuevo
@@ -534,7 +534,7 @@ export default function AdminDocumentosPage() {
               onClick={() => setDocMode("plantilla")}
               className={cn(
                 "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                docMode === "plantilla" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700",
+                docMode === "plantilla" ? "bg-[var(--card)] text-[var(--text-dark)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-body)]",
               )}
             >
               Desde plantilla
@@ -544,7 +544,7 @@ export default function AdminDocumentosPage() {
           {docMode === "plantilla" ? (
             <div className="space-y-4 py-2">
               {plantillas.length === 0 ? (
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-[var(--text-muted)]">
                   Aún no tienes plantillas. Créalas en la pestaña «Plantillas».
                 </p>
               ) : (
@@ -569,7 +569,7 @@ export default function AdminDocumentosPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-[var(--text-muted)]">
                     Se creará el documento para el empleado a partir de la plantilla (con sus campos a rellenar y la solicitud de firma si la plantilla la incluye).
                   </p>
                 </>
@@ -610,18 +610,18 @@ export default function AdminDocumentosPage() {
                 <Label>Descripción</Label>
                 <Input className="mt-1" value={form.descripcion} onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))} placeholder="Descripción breve" />
               </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--muted)] p-3">
                 <label className="flex items-start gap-2.5 text-sm">
                   <input
                     type="checkbox"
-                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[var(--primary)]"
+                    className="mt-0.5 h-4 w-4 rounded border-[var(--border-strong)] text-[var(--primary)]"
                     checked={firmaObligatoriaDialogo || solicitarFirma}
                     disabled={firmaObligatoriaDialogo}
                     onChange={(e) => setSolicitarFirma(e.target.checked)}
                   />
                   <span>
-                    <span className="font-medium text-slate-800">Solicitar firma al empleado</span>
-                    <span className="mt-0.5 block text-xs text-slate-500">
+                    <span className="font-medium text-[var(--text-dark)]">Solicitar firma al empleado</span>
+                    <span className="mt-0.5 block text-xs text-[var(--text-muted)]">
                       {firmaObligatoriaDialogo
                         ? "Los documentos de «Contratos laborales y anexos» requieren firma obligatoria. Elige el empleado y añade la URL del contrato."
                         : "El empleado recibirá un aviso para firmar el documento (nombre, DNI y firma manuscrita) antes de darlo por recibido."}
@@ -672,16 +672,16 @@ export default function AdminDocumentosPage() {
               <Label>Archivo del documento (PDF/imagen, máx {MAX_MB} MB)</Label>
               <input ref={plantillaFileRef} type="file" accept=".pdf,image/*" className="hidden" onChange={(e) => onPlantillaFile(e.target.files?.[0])} />
               {isSafeDocUrl(plantillaForm.url) ? (
-                <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                <div className="mt-1 flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--muted)] px-3 py-2 text-sm">
                   <FileText className="h-4 w-4 shrink-0 text-[var(--primary)]" />
-                  <span className="flex-1 truncate text-slate-700">Archivo adjunto</span>
-                  <button type="button" onClick={() => openDocInNewTab(plantillaForm.url)} className="p-1 text-slate-400 hover:text-[var(--primary)]" title="Ver documento">
+                  <span className="flex-1 truncate text-[var(--text-body)]">Archivo adjunto</span>
+                  <button type="button" onClick={() => openDocInNewTab(plantillaForm.url)} className="p-1 text-[var(--text-muted)] hover:text-[var(--primary)]" title="Ver documento">
                     <Download className="h-4 w-4" />
                   </button>
                   <button type="button" onClick={() => plantillaFileRef.current?.click()} className="text-xs font-medium text-[var(--primary)] hover:underline">
                     Cambiar
                   </button>
-                  <button type="button" onClick={() => setPlantillaForm((f) => ({ ...f, url: "" }))} className="p-1 text-slate-400 hover:text-red-500" title="Quitar archivo">
+                  <button type="button" onClick={() => setPlantillaForm((f) => ({ ...f, url: "" }))} className="p-1 text-[var(--text-muted)] hover:text-[var(--danger)]" title="Quitar archivo">
                     <X className="h-4 w-4" />
                   </button>
                 </div>
@@ -705,7 +705,7 @@ export default function AdminDocumentosPage() {
                 </Button>
               </div>
               {plantillaForm.campos.length === 0 ? (
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Marca los datos que el empleado tendrá que rellenar (p. ej. IBAN, talla de ropa, fecha de incorporación).
                 </p>
               ) : (
@@ -724,7 +724,7 @@ export default function AdminDocumentosPage() {
                           {CAMPO_TIPOS.map((t) => <SelectItem key={t} value={t}>{CAMPO_TIPO_LABEL[t]}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                      <button className="p-2 text-slate-400 hover:text-red-500 transition-colors shrink-0" onClick={() => removeCampo(i)} title="Quitar campo">
+                      <button className="p-2 text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors shrink-0" onClick={() => removeCampo(i)} title="Quitar campo">
                         <X className="h-4 w-4" />
                       </button>
                     </div>
@@ -747,18 +747,18 @@ export default function AdminDocumentosPage() {
               </div>
             )}
 
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--muted)] p-3">
               <label className="flex items-start gap-2.5 text-sm">
                 <input
                   type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[var(--primary)]"
+                  className="mt-0.5 h-4 w-4 rounded border-[var(--border-strong)] text-[var(--primary)]"
                   checked={plantillaFirmaObligatoria || plantillaForm.solicitarFirma}
                   disabled={plantillaFirmaObligatoria}
                   onChange={(e) => setPlantillaForm((f) => ({ ...f, solicitarFirma: e.target.checked }))}
                 />
                 <span>
-                  <span className="font-medium text-slate-800">Solicitar firma al enviar</span>
-                  <span className="mt-0.5 block text-xs text-slate-500">
+                  <span className="font-medium text-[var(--text-dark)]">Solicitar firma al enviar</span>
+                  <span className="mt-0.5 block text-xs text-[var(--text-muted)]">
                     {plantillaFirmaObligatoria
                       ? "Los documentos de «Contratos laborales y anexos» requieren firma obligatoria; necesitas un archivo adjunto."
                       : "Al enviar la plantilla, el empleado recibirá un aviso para firmar el documento."}
@@ -779,16 +779,16 @@ export default function AdminDocumentosPage() {
         <DialogContent className="max-w-[95vw] sm:max-w-md">
           <DialogHeader><DialogTitle>Enviar «{enviarPlantilla?.nombre}»</DialogTitle></DialogHeader>
           <div className="space-y-3 py-2">
-            <p className="text-sm text-slate-500">Elige los empleados que recibirán este documento.</p>
+            <p className="text-sm text-[var(--text-muted)]">Elige los empleados que recibirán este documento.</p>
             <div className="max-h-64 overflow-y-auto rounded-md border border-input divide-y divide-slate-100">
               {empleados.length === 0 ? (
-                <p className="px-3 py-2 text-sm text-slate-400">No hay empleados.</p>
+                <p className="px-3 py-2 text-sm text-[var(--text-muted)]">No hay empleados.</p>
               ) : (
                 empleados.map((e) => (
                   <label key={e.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 rounded border-slate-300 accent-[var(--primary)] cursor-pointer shrink-0"
+                      className="h-4 w-4 rounded border-[var(--border-strong)] accent-[var(--primary)] cursor-pointer shrink-0"
                       checked={enviarUserIds.has(e.id)}
                       onChange={() =>
                         setEnviarUserIds((prev) => {
@@ -836,24 +836,24 @@ export default function AdminDocumentosPage() {
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
-            <div className="divide-y divide-slate-100 rounded-lg border border-slate-100">
+            <div className="divide-y divide-slate-100 rounded-lg border border-[var(--border)]">
               {tipos.length === 0 ? (
-                <p className="px-3 py-3 text-sm text-slate-400">Aún no hay tipos.</p>
+                <p className="px-3 py-3 text-sm text-[var(--text-muted)]">Aún no hay tipos.</p>
               ) : (
                 tipos.map((t) => (
                   <div key={t.id} className="flex items-center justify-between px-3 py-2 text-sm">
                     <span className="flex items-center gap-2">
                       <Folder className="h-4 w-4 text-[var(--primary)]" />
                       {t.nombre}
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs text-[var(--text-muted)]">
                         ({documentos.filter((d) => d.tipo === t.slug).length})
                       </span>
                     </span>
                     <span className="flex items-center gap-1">
-                      <button onClick={() => renombrarTipo(t.id, t.nombre)} className="p-1 text-slate-400 hover:text-[var(--primary)]" title="Renombrar">
+                      <button onClick={() => renombrarTipo(t.id, t.nombre)} className="p-1 text-[var(--text-muted)] hover:text-[var(--primary)]" title="Renombrar">
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
-                      <button onClick={() => borrarTipo(t.id)} className="p-1 text-slate-400 hover:text-red-500" title="Eliminar">
+                      <button onClick={() => borrarTipo(t.id)} className="p-1 text-[var(--text-muted)] hover:text-[var(--danger)]" title="Eliminar">
                         <X className="h-4 w-4" />
                       </button>
                     </span>
@@ -861,7 +861,7 @@ export default function AdminDocumentosPage() {
                 ))
               )}
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[var(--text-muted)]">
               Al eliminar un tipo, los documentos que tenía no se borran: siguen visibles en su carpeta.
             </p>
           </div>

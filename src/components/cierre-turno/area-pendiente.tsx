@@ -32,28 +32,28 @@ export function AreaPendiente({
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">{titulo}</h1>
-        <p className="text-slate-500 text-sm mt-1 max-w-2xl">{descripcion}</p>
+        <h1 className="text-2xl font-bold text-[var(--text-dark)]">{titulo}</h1>
+        <p className="text-[var(--text-muted)] text-sm mt-1 max-w-2xl">{descripcion}</p>
       </div>
 
-      <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 flex items-start gap-2 max-w-2xl">
-        <Info className="h-4 w-4 mt-0.5 shrink-0 text-slate-400" />
+      <div className="rounded-md border border-[var(--border)] bg-[var(--muted)] px-3 py-2.5 text-sm text-[var(--text-body)] flex items-start gap-2 max-w-2xl">
+        <Info className="h-4 w-4 mt-0.5 shrink-0 text-[var(--text-muted)]" />
         <span>
           Área ya creada y con permisos aplicados; entra en funcionamiento en la{" "}
-          <strong className="font-semibold text-slate-800">{entrega}</strong>.
+          <strong className="font-semibold text-[var(--text-dark)]">{entrega}</strong>.
         </span>
       </div>
 
       <Card>
         <CardContent className="pt-4 pb-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-2">
             Filtros
           </p>
           <div className="flex flex-wrap gap-2">
             {filtros.map((f) => (
               <span
                 key={f}
-                className="px-2.5 py-1 rounded border border-dashed border-slate-300 text-sm text-slate-400"
+                className="px-2.5 py-1 rounded border border-dashed border-[var(--border-strong)] text-sm text-[var(--text-muted)]"
               >
                 {f}
               </span>
@@ -66,12 +66,12 @@ export function AreaPendiente({
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
                 <tr>
                   {columnas.map((c) => (
                     <th
                       key={c}
-                      className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3"
+                      className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-3"
                     >
                       {c}
                     </th>
@@ -80,7 +80,7 @@ export function AreaPendiente({
               </thead>
               <tbody>
                 <tr>
-                  <td colSpan={columnas.length} className="text-center py-10 text-slate-400 text-sm">
+                  <td colSpan={columnas.length} className="text-center py-10 text-[var(--text-muted)] text-sm">
                     Sin datos todavía.
                   </td>
                 </tr>
@@ -90,7 +90,7 @@ export function AreaPendiente({
         </CardContent>
       </Card>
 
-      {nota && <div className="text-sm text-slate-500 max-w-2xl">{nota}</div>}
+      {nota && <div className="text-sm text-[var(--text-muted)] max-w-2xl">{nota}</div>}
     </div>
   );
 }

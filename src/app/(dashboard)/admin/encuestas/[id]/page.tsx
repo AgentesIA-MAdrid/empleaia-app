@@ -71,12 +71,12 @@ export default function EncuestaDetailPage({ params }: { params: Promise<{ id: s
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-64">
-        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
       </div>
     );
   }
   if (!encuesta) {
-    return <div className="p-6 text-slate-500">Encuesta no encontrada.</div>;
+    return <div className="p-6 text-[var(--text-muted)]">Encuesta no encontrada.</div>;
   }
 
   const realCount = respuestas.filter((r) => Array.isArray(r.respuestas) && r.respuestas.length > 0).length;
@@ -86,9 +86,9 @@ export default function EncuestaDetailPage({ params }: { params: Promise<{ id: s
       <div className="flex items-start gap-3">
         <Link href="/admin/encuestas"><Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-1" /> Volver</Button></Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-slate-900">{encuesta.titulo}</h1>
-          {encuesta.descripcion && <p className="text-slate-500 text-sm mt-1">{encuesta.descripcion}</p>}
-          <p className="text-xs text-slate-400 mt-1">
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">{encuesta.titulo}</h1>
+          {encuesta.descripcion && <p className="text-[var(--text-muted)] text-sm mt-1">{encuesta.descripcion}</p>}
+          <p className="text-xs text-[var(--text-muted)] mt-1">
             {realCount} respuestas · {encuesta.anonima ? "Anónima" : "Nominal"} · {encuesta.estado}
           </p>
         </div>
@@ -97,8 +97,8 @@ export default function EncuestaDetailPage({ params }: { params: Promise<{ id: s
       {realCount === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <BarChart2 className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500 text-sm">Aún no hay respuestas para analizar.</p>
+            <BarChart2 className="h-10 w-10 text-[var(--text-muted)] mx-auto mb-3" />
+            <p className="text-[var(--text-muted)] text-sm">Aún no hay respuestas para analizar.</p>
           </CardContent>
         </Card>
       ) : (
@@ -107,20 +107,20 @@ export default function EncuestaDetailPage({ params }: { params: Promise<{ id: s
             <Card key={s.pregunta.idx}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">{s.pregunta.idx + 1}. {s.pregunta.texto}</CardTitle>
-                <p className="text-xs text-slate-500 mt-0.5">{s.total} respuesta(s)</p>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">{s.total} respuesta(s)</p>
               </CardHeader>
               <CardContent>
                 {s.tipo === "escala" && (
                   <div className="space-y-2">
-                    <p className="text-sm text-slate-600">Media: <span className="font-bold text-slate-900">{s.media.toFixed(2)}</span> / 5</p>
+                    <p className="text-sm text-[var(--text-body)]">Media: <span className="font-bold text-[var(--text-dark)]">{s.media.toFixed(2)}</span> / 5</p>
                     {[1, 2, 3, 4, 5].map((n) => {
                       const count = s.dist[n - 1];
                       const pct = s.total > 0 ? (count / s.total) * 100 : 0;
                       return (
                         <div key={n} className="flex items-center gap-3 text-sm">
-                          <span className="w-4 text-slate-500 tabular-nums">{n}</span>
+                          <span className="w-4 text-[var(--text-muted)] tabular-nums">{n}</span>
                           <ProgressBar value={pct} className="flex-1" />
-                          <span className="w-12 text-right tabular-nums text-slate-600">{count} ({pct.toFixed(0)}%)</span>
+                          <span className="w-12 text-right tabular-nums text-[var(--text-body)]">{count} ({pct.toFixed(0)}%)</span>
                         </div>
                       );
                     })}
@@ -132,9 +132,9 @@ export default function EncuestaDetailPage({ params }: { params: Promise<{ id: s
                       const pct = s.total > 0 ? (count / s.total) * 100 : 0;
                       return (
                         <div key={opt} className="flex items-center gap-3 text-sm">
-                          <span className="flex-1 text-slate-700">{opt}</span>
+                          <span className="flex-1 text-[var(--text-body)]">{opt}</span>
                           <ProgressBar value={pct} className="w-32" />
-                          <span className="w-12 text-right tabular-nums text-slate-600">{count}</span>
+                          <span className="w-12 text-right tabular-nums text-[var(--text-body)]">{count}</span>
                         </div>
                       );
                     })}
@@ -143,7 +143,7 @@ export default function EncuestaDetailPage({ params }: { params: Promise<{ id: s
                 {s.tipo === "texto" && (
                   <ul className="space-y-2">
                     {s.textos.map((t, i) => (
-                      <li key={i} className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700">{t}</li>
+                      <li key={i} className="rounded-md bg-[var(--muted)] px-3 py-2 text-sm text-[var(--text-body)]">{t}</li>
                     ))}
                   </ul>
                 )}

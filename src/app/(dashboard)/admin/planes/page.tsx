@@ -66,7 +66,7 @@ async function PlanesPage() {
           cancelar en cualquier momento.
         </p>
         {currentPlan === null && (
-          <p className="mt-3 inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800 ring-1 ring-amber-200">
+          <p className="mt-3 inline-flex items-center rounded-full bg-[var(--warning-bg)] px-3 py-1 text-xs font-medium text-[var(--warning-text)] ring-1 ring-amber-200">
             No tienes un plan activo todavía. Activa uno para empezar.
           </p>
         )}

@@ -18,11 +18,11 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_TONE: Record<string, string> = {
-  pending: "bg-amber-50 text-amber-800",
+  pending: "bg-[var(--warning-bg)] text-[var(--warning-text)]",
   provisioning: "bg-sky-50 text-sky-800",
-  active: "bg-emerald-50 text-emerald-800",
+  active: "bg-[var(--success-bg)] text-[var(--success-text)]",
   suspended: "bg-orange-50 text-orange-800",
-  deleted: "bg-slate-100 text-slate-600",
+  deleted: "bg-[var(--muted)] text-[var(--text-body)]",
 };
 
 const SUB_STATUS_LABEL: Record<string, string> = {
@@ -38,9 +38,9 @@ const SUB_STATUS_LABEL: Record<string, string> = {
 
 const SEVERITY_TONE: Record<string, string> = {
   info: "bg-sky-50 text-sky-800",
-  warning: "bg-amber-50 text-amber-800",
-  error: "bg-red-50 text-red-800",
-  critical: "bg-red-50 text-red-800",
+  warning: "bg-[var(--warning-bg)] text-[var(--warning-text)]",
+  error: "bg-[var(--danger-bg)] text-[var(--danger-text)]",
+  critical: "bg-[var(--danger-bg)] text-[var(--danger-text)]",
 };
 
 export default function DashboardPage() {
@@ -81,7 +81,7 @@ export default function DashboardPage() {
 
   if (error || !metrics) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+      <div className="rounded-lg border border-[var(--danger-bg)] bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-text)]">
         {error ?? "Error al cargar métricas."}
       </div>
     );
@@ -153,7 +153,7 @@ export default function DashboardPage() {
             <RowItem
               key={status}
               label={STATUS_LABEL[status] ?? status}
-              tone={STATUS_TONE[status] ?? "bg-slate-100 text-slate-600"}
+              tone={STATUS_TONE[status] ?? "bg-[var(--muted)] text-[var(--text-body)]"}
               value={count}
             />
           ))}
@@ -188,7 +188,7 @@ export default function DashboardPage() {
             <RowItem
               key={severity}
               label={severity}
-              tone={SEVERITY_TONE[severity] ?? "bg-slate-100 text-slate-600"}
+              tone={SEVERITY_TONE[severity] ?? "bg-[var(--muted)] text-[var(--text-body)]"}
               value={count}
               icon={
                 severity === "warning" || severity === "error" || severity === "critical"
@@ -218,13 +218,13 @@ function KpiCard({
 }) {
   const colors: Record<string, { bg: string; fg: string }> = {
     primary: { bg: "bg-[var(--primary-light)]", fg: "text-[var(--primary)]" },
-    success: { bg: "bg-emerald-50", fg: "text-emerald-600" },
+    success: { bg: "bg-[var(--success-bg)]", fg: "text-[var(--success-text)]" },
     info: { bg: "bg-sky-50", fg: "text-sky-600" },
-    warning: { bg: "bg-amber-50", fg: "text-amber-600" },
+    warning: { bg: "bg-[var(--warning-bg)]", fg: "text-[var(--warning-text)]" },
   };
   const c = colors[tone];
   return (
-    <div className="bg-white border border-[var(--color-border,#E2E8F0)] rounded-lg p-5">
+    <div className="bg-[var(--card)] border border-[var(--color-border,#E2E8F0)] rounded-lg p-5">
       <div className="flex items-start gap-3">
         <div className={`w-10 h-10 rounded-md flex items-center justify-center shrink-0 ${c.bg}`}>
           <Icon className={`h-5 w-5 ${c.fg}`} />
@@ -255,7 +255,7 @@ function Panel({
   emptyText?: string;
 }) {
   return (
-    <div className="bg-white border border-[var(--color-border,#E2E8F0)] rounded-lg">
+    <div className="bg-[var(--card)] border border-[var(--color-border,#E2E8F0)] rounded-lg">
       <div className="px-5 py-3 border-b border-[var(--color-border,#E2E8F0)] flex items-center gap-2">
         <Icon className="h-4 w-4 text-[var(--primary)]" />
         <h2 className="text-sm font-semibold text-[var(--color-text-dark,#0F172A)]">{title}</h2>

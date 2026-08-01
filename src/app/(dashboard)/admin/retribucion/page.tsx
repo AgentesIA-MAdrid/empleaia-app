@@ -69,10 +69,10 @@ export default function RetribucionFlexPage() {
   if (unavailable) {
     return (
       <div className="p-6">
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-[var(--warning-bg)] bg-[var(--warning-bg)]">
           <CardContent className="pt-4 pb-4 flex items-start gap-3">
-            <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="flex-1"><p className="text-sm font-semibold text-amber-900">Retribución flexible — plan Pro o superior</p></div>
+            <Lock className="h-5 w-5 text-[var(--warning-text)] shrink-0 mt-0.5" />
+            <div className="flex-1"><p className="text-sm font-semibold text-[var(--warning-text)]">Retribución flexible — plan Pro o superior</p></div>
             <Link href="/admin/planes"><Button size="sm">Ver planes</Button></Link>
           </CardContent>
         </Card>
@@ -86,8 +86,8 @@ export default function RetribucionFlexPage() {
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center"><Wallet className="h-5 w-5 text-[var(--primary)]" /></div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Retribución flexible</h1>
-            <p className="text-slate-500 text-sm mt-0.5">Declara importes y estima el ahorro fiscal (IRPF 30 %)</p>
+            <h1 className="text-2xl font-bold text-[var(--text-dark)]">Retribución flexible</h1>
+            <p className="text-[var(--text-muted)] text-sm mt-0.5">Declara importes y estima el ahorro fiscal (IRPF 30 %)</p>
           </div>
         </div>
         <div className="flex gap-2 items-end">
@@ -98,30 +98,30 @@ export default function RetribucionFlexPage() {
 
       <Card>
         <CardContent className="pt-4 pb-4 grid sm:grid-cols-2 gap-4">
-          <div><p className="text-xs text-slate-500">Total declarado</p><p className="text-2xl font-bold text-slate-900">{decls.reduce((s, d) => s + d.importe, 0).toFixed(2)} €</p></div>
-          <div><p className="text-xs text-slate-500">Ahorro fiscal estimado</p><p className="text-2xl font-bold text-emerald-600">{ahorroTotal.toFixed(2)} €</p></div>
+          <div><p className="text-xs text-[var(--text-muted)]">Total declarado</p><p className="text-2xl font-bold text-[var(--text-dark)]">{decls.reduce((s, d) => s + d.importe, 0).toFixed(2)} €</p></div>
+          <div><p className="text-xs text-[var(--text-muted)]">Ahorro fiscal estimado</p><p className="text-2xl font-bold text-[var(--success-text)]">{ahorroTotal.toFixed(2)} €</p></div>
         </CardContent>
       </Card>
 
-      {loading ? <Loader2 className="h-6 w-6 animate-spin text-slate-400" /> :
-        decls.length === 0 ? <Card><CardContent className="py-12 text-center text-slate-500 text-sm">Sin declaraciones para este periodo.</CardContent></Card> : (
+      {loading ? <Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" /> :
+        decls.length === 0 ? <Card><CardContent className="py-12 text-center text-[var(--text-muted)] text-sm">Sin declaraciones para este periodo.</CardContent></Card> : (
         <Card>
           <CardHeader><CardTitle className="text-base">Declaraciones {periodo}</CardTitle></CardHeader>
           <CardContent className="p-0 overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
                 <tr>{["Empleado", "Concepto", "Importe", "Límite mensual", "Ahorro estimado"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">{h}</th>
                 ))}</tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {decls.map((d) => (
-                  <tr key={d.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 text-slate-900">{d.empleado.nombre} {d.empleado.apellidos}</td>
-                    <td className="px-4 py-3 text-slate-700">{LABEL[d.concepto]}</td>
+                  <tr key={d.id} className="hover:bg-[var(--muted)]">
+                    <td className="px-4 py-3 text-[var(--text-dark)]">{d.empleado.nombre} {d.empleado.apellidos}</td>
+                    <td className="px-4 py-3 text-[var(--text-body)]">{LABEL[d.concepto]}</td>
                     <td className="px-4 py-3 tabular-nums font-semibold">{d.importe.toFixed(2)} €</td>
-                    <td className="px-4 py-3 tabular-nums text-slate-500">{d.limite ? d.limite.toFixed(2) + " €" : "—"}</td>
-                    <td className="px-4 py-3 tabular-nums text-emerald-600 font-semibold">{d.ahorroFiscal.toFixed(2)} €</td>
+                    <td className="px-4 py-3 tabular-nums text-[var(--text-muted)]">{d.limite ? d.limite.toFixed(2) + " €" : "—"}</td>
+                    <td className="px-4 py-3 tabular-nums text-[var(--success-text)] font-semibold">{d.ahorroFiscal.toFixed(2)} €</td>
                   </tr>
                 ))}
               </tbody>
@@ -142,7 +142,7 @@ export default function RetribucionFlexPage() {
               </Select>
             </div>
             <div>
-              <Label>Importe (€) {limites[concepto] && <span className="text-xs text-slate-400 ml-1">· límite mensual {limites[concepto].toFixed(2)} €</span>}</Label>
+              <Label>Importe (€) {limites[concepto] && <span className="text-xs text-[var(--text-muted)] ml-1">· límite mensual {limites[concepto].toFixed(2)} €</span>}</Label>
               <Input className="mt-1" type="number" step="0.01" value={importe} onChange={(e) => setImporte(e.target.value)} />
             </div>
           </div>

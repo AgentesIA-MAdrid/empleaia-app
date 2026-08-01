@@ -265,8 +265,8 @@ export function PanelConciliacion() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Conciliación</h1>
-        <p className="text-slate-500 text-sm mt-1 max-w-2xl">
+        <h1 className="text-2xl font-bold text-[var(--text-dark)]">Conciliación</h1>
+        <p className="text-[var(--text-muted)] text-sm mt-1 max-w-2xl">
           Cuadra el efectivo de los cierres con los arqueos, y los cobros con datáfono con los
           ingresos del banco.
         </p>
@@ -302,7 +302,7 @@ export function PanelConciliacion() {
                 <Label htmlFor="conc-sede">Punto de venta</Label>
                 <select
                   id="conc-sede"
-                  className="mt-1 w-48 rounded-md border border-slate-200 px-3 py-2 text-sm"
+                  className="mt-1 w-48 rounded-md border border-[var(--border)] px-3 py-2 text-sm"
                   value={tiendaId}
                   onChange={(e) => setTiendaId(e.target.value)}
                 >
@@ -317,7 +317,7 @@ export function PanelConciliacion() {
             )}
           </div>
           {datos && (
-            <p className="text-xs text-slate-400 mt-3">
+            <p className="text-xs text-[var(--text-muted)] mt-3">
               Los arqueos se comparan por semanas completas ({datos.semanas.join(", ")}), que es su
               unidad. Umbral de descuadre: {eur(datos.umbral)}.
             </p>
@@ -333,9 +333,9 @@ export function PanelConciliacion() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         {[
-          { label: "Efectivo en cierres", valor: t ? eur(t.efectivoCierres) : "—", color: "text-slate-900" },
-          { label: "Efectivo en arqueos", valor: t ? eur(t.efectivoArqueos) : "—", color: "text-slate-900" },
-          { label: "Tarjeta en cierres", valor: t ? eur(t.tarjetaCierres) : "—", color: "text-slate-900" },
+          { label: "Efectivo en cierres", valor: t ? eur(t.efectivoCierres) : "—", color: "text-[var(--text-dark)]" },
+          { label: "Efectivo en arqueos", valor: t ? eur(t.efectivoArqueos) : "—", color: "text-[var(--text-dark)]" },
+          { label: "Tarjeta en cierres", valor: t ? eur(t.tarjetaCierres) : "—", color: "text-[var(--text-dark)]" },
           {
             label: "Ingresos del banco",
             valor: t ? eur(t.tarjetaBanco) : "—",
@@ -344,7 +344,7 @@ export function PanelConciliacion() {
         ].map((k) => (
           <Card key={k.label}>
             <CardContent className="pt-4 pb-4">
-              <p className="text-sm text-slate-500">{k.label}</p>
+              <p className="text-sm text-[var(--text-muted)]">{k.label}</p>
               <p className={`text-xl font-bold mt-1 tabular-nums ${k.color}`}>{k.valor}</p>
             </CardContent>
           </Card>
@@ -355,7 +355,7 @@ export function PanelConciliacion() {
         <Card>
           <CardContent className="pt-4 pb-4 space-y-2">
             {[1, 2].map((i) => (
-              <div key={i} className="h-16 bg-slate-100 rounded animate-pulse" />
+              <div key={i} className="h-16 bg-[var(--muted)] rounded animate-pulse" />
             ))}
           </CardContent>
         </Card>
@@ -364,7 +364,7 @@ export function PanelConciliacion() {
           {datos?.filas.map((f) => (
             <Card key={f.tiendaId}>
               <CardContent className="pt-4 pb-4">
-                <p className="font-semibold text-slate-900">{f.sede}</p>
+                <p className="font-semibold text-[var(--text-dark)]">{f.sede}</p>
                 <div className="grid md:grid-cols-3 gap-4 mt-3">
                   <Cuadre
                     titulo="Efectivo"
@@ -405,8 +405,8 @@ export function PanelConciliacion() {
           ))}
 
           {(datos?.cajaSinSede.cajas ?? 0) > 0 && (
-            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 flex items-start gap-2">
-              <HelpCircle className="h-4 w-4 mt-0.5 shrink-0 text-slate-400" />
+            <div className="rounded-md border border-[var(--border)] bg-[var(--muted)] px-3 py-2.5 text-sm text-[var(--text-body)] flex items-start gap-2">
+              <HelpCircle className="h-4 w-4 mt-0.5 shrink-0 text-[var(--text-muted)]" />
               <span>
                 Hay {datos?.cajaSinSede.cajas} cierres de caja de gente sin sede asignada
                 ({eur(datos?.cajaSinSede.efectivo ?? 0)} en efectivo y{" "}
@@ -417,8 +417,8 @@ export function PanelConciliacion() {
           )}
 
           {(datos?.bancoSinSede.n ?? 0) > 0 && (
-            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 flex items-start gap-2">
-              <HelpCircle className="h-4 w-4 mt-0.5 shrink-0 text-slate-400" />
+            <div className="rounded-md border border-[var(--border)] bg-[var(--muted)] px-3 py-2.5 text-sm text-[var(--text-body)] flex items-start gap-2">
+              <HelpCircle className="h-4 w-4 mt-0.5 shrink-0 text-[var(--text-muted)]" />
               <span>
                 Hay {datos?.bancoSinSede.n} movimientos del banco por {eur(datos?.bancoSinSede.importe ?? 0)}{" "}
                 sin sede asignada: no se pueden atribuir a ninguna tienda y quedan fuera de los
@@ -433,8 +433,8 @@ export function PanelConciliacion() {
       <Card>
         <CardContent className="pt-4 pb-4 space-y-3">
           <div>
-            <p className="text-sm font-semibold text-slate-800">Extracto del banco</p>
-            <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+            <p className="text-sm font-semibold text-[var(--text-dark)]">Extracto del banco</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1 max-w-2xl">
               Sube el Excel o el CSV que te da tu banco. Como cada banco lo exporta a su manera, te
               enseñamos las primeras filas para que confirmes qué columna es la fecha y cuál el
               importe. Se recuerda para la próxima vez, y volver a subir el mismo extracto no
@@ -448,7 +448,7 @@ export function PanelConciliacion() {
                 <Label htmlFor="import-sede">¿De qué sede es este extracto?</Label>
                 <select
                   id="import-sede"
-                  className="mt-1 w-48 rounded-md border border-slate-200 px-3 py-2 text-sm"
+                  className="mt-1 w-48 rounded-md border border-[var(--border)] px-3 py-2 text-sm"
                   value={sedeImport}
                   onChange={(e) => setSedeImport(e.target.value)}
                 >
@@ -465,7 +465,7 @@ export function PanelConciliacion() {
               <Label htmlFor="fuente-import">Qué fichero subes</Label>
               <select
                 id="fuente-import"
-                className="mt-1 block rounded-md border border-slate-200 px-3 py-2 text-sm"
+                className="mt-1 block rounded-md border border-[var(--border)] px-3 py-2 text-sm"
                 value={fuenteImport}
                 onChange={(e) => {
                   setFuenteImport(e.target.value as FuenteImport);
@@ -496,8 +496,8 @@ export function PanelConciliacion() {
           </div>
 
           {previa && mapeo && (
-            <div className="rounded-md border border-slate-200 p-3 space-y-3">
-              <p className="text-sm text-slate-700">
+            <div className="rounded-md border border-[var(--border)] p-3 space-y-3">
+              <p className="text-sm text-[var(--text-body)]">
                 {previa.mapeoDe === "guardado"
                   ? "Usamos el mapeo que guardaste la última vez. Compruébalo con estas filas:"
                   : "Esto es lo que hemos entendido del fichero. Corrige lo que no cuadre:"}
@@ -507,9 +507,9 @@ export function PanelConciliacion() {
                 <table className="w-full text-xs">
                   <tbody>
                     {previa.filas.map((f, i) => (
-                      <tr key={i} className={i === 0 && mapeo.conCabecera ? "font-semibold text-slate-600" : ""}>
+                      <tr key={i} className={i === 0 && mapeo.conCabecera ? "font-semibold text-[var(--text-body)]" : ""}>
                         {f.map((c, j) => (
-                          <td key={j} className="border border-slate-100 px-2 py-1 whitespace-nowrap">
+                          <td key={j} className="border border-[var(--border)] px-2 py-1 whitespace-nowrap">
                             {c || "—"}
                           </td>
                         ))}
@@ -532,7 +532,7 @@ export function PanelConciliacion() {
                     <Label htmlFor={`map-${campo}`}>{label}</Label>
                     <select
                       id={`map-${campo}`}
-                      className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                      className="mt-1 w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm"
                       value={mapeo[campo] === null ? "" : String(mapeo[campo])}
                       onChange={(e) =>
                         setMapeo((m) =>
@@ -558,7 +558,7 @@ export function PanelConciliacion() {
                   <Label htmlFor="map-formato">Formato de la fecha</Label>
                   <select
                     id="map-formato"
-                    className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm"
                     value={mapeo.formatoFecha}
                     onChange={(e) =>
                       setMapeo((m) =>
@@ -572,7 +572,7 @@ export function PanelConciliacion() {
                   </select>
                 </div>
                 <div className="flex items-end">
-                  <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <label className="flex items-center gap-2 text-sm text-[var(--text-body)]">
                     <input
                       type="checkbox"
                       checked={mapeo.conCabecera}
@@ -584,8 +584,8 @@ export function PanelConciliacion() {
               </div>
 
               {previa.muestra.length > 0 && (
-                <div className="text-xs text-slate-600">
-                  <p className="font-medium text-slate-700 mb-1">Así lo vamos a leer:</p>
+                <div className="text-xs text-[var(--text-body)]">
+                  <p className="font-medium text-[var(--text-body)] mb-1">Así lo vamos a leer:</p>
                   <ul className="space-y-0.5">
                     {previa.muestra.map((m, i) => (
                       <li key={i} className="tabular-nums">
@@ -596,14 +596,14 @@ export function PanelConciliacion() {
                 </div>
               )}
               {previa.problemasMuestra.length > 0 && (
-                <p className="text-xs text-amber-700">
+                <p className="text-xs text-[var(--warning-text)]">
                   Filas que quedarían fuera:{" "}
                   {previa.problemasMuestra.map((p) => `${p.fila} (${p.motivo})`).join(", ")}.
                 </p>
               )}
 
               <div className="flex items-center justify-between gap-3 flex-wrap">
-                <label className="flex items-center gap-2 text-sm text-slate-600">
+                <label className="flex items-center gap-2 text-sm text-[var(--text-body)]">
                   <input
                     type="checkbox"
                     checked={recordarMapeo}
@@ -632,7 +632,7 @@ export function PanelConciliacion() {
         </CardContent>
       </Card>
 
-      <p className="text-sm text-slate-500 max-w-2xl">
+      <p className="text-sm text-[var(--text-muted)] max-w-2xl">
         El cuadre de tarjeta compara el periodo completo, no movimiento a movimiento: las
         liquidaciones del datáfono entran en el banco con uno o dos días de retraso, así que en un
         rango corto una diferencia puede ser solo desfase. Amplía el periodo antes de dar por bueno
@@ -669,34 +669,34 @@ function Cuadre({
   return (
     <Link
       href={href}
-      className="block rounded-md border border-slate-200 p-3 hover:border-[var(--primary)] hover:bg-slate-50 transition-colors"
+      className="block rounded-md border border-[var(--border)] p-3 hover:border-[var(--primary)] hover:bg-[var(--muted)] transition-colors"
     >
-      <p className="text-sm font-medium text-slate-700 flex items-center justify-between gap-2">
+      <p className="text-sm font-medium text-[var(--text-body)] flex items-center justify-between gap-2">
         {titulo}
-        <ChevronRight className="h-4 w-4 text-slate-400" />
+        <ChevronRight className="h-4 w-4 text-[var(--text-muted)]" />
       </p>
       <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
         <div>
-          <p className="text-slate-500 text-xs">{izquierda.label}</p>
+          <p className="text-[var(--text-muted)] text-xs">{izquierda.label}</p>
           <p className="font-semibold tabular-nums">{eur(izquierda.valor)}</p>
         </div>
         <div>
-          <p className="text-slate-500 text-xs">{derecha.label}</p>
+          <p className="text-[var(--text-muted)] text-xs">{derecha.label}</p>
           <p className="font-semibold tabular-nums">{eur(derecha.valor)}</p>
         </div>
       </div>
       {faltaDato ? (
-        <p className="mt-2 text-xs text-slate-500 flex items-start gap-1.5">
-          <HelpCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-slate-400" />
+        <p className="mt-2 text-xs text-[var(--text-muted)] flex items-start gap-1.5">
+          <HelpCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-[var(--text-muted)]" />
           {textoFalta}
         </p>
       ) : descuadre ? (
-        <p className="mt-2 text-xs text-amber-700 flex items-start gap-1.5">
+        <p className="mt-2 text-xs text-[var(--warning-text)] flex items-start gap-1.5">
           <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           Descuadre de {eur(diferencia)}.
         </p>
       ) : (
-        <p className="mt-2 text-xs text-emerald-700 flex items-start gap-1.5">
+        <p className="mt-2 text-xs text-[var(--success-text)] flex items-start gap-1.5">
           <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           Cuadra{diferencia !== 0 ? ` (diferencia de ${eur(diferencia)}, por debajo del umbral)` : ""}.
         </p>

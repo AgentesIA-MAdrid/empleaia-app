@@ -32,14 +32,14 @@ export default async function Page({
   if (slug) {
     const loginUrl = buildLoginUrl(slug);
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--muted)]">
         <main className="text-center max-w-md w-full">
-          <div className="bg-white border border-slate-200 rounded-lg shadow-sm px-8 py-10">
-            <h1 className="text-2xl font-bold text-slate-900">
+          <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-sm px-8 py-10">
+            <h1 className="text-2xl font-bold text-[var(--text-dark)]">
               ¡Tu cuenta está lista!
             </h1>
-            <p className="mt-4 text-sm text-slate-600">
-              Hemos creado <strong className="text-slate-900">{slug}</strong> y
+            <p className="mt-4 text-sm text-[var(--text-body)]">
+              Hemos creado <strong className="text-[var(--text-dark)]">{slug}</strong> y
               te hemos enviado un email para que establezcas tu contraseña.
               Revisa tu bandeja de entrada (y la carpeta de spam).
             </p>
@@ -61,10 +61,10 @@ export default async function Page({
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
-      <main className="text-center max-w-md bg-white border border-slate-200 rounded-lg shadow-sm px-8 py-10">
-        <h1 className="text-2xl font-bold text-slate-900">Página de éxito</h1>
-        <p className="text-sm text-slate-500 mt-2">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--muted)]">
+      <main className="text-center max-w-md bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-sm px-8 py-10">
+        <h1 className="text-2xl font-bold text-[var(--text-dark)]">Página de éxito</h1>
+        <p className="text-sm text-[var(--text-muted)] mt-2">
           Esta página se muestra tras completar el registro.
         </p>
       </main>

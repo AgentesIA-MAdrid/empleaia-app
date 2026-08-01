@@ -58,7 +58,7 @@ export default function ManagerDashboardPage() {
         <div className="absolute right-6 top-4 opacity-10">
           <Clock className="h-24 w-24" />
         </div>
-        <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-white hover:bg-white/20 z-20" onClick={fetchData}>
+        <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-white hover:bg-[var(--card)]/20 z-20" onClick={fetchData}>
           <RefreshCw className="h-4 w-4" />
         </Button>
       </div>
@@ -67,9 +67,9 @@ export default function ManagerDashboardPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: "Mi equipo", value: stats?.totalEmpleados ?? "—", icon: Users, color: "text-[var(--primary)]", bg: "bg-[var(--primary-light)]" },
-          { label: "Trabajando", value: stats?.trabajando ?? "—", icon: UserCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "En pausa", value: stats?.enPausa ?? "—", icon: Coffee, color: "text-amber-600", bg: "bg-amber-50" },
-          { label: "Ausentes", value: stats?.ausentes ?? "—", icon: UserX, color: "text-red-500", bg: "bg-red-50" },
+          { label: "Trabajando", value: stats?.trabajando ?? "—", icon: UserCheck, color: "text-[var(--success-text)]", bg: "bg-[var(--success-bg)]" },
+          { label: "En pausa", value: stats?.enPausa ?? "—", icon: Coffee, color: "text-[var(--warning-text)]", bg: "bg-[var(--warning-bg)]" },
+          { label: "Ausentes", value: stats?.ausentes ?? "—", icon: UserX, color: "text-[var(--danger)]", bg: "bg-[var(--danger-bg)]" },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="pt-4 pb-4">
@@ -78,7 +78,7 @@ export default function ManagerDashboardPage() {
                   <s.icon className={cn("h-5 w-5", s.color)} />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">{s.label}</p>
+                  <p className="text-xs text-[var(--text-muted)]">{s.label}</p>
                   <p className={cn("text-2xl font-bold", s.color)}>{s.value}</p>
                 </div>
               </div>
@@ -92,7 +92,7 @@ export default function ManagerDashboardPage() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
-              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+              <div className="w-2 h-2 bg-[var(--success)] rounded-full animate-pulse" />
               {"Who's in — Mi sede"}
             </CardTitle>
             <Link href="/manager/presencia" className="text-xs text-[var(--primary)] hover:underline">Ver detalle →</Link>
@@ -100,17 +100,17 @@ export default function ManagerDashboardPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (
-            <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-8 bg-slate-100 rounded animate-pulse" />)}</div>
+            <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-8 bg-[var(--muted)] rounded animate-pulse" />)}</div>
           ) : !whosIn ? null : (
             <>
               {whosIn.trabajando.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Trabajando</p>
+                  <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2">Trabajando</p>
                   <div className="flex flex-wrap gap-2">
                     {whosIn.trabajando.map((p: PersonaSimple) => (
-                      <div key={p.id} className="flex items-center gap-1.5 bg-emerald-50 rounded-full pl-1 pr-3 py-1">
+                      <div key={p.id} className="flex items-center gap-1.5 bg-[var(--success-bg)] rounded-full pl-1 pr-3 py-1">
                         <EmployeeAvatar nombre={p.nombre} apellidos={p.apellidos} seed={p.id} />
-                        <span className="text-sm font-medium text-slate-800">{p.nombre} {p.apellidos}</span>
+                        <span className="text-sm font-medium text-[var(--text-dark)]">{p.nombre} {p.apellidos}</span>
                       </div>
                     ))}
                   </div>
@@ -118,12 +118,12 @@ export default function ManagerDashboardPage() {
               )}
               {whosIn.enPausa.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">En pausa</p>
+                  <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2">En pausa</p>
                   <div className="flex flex-wrap gap-2">
                     {whosIn.enPausa.map((p: PersonaSimple) => (
-                      <div key={p.id} className="flex items-center gap-1.5 bg-amber-50 rounded-full pl-1 pr-3 py-1">
+                      <div key={p.id} className="flex items-center gap-1.5 bg-[var(--warning-bg)] rounded-full pl-1 pr-3 py-1">
                         <EmployeeAvatar nombre={p.nombre} apellidos={p.apellidos} seed={p.id} />
-                        <span className="text-sm font-medium text-slate-800">{p.nombre} {p.apellidos}</span>
+                        <span className="text-sm font-medium text-[var(--text-dark)]">{p.nombre} {p.apellidos}</span>
                       </div>
                     ))}
                   </div>
@@ -131,19 +131,19 @@ export default function ManagerDashboardPage() {
               )}
               {whosIn.sinFichar.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Sin fichar</p>
+                  <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2">Sin fichar</p>
                   <div className="flex flex-wrap gap-2">
                     {whosIn.sinFichar.map((p: PersonaSimple) => (
-                      <div key={p.id} className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-full pl-1 pr-3 py-1">
+                      <div key={p.id} className="flex items-center gap-1.5 bg-[var(--muted)] border border-[var(--border)] rounded-full pl-1 pr-3 py-1">
                         <EmployeeAvatar nombre={p.nombre} apellidos={p.apellidos} seed={p.id} />
-                        <span className="text-sm text-slate-500">{p.nombre} {p.apellidos}</span>
+                        <span className="text-sm text-[var(--text-muted)]">{p.nombre} {p.apellidos}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
               {!whosIn.trabajando.length && !whosIn.enPausa.length && !whosIn.sinFichar.length && (
-                <p className="text-slate-400 text-sm text-center py-4">No hay empleados en tu sede todavía</p>
+                <p className="text-[var(--text-muted)] text-sm text-center py-4">No hay empleados en tu sede todavía</p>
               )}
             </>
           )}
@@ -153,22 +153,22 @@ export default function ManagerDashboardPage() {
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-4">
         {[
-          { label: "Gestionar ausencias", href: "/manager/ausencias", icon: Calendar, badge: stats?.ausenciasPendientes, color: "bg-amber-50 text-amber-700" },
+          { label: "Gestionar ausencias", href: "/manager/ausencias", icon: Calendar, badge: stats?.ausenciasPendientes, color: "bg-[var(--warning-bg)] text-[var(--warning-text)]" },
           { label: "Ver turnos", href: "/manager/turnos", icon: Clock, color: "bg-[var(--primary-light)] text-[var(--primary)]" },
-          { label: "Mis tareas", href: "/manager/tareas", icon: CheckSquare, color: "bg-emerald-50 text-emerald-700" },
+          { label: "Mis tareas", href: "/manager/tareas", icon: CheckSquare, color: "bg-[var(--success-bg)] text-[var(--success-text)]" },
           { label: "Informes", href: "/manager/informes", icon: Users, color: "bg-violet-50 text-violet-700" },
         ].map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            className="relative flex items-center gap-3 p-4 rounded-lg border border-slate-200 hover:border-[var(--primary)] hover:bg-[var(--primary-light)]/40 transition-colors group"
+            className="relative flex items-center gap-3 p-4 rounded-lg border border-[var(--border)] hover:border-[var(--primary)] hover:bg-[var(--primary-light)]/40 transition-colors group"
           >
             <div className={cn("w-10 h-10 rounded-md flex items-center justify-center", item.color)}>
               <item.icon className="h-5 w-5" />
             </div>
-            <span className="text-sm font-medium text-slate-700 group-hover:text-[var(--primary)]">{item.label}</span>
+            <span className="text-sm font-medium text-[var(--text-body)] group-hover:text-[var(--primary)]">{item.label}</span>
             {item.badge !== undefined && item.badge > 0 && (
-              <span className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+              <span className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--danger)] text-xs font-bold text-white">
                 {item.badge}
               </span>
             )}

@@ -370,8 +370,8 @@ function AdminInformesContent() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Informes</h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">Informes</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-1">
             {vista === "ventas"
               ? "Qué se ha vendido y si el dinero cuadra con la caja"
               : "Análisis de asistencia y horas trabajadas"}
@@ -418,7 +418,7 @@ function AdminInformesContent() {
           pregunta con otra unidad: aquí horas, allí unidades y euros. Solo
           aparece con el módulo de cierre de turno contratado. */}
       {tieneVentas && (
-        <div className="flex gap-2 border-b border-slate-200">
+        <div className="flex gap-2 border-b border-[var(--border)]">
           {(
             [
               { key: "asistencia" as const, label: "Asistencia y horas" },
@@ -433,7 +433,7 @@ function AdminInformesContent() {
               className={
                 vista === t.key
                   ? "px-3 py-2 text-sm font-semibold text-[var(--primary)] border-b-2 border-[var(--primary)] -mb-px"
-                  : "px-3 py-2 text-sm text-slate-500 hover:text-slate-800"
+                  : "px-3 py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-dark)]"
               }
             >
               {t.label}
@@ -494,14 +494,14 @@ function AdminInformesContent() {
       </Card>
 
       {!hasAdvanced && (
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-[var(--warning-bg)] bg-[var(--warning-bg)]">
           <CardContent className="pt-4 pb-4 flex items-start gap-3">
-            <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <Lock className="h-5 w-5 text-[var(--warning-text)] shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-900">
+              <p className="text-sm font-semibold text-[var(--warning-text)]">
                 Análisis avanzado disponible en plan Pro y superiores
               </p>
-              <p className="text-sm text-amber-800 mt-0.5">
+              <p className="text-sm text-[var(--warning-text)] mt-0.5">
                 Tu plan actual incluye el listado de fichajes (obligatorio por
                 RD 8/2019), en la pantalla de Fichajes. Para ver resumen
                 agregado, gráficos de horas, detección de horas extra y
@@ -519,21 +519,21 @@ function AdminInformesContent() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
           {[
             { label: "Total horas", value: `${stats.totalHoras.toFixed(0)}h`, color: "text-[var(--primary)]" },
-            { label: "Media horas/día", value: `${stats.mediaHorasDia.toFixed(1)}h`, color: "text-slate-900" },
+            { label: "Media horas/día", value: `${stats.mediaHorasDia.toFixed(1)}h`, color: "text-[var(--text-dark)]" },
             // Horas de contrato del periodo y saldo frente a ellas: sin esto,
             // "horas extra" no se puede contrastar con nada.
-            { label: "Horas de contrato", value: `${stats.horasContrato.toFixed(0)}h`, color: "text-slate-900" },
+            { label: "Horas de contrato", value: `${stats.horasContrato.toFixed(0)}h`, color: "text-[var(--text-dark)]" },
             {
               label: "Diferencia",
               value: `${stats.diferencia > 0 ? "+" : ""}${stats.diferencia.toFixed(1)}h`,
-              color: stats.diferencia > 0 ? "text-amber-600" : stats.diferencia < 0 ? "text-slate-500" : "text-slate-900",
+              color: stats.diferencia > 0 ? "text-[var(--warning-text)]" : stats.diferencia < 0 ? "text-[var(--text-muted)]" : "text-[var(--text-dark)]",
             },
-            { label: "Horas extra", value: `${stats.horasExtra.toFixed(0)}h`, color: "text-amber-600" },
-            { label: "Ausencias", value: stats.totalAusencias.toString(), color: "text-red-500" },
+            { label: "Horas extra", value: `${stats.horasExtra.toFixed(0)}h`, color: "text-[var(--warning-text)]" },
+            { label: "Ausencias", value: stats.totalAusencias.toString(), color: "text-[var(--danger)]" },
           ].map(s => (
             <Card key={s.label}>
               <CardContent className="pt-4 pb-4">
-                <p className="text-sm text-slate-500">{s.label}</p>
+                <p className="text-sm text-[var(--text-muted)]">{s.label}</p>
                 <p className={`text-3xl font-bold mt-1 ${s.color}`}>{s.value}</p>
               </CardContent>
             </Card>
@@ -569,38 +569,38 @@ function AdminInformesContent() {
             <CardHeader><CardTitle className="text-base">Detalle por empleado</CardTitle></CardHeader>
             <CardContent className="p-0">
               {loading ? (
-                <div className="p-4 space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />)}</div>
+                <div className="p-4 space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-10 bg-[var(--muted)] rounded animate-pulse" />)}</div>
               ) : datos.length === 0 ? (
-                <p className="text-center py-8 text-slate-400">No hay datos para el período seleccionado</p>
+                <p className="text-center py-8 text-[var(--text-muted)]">No hay datos para el período seleccionado</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-slate-50 border-b border-slate-200">
+                    <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
                       <tr>{["Empleado", "Días trab.", "Horas trabajadas", "Horas de contrato", "Diferencia", "Horas extra", "Ausencias", ""].map(h => (
-                        <th key={h} className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3">{h}</th>
+                        <th key={h} className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-3">{h}</th>
                       ))}</tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {datos.map(e => {
                         const pct = maxHoras > 0 ? (e.horasTotales / maxHoras) * 100 : 0;
                         return (
-                          <tr key={e.userId} className="hover:bg-slate-50 transition-colors">
+                          <tr key={e.userId} className="hover:bg-[var(--muted)] transition-colors">
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-3">
                                 <EmployeeAvatar nombre={e.nombre} apellidos={e.apellidos} seed={e.userId} size="sm" />
-                                <span className="font-medium text-sm text-slate-900">{e.nombre} {e.apellidos}</span>
+                                <span className="font-medium text-sm text-[var(--text-dark)]">{e.nombre} {e.apellidos}</span>
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-sm text-slate-600">{e.diasTrabajados}</td>
+                            <td className="px-4 py-3 text-sm text-[var(--text-body)]">{e.diasTrabajados}</td>
                             <td className="px-4 py-3 text-sm">
                               <div className="flex items-center gap-3 min-w-[140px]">
                                 <ProgressBar value={pct} className="flex-1 max-w-[140px]" />
-                                <span className="font-semibold text-slate-900 tabular-nums shrink-0">
+                                <span className="font-semibold text-[var(--text-dark)] tabular-nums shrink-0">
                                   {e.horasTotales.toFixed(1)}h
                                 </span>
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-sm text-slate-600 tabular-nums">
+                            <td className="px-4 py-3 text-sm text-[var(--text-body)] tabular-nums">
                               {e.horasContrato.toFixed(1)}h
                             </td>
                             {/* Diferencia con signo: por encima del contrato (extra)
@@ -609,21 +609,21 @@ function AdminInformesContent() {
                               <span
                                 className={
                                   e.diferencia > 0
-                                    ? "text-amber-600 font-medium tabular-nums"
+                                    ? "text-[var(--warning-text)] font-medium tabular-nums"
                                     : e.diferencia < 0
-                                      ? "text-slate-500 tabular-nums"
-                                      : "text-slate-400 tabular-nums"
+                                      ? "text-[var(--text-muted)] tabular-nums"
+                                      : "text-[var(--text-muted)] tabular-nums"
                                 }
                               >
                                 {e.diferencia > 0 ? "+" : ""}{e.diferencia.toFixed(1)}h
                               </span>
                             </td>
                             <td className="px-4 py-3 text-sm">
-                              <span className={e.horasExtra > 0 ? "text-amber-600 font-medium" : "text-slate-400"}>
+                              <span className={e.horasExtra > 0 ? "text-[var(--warning-text)] font-medium" : "text-[var(--text-muted)]"}>
                                 {e.horasExtra > 0 ? `+${e.horasExtra.toFixed(1)}h` : "0h"}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-sm text-slate-600">{e.diasAusencia} días</td>
+                            <td className="px-4 py-3 text-sm text-[var(--text-body)]">{e.diasAusencia} días</td>
                             <td className="px-4 py-3 text-right">
                               {/* El detalle en crudo vive en su propia pantalla. */}
                               <Link href={enlaceFichajes(e.userId)}>
@@ -649,12 +649,12 @@ function AdminInformesContent() {
             <CardContent className="pt-4 pb-4">
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
-                  <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                    <AlarmClock className="h-4 w-4 text-amber-600" /> Retrasos acumulados
+                  <p className="text-sm font-semibold text-[var(--text-dark)] flex items-center gap-2">
+                    <AlarmClock className="h-4 w-4 text-[var(--warning-text)]" /> Retrasos acumulados
                   </p>
-                  <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+                  <p className="text-xs text-[var(--text-muted)] mt-1 max-w-2xl">
                     Entradas fichadas más tarde de la hora de su turno, con{" "}
-                    <strong className="font-medium text-slate-500">
+                    <strong className="font-medium text-[var(--text-muted)]">
                       {margenRetrasos} min de cortesía
                     </strong>{" "}
                     (el mismo margen que el fichaje fuera de horario, en Configuración → Fichajes).
@@ -665,13 +665,13 @@ function AdminInformesContent() {
               </div>
 
               {retrasos.length === 0 ? (
-                <p className="text-center py-8 text-slate-400 text-sm">
+                <p className="text-center py-8 text-[var(--text-muted)] text-sm">
                   Nadie ha llegado tarde en este periodo.
                 </p>
               ) : (
                 <div className="overflow-x-auto mt-3 -mx-6">
                   <table className="w-full">
-                    <thead className="bg-slate-50 border-y border-slate-200">
+                    <thead className="bg-[var(--muted)] border-y border-[var(--border)]">
                       <tr>
                         {[
                           "Empleado",
@@ -684,7 +684,7 @@ function AdminInformesContent() {
                         ].map((h, i) => (
                           <th
                             key={`${h}-${i}`}
-                            className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-2.5"
+                            className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-2.5"
                           >
                             {h}
                           </th>
@@ -693,10 +693,10 @@ function AdminInformesContent() {
                     </thead>
                     <tbody>
                       {retrasos.map((r) => (
-                        <tr key={r.userId} className="border-b border-slate-100 last:border-0">
+                        <tr key={r.userId} className="border-b border-[var(--border)] last:border-0">
                           <td className="px-4 py-3 text-sm">
-                            <span className="font-medium text-slate-800">{r.nombre}</span>
-                            <span className="block text-xs text-slate-400">
+                            <span className="font-medium text-[var(--text-dark)]">{r.nombre}</span>
+                            <span className="block text-xs text-[var(--text-muted)]">
                               {r.sede ?? "Sin sede"} · {r.turnos} turno{r.turnos === 1 ? "" : "s"}{" "}
                               en el periodo
                             </span>
@@ -705,28 +705,28 @@ function AdminInformesContent() {
                             <span
                               className={
                                 r.retrasos > 0
-                                  ? "text-base font-bold tabular-nums text-amber-700"
-                                  : "text-sm tabular-nums text-slate-400"
+                                  ? "text-base font-bold tabular-nums text-[var(--warning-text)]"
+                                  : "text-sm tabular-nums text-[var(--text-muted)]"
                               }
                             >
                               {r.retrasos}
                             </span>
                             {r.turnos > 0 && r.retrasos > 0 && (
-                              <span className="block text-xs text-slate-400 tabular-nums">
+                              <span className="block text-xs text-[var(--text-muted)] tabular-nums">
                                 {Math.round((r.retrasos / r.turnos) * 100)} % de sus turnos
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-sm tabular-nums text-slate-700">
+                          <td className="px-4 py-3 text-sm tabular-nums text-[var(--text-body)]">
                             {r.minutosTotales} min
                           </td>
-                          <td className="px-4 py-3 text-sm tabular-nums text-slate-500">
+                          <td className="px-4 py-3 text-sm tabular-nums text-[var(--text-muted)]">
                             {r.retrasos > 0 ? `${r.mediaMinutos} min` : "—"}
                           </td>
-                          <td className="px-4 py-3 text-sm tabular-nums text-slate-500">
+                          <td className="px-4 py-3 text-sm tabular-nums text-[var(--text-muted)]">
                             {r.peorRetraso > 0 ? `${r.peorRetraso} min` : "—"}
                           </td>
-                          <td className="px-4 py-3 text-sm text-slate-500">
+                          <td className="px-4 py-3 text-sm text-[var(--text-muted)]">
                             {r.ultimoRetraso
                               ? new Date(`${r.ultimoRetraso}T00:00:00`).toLocaleDateString("es-ES", {
                                   day: "2-digit",
@@ -754,10 +754,10 @@ function AdminInformesContent() {
               turno y no fichar. */}
           <Card>
             <CardContent className="pt-4 pb-4">
-              <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+              <p className="text-sm font-semibold text-[var(--text-dark)] flex items-center gap-2">
                 <ShieldAlert className="h-4 w-4 text-rose-600" /> Discrepancias con el cuadrante
               </p>
-              <p className="text-xs text-slate-400 mt-1 max-w-3xl">
+              <p className="text-xs text-[var(--text-muted)] mt-1 max-w-3xl">
                 El fichaje guarda la sede asignada al empleado, así que esto compara lo que decía el
                 cuadrante con lo que quedó registrado. Cuando el móvil dio ubicación se añade a
                 cuántos metros de su sede fichó, y se señala si pasa de{" "}
@@ -768,12 +768,12 @@ function AdminInformesContent() {
               {resumenDisc && (
                 <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-3">
                   {[
-                    { label: "Sede distinta", valor: resumenDisc.sede_distinta, color: "text-amber-700" },
+                    { label: "Sede distinta", valor: resumenDisc.sede_distinta, color: "text-[var(--warning-text)]" },
                     { label: "Fichó sin turno", valor: resumenDisc.sin_turno, color: "text-sky-700" },
                     { label: "Turno sin fichaje", valor: resumenDisc.turno_sin_fichaje, color: "text-rose-700" },
                   ].map((k) => (
-                    <div key={k.label} className="rounded-lg border border-slate-200 px-3 py-2">
-                      <p className="text-xs text-slate-500">{k.label}</p>
+                    <div key={k.label} className="rounded-lg border border-[var(--border)] px-3 py-2">
+                      <p className="text-xs text-[var(--text-muted)]">{k.label}</p>
                       <p className={`text-2xl font-bold tabular-nums ${k.color}`}>{k.valor}</p>
                     </div>
                   ))}
@@ -781,20 +781,20 @@ function AdminInformesContent() {
               )}
 
               {discrepancias.length === 0 ? (
-                <p className="text-center py-8 text-slate-400 text-sm">
+                <p className="text-center py-8 text-[var(--text-muted)] text-sm">
                   Todo cuadra con el cuadrante en este periodo.
                 </p>
               ) : (
                 <>
                   <div className="overflow-x-auto mt-4 -mx-6">
                     <table className="w-full">
-                      <thead className="bg-slate-50 border-y border-slate-200">
+                      <thead className="bg-[var(--muted)] border-y border-[var(--border)]">
                         <tr>
                           {["Día", "Empleado", "Qué pasó", "Cuadrante", "Fichaje", "Ubicación", ""].map(
                             (h, i) => (
                               <th
                                 key={`${h}-${i}`}
-                                className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-2.5"
+                                className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-2.5"
                               >
                                 {h}
                               </th>
@@ -806,25 +806,25 @@ function AdminInformesContent() {
                         {discrepancias.map((d, i) => (
                           <tr
                             key={`${d.userId}-${d.dia}-${d.tipo}-${i}`}
-                            className="border-b border-slate-100 last:border-0"
+                            className="border-b border-[var(--border)] last:border-0"
                           >
-                            <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
+                            <td className="px-4 py-3 text-sm text-[var(--text-body)] whitespace-nowrap">
                               {new Date(`${d.dia}T00:00:00`).toLocaleDateString("es-ES", {
                                 day: "2-digit",
                                 month: "short",
                               })}
-                              <span className="block text-xs text-slate-400 tabular-nums">
+                              <span className="block text-xs text-[var(--text-muted)] tabular-nums">
                                 {d.hora}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-sm font-medium text-slate-800">
+                            <td className="px-4 py-3 text-sm font-medium text-[var(--text-dark)]">
                               {d.empleado}
                             </td>
                             <td className="px-4 py-3 text-sm">
                               <span
                                 className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                                   d.tipo === "sede_distinta"
-                                    ? "bg-amber-100 text-amber-700"
+                                    ? "bg-[var(--warning-bg)] text-[var(--warning-text)]"
                                     : d.tipo === "sin_turno"
                                       ? "bg-sky-100 text-sky-700"
                                       : "bg-rose-100 text-rose-700"
@@ -837,17 +837,17 @@ function AdminInformesContent() {
                                     : "Turno sin fichaje"}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-sm text-slate-600">
+                            <td className="px-4 py-3 text-sm text-[var(--text-body)]">
                               {d.sedeTurno ?? "—"}
                             </td>
-                            <td className="px-4 py-3 text-sm text-slate-600">
+                            <td className="px-4 py-3 text-sm text-[var(--text-body)]">
                               {d.sedeFichaje ?? "—"}
                             </td>
                             <td className="px-4 py-3 text-sm tabular-nums">
                               {d.distancia === null ? (
-                                <span className="text-slate-400">—</span>
+                                <span className="text-[var(--text-muted)]">—</span>
                               ) : (
-                                <span className={d.lejos ? "text-rose-600 font-medium" : "text-slate-500"}>
+                                <span className={d.lejos ? "text-rose-600 font-medium" : "text-[var(--text-muted)]"}>
                                   {d.distancia >= 1000
                                     ? `${(d.distancia / 1000).toFixed(1)} km`
                                     : `${d.distancia} m`}
@@ -880,7 +880,7 @@ function AdminInformesContent() {
                   </div>
                   {/* Sin decir el tope, una lista cortada parece la lista entera. */}
                   {totalDisc > discrepancias.length && (
-                    <p className="text-xs text-slate-400 mt-2">
+                    <p className="text-xs text-[var(--text-muted)] mt-2">
                       Se enseñan las {discrepancias.length} más recientes de {totalDisc}. Acota el
                       periodo o filtra por sede para verlas todas.
                     </p>
@@ -896,21 +896,21 @@ function AdminInformesContent() {
           {historial.length > 0 && (
             <Card>
               <CardContent className="pt-4 pb-4">
-                <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                  <History className="h-4 w-4 text-slate-500" /> Correcciones del cuadrante
+                <p className="text-sm font-semibold text-[var(--text-dark)] flex items-center gap-2">
+                  <History className="h-4 w-4 text-[var(--text-muted)]" /> Correcciones del cuadrante
                 </p>
-                <p className="text-xs text-slate-400 mt-1 max-w-3xl">
+                <p className="text-xs text-[var(--text-muted)] mt-1 max-w-3xl">
                   Lo que se ha corregido en este periodo. Los turnos tocados salen en amarillo en el
                   cuadrante, y el fichaje guarda en su nota el turno que tenía antes.
                 </p>
                 <div className="overflow-x-auto mt-3 -mx-6">
                   <table className="w-full">
-                    <thead className="bg-slate-50 border-y border-slate-200">
+                    <thead className="bg-[var(--muted)] border-y border-[var(--border)]">
                       <tr>
                         {["Día", "Empleado", "Antes", "Después", "Corregido por"].map((h) => (
                           <th
                             key={h}
-                            className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-2.5"
+                            className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-2.5"
                           >
                             {h}
                           </th>
@@ -919,21 +919,21 @@ function AdminInformesContent() {
                     </thead>
                     <tbody>
                       {historial.map((h) => (
-                        <tr key={h.id} className="border-b border-slate-100 last:border-0">
-                          <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
+                        <tr key={h.id} className="border-b border-[var(--border)] last:border-0">
+                          <td className="px-4 py-3 text-sm text-[var(--text-body)] whitespace-nowrap">
                             {new Date(`${h.dia}T00:00:00`).toLocaleDateString("es-ES", {
                               day: "2-digit",
                               month: "short",
                             })}
                           </td>
-                          <td className="px-4 py-3 text-sm font-medium text-slate-800">
+                          <td className="px-4 py-3 text-sm font-medium text-[var(--text-dark)]">
                             {h.empleado}
                           </td>
-                          <td className="px-4 py-3 text-sm text-slate-500">{h.antes}</td>
-                          <td className="px-4 py-3 text-sm text-slate-700">{h.despues}</td>
-                          <td className="px-4 py-3 text-sm text-slate-500">
+                          <td className="px-4 py-3 text-sm text-[var(--text-muted)]">{h.antes}</td>
+                          <td className="px-4 py-3 text-sm text-[var(--text-body)]">{h.despues}</td>
+                          <td className="px-4 py-3 text-sm text-[var(--text-muted)]">
                             {h.corregidoPor}
-                            <span className="block text-xs text-slate-400">
+                            <span className="block text-xs text-[var(--text-muted)]">
                               {new Date(h.cuando).toLocaleString("es-ES", {
                                 day: "2-digit",
                                 month: "short",
@@ -962,7 +962,7 @@ function AdminInformesContent() {
 // que /admin/configuracion).
 export default function AdminInformesPage() {
   return (
-    <Suspense fallback={<div className="p-6 animate-pulse"><div className="h-40 bg-slate-100 rounded-xl" /></div>}>
+    <Suspense fallback={<div className="p-6 animate-pulse"><div className="h-40 bg-[var(--muted)] rounded-xl" /></div>}>
       <AdminInformesContent />
     </Suspense>
   );

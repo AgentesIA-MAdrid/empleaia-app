@@ -128,16 +128,16 @@ export function CuadreExterno({
       <div>
         <Link
           href="/admin/conciliacion"
-          className="text-sm text-slate-500 hover:text-slate-800 inline-flex items-center gap-1.5"
+          className="text-sm text-[var(--text-muted)] hover:text-[var(--text-dark)] inline-flex items-center gap-1.5"
         >
           <ArrowLeft className="h-4 w-4" />
           Conciliación
         </Link>
-        <h1 className="text-2xl font-bold text-slate-900 mt-1 flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-[var(--text-dark)] mt-1 flex items-center gap-2">
           <CreditCard className="h-6 w-6 text-[var(--primary)]" />
           {textos.titulo} · {datos?.tienda.nombre ?? "…"}
         </h1>
-        <p className="text-slate-500 text-sm mt-1 max-w-2xl">{textos.descripcion}</p>
+        <p className="text-[var(--text-muted)] text-sm mt-1 max-w-2xl">{textos.descripcion}</p>
       </div>
 
       <Card>
@@ -167,7 +167,7 @@ export function CuadreExterno({
               <Label htmlFor="desfase">{textos.fuente} registra</Label>
               <select
                 id="desfase"
-                className="mt-1 block rounded-md border border-slate-200 px-3 py-2 text-sm"
+                className="mt-1 block rounded-md border border-[var(--border)] px-3 py-2 text-sm"
                 value={desfase}
                 onChange={(e) => setDesfase(Number(e.target.value))}
               >
@@ -188,20 +188,20 @@ export function CuadreExterno({
       )}
 
       {datos?.sinExtracto && (
-        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-600 flex items-start gap-2">
-          <HelpCircle className="h-4 w-4 mt-0.5 shrink-0 text-slate-400" />
+        <div className="rounded-md border border-[var(--border)] bg-[var(--muted)] px-3 py-2.5 text-sm text-[var(--text-body)] flex items-start gap-2">
+          <HelpCircle className="h-4 w-4 mt-0.5 shrink-0 text-[var(--text-muted)]" />
           <span>{textos.sinDatos}</span>
         </div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-3">
         {[
-          { label: textos.etiquetaDeclarado, valor: datos?.totales.declarado, color: "text-slate-900" },
+          { label: textos.etiquetaDeclarado, valor: datos?.totales.declarado, color: "text-[var(--text-dark)]" },
           { label: textos.etiquetaFuente, valor: datos?.totales.banco, color: "text-[var(--primary)]" },
         ].map((k) => (
           <Card key={k.label}>
             <CardContent className="pt-4 pb-4">
-              <p className="text-sm text-slate-500">{k.label}</p>
+              <p className="text-sm text-[var(--text-muted)]">{k.label}</p>
               <p className={`text-xl font-bold mt-1 tabular-nums ${k.color}`}>
                 {k.valor === undefined ? "—" : eur(k.valor)}
               </p>
@@ -210,10 +210,10 @@ export function CuadreExterno({
         ))}
         <Card>
           <CardContent className="pt-4 pb-4">
-            <p className="text-sm text-slate-500">Días que no cuadran</p>
+            <p className="text-sm text-[var(--text-muted)]">Días que no cuadran</p>
             <p
               className={`text-xl font-bold mt-1 tabular-nums ${
-                (datos?.totales.descuadres ?? 0) > 0 ? "text-amber-700" : "text-emerald-700"
+                (datos?.totales.descuadres ?? 0) > 0 ? "text-[var(--warning-text)]" : "text-[var(--success-text)]"
               }`}
             >
               {datos?.totales.descuadres ?? "—"}
@@ -227,17 +227,17 @@ export function CuadreExterno({
           {cargando ? (
             <div className="space-y-2">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />
+                <div key={i} className="h-10 bg-[var(--muted)] rounded animate-pulse" />
               ))}
             </div>
           ) : (datos?.filas.length ?? 0) === 0 ? (
-            <p className="text-center py-8 text-slate-400 text-sm">
+            <p className="text-center py-8 text-[var(--text-muted)] text-sm">
               No hay nada que cuadrar en estas fechas.
             </p>
           ) : (
             <div className="overflow-x-auto -mx-6">
               <table className="w-full">
-                <thead className="bg-slate-50 border-y border-slate-200">
+                <thead className="bg-[var(--muted)] border-y border-[var(--border)]">
                   <tr>
                     {[
                       "Día de venta",
@@ -249,7 +249,7 @@ export function CuadreExterno({
                     ].map((h, i) => (
                       <th
                         key={h || i}
-                        className={`text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-2.5 ${
+                        className={`text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-2.5 ${
                           i >= 2 && i <= 4 ? "text-right" : "text-left"
                         }`}
                       >
@@ -260,14 +260,14 @@ export function CuadreExterno({
                 </thead>
                 <tbody>
                   {datos?.filas.map((f) => (
-                    <tr key={f.fecha} className="border-b border-slate-100 last:border-0">
-                      <td className="px-4 py-2 text-sm text-slate-800 whitespace-nowrap">
+                    <tr key={f.fecha} className="border-b border-[var(--border)] last:border-0">
+                      <td className="px-4 py-2 text-sm text-[var(--text-dark)] whitespace-nowrap">
                         {fechaCorta(f.fecha)}
                       </td>
-                      <td className="px-4 py-2 text-sm text-slate-500 whitespace-nowrap">
+                      <td className="px-4 py-2 text-sm text-[var(--text-muted)] whitespace-nowrap">
                         {fechaCorta(f.fechaBanco)}
                         {f.movimientos > 1 && (
-                          <span className="text-slate-400"> · {f.movimientos} apuntes</span>
+                          <span className="text-[var(--text-muted)]"> · {f.movimientos} apuntes</span>
                         )}
                       </td>
                       <td className="px-4 py-2 text-sm text-right tabular-nums">
@@ -276,16 +276,16 @@ export function CuadreExterno({
                       <td className="px-4 py-2 text-sm text-right tabular-nums">{eur(f.banco)}</td>
                       <td
                         className={`px-4 py-2 text-sm text-right tabular-nums font-semibold ${
-                          f.descuadre ? "text-amber-700" : "text-slate-500"
+                          f.descuadre ? "text-[var(--warning-text)]" : "text-[var(--text-muted)]"
                         }`}
                       >
                         {f.diferencia === 0 ? "—" : eur(f.diferencia)}
                       </td>
                       <td className="px-4 py-2">
                         {f.descuadre ? (
-                          <AlertTriangle className="h-4 w-4 text-amber-600" />
+                          <AlertTriangle className="h-4 w-4 text-[var(--warning-text)]" />
                         ) : (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                          <CheckCircle2 className="h-4 w-4 text-[var(--success-text)]" />
                         )}
                       </td>
                     </tr>
@@ -300,18 +300,18 @@ export function CuadreExterno({
       {(datos?.movimientos.length ?? 0) > 0 && (
         <Card>
           <CardContent className="pt-4 pb-4">
-            <p className="text-sm font-semibold text-slate-800">{textos.tituloFichero}</p>
-            <p className="text-xs text-slate-500 mt-0.5 mb-3">
+            <p className="text-sm font-semibold text-[var(--text-dark)]">{textos.tituloFichero}</p>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5 mb-3">
               El fichero tal cual se importó, para mirar un día concreto apunte a apunte.
             </p>
             <div className="overflow-x-auto -mx-6">
               <table className="w-full">
-                <thead className="bg-slate-50 border-y border-slate-200">
+                <thead className="bg-[var(--muted)] border-y border-[var(--border)]">
                   <tr>
                     {["Fecha", "Concepto", "Referencia", "Importe"].map((h, i) => (
                       <th
                         key={h}
-                        className={`text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-2.5 ${
+                        className={`text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-2.5 ${
                           i === 3 ? "text-right" : "text-left"
                         }`}
                       >
@@ -322,12 +322,12 @@ export function CuadreExterno({
                 </thead>
                 <tbody>
                   {datos?.movimientos.map((m) => (
-                    <tr key={m.id} className="border-b border-slate-100 last:border-0">
-                      <td className="px-4 py-2 text-sm text-slate-600 whitespace-nowrap">
+                    <tr key={m.id} className="border-b border-[var(--border)] last:border-0">
+                      <td className="px-4 py-2 text-sm text-[var(--text-body)] whitespace-nowrap">
                         {fechaCorta(m.fecha)}
                       </td>
-                      <td className="px-4 py-2 text-sm text-slate-800">{m.concepto ?? "—"}</td>
-                      <td className="px-4 py-2 text-xs text-slate-400 break-all">
+                      <td className="px-4 py-2 text-sm text-[var(--text-dark)]">{m.concepto ?? "—"}</td>
+                      <td className="px-4 py-2 text-xs text-[var(--text-muted)] break-all">
                         {m.referencia ?? "—"}
                       </td>
                       <td className="px-4 py-2 text-sm text-right tabular-nums">

@@ -734,8 +734,8 @@ export default function AdminTurnosPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Cuadrante de Turnos</h1>
-          <p className="text-slate-500 text-sm mt-1">{format(inicioSemana, "d MMM", { locale: es })} – {format(finSemana, "d MMM yyyy", { locale: es })}</p>
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">Cuadrante de Turnos</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-1">{format(inicioSemana, "d MMM", { locale: es })} – {format(finSemana, "d MMM yyyy", { locale: es })}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Select value={filtroTienda} onValueChange={setFiltroTienda}>
@@ -772,7 +772,7 @@ export default function AdminTurnosPage() {
 
       <div className="flex items-center justify-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => setSemana(subWeeks(semana, 1))}><ChevronLeft className="h-5 w-5" /></Button>
-        <span className="font-semibold text-slate-700">Semana {format(inicioSemana, "w")} de {format(inicioSemana, "yyyy")}</span>
+        <span className="font-semibold text-[var(--text-body)]">Semana {format(inicioSemana, "w")} de {format(inicioSemana, "yyyy")}</span>
         <Button variant="ghost" size="icon" onClick={() => setSemana(addWeeks(semana, 1))}><ChevronRight className="h-5 w-5" /></Button>
         <Button variant="ghost" size="sm" onClick={() => setSemana(new Date())}>Hoy</Button>
       </div>
@@ -788,28 +788,28 @@ export default function AdminTurnosPage() {
             {/* La cabecera queda fija al hacer scroll vertical: `sticky top-0`
                 se ancla al CardContent (contenedor de scroll). El fondo opaco
                 y el z-10 ocluyen las filas que pasan por debajo. */}
-            <thead className="sticky top-0 z-10 bg-slate-50 border-b">
-              <tr className="bg-slate-50">
-                <th className="text-left text-xs font-semibold text-slate-500 px-3 py-3 w-44">Empleado</th>
+            <thead className="sticky top-0 z-10 bg-[var(--muted)] border-b">
+              <tr className="bg-[var(--muted)]">
+                <th className="text-left text-xs font-semibold text-[var(--text-muted)] px-3 py-3 w-44">Empleado</th>
                 {dias.map((d, i) => {
                   const hoy = isSameDay(d, new Date());
                   return (
-                    <th key={i} className={cn("text-center text-xs font-semibold px-1 py-3", hoy ? "text-[var(--primary)]" : "text-slate-500")}>
+                    <th key={i} className={cn("text-center text-xs font-semibold px-1 py-3", hoy ? "text-[var(--primary)]" : "text-[var(--text-muted)]")}>
                       <div>{DIAS[i]}</div>
-                      <div className={cn("text-base font-bold", hoy ? "text-[var(--primary)]" : "text-slate-700")}>{format(d, "d")}</div>
+                      <div className={cn("text-base font-bold", hoy ? "text-[var(--primary)]" : "text-[var(--text-body)]")}>{format(d, "d")}</div>
                     </th>
                   );
                 })}
-                <th className="text-center text-xs font-semibold text-slate-500 px-2 py-3 w-20">Total</th>
-                <th className="text-center text-xs font-semibold text-slate-500 px-2 py-3 w-24">Contrato</th>
-                <th className="text-center text-xs font-semibold text-slate-500 px-2 py-3 w-20">Dif.</th>
+                <th className="text-center text-xs font-semibold text-[var(--text-muted)] px-2 py-3 w-20">Total</th>
+                <th className="text-center text-xs font-semibold text-[var(--text-muted)] px-2 py-3 w-24">Contrato</th>
+                <th className="text-center text-xs font-semibold text-[var(--text-muted)] px-2 py-3 w-20">Dif.</th>
               </tr>
             </thead>
             <tbody>
               {loading && primeraCarga ? (
-                <tr><td colSpan={totalCols} className="px-4 py-3"><div className="h-10 bg-slate-100 rounded animate-pulse" /></td></tr>
+                <tr><td colSpan={totalCols} className="px-4 py-3"><div className="h-10 bg-[var(--muted)] rounded animate-pulse" /></td></tr>
               ) : grupos.length === 0 ? (
-                <tr><td colSpan={totalCols} className="text-center py-8 text-slate-400">No hay sedes. Crea una sede primero.</td></tr>
+                <tr><td colSpan={totalCols} className="text-center py-8 text-[var(--text-muted)]">No hay sedes. Crea una sede primero.</td></tr>
               ) : (
                 grupos.map(grupo => (
                   <GrupoSede
@@ -886,7 +886,7 @@ export default function AdminTurnosPage() {
                           "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
                           activo
                             ? "border-[var(--primary)] bg-[var(--primary)] text-white"
-                            : "border-slate-200 text-slate-600 hover:border-[var(--primary)] hover:text-[var(--primary)]",
+                            : "border-[var(--border)] text-[var(--text-body)] hover:border-[var(--primary)] hover:text-[var(--primary)]",
                         )}
                       >
                         {franjaLabel(tr.horaApertura)} · {tr.horaApertura}–{tr.horaCierre}
@@ -894,7 +894,7 @@ export default function AdminTurnosPage() {
                     );
                   })}
                 </div>
-                <p className="mt-1 text-xs text-slate-400">Elige un tramo de la sede o ajústalo abajo en “Personalizado”.</p>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">Elige un tramo de la sede o ajústalo abajo en “Personalizado”.</p>
               </div>
             )}
             {turnoForm.tipoTurnoId === CUSTOM && (
@@ -928,14 +928,14 @@ export default function AdminTurnosPage() {
         <DialogContent className="max-w-[95vw] sm:max-w-md">
           <DialogHeader><DialogTitle>Añadir persona a {addDialog?.nombre}</DialogTitle></DialogHeader>
           <div className="space-y-3 py-2">
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-[var(--text-muted)]">
               Añade a alguien para cubrir esta semana en esta sede (por ejemplo un correturno).
               Solo aparece en la semana actual; asígnale turnos con el botón “+”.
             </p>
             <div>
               <Label>Persona</Label>
               <div className="relative mt-1">
-                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                 <Input
                   placeholder="Buscar por nombre…"
                   className="pl-9"
@@ -943,22 +943,22 @@ export default function AdminTurnosPage() {
                   onChange={e => setAddBusqueda(e.target.value)}
                 />
               </div>
-              <div className="mt-2 max-h-[50vh] overflow-y-auto divide-y divide-slate-100 rounded-lg border border-slate-100">
+              <div className="mt-2 max-h-[50vh] overflow-y-auto divide-y divide-slate-100 rounded-lg border border-[var(--border)]">
                 {disponiblesFiltrados.length === 0 ? (
-                  <p className="px-3 py-6 text-center text-sm text-slate-400">
+                  <p className="px-3 py-6 text-center text-sm text-[var(--text-muted)]">
                     {disponiblesParaAñadir.length === 0 ? "No hay más empleados disponibles" : "Sin resultados"}
                   </p>
                 ) : disponiblesFiltrados.map(e => (
-                  <label key={e.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 cursor-pointer">
+                  <label key={e.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-[var(--muted)] cursor-pointer">
                     <input
                       type="radio"
                       name="add-persona"
-                      className="h-4 w-4 border-slate-300 accent-[var(--primary)]"
+                      className="h-4 w-4 border-[var(--border-strong)] accent-[var(--primary)]"
                       checked={addSel === e.id}
                       onChange={() => setAddSel(e.id)}
                     />
-                    <span className="text-sm font-medium text-slate-900 truncate">
-                      {e.nombre} {e.apellidos}{!e.tiendaId ? <span className="font-normal text-slate-400"> · sin sede</span> : ""}
+                    <span className="text-sm font-medium text-[var(--text-dark)] truncate">
+                      {e.nombre} {e.apellidos}{!e.tiendaId ? <span className="font-normal text-[var(--text-muted)]"> · sin sede</span> : ""}
                     </span>
                   </label>
                 ))}
@@ -979,25 +979,25 @@ export default function AdminTurnosPage() {
           <div className="space-y-4 py-2">
             <div className="space-y-1">
               {tipos.length === 0 ? (
-                <p className="text-sm text-slate-400">Aún no hay tipos. Crea el primero abajo.</p>
+                <p className="text-sm text-[var(--text-muted)]">Aún no hay tipos. Crea el primero abajo.</p>
               ) : tipos.map(t => (
-                <div key={t.id} className="flex items-center gap-2 rounded-md border border-slate-100 px-2 py-1.5">
+                <div key={t.id} className="flex items-center gap-2 rounded-md border border-[var(--border)] px-2 py-1.5">
                   <span className="w-3 h-3 rounded-full" style={{ backgroundColor: t.color }} />
-                  <span className="font-medium text-slate-800">{t.nombre}</span>
-                  {t.abreviatura && <span className="text-xs text-slate-400">[{t.abreviatura}]</span>}
-                  <span className="text-xs text-slate-500 ml-auto">{t.esLibre ? "libre" : `${Number(t.horas)}h`}</span>
+                  <span className="font-medium text-[var(--text-dark)]">{t.nombre}</span>
+                  {t.abreviatura && <span className="text-xs text-[var(--text-muted)]">[{t.abreviatura}]</span>}
+                  <span className="text-xs text-[var(--text-muted)] ml-auto">{t.esLibre ? "libre" : `${Number(t.horas)}h`}</span>
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setTipoForm({
                     id: t.id, nombre: t.nombre, abreviatura: t.abreviatura, color: t.color,
                     horaInicio: t.horaInicio || "", horaFin: t.horaFin || "",
                     horas: String(Number(t.horas)), esLibre: t.esLibre,
                   })}><Pencil className="h-3.5 w-3.5" /></Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-red-50" onClick={() => borrarTipo(t.id)}><Trash2 className="h-3.5 w-3.5 text-red-400" /></Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-[var(--danger-bg)]" onClick={() => borrarTipo(t.id)}><Trash2 className="h-3.5 w-3.5 text-[var(--danger)]" /></Button>
                 </div>
               ))}
             </div>
 
             <div className="border-t pt-4 space-y-3">
-              <p className="text-sm font-semibold text-slate-700">{tipoForm.id ? "Editar tipo" : "Nuevo tipo"}</p>
+              <p className="text-sm font-semibold text-[var(--text-body)]">{tipoForm.id ? "Editar tipo" : "Nuevo tipo"}</p>
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Nombre *</Label><Input className="mt-1" placeholder="Mañana" value={tipoForm.nombre} onChange={e => setTipoForm(f => ({ ...f, nombre: e.target.value }))} /></div>
                 <div><Label>Abreviatura</Label><Input className="mt-1" placeholder="M" value={tipoForm.abreviatura} onChange={e => setTipoForm(f => ({ ...f, abreviatura: e.target.value }))} /></div>
@@ -1010,7 +1010,7 @@ export default function AdminTurnosPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Label>Color</Label>
-                  <input type="color" value={tipoForm.color} onChange={e => setTipoForm(f => ({ ...f, color: e.target.value }))} className="h-9 w-12 rounded border border-slate-200" />
+                  <input type="color" value={tipoForm.color} onChange={e => setTipoForm(f => ({ ...f, color: e.target.value }))} className="h-9 w-12 rounded border border-[var(--border)]" />
                 </div>
               </div>
               <div className="flex gap-2">
@@ -1046,7 +1046,7 @@ export default function AdminTurnosPage() {
                 {mesCargando ? "Calculando…" : "Calcular"}
               </Button>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[var(--text-muted)]">
               Suma las horas planificadas en el cuadrante
               {filtroTienda !== "todas" ? " de la sede filtrada" : " de todas las sedes"}. No son las
               horas fichadas. «Contrato» son las horas del contrato de cada persona
@@ -1054,32 +1054,32 @@ export default function AdminTurnosPage() {
             </p>
 
             {mesFilas && totalesMes.length === 0 && (
-              <p className="text-center py-6 text-slate-400 text-sm">
+              <p className="text-center py-6 text-[var(--text-muted)] text-sm">
                 No hay turnos planificados en ese mes.
               </p>
             )}
 
             {totalesMes.length > 0 && (
               <>
-                <div className="max-h-72 overflow-y-auto rounded-md border border-slate-200">
+                <div className="max-h-72 overflow-y-auto rounded-md border border-[var(--border)]">
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                    <thead className="bg-[var(--muted)] border-b border-[var(--border)] sticky top-0">
                       <tr>
-                        <th className="text-left px-3 py-2 font-semibold text-slate-600">Empleado</th>
-                        <th className="text-right px-3 py-2 font-semibold text-slate-600">Horas</th>
-                        <th className="text-right px-3 py-2 font-semibold text-slate-600">Contrato</th>
-                        <th className="text-right px-3 py-2 font-semibold text-slate-600">Dif.</th>
+                        <th className="text-left px-3 py-2 font-semibold text-[var(--text-body)]">Empleado</th>
+                        <th className="text-right px-3 py-2 font-semibold text-[var(--text-body)]">Horas</th>
+                        <th className="text-right px-3 py-2 font-semibold text-[var(--text-body)]">Contrato</th>
+                        <th className="text-right px-3 py-2 font-semibold text-[var(--text-body)]">Dif.</th>
                       </tr>
                     </thead>
                     <tbody>
                       {totalesMes.map((e) => (
-                        <tr key={e.empleado} className="border-b border-slate-100 last:border-0">
-                          <td className="px-3 py-2 text-slate-800">{e.empleado}</td>
+                        <tr key={e.empleado} className="border-b border-[var(--border)] last:border-0">
+                          <td className="px-3 py-2 text-[var(--text-dark)]">{e.empleado}</td>
                           <td className="px-3 py-2 text-right tabular-nums font-medium">{e.horas}h</td>
-                          <td className="px-3 py-2 text-right tabular-nums text-slate-500">{e.contrato}h</td>
+                          <td className="px-3 py-2 text-right tabular-nums text-[var(--text-muted)]">{e.contrato}h</td>
                           <td
                             className={`px-3 py-2 text-right tabular-nums font-medium ${
-                              e.diferencia > 0 ? "text-amber-600" : e.diferencia < 0 ? "text-slate-500" : "text-slate-400"
+                              e.diferencia > 0 ? "text-[var(--warning-text)]" : e.diferencia < 0 ? "text-[var(--text-muted)]" : "text-[var(--text-muted)]"
                             }`}
                           >
                             {e.diferencia > 0 ? "+" : ""}{e.diferencia}h
@@ -1088,8 +1088,8 @@ export default function AdminTurnosPage() {
                       ))}
                     </tbody>
                     <tfoot>
-                      <tr className="bg-slate-50 border-t border-slate-200">
-                        <td className="px-3 py-2 font-semibold text-slate-700">Total</td>
+                      <tr className="bg-[var(--muted)] border-t border-[var(--border)]">
+                        <td className="px-3 py-2 font-semibold text-[var(--text-body)]">Total</td>
                         <td className="px-3 py-2 text-right tabular-nums font-bold">{horasTotalesMes}h</td>
                         <td colSpan={2} />
                       </tr>
@@ -1142,14 +1142,14 @@ function GrupoSede({
     <>
       <tr style={{ backgroundColor: `${grupo.color}22` }}>
         <td colSpan={totalCols} className="px-3 py-2">
-          <span className="flex items-center gap-2 font-semibold text-slate-700">
+          <span className="flex items-center gap-2 font-semibold text-[var(--text-body)]">
             <span className="w-3 h-3 rounded-full" style={{ backgroundColor: grupo.color }} />
             {grupo.nombre}
-            <span className="text-xs font-normal text-slate-400">({filas.length})</span>
+            <span className="text-xs font-normal text-[var(--text-muted)]">({filas.length})</span>
             {onAddPersona && (
               <button
                 onClick={onAddPersona}
-                className="ml-auto inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors"
+                className="ml-auto inline-flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-xs font-medium text-[var(--text-body)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors"
               >
                 <UserPlus className="h-3.5 w-3.5" /> Añadir persona
               </button>
@@ -1158,7 +1158,7 @@ function GrupoSede({
         </td>
       </tr>
       {filas.length === 0 ? (
-        <tr><td colSpan={totalCols} className="px-6 py-2 text-xs text-slate-400">Sin empleados en esta sede</td></tr>
+        <tr><td colSpan={totalCols} className="px-6 py-2 text-xs text-[var(--text-muted)]">Sin empleados en esta sede</td></tr>
       ) : filas.map(({ emp, visitante, removible }) => {
         const total = totalSemana(emp.id, grupo.id);
         const contrato = contratoDe(emp);
@@ -1176,19 +1176,19 @@ function GrupoSede({
         const horasOtrasSedes = Math.round((totalGlobal - total) * 100) / 100;
         const dif = Math.round((totalGlobal - contrato) * 100) / 100;
         return (
-          <tr key={emp.id} className="border-b border-slate-50 hover:bg-slate-50/60">
+          <tr key={emp.id} className="border-b border-slate-50 hover:bg-[var(--muted)]/60">
             <td className="px-3 py-2">
-              <span className="text-sm font-medium text-slate-800 truncate block max-w-[160px]">{emp.nombre} {emp.apellidos}</span>
+              <span className="text-sm font-medium text-[var(--text-dark)] truncate block max-w-[160px]">{emp.nombre} {emp.apellidos}</span>
               {visitante && (
                 <span className="mt-0.5 inline-flex items-center gap-1">
-                  <span className="inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Correturno</span>
+                  <span className="inline-block rounded bg-[var(--warning-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--warning-text)]">Correturno</span>
                   {removible && grupo.id && (
                     <button
                       type="button"
                       onClick={() => onQuitarCorreturno(grupo.id as string, emp.id)}
                       title="Quitar correturno de esta sede"
                       aria-label={`Quitar a ${emp.nombre} ${emp.apellidos} de esta sede`}
-                      className="inline-flex h-4 w-4 items-center justify-center rounded-full text-amber-600 hover:bg-amber-200 transition-colors text-[11px] leading-none"
+                      className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[var(--warning-text)] hover:bg-amber-200 transition-colors text-[11px] leading-none"
                     >×</button>
                   )}
                 </span>
@@ -1214,16 +1214,16 @@ function GrupoSede({
                 copiandoSemana={copiandoSemana}
               />
             ))}
-            <td className="px-2 py-2 text-center font-semibold text-slate-700">
+            <td className="px-2 py-2 text-center font-semibold text-[var(--text-body)]">
               {Math.round(total * 100) / 100}h
               {horasOtrasSedes > 0 && (
-                <div className="text-[10px] font-normal text-slate-400" title="Horas de esta persona en otras sedes esta semana (cuentan para su contrato)">
+                <div className="text-[10px] font-normal text-[var(--text-muted)]" title="Horas de esta persona en otras sedes esta semana (cuentan para su contrato)">
                   +{horasOtrasSedes}h otras sedes
                 </div>
               )}
             </td>
-            <td className="px-2 py-2 text-center text-slate-500">{contrato}h</td>
-            <td className={cn("px-2 py-2 text-center font-semibold", dif < 0 ? "text-red-600" : "text-emerald-600")}>
+            <td className="px-2 py-2 text-center text-[var(--text-muted)]">{contrato}h</td>
+            <td className={cn("px-2 py-2 text-center font-semibold", dif < 0 ? "text-[var(--danger-text)]" : "text-[var(--success-text)]")}>
               {dif > 0 ? "+" : ""}{dif}h
             </td>
           </tr>
@@ -1266,7 +1266,7 @@ function CeldaDia({
     <td
       className={cn(
         "px-1 py-1.5 text-center align-top transition-colors",
-        sobre && "rounded-md bg-slate-100 ring-2 ring-inset ring-[var(--primary)]",
+        sobre && "rounded-md bg-[var(--muted)] ring-2 ring-inset ring-[var(--primary)]",
       )}
       onDragOver={(e) => {
         if (enAusencia) return;
@@ -1304,7 +1304,7 @@ function CeldaDia({
             onClick={() => onEdit(t)}
             className={cn(
               "group relative mx-auto block w-fit cursor-grab rounded-md px-1 py-1 text-xs font-medium leading-tight active:cursor-grabbing",
-              t.estado === "PUBLICADO" ? "text-white" : "border border-dashed border-slate-300 text-slate-600",
+              t.estado === "PUBLICADO" ? "text-white" : "border border-dashed border-[var(--border-strong)] text-[var(--text-body)]",
             )}
             /* Los corregidos van en AMARILLO, por encima del color de su tipo:
                lo que se quiere ver de un golpe es qué se ha tocado a mano
@@ -1333,7 +1333,7 @@ function CeldaDia({
             </div>
             <span
               onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
-              className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px]"
+              className="absolute -top-1 -right-1 w-4 h-4 bg-[var(--danger)] text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px]"
             >×</span>
           </button>
         ))}
@@ -1342,7 +1342,7 @@ function CeldaDia({
             type="button"
             disabled={copiandoSemana}
             onClick={() => onCopiarSemana(emp, dia, tiendaId)}
-            className="w-full inline-flex items-center justify-center gap-1 rounded-md py-0.5 text-[10px] text-slate-400 hover:text-[var(--primary)] transition-colors disabled:opacity-50"
+            className="w-full inline-flex items-center justify-center gap-1 rounded-md py-0.5 text-[10px] text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors disabled:opacity-50"
             title="Copiar este día al resto de la semana (este empleado)"
           >
             <Copy className="h-3 w-3" /> Semana
@@ -1350,7 +1350,7 @@ function CeldaDia({
         )}
         {!enAusencia && (
           <button
-            className="w-full rounded-md border border-dashed border-slate-200 text-slate-300 hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors py-0.5 text-xs"
+            className="w-full rounded-md border border-dashed border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--primary)] hover:text-[var(--primary)] transition-colors py-0.5 text-xs"
             onClick={() => onAdd(emp, dia, tiendaId)}
           >+</button>
         )}
@@ -1359,7 +1359,7 @@ function CeldaDia({
           <button
             type="button"
             onClick={() => onMarcarLibre(emp, dia, tiendaId)}
-            className="w-full inline-flex items-center justify-center gap-1 rounded-md py-0.5 text-[10px] text-slate-400 hover:text-[var(--primary)] transition-colors"
+            className="w-full inline-flex items-center justify-center gap-1 rounded-md py-0.5 text-[10px] text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
             title="Marcar este día como libre"
           >
             <Coffee className="h-3 w-3" /> Libre

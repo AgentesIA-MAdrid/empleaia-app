@@ -42,12 +42,12 @@ async function ConfiguracionIAPage() {
         </div>
       </header>
 
-      <div className="rounded-xl border border-[var(--color-border,#E2E8F0)] bg-white p-6">
+      <div className="rounded-xl border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] p-6">
         <ConfigForm initial={cfg} />
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700 space-y-3">
-        <h2 className="font-semibold text-slate-900">Cómo obtener una API key</h2>
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--muted)] p-5 text-sm text-[var(--text-body)] space-y-3">
+        <h2 className="font-semibold text-[var(--text-dark)]">Cómo obtener una API key</h2>
         <ul className="space-y-2.5">
           <li className="flex items-start gap-2">
             <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[var(--primary)] shrink-0" />
@@ -56,7 +56,7 @@ async function ConfiguracionIAPage() {
               <a className="text-[var(--primary)] hover:underline inline-flex items-center gap-0.5" href="https://console.anthropic.com" target="_blank" rel="noreferrer">
                 console.anthropic.com <ExternalLink className="h-3 w-3" />
               </a>
-              {" "}→ <em>API Keys</em> → <em>Create Key</em>. Modelos recomendados: <code className="bg-white px-1 py-0.5 rounded text-xs">claude-sonnet-4-6</code>, <code className="bg-white px-1 py-0.5 rounded text-xs">claude-haiku-4-5-20251001</code>.
+              {" "}→ <em>API Keys</em> → <em>Create Key</em>. Modelos recomendados: <code className="bg-[var(--card)] px-1 py-0.5 rounded text-xs">claude-sonnet-4-6</code>, <code className="bg-[var(--card)] px-1 py-0.5 rounded text-xs">claude-haiku-4-5-20251001</code>.
             </span>
           </li>
           <li className="flex items-start gap-2">
@@ -66,7 +66,7 @@ async function ConfiguracionIAPage() {
               <a className="text-[var(--primary)] hover:underline inline-flex items-center gap-0.5" href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">
                 platform.openai.com <ExternalLink className="h-3 w-3" />
               </a>
-              {" "}→ <em>API keys</em> → <em>Create new secret key</em>. Modelos: <code className="bg-white px-1 py-0.5 rounded text-xs">gpt-4o</code>, <code className="bg-white px-1 py-0.5 rounded text-xs">gpt-4o-mini</code>.
+              {" "}→ <em>API keys</em> → <em>Create new secret key</em>. Modelos: <code className="bg-[var(--card)] px-1 py-0.5 rounded text-xs">gpt-4o</code>, <code className="bg-[var(--card)] px-1 py-0.5 rounded text-xs">gpt-4o-mini</code>.
             </span>
           </li>
           <li className="flex items-start gap-2">
@@ -76,11 +76,11 @@ async function ConfiguracionIAPage() {
               <a className="text-[var(--primary)] hover:underline inline-flex items-center gap-0.5" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">
                 aistudio.google.com/apikey <ExternalLink className="h-3 w-3" />
               </a>
-              . Modelos: <code className="bg-white px-1 py-0.5 rounded text-xs">gemini-1.5-pro</code>, <code className="bg-white px-1 py-0.5 rounded text-xs">gemini-1.5-flash</code>.
+              . Modelos: <code className="bg-[var(--card)] px-1 py-0.5 rounded text-xs">gemini-1.5-pro</code>, <code className="bg-[var(--card)] px-1 py-0.5 rounded text-xs">gemini-1.5-flash</code>.
             </span>
           </li>
         </ul>
-        <p className="pt-2 text-xs text-slate-500">
+        <p className="pt-2 text-xs text-[var(--text-muted)]">
           Tu API key se cifra con AES-256-GCM antes de guardarse en BD. No se muestra nunca tras
           guardarla — si la pierdes, simplemente vuelves a meter una nueva. El coste de tokens lo
           paga tu cuenta del proveedor; nosotros no facturamos por uso de IA.

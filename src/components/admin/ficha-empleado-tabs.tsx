@@ -99,8 +99,8 @@ const TIPO_LABEL: Record<TipoFichaje, string> = {
   SALIDA: "Salida",
 };
 const TIPO_CLS: Record<TipoFichaje, string> = {
-  ENTRADA: "bg-emerald-50 text-emerald-700",
-  PAUSA: "bg-amber-50 text-amber-700",
+  ENTRADA: "bg-[var(--success-bg)] text-[var(--success-text)]",
+  PAUSA: "bg-[var(--warning-bg)] text-[var(--warning-text)]",
   VUELTA_PAUSA: "bg-sky-50 text-sky-700",
   SALIDA: "bg-rose-50 text-rose-700",
 };
@@ -195,7 +195,7 @@ export function FichaEmpleadoTabs({
 
             <div className="flex-1 min-w-[200px]">
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl font-bold text-slate-900">
+                <h1 className="text-2xl font-bold text-[var(--text-dark)]">
                   {nombreCompleto}
                 </h1>
                 <span
@@ -211,26 +211,26 @@ export function FichaEmpleadoTabs({
                   label={empleado.activo ? "Activo" : "Inactivo"}
                 />
               </div>
-              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-sm text-slate-600">
+              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-sm text-[var(--text-body)]">
                 <span className="flex items-center gap-2">
-                  <Mail className="h-3.5 w-3.5 text-slate-400" />
+                  <Mail className="h-3.5 w-3.5 text-[var(--text-muted)]" />
                   {empleado.email}
                 </span>
                 {empleado.telefono && (
                   <span className="flex items-center gap-2">
-                    <Phone className="h-3.5 w-3.5 text-slate-400" />
+                    <Phone className="h-3.5 w-3.5 text-[var(--text-muted)]" />
                     {empleado.telefono}
                   </span>
                 )}
                 {empleado.dni && (
                   <span className="flex items-center gap-2">
-                    <UserIcon className="h-3.5 w-3.5 text-slate-400" />
+                    <UserIcon className="h-3.5 w-3.5 text-[var(--text-muted)]" />
                     DNI: {empleado.dni}
                   </span>
                 )}
                 {empleado.tienda && (
                   <span className="flex items-center gap-2">
-                    <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                    <MapPin className="h-3.5 w-3.5 text-[var(--text-muted)]" />
                     <span
                       className="w-2 h-2 rounded-full"
                       style={{ backgroundColor: empleado.tienda.color }}
@@ -240,19 +240,19 @@ export function FichaEmpleadoTabs({
                 )}
                 {empleado.manager && (
                   <span className="flex items-center gap-2">
-                    <Briefcase className="h-3.5 w-3.5 text-slate-400" />
+                    <Briefcase className="h-3.5 w-3.5 text-[var(--text-muted)]" />
                     Responsable: {empleado.manager.nombre}{" "}
                     {empleado.manager.apellidos}
                   </span>
                 )}
                 {empleado.empresa && (
                   <span className="flex items-center gap-2">
-                    <Building2 className="h-3.5 w-3.5 text-slate-400" />
+                    <Building2 className="h-3.5 w-3.5 text-[var(--text-muted)]" />
                     {empleado.empresa.nombre}
                   </span>
                 )}
                 <span className="flex items-center gap-2">
-                  <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                  <Calendar className="h-3.5 w-3.5 text-[var(--text-muted)]" />
                   Alta: {format(altaDate, "d MMM yyyy", { locale: es })}
                 </span>
               </div>
@@ -273,7 +273,7 @@ export function FichaEmpleadoTabs({
           <CardContent>
             <div className="flex items-end gap-3 flex-wrap">
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
+                <label className="block text-xs font-medium text-[var(--text-body)] mb-1">
                   Salario base mensual (€)
                 </label>
                 {puedeEditarSalario ? (
@@ -284,11 +284,11 @@ export function FichaEmpleadoTabs({
                     placeholder="(usa default empresa)"
                     value={salarioInput}
                     onChange={(e) => setSalarioInput(e.target.value)}
-                    className="w-40 rounded-md border border-slate-200 px-2 py-1.5 text-sm"
+                    className="w-40 rounded-md border border-[var(--border)] px-2 py-1.5 text-sm"
                     disabled={savingSalario}
                   />
                 ) : (
-                  <span className="text-sm text-slate-900">
+                  <span className="text-sm text-[var(--text-dark)]">
                     {salarioActual != null
                       ? salarioActual.toLocaleString("es-ES", {
                           style: "currency",
@@ -313,10 +313,10 @@ export function FichaEmpleadoTabs({
                 </button>
               )}
               {salarioMsg && (
-                <span className="text-xs text-slate-500">{salarioMsg}</span>
+                <span className="text-xs text-[var(--text-muted)]">{salarioMsg}</span>
               )}
             </div>
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs text-[var(--text-muted)] mt-2">
               Vacío = usar el salario base por defecto de la empresa (Configuración → Nómina).
             </p>
           </CardContent>
@@ -393,7 +393,7 @@ export function FichaEmpleadoTabs({
                   <UserIcon className="h-4 w-4 text-[var(--primary)]" />
                   Datos del empleado
                   {!puedeEditarFicha && (
-                    <span className="text-xs font-normal text-slate-400">(solo lectura)</span>
+                    <span className="text-xs font-normal text-[var(--text-muted)]">(solo lectura)</span>
                   )}
                 </CardTitle>
               </CardHeader>
@@ -421,19 +421,19 @@ export function FichaEmpleadoTabs({
             </CardHeader>
             <CardContent className="p-0">
               {fichajes.length === 0 ? (
-                <p className="text-center py-8 text-slate-400 text-sm">
+                <p className="text-center py-8 text-[var(--text-muted)] text-sm">
                   Sin fichajes en los últimos 30 días.
                 </p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-slate-50 border-b border-slate-200">
+                    <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
                       <tr>
                         {["Fecha", "Hora", "Tipo", "Método", "Sede", "Nota"].map(
                           (h) => (
                             <th
                               key={h}
-                              className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3"
+                              className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-3"
                             >
                               {h}
                             </th>
@@ -447,12 +447,12 @@ export function FichaEmpleadoTabs({
                         return (
                           <tr
                             key={f.id}
-                            className="hover:bg-slate-50 transition-colors"
+                            className="hover:bg-[var(--muted)] transition-colors"
                           >
-                            <td className="px-4 py-2.5 text-sm text-slate-700 whitespace-nowrap">
+                            <td className="px-4 py-2.5 text-sm text-[var(--text-body)] whitespace-nowrap">
                               {format(d, "dd/MM/yyyy")}
                             </td>
-                            <td className="px-4 py-2.5 text-sm font-mono text-slate-900 whitespace-nowrap">
+                            <td className="px-4 py-2.5 text-sm font-mono text-[var(--text-dark)] whitespace-nowrap">
                               {format(d, "HH:mm")}
                             </td>
                             <td className="px-4 py-2.5">
@@ -463,12 +463,12 @@ export function FichaEmpleadoTabs({
                               </span>
                             </td>
                             <td className="px-4 py-2.5">
-                              <span className="inline-flex items-center gap-1 text-xs text-slate-600">
+                              <span className="inline-flex items-center gap-1 text-xs text-[var(--text-body)]">
                                 <MetodoIcon m={f.metodo} />
                                 {f.metodo}
                               </span>
                             </td>
-                            <td className="px-4 py-2.5 text-sm text-slate-600">
+                            <td className="px-4 py-2.5 text-sm text-[var(--text-body)]">
                               {f.tienda ? (
                                 <span className="inline-flex items-center gap-1.5">
                                   <span
@@ -478,11 +478,11 @@ export function FichaEmpleadoTabs({
                                   {f.tienda.nombre}
                                 </span>
                               ) : (
-                                <span className="text-slate-400">—</span>
+                                <span className="text-[var(--text-muted)]">—</span>
                               )}
                             </td>
                             <td
-                              className="px-4 py-2.5 text-sm text-slate-500 max-w-[240px] truncate"
+                              className="px-4 py-2.5 text-sm text-[var(--text-muted)] max-w-[240px] truncate"
                               title={f.nota ?? ""}
                             >
                               {f.nota || "—"}
@@ -503,19 +503,19 @@ export function FichaEmpleadoTabs({
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <CalendarOff className="h-4 w-4 text-amber-500" />
+                <CalendarOff className="h-4 w-4 text-[var(--warning)]" />
                 Ausencias, vacaciones y bajas — últimos 12 meses
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {ausencias.length === 0 ? (
-                <p className="text-center py-8 text-slate-400 text-sm">
+                <p className="text-center py-8 text-[var(--text-muted)] text-sm">
                   Sin ausencias registradas en los últimos 12 meses.
                 </p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-slate-50 border-b border-slate-200">
+                    <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
                       <tr>
                         {[
                           "Tipo",
@@ -528,7 +528,7 @@ export function FichaEmpleadoTabs({
                         ].map((h) => (
                           <th
                             key={h}
-                            className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3"
+                            className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-3"
                           >
                             {h}
                           </th>
@@ -539,7 +539,7 @@ export function FichaEmpleadoTabs({
                       {ausencias.map((a) => (
                         <tr
                           key={a.id}
-                          className="hover:bg-slate-50 transition-colors"
+                          className="hover:bg-[var(--muted)] transition-colors"
                         >
                           <td className="px-4 py-2.5 text-sm">
                             <span className="inline-flex items-center gap-1.5">
@@ -549,18 +549,18 @@ export function FichaEmpleadoTabs({
                                   backgroundColor: a.tipoAusencia.color,
                                 }}
                               />
-                              <span className="font-medium text-slate-900">
+                              <span className="font-medium text-[var(--text-dark)]">
                                 {a.tipoAusencia.nombre}
                               </span>
                             </span>
                           </td>
-                          <td className="px-4 py-2.5 text-sm text-slate-700 whitespace-nowrap">
+                          <td className="px-4 py-2.5 text-sm text-[var(--text-body)] whitespace-nowrap">
                             {format(new Date(a.fechaInicio), "dd/MM/yyyy")}
                           </td>
-                          <td className="px-4 py-2.5 text-sm text-slate-700 whitespace-nowrap">
+                          <td className="px-4 py-2.5 text-sm text-[var(--text-body)] whitespace-nowrap">
                             {format(new Date(a.fechaFin), "dd/MM/yyyy")}
                           </td>
-                          <td className="px-4 py-2.5 text-sm font-semibold text-slate-900">
+                          <td className="px-4 py-2.5 text-sm font-semibold text-[var(--text-dark)]">
                             {a.dias}
                           </td>
                           <td className="px-4 py-2.5 text-sm">
@@ -577,7 +577,7 @@ export function FichaEmpleadoTabs({
                             />
                           </td>
                           <td
-                            className="px-4 py-2.5 text-sm text-slate-500 max-w-[260px] truncate"
+                            className="px-4 py-2.5 text-sm text-[var(--text-muted)] max-w-[260px] truncate"
                             title={a.motivo ?? ""}
                           >
                             {a.motivo || "—"}
@@ -603,18 +603,18 @@ export function FichaEmpleadoTabs({
             </CardHeader>
             <CardContent className="p-0">
               {turnos.length === 0 ? (
-                <p className="text-center py-8 text-slate-400 text-sm">
+                <p className="text-center py-8 text-[var(--text-muted)] text-sm">
                   Sin turnos programados.
                 </p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-slate-50 border-b border-slate-200">
+                    <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
                       <tr>
                         {["Fecha", "Horario", "Sede", "Estado"].map((h) => (
                           <th
                             key={h}
-                            className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3"
+                            className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-3"
                           >
                             {h}
                           </th>
@@ -625,17 +625,17 @@ export function FichaEmpleadoTabs({
                       {turnos.map((t) => (
                         <tr
                           key={t.id}
-                          className="hover:bg-slate-50 transition-colors"
+                          className="hover:bg-[var(--muted)] transition-colors"
                         >
-                          <td className="px-4 py-2.5 text-sm text-slate-700 whitespace-nowrap">
+                          <td className="px-4 py-2.5 text-sm text-[var(--text-body)] whitespace-nowrap">
                             {format(new Date(t.fecha), "EEE d MMM", {
                               locale: es,
                             })}
                           </td>
-                          <td className="px-4 py-2.5 text-sm font-mono text-slate-900 whitespace-nowrap">
+                          <td className="px-4 py-2.5 text-sm font-mono text-[var(--text-dark)] whitespace-nowrap">
                             {t.horaInicio} – {t.horaFin}
                           </td>
-                          <td className="px-4 py-2.5 text-sm text-slate-600">
+                          <td className="px-4 py-2.5 text-sm text-[var(--text-body)]">
                             <span className="inline-flex items-center gap-1.5">
                               <span
                                 className="w-2 h-2 rounded-full"
@@ -677,18 +677,18 @@ function MetricCard({
 }) {
   const colorCls = {
     primary: "text-[var(--primary)]",
-    warning: "text-amber-600",
-    neutral: "text-slate-900",
-    success: "text-emerald-600",
+    warning: "text-[var(--warning-text)]",
+    neutral: "text-[var(--text-dark)]",
+    success: "text-[var(--success-text)]",
   }[tone];
   return (
     <Card>
       <CardContent className="pt-4 pb-4">
-        <p className="text-xs uppercase tracking-wide text-slate-500 font-medium">
+        <p className="text-xs uppercase tracking-wide text-[var(--text-muted)] font-medium">
           {label}
         </p>
         <p className={`text-2xl font-bold mt-1 ${colorCls}`}>{value}</p>
-        <p className="text-xs text-slate-500 mt-1 truncate" title={subtitle}>
+        <p className="text-xs text-[var(--text-muted)] mt-1 truncate" title={subtitle}>
           {subtitle}
         </p>
       </CardContent>

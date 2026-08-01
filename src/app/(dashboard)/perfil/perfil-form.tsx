@@ -5,7 +5,7 @@ import { Loader2, KeyRound } from "lucide-react";
 import { EmpleadoDatosForm, type EmpleadoDatos } from "@/components/empleados/empleado-datos-form";
 
 const INPUT =
-  "flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20";
+  "flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20";
 
 export function PerfilForm({ empleado }: { empleado: EmpleadoDatos }) {
   const [pendingPwd, setPendingPwd] = useState(false);
@@ -65,7 +65,7 @@ export function PerfilForm({ empleado }: { empleado: EmpleadoDatos }) {
           </label>
           {pwdMsg && (
             <p
-              className={`sm:col-span-2 text-sm ${pwdMsg.includes("actualizada") ? "text-emerald-700" : "text-red-700"}`}
+              className={`sm:col-span-2 text-sm ${pwdMsg.includes("actualizada") ? "text-[var(--success-text)]" : "text-[var(--danger-text)]"}`}
             >
               {pwdMsg}
             </p>
@@ -73,7 +73,7 @@ export function PerfilForm({ empleado }: { empleado: EmpleadoDatos }) {
           <button
             type="submit"
             disabled={pendingPwd}
-            className="sm:col-span-2 self-start inline-flex items-center gap-2 rounded-lg border bg-white hover:bg-slate-50 px-4 py-2 text-sm font-medium disabled:opacity-60"
+            className="sm:col-span-2 self-start inline-flex items-center gap-2 rounded-lg border bg-[var(--card)] hover:bg-[var(--muted)] px-4 py-2 text-sm font-medium disabled:opacity-60"
           >
             {pendingPwd && <Loader2 className="h-4 w-4 animate-spin" />}
             Actualizar contraseña

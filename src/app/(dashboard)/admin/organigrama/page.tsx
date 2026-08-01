@@ -36,14 +36,14 @@ async function OrganigramaPage() {
       </header>
 
       {arbol.length === 0 ? (
-        <div className="rounded-lg border border-dashed bg-white p-12 text-center">
-          <Network className="h-10 w-10 mx-auto text-slate-300" />
+        <div className="rounded-lg border border-dashed bg-[var(--card)] p-12 text-center">
+          <Network className="h-10 w-10 mx-auto text-[var(--text-muted)]" />
           <p className="mt-3 text-sm text-[var(--color-text-body,#475569)]">
             Aún no hay empleados activos. Crea empleados desde la sección Empleados.
           </p>
         </div>
       ) : (
-        <div className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white p-6 overflow-x-auto">
+        <div className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] p-6 overflow-x-auto">
           <ul className="space-y-3">
             {arbol.map((nodo) => (
               <NodoCard key={nodo.id} nodo={nodo} nivel={0} />
@@ -76,17 +76,17 @@ function NodoCard({ nodo, nivel }: { nodo: NodoOrganigrama; nivel: number }) {
             {nodo.email}
           </p>
         </div>
-        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+        <span className="inline-flex items-center rounded-full bg-[var(--muted)] px-2.5 py-0.5 text-xs font-medium text-[var(--text-body)]">
           {nodo.rol}
         </span>
         {nodo.totalSubordinados > 0 && (
-          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+          <span className="inline-flex items-center rounded-full bg-[var(--success-bg)] px-2.5 py-0.5 text-xs font-medium text-[var(--success-text)]">
             {nodo.totalSubordinados} a cargo
           </span>
         )}
       </div>
       {nodo.hijos.length > 0 && (
-        <ul className="mt-2 space-y-2 ml-8 border-l-2 border-slate-200 pl-4">
+        <ul className="mt-2 space-y-2 ml-8 border-l-2 border-[var(--border)] pl-4">
           {nodo.hijos.map((h) => (
             <NodoCard key={h.id} nodo={h} nivel={nivel + 1} />
           ))}

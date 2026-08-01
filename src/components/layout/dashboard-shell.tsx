@@ -75,9 +75,9 @@ export function DashboardShell({
       <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
         <Header user={user} onMenuToggle={toggleSidebar} />
         {trial?.isTrialing && user.rol === "OWNER" && (
-          <div className="bg-amber-50 border-b border-amber-200 px-4 lg:px-6 py-2.5 text-sm flex items-center gap-3 flex-wrap">
-            <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
-            <span className="text-amber-900">
+          <div className="bg-[var(--warning-bg)] border-b border-[var(--warning-bg)] px-4 lg:px-6 py-2.5 text-sm flex items-center gap-3 flex-wrap">
+            <Sparkles className="h-4 w-4 text-[var(--warning-text)] shrink-0" />
+            <span className="text-[var(--warning-text)]">
               Estás en <strong>periodo de prueba</strong>
               {dias !== null && (dias > 0
                 ? <> — te {dias === 1 ? "queda" : "quedan"} <strong>{dias} {dias === 1 ? "día" : "días"}</strong> de evaluación.</>

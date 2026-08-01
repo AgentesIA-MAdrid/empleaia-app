@@ -54,12 +54,12 @@ export function NewTicketsBanner() {
   if (dismissedAt && pending.latestCreatedAt && pending.latestCreatedAt <= dismissedAt) return null;
 
   return (
-    <div className="flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-6 py-2.5 text-sm text-amber-900" role="status">
+    <div className="flex items-center gap-3 border-b border-[var(--warning-bg)] bg-[var(--warning-bg)] px-6 py-2.5 text-sm text-[var(--warning-text)]" role="status">
       <Ticket className="h-4 w-4 shrink-0" />
       <span className="font-medium">{pending.count === 1 ? "1 ticket nuevo" : `${pending.count} tickets nuevos`}</span>
-      <span className="text-amber-700">— pendiente de revisar</span>
+      <span className="text-[var(--warning-text)]">— pendiente de revisar</span>
       <Link href="/admin/feedback" className="ml-auto font-medium underline">Ver tickets</Link>
-      <button onClick={dismiss} aria-label="Ocultar" className="text-amber-500 hover:text-amber-800"><X className="h-4 w-4" /></button>
+      <button onClick={dismiss} aria-label="Ocultar" className="text-[var(--warning)] hover:text-[var(--warning-text)]"><X className="h-4 w-4" /></button>
     </div>
   );
 }

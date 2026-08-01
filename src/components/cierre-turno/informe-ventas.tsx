@@ -196,7 +196,7 @@ export function InformeVentas({ sedes = [] }: { sedes?: { id: string; nombre: st
                 <Label htmlFor="ventas-sede">Punto de venta</Label>
                 <select
                   id="ventas-sede"
-                  className="mt-1 w-48 rounded-md border border-slate-200 px-3 py-2 text-sm"
+                  className="mt-1 w-48 rounded-md border border-[var(--border)] px-3 py-2 text-sm"
                   value={tiendaId}
                   onChange={(e) => setTiendaId(e.target.value)}
                 >
@@ -213,7 +213,7 @@ export function InformeVentas({ sedes = [] }: { sedes?: { id: string; nombre: st
               <Label htmlFor="ventas-agrupacion">Agrupar por</Label>
               <select
                 id="ventas-agrupacion"
-                className="mt-1 w-48 rounded-md border border-slate-200 px-3 py-2 text-sm"
+                className="mt-1 w-48 rounded-md border border-[var(--border)] px-3 py-2 text-sm"
                 value={agrupacion}
                 onChange={(e) => setAgrupacion(e.target.value as Agrupacion)}
               >
@@ -237,22 +237,22 @@ export function InformeVentas({ sedes = [] }: { sedes?: { id: string; nombre: st
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         {[
-          { label: "Unidades vendidas", valor: String(t?.unidades ?? 0), color: "text-slate-900" },
+          { label: "Unidades vendidas", valor: String(t?.unidades ?? 0), color: "text-[var(--text-dark)]" },
           {
             label: "Importe vendido",
             valor: conPrecios && t?.importe != null ? eur(t.importe) : "—",
-            color: "text-slate-900",
+            color: "text-[var(--text-dark)]",
           },
           { label: "Declarado en caja", valor: t ? eur(t.caja) : "—", color: "text-[var(--primary)]" },
           {
             label: "Cierres del periodo",
             valor: String(t?.cierres ?? 0),
-            color: "text-slate-900",
+            color: "text-[var(--text-dark)]",
           },
         ].map((k) => (
           <Card key={k.label}>
             <CardContent className="pt-4 pb-4">
-              <p className="text-sm text-slate-500">{k.label}</p>
+              <p className="text-sm text-[var(--text-muted)]">{k.label}</p>
               <p className={`text-2xl font-bold mt-1 tabular-nums ${k.color}`}>{k.valor}</p>
             </CardContent>
           </Card>
@@ -264,16 +264,16 @@ export function InformeVentas({ sedes = [] }: { sedes?: { id: string; nombre: st
       {t && (
         <Card>
           <CardContent className="pt-4 pb-4 text-sm space-y-2">
-            <p className="font-semibold text-slate-800 flex items-center gap-2">
+            <p className="font-semibold text-[var(--text-dark)] flex items-center gap-2">
               <Scale className="h-4 w-4 text-[var(--primary)]" /> Ventas frente a caja
             </p>
-            <p className="text-slate-600">
+            <p className="text-[var(--text-body)]">
               Efectivo <strong>{eur(t.efectivo)}</strong> + tarjeta <strong>{eur(t.tarjeta)}</strong> ={" "}
               <strong>{eur(t.caja)}</strong> en {t.cajas} cierre{t.cajas === 1 ? "" : "s"} de caja.
             </p>
             {conPrecios ? (
               diferencia === null ? null : (
-                <p className={Math.abs(diferencia) >= 1 ? "text-amber-700" : "text-slate-600"}>
+                <p className={Math.abs(diferencia) >= 1 ? "text-[var(--warning-text)]" : "text-[var(--text-body)]"}>
                   Diferencia con el importe vendido: <strong>{eur(diferencia)}</strong>
                   {t.unidadesSinPrecio > 0 && (
                     <>
@@ -285,7 +285,7 @@ export function InformeVentas({ sedes = [] }: { sedes?: { id: string; nombre: st
                 </p>
               )
             ) : (
-              <p className="text-slate-500">
+              <p className="text-[var(--text-muted)]">
                 Tu catálogo no tiene precios activados, así que aquí solo se cuentan unidades. Puedes
                 activarlos en Configuración → Catálogo de ventas para comparar euros con euros.
               </p>
@@ -299,11 +299,11 @@ export function InformeVentas({ sedes = [] }: { sedes?: { id: string; nombre: st
           {cargando ? (
             <div className="p-4 space-y-2">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />
+                <div key={i} className="h-10 bg-[var(--muted)] rounded animate-pulse" />
               ))}
             </div>
           ) : !datos || (t?.unidades ?? 0) === 0 ? (
-            <p className="text-center py-10 text-slate-400 text-sm">
+            <p className="text-center py-10 text-[var(--text-muted)] text-sm">
               No hay ventas registradas en este periodo.
             </p>
           ) : agrupacion === "articulo" ? (
@@ -347,12 +347,12 @@ function TablaSimple({ cabeceras, filas }: { cabeceras: string[]; filas: string[
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
-        <thead className="bg-slate-50 border-b border-slate-200">
+        <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
           <tr>
             {cabeceras.map((h) => (
               <th
                 key={h}
-                className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3"
+                className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-3"
               >
                 {h}
               </th>
@@ -361,14 +361,14 @@ function TablaSimple({ cabeceras, filas }: { cabeceras: string[]; filas: string[
         </thead>
         <tbody>
           {filas.map((f, i) => (
-            <tr key={`${f[0]}-${i}`} className="border-b border-slate-100 last:border-0">
+            <tr key={`${f[0]}-${i}`} className="border-b border-[var(--border)] last:border-0">
               {f.map((c, j) => (
                 <td
                   key={j}
                   className={
                     j === 0
-                      ? "px-4 py-2.5 text-sm font-medium text-slate-800"
-                      : "px-4 py-2.5 text-sm text-slate-600 tabular-nums"
+                      ? "px-4 py-2.5 text-sm font-medium text-[var(--text-dark)]"
+                      : "px-4 py-2.5 text-sm text-[var(--text-body)] tabular-nums"
                   }
                 >
                   {c}

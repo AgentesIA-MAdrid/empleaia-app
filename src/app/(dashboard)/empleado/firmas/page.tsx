@@ -13,10 +13,10 @@ const ESTADO_LABEL: Record<string, string> = {
 };
 
 const ESTADO_TONE: Record<string, string> = {
-  pendiente: "bg-amber-50 text-amber-800 ring-amber-200",
-  firmada: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  rechazada: "bg-red-50 text-red-800 ring-red-200",
-  expirada: "bg-slate-100 text-slate-600 ring-slate-200",
+  pendiente: "bg-[var(--warning-bg)] text-[var(--warning-text)] ring-amber-200",
+  firmada: "bg-[var(--success-bg)] text-[var(--success-text)] ring-emerald-200",
+  rechazada: "bg-[var(--danger-bg)] text-[var(--danger-text)] ring-red-200",
+  expirada: "bg-[var(--muted)] text-[var(--text-body)] ring-slate-200",
 };
 
 async function MisFirmasPage() {
@@ -55,25 +55,25 @@ async function MisFirmasPage() {
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 flex items-center gap-3">
-          <Clock className="h-8 w-8 text-amber-700" />
+        <div className="rounded-lg border border-[var(--warning-bg)] bg-[var(--warning-bg)] p-4 flex items-center gap-3">
+          <Clock className="h-8 w-8 text-[var(--warning-text)]" />
           <div>
-            <p className="text-xs font-medium text-amber-700 uppercase">Pendientes</p>
-            <p className="text-2xl font-bold mt-0.5 text-amber-900">{pendientes}</p>
+            <p className="text-xs font-medium text-[var(--warning-text)] uppercase">Pendientes</p>
+            <p className="text-2xl font-bold mt-0.5 text-[var(--warning-text)]">{pendientes}</p>
           </div>
         </div>
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3">
-          <CheckCircle2 className="h-8 w-8 text-emerald-700" />
+        <div className="rounded-lg border border-[var(--success-bg)] bg-[var(--success-bg)] p-4 flex items-center gap-3">
+          <CheckCircle2 className="h-8 w-8 text-[var(--success-text)]" />
           <div>
-            <p className="text-xs font-medium text-emerald-700 uppercase">Firmadas</p>
-            <p className="text-2xl font-bold mt-0.5 text-emerald-900">{firmadas}</p>
+            <p className="text-xs font-medium text-[var(--success-text)] uppercase">Firmadas</p>
+            <p className="text-2xl font-bold mt-0.5 text-[var(--success-text)]">{firmadas}</p>
           </div>
         </div>
       </div>
 
       {solicitudes.length === 0 ? (
-        <div className="rounded-lg border border-dashed bg-white p-12 text-center">
-          <Pen className="h-10 w-10 mx-auto text-slate-300" />
+        <div className="rounded-lg border border-dashed bg-[var(--card)] p-12 text-center">
+          <Pen className="h-10 w-10 mx-auto text-[var(--text-muted)]" />
           <p className="mt-3 text-sm text-[var(--color-text-body,#475569)]">
             No tienes solicitudes de firma pendientes.
           </p>
@@ -83,10 +83,10 @@ async function MisFirmasPage() {
           {solicitudes.map((s) => (
             <li
               key={s.id}
-              className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white p-4 flex flex-wrap items-start gap-4"
+              className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] p-4 flex flex-wrap items-start gap-4"
             >
-              <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center">
-                <FileText className="h-5 w-5 text-slate-600" />
+              <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-[var(--muted)] flex items-center justify-center">
+                <FileText className="h-5 w-5 text-[var(--text-body)]" />
               </div>
               <div className="flex-1 min-w-[200px]">
                 <p className="font-medium text-[var(--color-text-dark,#0F172A)]">
@@ -102,7 +102,7 @@ async function MisFirmasPage() {
                   </p>
                 )}
                 {s.expiraEn && s.estado === "pendiente" && (
-                  <p className="mt-1 text-xs text-amber-700">
+                  <p className="mt-1 text-xs text-[var(--warning-text)]">
                     Expira el {new Date(s.expiraEn).toLocaleDateString("es-ES")}
                   </p>
                 )}
@@ -121,7 +121,7 @@ async function MisFirmasPage() {
                     Revisar y firmar
                   </Link>
                 ) : s.firma?.firmadoEn ? (
-                  <span className="text-xs text-slate-500 tabular-nums">
+                  <span className="text-xs text-[var(--text-muted)] tabular-nums">
                     {new Date(s.firma.firmadoEn).toLocaleDateString("es-ES")}
                   </span>
                 ) : null}

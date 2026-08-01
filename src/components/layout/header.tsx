@@ -222,7 +222,7 @@ export function Header({ user, onMenuToggle }: HeaderProps) {
               <DropdownMenu.Item asChild>
                 <button
                   onClick={() => signOut({ callbackUrl: "/login" })}
-                  className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50 focus:bg-red-50 focus:outline-none transition-colors"
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-[var(--danger-text)] hover:bg-[var(--danger-bg)] focus:bg-[var(--danger-bg)] focus:outline-none transition-colors"
                 >
                   <LogOut className="h-4 w-4" />
                   Cerrar sesión

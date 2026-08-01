@@ -95,10 +95,10 @@ export default function EnvioNominasPage() {
   if (unavailable) {
     return (
       <div className="p-6">
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-[var(--warning-bg)] bg-[var(--warning-bg)]">
           <CardContent className="pt-4 pb-4 flex items-start gap-3">
-            <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="flex-1"><p className="text-sm font-semibold text-amber-900">Envío de nóminas — plan Pro o superior</p></div>
+            <Lock className="h-5 w-5 text-[var(--warning-text)] shrink-0 mt-0.5" />
+            <div className="flex-1"><p className="text-sm font-semibold text-[var(--warning-text)]">Envío de nóminas — plan Pro o superior</p></div>
             <Link href="/admin/planes"><Button size="sm">Ver planes</Button></Link>
           </CardContent>
         </Card>
@@ -112,33 +112,33 @@ export default function EnvioNominasPage() {
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center"><Send className="h-5 w-5 text-[var(--primary)]" /></div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Envío de nóminas</h1>
-            <p className="text-slate-500 text-sm mt-0.5">Sube el PDF y el empleado lo descarga desde su perfil</p>
+            <h1 className="text-2xl font-bold text-[var(--text-dark)]">Envío de nóminas</h1>
+            <p className="text-[var(--text-muted)] text-sm mt-0.5">Sube el PDF y el empleado lo descarga desde su perfil</p>
           </div>
         </div>
         <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1.5" /> Subir nómina</Button>
       </div>
 
-      {loading ? <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div> :
-        nominas.length === 0 ? <Card><CardContent className="py-12 text-center text-slate-500 text-sm">Sin nóminas subidas.</CardContent></Card> : (
+      {loading ? <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" /></div> :
+        nominas.length === 0 ? <Card><CardContent className="py-12 text-center text-[var(--text-muted)] text-sm">Sin nóminas subidas.</CardContent></Card> : (
         <Card>
           <CardContent className="p-0">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
                 <tr>{["Empleado", "Periodo", "Archivo", "Estado", ""].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">{h}</th>
                 ))}</tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {nominas.map((n) => (
-                  <tr key={n.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 text-slate-700">{n.empleado.nombre} {n.empleado.apellidos}</td>
-                    <td className="px-4 py-3 text-slate-700 tabular-nums">{n.periodo}</td>
-                    <td className="px-4 py-3 text-slate-500 text-xs">{n.nombreArchivo} ({(n.tamañoBytes / 1024).toFixed(0)} KB)</td>
-                    <td className="px-4 py-3"><span className={`text-xs font-medium px-2 py-0.5 rounded-md ${n.vistoAt ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{n.vistoAt ? "Visto" : "Pendiente"}</span></td>
+                  <tr key={n.id} className="hover:bg-[var(--muted)]">
+                    <td className="px-4 py-3 text-[var(--text-body)]">{n.empleado.nombre} {n.empleado.apellidos}</td>
+                    <td className="px-4 py-3 text-[var(--text-body)] tabular-nums">{n.periodo}</td>
+                    <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{n.nombreArchivo} ({(n.tamañoBytes / 1024).toFixed(0)} KB)</td>
+                    <td className="px-4 py-3"><span className={`text-xs font-medium px-2 py-0.5 rounded-md ${n.vistoAt ? "bg-[var(--success-bg)] text-[var(--success-text)]" : "bg-[var(--muted)] text-[var(--text-muted)]"}`}>{n.vistoAt ? "Visto" : "Pendiente"}</span></td>
                     <td className="px-4 py-3 text-right">
                       <Button size="sm" variant="ghost" onClick={() => handleDownload(n.id)}><Download className="h-4 w-4" /></Button>
-                      <Button size="sm" variant="ghost" className="text-red-500" onClick={() => handleDelete(n.id)}><Trash2 className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="ghost" className="text-[var(--danger)]" onClick={() => handleDelete(n.id)}><Trash2 className="h-4 w-4" /></Button>
                     </td>
                   </tr>
                 ))}

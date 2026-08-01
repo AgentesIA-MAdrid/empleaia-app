@@ -118,18 +118,18 @@ function ManagerCombobox({
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
       >
-        <span className={cn("truncate", !sel && "text-slate-400")}>
+        <span className={cn("truncate", !sel && "text-[var(--text-muted)]")}>
           {sel ? `${sel.nombre} ${sel.apellidos}` : "Sin manager"}
         </span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+        <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background shadow-lg">
-            <div className="border-b border-slate-100 p-2">
+            <div className="border-b border-[var(--border)] p-2">
               <div className="relative">
-                <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
                 <input
                   autoFocus
                   value={q}
@@ -143,7 +143,7 @@ function ManagerCombobox({
               <button
                 type="button"
                 onClick={() => { onChange(""); setOpen(false); setQ(""); }}
-                className="flex w-full items-center px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-50"
+                className="flex w-full items-center px-3 py-1.5 text-sm text-[var(--text-muted)] hover:bg-[var(--muted)]"
               >
                 Sin manager
               </button>
@@ -153,19 +153,19 @@ function ManagerCombobox({
                   type="button"
                   onClick={() => { onChange(e.id); setOpen(false); setQ(""); }}
                   className={cn(
-                    "flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm hover:bg-slate-50",
-                    e.id === value && "bg-slate-50",
+                    "flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm hover:bg-[var(--muted)]",
+                    e.id === value && "bg-[var(--muted)]",
                   )}
                 >
                   <span className="truncate">
                     {e.nombre} {e.apellidos}{" "}
-                    <span className="text-xs text-slate-400">({e.rol})</span>
+                    <span className="text-xs text-[var(--text-muted)]">({e.rol})</span>
                   </span>
                   {e.id === value && <Check className="h-4 w-4 shrink-0 text-[var(--primary)]" />}
                 </button>
               ))}
               {filtrados.length === 0 && (
-                <p className="px-3 py-2 text-sm text-slate-400">Sin resultados</p>
+                <p className="px-3 py-2 text-sm text-[var(--text-muted)]">Sin resultados</p>
               )}
             </div>
           </div>
@@ -184,11 +184,11 @@ function SedesCelda({ emp }: { emp: Empleado }) {
       return (
         <span className="flex items-center gap-1.5 min-w-0" title={emp.tienda.nombre}>
           <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: emp.tienda.color }} />
-          <span className="text-slate-600 truncate">{emp.tienda.nombre}</span>
+          <span className="text-[var(--text-body)] truncate">{emp.tienda.nombre}</span>
         </span>
       );
     }
-    return <span className="text-slate-400">Sin sede</span>;
+    return <span className="text-[var(--text-muted)]">Sin sede</span>;
   }
   const principal = sedes.find((s) => s.principal) ?? sedes[0];
   const extra = sedes.length - 1;
@@ -196,9 +196,9 @@ function SedesCelda({ emp }: { emp: Empleado }) {
   return (
     <span className="flex items-center gap-1.5 min-w-0" title={todas}>
       <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: principal.tienda.color }} />
-      <span className="text-slate-600 truncate">{principal.tienda.nombre}</span>
+      <span className="text-[var(--text-body)] truncate">{principal.tienda.nombre}</span>
       {extra > 0 && (
-        <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500">
+        <span className="shrink-0 rounded-full bg-[var(--muted)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-muted)]">
           +{extra}
         </span>
       )}
@@ -668,8 +668,8 @@ export default function EmpleadosPage() {
     <div className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Empleados</h1>
-          <p className="text-slate-500 text-sm mt-1">{empleados.length} empleados registrados</p>
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">Empleados</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-1">{empleados.length} empleados registrados</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <FeatureGateClient feature="export_excel">
@@ -707,7 +707,7 @@ export default function EmpleadosPage() {
       {/* Filtros */}
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
           <Input
             placeholder="Buscar por nombre, email, DNI..."
             className="pl-9"
@@ -742,7 +742,7 @@ export default function EmpleadosPage() {
       {/* Barra de acciones masivas */}
       {seleccionados.size > 0 && (
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-wrap rounded-lg border border-[var(--primary)]/30 bg-[var(--primary)]/5 px-4 py-2.5">
-          <span className="text-sm font-medium text-slate-700">
+          <span className="text-sm font-medium text-[var(--text-body)]">
             {seleccionados.size} seleccionado{seleccionados.size === 1 ? "" : "s"}
           </span>
           <span className="h-4 w-px bg-slate-300 mx-1" />
@@ -750,13 +750,13 @@ export default function EmpleadosPage() {
             <KeyRound className="h-3.5 w-3.5 mr-1.5" /> Restablecer contraseña
           </Button>
           <Button variant="outline" size="sm" disabled={accionMasiva} onClick={() => bulkSetActivo(true)}>
-            <UserCheck className="h-3.5 w-3.5 mr-1.5 text-emerald-500" /> Activar
+            <UserCheck className="h-3.5 w-3.5 mr-1.5 text-[var(--success)]" /> Activar
           </Button>
           <Button variant="outline" size="sm" disabled={accionMasiva} onClick={() => bulkSetActivo(false)}>
-            <UserX className="h-3.5 w-3.5 mr-1.5 text-amber-500" /> Desactivar
+            <UserX className="h-3.5 w-3.5 mr-1.5 text-[var(--warning)]" /> Desactivar
           </Button>
-          <Button variant="outline" size="sm" disabled={accionMasiva} onClick={bulkEliminar} className="hover:bg-red-50 hover:text-red-600">
-            <Trash2 className="h-3.5 w-3.5 mr-1.5 text-red-400" /> Eliminar
+          <Button variant="outline" size="sm" disabled={accionMasiva} onClick={bulkEliminar} className="hover:bg-[var(--danger-bg)] hover:text-[var(--danger-text)]">
+            <Trash2 className="h-3.5 w-3.5 mr-1.5 text-[var(--danger)]" /> Eliminar
           </Button>
           <Button variant="ghost" size="sm" onClick={limpiarSeleccion} className="ml-auto">
             <X className="h-3.5 w-3.5 mr-1.5" /> Limpiar
@@ -769,10 +769,10 @@ export default function EmpleadosPage() {
         <CardContent className="p-0">
           {loading ? (
             <div className="p-4 space-y-2">
-              {[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />)}
+              {[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-12 bg-[var(--muted)] rounded animate-pulse" />)}
             </div>
           ) : empleadosFiltrados.length === 0 ? (
-            <div className="py-12 text-center text-slate-400">No se encontraron empleados</div>
+            <div className="py-12 text-center text-[var(--text-muted)]">No se encontraron empleados</div>
           ) : (
             <>
             <div className="hidden md:block overflow-x-auto">
@@ -795,13 +795,13 @@ export default function EmpleadosPage() {
                   <col style={{ width: 164 }} />
                   <col style={{ width: 172 }} />
                 </colgroup>
-                <thead className="bg-slate-50 border-b border-slate-200">
+                <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
                   <tr>
                     <th className="px-3 py-3 w-10">
                       <input
                         type="checkbox"
                         aria-label="Seleccionar todos"
-                        className="h-4 w-4 rounded border-slate-300 accent-[var(--primary)] cursor-pointer align-middle"
+                        className="h-4 w-4 rounded border-[var(--border-strong)] accent-[var(--primary)] cursor-pointer align-middle"
                         checked={todosSeleccionados}
                         onChange={toggleSeleccionarTodos}
                       />
@@ -813,8 +813,8 @@ export default function EmpleadosPage() {
                           key={h}
                           onClick={ordenable ? () => toggleSort(h) : undefined}
                           className={cn(
-                            "text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-3 py-3",
-                            ordenable && "cursor-pointer select-none hover:text-slate-700",
+                            "text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-3 py-3",
+                            ordenable && "cursor-pointer select-none hover:text-[var(--text-body)]",
                           )}
                         >
                           <span className="inline-flex items-center gap-1">
@@ -834,12 +834,12 @@ export default function EmpleadosPage() {
                   {empleadosOrdenados.map((emp) => {
                     const estado = getEstadoEmpleado(emp);
                     return (
-                      <tr key={emp.id} className={cn("hover:bg-slate-50 transition-colors", !emp.activo && "opacity-60", seleccionados.has(emp.id) && "bg-[var(--primary)]/5")}>
+                      <tr key={emp.id} className={cn("hover:bg-[var(--muted)] transition-colors", !emp.activo && "opacity-60", seleccionados.has(emp.id) && "bg-[var(--primary)]/5")}>
                         <td className="px-3 py-3 w-10">
                           <input
                             type="checkbox"
                             aria-label={`Seleccionar ${emp.nombre} ${emp.apellidos}`}
-                            className="h-4 w-4 rounded border-slate-300 accent-[var(--primary)] cursor-pointer align-middle"
+                            className="h-4 w-4 rounded border-[var(--border-strong)] accent-[var(--primary)] cursor-pointer align-middle"
                             checked={seleccionados.has(emp.id)}
                             onChange={() => toggleSeleccion(emp.id)}
                           />
@@ -848,15 +848,15 @@ export default function EmpleadosPage() {
                           <div className="flex items-center gap-3 min-w-0">
                             <EmployeeAvatar nombre={emp.nombre} apellidos={emp.apellidos} seed={emp.id} />
                             <span
-                              className="font-medium text-slate-900 text-sm leading-tight truncate"
+                              className="font-medium text-[var(--text-dark)] text-sm leading-tight truncate"
                               title={`${emp.nombre} ${emp.apellidos}`}
                             >
                               {emp.nombre} {emp.apellidos}
                             </span>
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-sm text-slate-600 truncate" title={emp.email}>{emp.email}</td>
-                        <td className="px-3 py-3 text-sm text-slate-600 truncate" title={emp.dni || undefined}>{emp.dni || "—"}</td>
+                        <td className="px-3 py-3 text-sm text-[var(--text-body)] truncate" title={emp.email}>{emp.email}</td>
+                        <td className="px-3 py-3 text-sm text-[var(--text-body)] truncate" title={emp.dni || undefined}>{emp.dni || "—"}</td>
                         <td className="px-3 py-3 whitespace-nowrap">
                           <RolSelectInline
                             rol={emp.rol}
@@ -874,7 +874,7 @@ export default function EmpleadosPage() {
                           <div className="flex gap-0.5">
                             <Link href={`/admin/empleados/${emp.id}`}>
                               <Button variant="ghost" size="icon" className="h-7 w-7" title="Ver ficha completa">
-                                <FileText className="h-3.5 w-3.5 text-slate-500" />
+                                <FileText className="h-3.5 w-3.5 text-[var(--text-muted)]" />
                               </Button>
                             </Link>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => abrirEditar(emp)} title="Editar">
@@ -888,7 +888,7 @@ export default function EmpleadosPage() {
                                 onClick={() => handleRestablecerPassword(emp)}
                                 title="Enviar restablecimiento de contraseña"
                               >
-                                <KeyRound className="h-3.5 w-3.5 text-amber-500" />
+                                <KeyRound className="h-3.5 w-3.5 text-[var(--warning)]" />
                               </Button>
                             )}
                             {!emp.password ? (
@@ -910,19 +910,19 @@ export default function EmpleadosPage() {
                                 title={emp.activo ? "Desactivar" : "Activar"}
                               >
                                 {emp.activo
-                                  ? <UserX className="h-3.5 w-3.5 text-amber-500" />
-                                  : <UserCheck className="h-3.5 w-3.5 text-emerald-500" />
+                                  ? <UserX className="h-3.5 w-3.5 text-[var(--warning)]" />
+                                  : <UserCheck className="h-3.5 w-3.5 text-[var(--success)]" />
                                 }
                               </Button>
                             )}
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 hover:bg-red-50"
+                              className="h-7 w-7 hover:bg-[var(--danger-bg)]"
                               onClick={() => handleEliminar(emp)}
                               title="Eliminar empleado"
                             >
-                              <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                              <Trash2 className="h-3.5 w-3.5 text-[var(--danger)]" />
                             </Button>
                           </div>
                         </td>
@@ -941,7 +941,7 @@ export default function EmpleadosPage() {
                   <div
                     key={emp.id}
                     className={cn(
-                      "rounded-lg border border-slate-200 bg-white p-4",
+                      "rounded-lg border border-[var(--border)] bg-[var(--card)] p-4",
                       !emp.activo && "opacity-60",
                       seleccionados.has(emp.id) && "border-[var(--primary)]/40 bg-[var(--primary)]/5",
                     )}
@@ -950,16 +950,16 @@ export default function EmpleadosPage() {
                       <input
                         type="checkbox"
                         aria-label={`Seleccionar ${emp.nombre} ${emp.apellidos}`}
-                        className="h-4 w-4 mt-1 rounded border-slate-300 accent-[var(--primary)] cursor-pointer shrink-0"
+                        className="h-4 w-4 mt-1 rounded border-[var(--border-strong)] accent-[var(--primary)] cursor-pointer shrink-0"
                         checked={seleccionados.has(emp.id)}
                         onChange={() => toggleSeleccion(emp.id)}
                       />
                       <EmployeeAvatar nombre={emp.nombre} apellidos={emp.apellidos} seed={emp.id} />
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-slate-900 text-sm truncate">
+                        <p className="font-medium text-[var(--text-dark)] text-sm truncate">
                           {emp.nombre} {emp.apellidos}
                         </p>
-                        <p className="text-xs text-slate-500 truncate">{emp.email}</p>
+                        <p className="text-xs text-[var(--text-muted)] truncate">{emp.email}</p>
                       </div>
                     </div>
 
@@ -975,10 +975,10 @@ export default function EmpleadosPage() {
                       </span>
                     </div>
 
-                    <div className="mt-3 flex flex-wrap gap-1 border-t border-slate-100 pt-3">
+                    <div className="mt-3 flex flex-wrap gap-1 border-t border-[var(--border)] pt-3">
                       <Link href={`/admin/empleados/${emp.id}`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8" title="Ver ficha completa">
-                          <FileText className="h-4 w-4 text-slate-500" />
+                          <FileText className="h-4 w-4 text-[var(--text-muted)]" />
                         </Button>
                       </Link>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => abrirEditar(emp)} title="Editar">
@@ -992,7 +992,7 @@ export default function EmpleadosPage() {
                           onClick={() => handleRestablecerPassword(emp)}
                           title="Enviar restablecimiento de contraseña"
                         >
-                          <KeyRound className="h-4 w-4 text-amber-500" />
+                          <KeyRound className="h-4 w-4 text-[var(--warning)]" />
                         </Button>
                       )}
                       {!emp.password ? (
@@ -1014,19 +1014,19 @@ export default function EmpleadosPage() {
                           title={emp.activo ? "Desactivar" : "Activar"}
                         >
                           {emp.activo
-                            ? <UserX className="h-4 w-4 text-amber-500" />
-                            : <UserCheck className="h-4 w-4 text-emerald-500" />
+                            ? <UserX className="h-4 w-4 text-[var(--warning)]" />
+                            : <UserCheck className="h-4 w-4 text-[var(--success)]" />
                           }
                         </Button>
                       )}
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 hover:bg-red-50"
+                        className="h-8 w-8 hover:bg-[var(--danger-bg)]"
                         onClick={() => handleEliminar(emp)}
                         title="Eliminar empleado"
                       >
-                        <Trash2 className="h-4 w-4 text-red-400" />
+                        <Trash2 className="h-4 w-4 text-[var(--danger)]" />
                       </Button>
                     </div>
                   </div>
@@ -1068,7 +1068,7 @@ export default function EmpleadosPage() {
               </div>
               {editando && (
                 <div>
-                  <Label>Nueva contraseña <span className="text-slate-400 font-normal">(vacío = no cambiar)</span></Label>
+                  <Label>Nueva contraseña <span className="text-[var(--text-muted)] font-normal">(vacío = no cambiar)</span></Label>
                   <Input className="mt-1" type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="••••••••" />
                 </div>
               )}
@@ -1087,7 +1087,7 @@ export default function EmpleadosPage() {
                 <Label>Sedes asignadas</Label>
                 <div className="mt-1 max-h-44 overflow-y-auto rounded-md border border-input divide-y divide-slate-100">
                   {tiendas.length === 0 ? (
-                    <p className="px-3 py-2 text-sm text-slate-400">No hay sedes creadas</p>
+                    <p className="px-3 py-2 text-sm text-[var(--text-muted)]">No hay sedes creadas</p>
                   ) : (
                     tiendas.map((t) => {
                       const checked = form.sedeIds.includes(t.id);
@@ -1096,7 +1096,7 @@ export default function EmpleadosPage() {
                         <div key={t.id} className="flex items-center gap-2 px-3 py-2 text-sm">
                           <input
                             type="checkbox"
-                            className="h-4 w-4 rounded border-slate-300 accent-[var(--primary)] cursor-pointer shrink-0"
+                            className="h-4 w-4 rounded border-[var(--border-strong)] accent-[var(--primary)] cursor-pointer shrink-0"
                             checked={checked}
                             onChange={(e) =>
                               setForm((f) => {
@@ -1123,7 +1123,7 @@ export default function EmpleadosPage() {
                                 "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium transition-colors",
                                 esPrincipal
                                   ? "bg-[var(--primary)] text-white"
-                                  : "text-slate-500 hover:bg-slate-100",
+                                  : "text-[var(--text-muted)] hover:bg-[var(--muted)]",
                               )}
                               title="Marcar como sede principal"
                             >
@@ -1135,13 +1135,13 @@ export default function EmpleadosPage() {
                     })
                   )}
                 </div>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
                   Marca varias sedes; la principal es la que se usa por defecto al fichar.
                   {!editando && " (Al crear se asigna solo la principal.)"}
                 </p>
               </div>
               <div className="col-span-2">
-                <Label>Horas semanales de contrato <span className="text-slate-400 font-normal">(opcional)</span></Label>
+                <Label>Horas semanales de contrato <span className="text-[var(--text-muted)] font-normal">(opcional)</span></Label>
                 <Input
                   className="mt-1"
                   type="number"
@@ -1153,7 +1153,7 @@ export default function EmpleadosPage() {
                   onChange={(e) => setForm((f) => ({ ...f, horasSemanalesContrato: e.target.value }))}
                 />
               </div>
-              <div className="col-span-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5">
+              <div className="col-span-2 rounded-lg border border-[var(--border)] bg-[var(--muted)] px-3 py-2.5">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -1161,9 +1161,9 @@ export default function EmpleadosPage() {
                     checked={form.turnoOficinaPorDefecto}
                     onChange={(e) => setForm((f) => ({ ...f, turnoOficinaPorDefecto: e.target.checked }))}
                   />
-                  <span className="text-sm font-medium text-slate-800">Horario de oficina por defecto</span>
+                  <span className="text-sm font-medium text-[var(--text-dark)]">Horario de oficina por defecto</span>
                 </label>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
                   En el cuadrante, los días que no tenga turno en ninguna tienda se rellenan solos con
                   un turno de 9:00 a 17:00 en la sede marcada como oficina.
                 </p>
@@ -1179,13 +1179,13 @@ export default function EmpleadosPage() {
               </div>
               {!editando && plantillas.length > 0 && (
                 <div className="col-span-2">
-                  <Label>Enviar plantillas en el alta <span className="text-slate-400 font-normal">(opcional)</span></Label>
+                  <Label>Enviar plantillas en el alta <span className="text-[var(--text-muted)] font-normal">(opcional)</span></Label>
                   <div className="mt-1 max-h-44 overflow-y-auto rounded-md border border-input divide-y divide-slate-100">
                     {plantillas.map((p) => (
                       <label key={p.id} className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer">
                         <input
                           type="checkbox"
-                          className="h-4 w-4 rounded border-slate-300 accent-[var(--primary)] cursor-pointer shrink-0"
+                          className="h-4 w-4 rounded border-[var(--border-strong)] accent-[var(--primary)] cursor-pointer shrink-0"
                           checked={plantillaIds.has(p.id)}
                           onChange={() =>
                             setPlantillaIds((prev) => {
@@ -1199,7 +1199,7 @@ export default function EmpleadosPage() {
                       </label>
                     ))}
                   </div>
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">
                     Los documentos de estas plantillas se enviarán al nuevo empleado al crearlo.
                   </p>
                 </div>
@@ -1220,19 +1220,19 @@ export default function EmpleadosPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100 shrink-0">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--danger-bg)] shrink-0">
+                <AlertTriangle className="h-5 w-5 text-[var(--danger-text)]" />
               </span>
               {confirmar?.titulo}
             </DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-slate-600">{confirmar?.mensaje}</p>
+          <p className="text-sm text-[var(--text-body)]">{confirmar?.mensaje}</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmar(null)} disabled={confirmando}>
               Cancelar
             </Button>
             <Button
-              className="bg-red-600 text-white hover:bg-red-700"
+              className="bg-[var(--danger)] text-white hover:bg-[var(--danger-text)]"
               disabled={confirmando}
               onClick={async () => {
                 if (!confirmar) return;
@@ -1267,13 +1267,13 @@ export default function EmpleadosPage() {
                   <Badge variant="destructive">{importResult.errores.length} con errores</Badge>
                 )}
               </div>
-              <p className="text-slate-500">
+              <p className="text-[var(--text-muted)]">
                 Se procesaron {importResult.totalFilas} fila{importResult.totalFilas === 1 ? "" : "s"} de la plantilla.
               </p>
               {importResult.errores.length > 0 && (
-                <div className="rounded-md border border-red-100 bg-red-50/50 p-3">
-                  <p className="font-medium text-red-700 mb-1">Filas no aplicadas</p>
-                  <ul className="space-y-1 text-slate-600">
+                <div className="rounded-md border border-[var(--danger-bg)] bg-[var(--danger-bg)]/50 p-3">
+                  <p className="font-medium text-[var(--danger-text)] mb-1">Filas no aplicadas</p>
+                  <ul className="space-y-1 text-[var(--text-body)]">
                     {importResult.errores.slice(0, 50).map((e, i) => (
                       <li key={i}>
                         <span className="font-medium">Fila {e.fila}</span>

@@ -19,12 +19,12 @@ const RESULT_COPY: Record<string, { title: string; body: string; tone: "ok" | "w
   rate: { title: "Demasiados intentos", body: "Has hecho demasiadas peticiones seguidas. Espera un momento e inténtalo de nuevo.", tone: "error" },
 };
 
-const DOT: Record<string, string> = { ok: "bg-emerald-500", warn: "bg-amber-500", error: "bg-red-500" };
+const DOT: Record<string, string> = { ok: "bg-[var(--success)]", warn: "bg-[var(--warning)]", error: "bg-[var(--danger)]" };
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">{children}</div>
+    <main className="flex min-h-screen items-center justify-center bg-[var(--muted)] p-4">
+      <div className="w-full max-w-lg rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm">{children}</div>
     </main>
   );
 }
@@ -41,8 +41,8 @@ export default async function ResolverConClaudePage({ searchParams }: PageProps)
     return (
       <Card>
         <span className={`mb-3 inline-block h-3 w-3 rounded-full ${DOT[copy.tone]}`} />
-        <h1 className="text-xl font-bold text-slate-900">{copy.title}</h1>
-        <p className="mt-2 text-slate-600">{copy.body}</p>
+        <h1 className="text-xl font-bold text-[var(--text-dark)]">{copy.title}</h1>
+        <p className="mt-2 text-[var(--text-body)]">{copy.body}</p>
       </Card>
     );
   }
@@ -52,9 +52,9 @@ export default async function ResolverConClaudePage({ searchParams }: PageProps)
     const copy = RESULT_COPY.invalid;
     return (
       <Card>
-        <span className="mb-3 inline-block h-3 w-3 rounded-full bg-red-500" />
-        <h1 className="text-xl font-bold text-slate-900">{copy.title}</h1>
-        <p className="mt-2 text-slate-600">{copy.body}</p>
+        <span className="mb-3 inline-block h-3 w-3 rounded-full bg-[var(--danger)]" />
+        <h1 className="text-xl font-bold text-[var(--text-dark)]">{copy.title}</h1>
+        <p className="mt-2 text-[var(--text-body)]">{copy.body}</p>
       </Card>
     );
   }
@@ -64,9 +64,9 @@ export default async function ResolverConClaudePage({ searchParams }: PageProps)
     const copy = RESULT_COPY.notfound;
     return (
       <Card>
-        <span className="mb-3 inline-block h-3 w-3 rounded-full bg-amber-500" />
-        <h1 className="text-xl font-bold text-slate-900">{copy.title}</h1>
-        <p className="mt-2 text-slate-600">{copy.body}</p>
+        <span className="mb-3 inline-block h-3 w-3 rounded-full bg-[var(--warning)]" />
+        <h1 className="text-xl font-bold text-[var(--text-dark)]">{copy.title}</h1>
+        <p className="mt-2 text-[var(--text-body)]">{copy.body}</p>
       </Card>
     );
   }
@@ -77,33 +77,33 @@ export default async function ResolverConClaudePage({ searchParams }: PageProps)
 
   return (
     <Card>
-      <h1 className="text-xl font-bold text-slate-900">Resolver con Claudia</h1>
-      <p className="mt-2 text-sm text-slate-600">
+      <h1 className="text-xl font-bold text-[var(--text-dark)]">Resolver con Claudia</h1>
+      <p className="mt-2 text-sm text-[var(--text-body)]">
         Vas a encolar un job para que Claudia analice este ticket en un worktree aislado y, si procede, abra un PR
         (nunca lo mergea). Recibirás el resultado por email.
       </p>
 
-      <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50/60 p-4">
+      <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--muted)]/60 p-4">
         <div className="mb-1 flex items-center gap-2">
           <span className="rounded-full bg-[var(--primary-light)] px-2 py-0.5 text-xs font-medium text-[var(--primary)]">
             {TIPO_LABEL[ticket.tipo] ?? ticket.tipo}
           </span>
-          <span className="text-xs text-slate-500">{orgName || "—"}</span>
+          <span className="text-xs text-[var(--text-muted)]">{orgName || "—"}</span>
         </div>
-        <p className="text-sm text-slate-700">{desc}</p>
-        <p className="mt-1 text-xs text-slate-400">Página: {ticket.pagina}</p>
+        <p className="text-sm text-[var(--text-body)]">{desc}</p>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">Página: {ticket.pagina}</p>
       </div>
 
       {messages.length > 0 && (
         <div className="mt-4 space-y-2">
-          <span className="text-xs font-medium text-slate-400">Conversación</span>
+          <span className="text-xs font-medium text-[var(--text-muted)]">Conversación</span>
           {messages.map((m) => (
-            <div key={m.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
-              <span className="mb-0.5 block text-xs font-medium text-slate-400">
+            <div key={m.id} className="rounded-lg bg-[var(--muted)] px-3 py-2 text-sm">
+              <span className="mb-0.5 block text-xs font-medium text-[var(--text-muted)]">
                 {m.is_ai ? "Claudia" : m.autor === "admin" ? "Equipo" : "Usuario"}
                 {m.internal && <span className="ml-1 rounded bg-slate-200 px-1 text-[10px]">interno</span>}
               </span>
-              <span className="text-slate-700">{m.cuerpo.length > 300 ? `${m.cuerpo.slice(0, 300)}…` : m.cuerpo}</span>
+              <span className="text-[var(--text-body)]">{m.cuerpo.length > 300 ? `${m.cuerpo.slice(0, 300)}…` : m.cuerpo}</span>
             </div>
           ))}
         </div>
@@ -111,8 +111,8 @@ export default async function ResolverConClaudePage({ searchParams }: PageProps)
 
       <form method="post" action="/api/feedback-action/resolve" className="mt-4 space-y-2">
         <input type="hidden" name="token" value={token} />
-        <label htmlFor="comment" className="block text-sm font-medium text-slate-700">
-          Instrucciones para Claudia <span className="font-normal text-slate-400">(opcional, internas)</span>
+        <label htmlFor="comment" className="block text-sm font-medium text-[var(--text-body)]">
+          Instrucciones para Claudia <span className="font-normal text-[var(--text-muted)]">(opcional, internas)</span>
         </label>
         <textarea
           id="comment"
@@ -120,7 +120,7 @@ export default async function ResolverConClaudePage({ searchParams }: PageProps)
           rows={4}
           maxLength={2000}
           placeholder="P. ej.: el bug solo pasa en móvil; revisa primero el componente X…"
-          className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+          className="w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
         />
         <button
           type="submit"

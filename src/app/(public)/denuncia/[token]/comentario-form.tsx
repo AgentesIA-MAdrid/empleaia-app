@@ -39,11 +39,11 @@ export function ComentarioAnonimoForm({ token }: { token: string }) {
         onChange={(e) => setContenido(e.target.value)}
         placeholder="Aporta más información o responde al comité…"
         rows={3}
-        className="w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] resize-y"
+        className="w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] resize-y"
       />
       <div className="flex items-center justify-between">
         {error ? (
-          <p className="text-xs text-red-700">{error}</p>
+          <p className="text-xs text-[var(--danger-text)]">{error}</p>
         ) : (
           <span />
         )}

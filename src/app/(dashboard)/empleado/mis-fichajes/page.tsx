@@ -123,8 +123,8 @@ function tipoLabel(tipo: TipoFichaje): string {
 
 function tipoBadgeClass(tipo: TipoFichaje): string {
   return {
-    ENTRADA: "bg-emerald-100 text-emerald-700",
-    PAUSA: "bg-amber-100 text-amber-700",
+    ENTRADA: "bg-[var(--success-bg)] text-[var(--success-text)]",
+    PAUSA: "bg-[var(--warning-bg)] text-[var(--warning-text)]",
     VUELTA_PAUSA: "bg-sky-100 text-sky-700",
     SALIDA: "bg-rose-100 text-rose-700",
   }[tipo];
@@ -309,16 +309,16 @@ export default function MisFichajesPage() {
             bg: "bg-[var(--primary-light)]",
           },
           {
-            icon: <CalendarDays className="h-5 w-5 text-emerald-500" />,
+            icon: <CalendarDays className="h-5 w-5 text-[var(--success)]" />,
             label: "Días trabajados",
             value: String(diasTrabajados),
-            bg: "bg-emerald-50",
+            bg: "bg-[var(--success-bg)]",
           },
           {
-            icon: <TrendingUp className="h-5 w-5 text-amber-500" />,
+            icon: <TrendingUp className="h-5 w-5 text-[var(--warning)]" />,
             label: "Horas extra",
             value: minutosAHoras(horasExtra),
-            bg: "bg-amber-50",
+            bg: "bg-[var(--warning-bg)]",
           },
         ].map((s) => (
           <Card key={s.label}>

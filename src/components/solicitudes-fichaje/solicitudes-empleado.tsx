@@ -42,8 +42,8 @@ const TIPO_LABEL: Record<Tipo, string> = {
 };
 
 const ESTADO_BADGE: Record<string, string> = {
-  PENDIENTE: "bg-amber-100 text-amber-700",
-  APROBADA: "bg-emerald-100 text-emerald-700",
+  PENDIENTE: "bg-[var(--warning-bg)] text-[var(--warning-text)]",
+  APROBADA: "bg-[var(--success-bg)] text-[var(--success-text)]",
   RECHAZADA: "bg-rose-100 text-rose-700",
   CANCELADA: "bg-muted text-muted-foreground",
 };

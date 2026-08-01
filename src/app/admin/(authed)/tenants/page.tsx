@@ -42,11 +42,11 @@ const STATUS_FILTERS = [
 ] as const;
 
 const STATUS_TONE: Record<Tenant["status"], string> = {
-  active: "bg-emerald-50 text-emerald-800",
-  pending: "bg-amber-50 text-amber-800",
+  active: "bg-[var(--success-bg)] text-[var(--success-text)]",
+  pending: "bg-[var(--warning-bg)] text-[var(--warning-text)]",
   provisioning: "bg-sky-50 text-sky-800",
   suspended: "bg-orange-50 text-orange-800",
-  deleted: "bg-slate-100 text-slate-600",
+  deleted: "bg-[var(--muted)] text-[var(--text-body)]",
 };
 
 const STATUS_LABEL: Record<Tenant["status"], string> = {
@@ -181,19 +181,19 @@ export default function TenantsPage() {
           <input
             type="search"
             placeholder="Buscar por slug, nombre o email…"
-            className="flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white pl-9 pr-3 py-2 text-sm placeholder:text-[var(--color-text-muted,#94A3B8)] focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors"
+            className="flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] pl-9 pr-3 py-2 text-sm placeholder:text-[var(--color-text-muted,#94A3B8)] focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+        <div className="flex gap-1 bg-[var(--muted)] p-1 rounded-lg">
           {STATUS_FILTERS.map((f) => (
             <button
               key={f.value}
               onClick={() => setStatus(f.value)}
               className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                 status === f.value
-                  ? "bg-white text-[var(--color-text-dark,#0F172A)] shadow-sm"
+                  ? "bg-[var(--card)] text-[var(--color-text-dark,#0F172A)] shadow-sm"
                   : "text-[var(--color-text-body,#475569)] hover:text-[var(--color-text-dark,#0F172A)]"
               }`}
             >
@@ -207,8 +207,8 @@ export default function TenantsPage() {
         <div
           className={`flex items-start gap-2 px-4 py-3 rounded-lg text-sm border ${
             actionError
-              ? "bg-red-50 border-red-200 text-red-800"
-              : "bg-emerald-50 border-emerald-200 text-emerald-800"
+              ? "bg-[var(--danger-bg)] border-[var(--danger-bg)] text-[var(--danger-text)]"
+              : "bg-[var(--success-bg)] border-[var(--success-bg)] text-[var(--success-text)]"
           }`}
           role="status"
         >
@@ -228,14 +228,14 @@ export default function TenantsPage() {
       )}
 
       {/* Tabla */}
-      <div className="bg-white border border-[var(--color-border,#E2E8F0)] rounded-lg overflow-hidden">
+      <div className="bg-[var(--card)] border border-[var(--color-border,#E2E8F0)] rounded-lg overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16 text-[var(--color-text-body,#475569)]">
             <Loader2 className="h-5 w-5 animate-spin mr-2" />
             Cargando tenants…
           </div>
         ) : error ? (
-          <div className="px-4 py-3 text-sm text-red-800 bg-red-50 border-b border-red-200">{error}</div>
+          <div className="px-4 py-3 text-sm text-[var(--danger-text)] bg-[var(--danger-bg)] border-b border-[var(--danger-bg)]">{error}</div>
         ) : !data || data.items.length === 0 ? (
           <div className="py-16 text-center text-[var(--color-text-muted,#94A3B8)]">
             <Globe className="h-10 w-10 mx-auto mb-2 text-slate-200" />
@@ -262,7 +262,7 @@ export default function TenantsPage() {
                     <td className="px-4 py-3">
                       <Link
                         href={`/admin/tenants/${t.slug}`}
-                        className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-[var(--primary)] font-mono hover:underline"
+                        className="text-xs bg-[var(--muted)] px-1.5 py-0.5 rounded text-[var(--primary)] font-mono hover:underline"
                       >
                         {t.slug}
                       </Link>
@@ -283,9 +283,9 @@ export default function TenantsPage() {
                         <span className="inline-flex items-center gap-1.5">
                           <span className="text-[var(--color-text-body,#475569)]">{t.customDomain}</span>
                           {t.customDomainVerified ? (
-                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" title="Verificado" />
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--success)]" title="Verificado" />
                           ) : (
-                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" title="Pendiente verificación" />
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--warning)]" title="Pendiente verificación" />
                           )}
                         </span>
                       ) : (
@@ -325,7 +325,7 @@ export default function TenantsPage() {
                                 void runAction(t, "/suspend", `Tenant ${t.slug} suspendido`);
                               }
                             }}
-                            className="inline-flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900 disabled:opacity-50"
+                            className="inline-flex items-center gap-1 text-xs text-[var(--warning-text)] hover:text-[var(--warning-text)] disabled:opacity-50"
                             title="Suspender tenant"
                           >
                             {pendingId === t.id ? (
@@ -343,7 +343,7 @@ export default function TenantsPage() {
                             onClick={() => {
                               void runAction(t, "/restore", `Tenant ${t.slug} restaurado`);
                             }}
-                            className="inline-flex items-center gap-1 text-xs text-emerald-700 hover:text-emerald-900 disabled:opacity-50"
+                            className="inline-flex items-center gap-1 text-xs text-[var(--success-text)] hover:text-[var(--success-text)] disabled:opacity-50"
                             title="Restaurar tenant"
                           >
                             {pendingId === t.id ? (
@@ -366,7 +366,7 @@ export default function TenantsPage() {
                                 error: null,
                               })
                             }
-                            className="inline-flex items-center gap-1 text-xs text-red-700 hover:text-red-900"
+                            className="inline-flex items-center gap-1 text-xs text-[var(--danger-text)] hover:text-[var(--danger-text)]"
                             title="Purgar tenant"
                           >
                             <Trash2 className="h-3 w-3" />
@@ -390,19 +390,19 @@ export default function TenantsPage() {
           aria-modal="true"
           aria-labelledby="purge-title"
         >
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
+          <div className="bg-[var(--card)] rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                <AlertTriangle className="h-5 w-5 text-red-700" />
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--danger-bg)] flex items-center justify-center">
+                <AlertTriangle className="h-5 w-5 text-[var(--danger-text)]" />
               </div>
               <div className="flex-1">
                 <h2
                   id="purge-title"
-                  className="text-lg font-semibold text-slate-900"
+                  className="text-lg font-semibold text-[var(--text-dark)]"
                 >
                   Purgar tenant {purge.tenant.slug}
                 </h2>
-                <p className="text-sm text-slate-600 mt-1">
+                <p className="text-sm text-[var(--text-body)] mt-1">
                   Esta operación es <strong>irreversible</strong>. Solo se permite
                   sobre tenants en estado <code>deleted</code>. La acción queda
                   auditada; la ejecución física la realiza el CLI en el servidor.
@@ -411,7 +411,7 @@ export default function TenantsPage() {
             </div>
 
             <fieldset className="space-y-2">
-              <legend className="text-sm font-medium text-slate-900">Modo</legend>
+              <legend className="text-sm font-medium text-[var(--text-dark)]">Modo</legend>
               <label className="flex items-start gap-2 text-sm cursor-pointer">
                 <input
                   type="radio"
@@ -425,7 +425,7 @@ export default function TenantsPage() {
                 />
                 <span>
                   <strong>Pseudonimizar</strong>
-                  <span className="block text-xs text-slate-600">
+                  <span className="block text-xs text-[var(--text-body)]">
                     Borra PII (email, nombre). Conserva fichajes para RD 8/2019.
                     Tras 4 años se podrá hacer hard-delete.
                   </span>
@@ -444,7 +444,7 @@ export default function TenantsPage() {
                 />
                 <span>
                   <strong>Hard delete</strong>
-                  <span className="block text-xs text-slate-600">
+                  <span className="block text-xs text-[var(--text-body)]">
                     DROP SCHEMA + DELETE filas master. El slug queda libre. Solo
                     permitido si el tenant lleva más de 4 años en{" "}
                     <code>deleted</code>.
@@ -454,9 +454,9 @@ export default function TenantsPage() {
             </fieldset>
 
             <div>
-              <label className="block text-sm font-medium text-slate-900 mb-1">
+              <label className="block text-sm font-medium text-[var(--text-dark)] mb-1">
                 Escribe el slug{" "}
-                <code className="text-xs bg-slate-100 px-1 py-0.5 rounded">
+                <code className="text-xs bg-[var(--muted)] px-1 py-0.5 rounded">
                   {purge.tenant.slug}
                 </code>{" "}
                 para confirmar
@@ -467,14 +467,14 @@ export default function TenantsPage() {
                 onChange={(e) =>
                   setPurge((p) => p && { ...p, confirmText: e.target.value })
                 }
-                className="w-full h-10 rounded-lg border border-slate-300 px-3 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20"
+                className="w-full h-10 rounded-lg border border-[var(--border-strong)] px-3 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20"
                 placeholder={purge.tenant.slug}
                 autoFocus
               />
             </div>
 
             {purge.error && (
-              <p className="text-sm text-red-700">{purge.error}</p>
+              <p className="text-sm text-[var(--danger-text)]">{purge.error}</p>
             )}
 
             <div className="flex justify-end gap-2 pt-2">
@@ -482,7 +482,7 @@ export default function TenantsPage() {
                 type="button"
                 onClick={() => setPurge(null)}
                 disabled={purge.submitting}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--text-body)] hover:bg-[var(--muted)] disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -508,7 +508,7 @@ export default function TenantsPage() {
                     );
                   }
                 }}
-                className="px-4 py-2 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
+                className="px-4 py-2 rounded-lg text-sm font-medium bg-[var(--danger)] text-white hover:bg-[var(--danger-text)] disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
               >
                 {purge.submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 Purgar tenant

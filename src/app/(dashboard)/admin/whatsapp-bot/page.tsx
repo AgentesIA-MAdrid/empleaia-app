@@ -70,10 +70,10 @@ export default function WhatsappBotPage() {
   if (unavailable) {
     return (
       <div className="p-6">
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-[var(--warning-bg)] bg-[var(--warning-bg)]">
           <CardContent className="pt-4 pb-4 flex items-start gap-3">
-            <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="flex-1"><p className="text-sm font-semibold text-amber-900">Asistente WhatsApp — plan Enterprise</p></div>
+            <Lock className="h-5 w-5 text-[var(--warning-text)] shrink-0 mt-0.5" />
+            <div className="flex-1"><p className="text-sm font-semibold text-[var(--warning-text)]">Asistente WhatsApp — plan Enterprise</p></div>
             <Link href="/admin/planes"><Button size="sm">Ver planes</Button></Link>
           </CardContent>
         </Card>
@@ -86,13 +86,13 @@ export default function WhatsappBotPage() {
       <div className="flex items-start gap-3">
         <div className="h-10 w-10 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center"><MessageSquare className="h-5 w-5 text-[var(--primary)]" /></div>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">WhatsApp Business</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Configura las credenciales para enviar mensajes via WhatsApp Cloud API</p>
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">WhatsApp Business</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-0.5">Configura las credenciales para enviar mensajes via WhatsApp Cloud API</p>
         </div>
       </div>
 
-      <Card className="border-amber-200 bg-amber-50">
-        <CardContent className="pt-4 pb-4 text-sm text-amber-800">
+      <Card className="border-[var(--warning-bg)] bg-[var(--warning-bg)]">
+        <CardContent className="pt-4 pb-4 text-sm text-[var(--warning-text)]">
           <strong>MVP:</strong> los mensajes se encolan pero el envío real requiere un worker externo conectado a la API de WhatsApp Business. Configura las credenciales para tenerlas listas.
         </CardContent>
       </Card>
@@ -105,7 +105,7 @@ export default function WhatsappBotPage() {
               <div><Label>Phone Number ID (Meta)</Label><Input className="mt-1" value={phoneId} onChange={(e) => setPhoneId(e.target.value)} placeholder="123456789012345" /></div>
               <div><Label>Número visible al cliente</Label><Input className="mt-1" value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="+34 600 00 00 00" /></div>
               <div>
-                <Label>Token de acceso permanente {config?.tokenConfigurado && <span className="text-xs text-emerald-600 ml-2">(ya configurado, deja vacío si no quieres cambiarlo)</span>}</Label>
+                <Label>Token de acceso permanente {config?.tokenConfigurado && <span className="text-xs text-[var(--success-text)] ml-2">(ya configurado, deja vacío si no quieres cambiarlo)</span>}</Label>
                 <Input className="mt-1" type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="EAAxxxxx..." />
               </div>
               <label className="flex items-center gap-2 text-sm">
@@ -120,7 +120,7 @@ export default function WhatsappBotPage() {
             <CardHeader><CardTitle className="text-base">Enviar mensaje de prueba</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <div><Label>Teléfono destinatario</Label><Input className="mt-1" value={tel} onChange={(e) => setTel(e.target.value)} placeholder="+34 600 00 00 00" /></div>
-              <div><Label>Texto</Label><textarea className="mt-1 w-full min-h-[80px] rounded-md border border-slate-200 px-3 py-2 text-sm" value={texto} onChange={(e) => setTexto(e.target.value)} /></div>
+              <div><Label>Texto</Label><textarea className="mt-1 w-full min-h-[80px] rounded-md border border-[var(--border)] px-3 py-2 text-sm" value={texto} onChange={(e) => setTexto(e.target.value)} /></div>
               <Button onClick={enviar}><Send className="h-4 w-4 mr-1.5" /> Encolar</Button>
             </CardContent>
           </Card>
@@ -128,15 +128,15 @@ export default function WhatsappBotPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Cola de mensajes ({mensajes.length})</CardTitle></CardHeader>
             <CardContent>
-              {mensajes.length === 0 ? <p className="text-sm text-slate-500">Sin mensajes.</p> : (
+              {mensajes.length === 0 ? <p className="text-sm text-[var(--text-muted)]">Sin mensajes.</p> : (
                 <ul className="space-y-2 text-sm">
                   {mensajes.map((m) => (
-                    <li key={m.id} className="rounded-md border border-slate-200 p-2.5">
+                    <li key={m.id} className="rounded-md border border-[var(--border)] p-2.5">
                       <div className="flex items-center justify-between">
-                        <span className="font-medium text-slate-900">{m.destinatarioTelefono}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded ${m.estado === "enviado" ? "bg-emerald-50 text-emerald-700" : m.estado === "fallido" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>{m.estado}</span>
+                        <span className="font-medium text-[var(--text-dark)]">{m.destinatarioTelefono}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded ${m.estado === "enviado" ? "bg-[var(--success-bg)] text-[var(--success-text)]" : m.estado === "fallido" ? "bg-[var(--danger-bg)] text-[var(--danger-text)]" : "bg-[var(--warning-bg)] text-[var(--warning-text)]"}`}>{m.estado}</span>
                       </div>
-                      <p className="text-slate-600 mt-1 line-clamp-2">{m.texto}</p>
+                      <p className="text-[var(--text-body)] mt-1 line-clamp-2">{m.texto}</p>
                     </li>
                   ))}
                 </ul>

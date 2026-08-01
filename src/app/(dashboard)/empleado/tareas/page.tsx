@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 interface Tarea { id: string; titulo: string; descripcion?: string; prioridad: string; completada: boolean; fechaLimite?: string; }
 
 const PRIORIDAD_COLOR: Record<string, string> = {
-  ALTA: "bg-red-100 text-red-700", MEDIA: "bg-amber-100 text-amber-700", BAJA: "bg-slate-100 text-slate-600",
+  ALTA: "bg-[var(--danger-bg)] text-[var(--danger-text)]", MEDIA: "bg-[var(--warning-bg)] text-[var(--warning-text)]", BAJA: "bg-[var(--muted)] text-[var(--text-body)]",
 };
 
 export default function EmpleadoTareasPage() {
@@ -37,26 +37,26 @@ export default function EmpleadoTareasPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-2xl mx-auto">
-      <div><h1 className="text-2xl font-bold text-slate-900">Mis Tareas</h1><p className="text-slate-500 text-sm mt-1">{pendientes.length} pendientes · {completadas.length} completadas</p></div>
+      <div><h1 className="text-2xl font-bold text-[var(--text-dark)]">Mis Tareas</h1><p className="text-[var(--text-muted)] text-sm mt-1">{pendientes.length} pendientes · {completadas.length} completadas</p></div>
       {loading ? (
-        <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-20 bg-slate-100 rounded-xl animate-pulse" />)}</div>
+        <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-20 bg-[var(--muted)] rounded-xl animate-pulse" />)}</div>
       ) : tareas.length === 0 ? (
-        <Card><CardContent className="py-12 text-center"><CheckSquare className="h-10 w-10 text-slate-200 mx-auto mb-3" /><p className="text-slate-400">No tienes tareas asignadas</p></CardContent></Card>
+        <Card><CardContent className="py-12 text-center"><CheckSquare className="h-10 w-10 text-slate-200 mx-auto mb-3" /><p className="text-[var(--text-muted)]">No tienes tareas asignadas</p></CardContent></Card>
       ) : (
         <div className="space-y-2">
           {[...pendientes, ...completadas].map((tarea) => (
-            <div key={tarea.id} className={cn("flex items-start gap-3 p-4 rounded-xl border bg-white hover:shadow-sm transition-all", tarea.completada && "opacity-60")}>
+            <div key={tarea.id} className={cn("flex items-start gap-3 p-4 rounded-xl border bg-[var(--card)] hover:shadow-sm transition-all", tarea.completada && "opacity-60")}>
               <button onClick={() => toggleCompletada(tarea)} className="mt-0.5 shrink-0">
-                {tarea.completada ? <CheckSquare className="h-5 w-5 text-[var(--primary)]" /> : <Square className="h-5 w-5 text-slate-300 hover:text-[var(--primary-lighter)]" />}
+                {tarea.completada ? <CheckSquare className="h-5 w-5 text-[var(--primary)]" /> : <Square className="h-5 w-5 text-[var(--text-muted)] hover:text-[var(--primary-lighter)]" />}
               </button>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className={cn("font-medium text-slate-900", tarea.completada && "line-through text-slate-400")}>{tarea.titulo}</p>
+                  <p className={cn("font-medium text-[var(--text-dark)]", tarea.completada && "line-through text-[var(--text-muted)]")}>{tarea.titulo}</p>
                   <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", PRIORIDAD_COLOR[tarea.prioridad])}>{tarea.prioridad}</span>
                 </div>
-                {tarea.descripcion && <p className="text-sm text-slate-500 mt-0.5">{tarea.descripcion}</p>}
+                {tarea.descripcion && <p className="text-sm text-[var(--text-muted)] mt-0.5">{tarea.descripcion}</p>}
                 {tarea.fechaLimite && (
-                  <span className="flex items-center gap-1 text-xs text-slate-400 mt-1"><Calendar className="h-3 w-3" />{format(new Date(tarea.fechaLimite), "d MMM yyyy", { locale: es })}</span>
+                  <span className="flex items-center gap-1 text-xs text-[var(--text-muted)] mt-1"><Calendar className="h-3 w-3" />{format(new Date(tarea.fechaLimite), "d MMM yyyy", { locale: es })}</span>
                 )}
               </div>
             </div>

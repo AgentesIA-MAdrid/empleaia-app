@@ -20,7 +20,7 @@ async function NuevaOfertaPage() {
         </div>
       </header>
 
-      <div className="rounded-lg border bg-white p-6">
+      <div className="rounded-lg border bg-[var(--card)] p-6">
         <NuevaOfertaForm />
       </div>
 

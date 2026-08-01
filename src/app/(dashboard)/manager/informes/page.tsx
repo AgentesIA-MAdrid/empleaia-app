@@ -110,8 +110,8 @@ export default function ManagerInformesPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Informes</h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">Informes</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-1">
             {vista === "ventas"
               ? "Qué ha vendido tu sede y si cuadra con la caja"
               : "Análisis de asistencia de tu sede"}
@@ -137,7 +137,7 @@ export default function ManagerInformesPage() {
           como pestaña y no como pantalla aparte. El servidor lo limita a la
           sede del coordinador. */}
       {tieneVentas && (
-        <div className="flex gap-2 border-b border-slate-200">
+        <div className="flex gap-2 border-b border-[var(--border)]">
           {[
             { key: "asistencia" as const, label: "Asistencia y horas" },
             { key: "ventas" as const, label: "Ventas" },
@@ -150,7 +150,7 @@ export default function ManagerInformesPage() {
               className={
                 vista === t.key
                   ? "px-3 py-2 text-sm font-semibold text-[var(--primary)] border-b-2 border-[var(--primary)] -mb-px"
-                  : "px-3 py-2 text-sm text-slate-500 hover:text-slate-800"
+                  : "px-3 py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-dark)]"
               }
             >
               {t.label}
@@ -200,19 +200,19 @@ export default function ManagerInformesPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
           {[
             { label: "Total horas", value: `${stats.totalHoras.toFixed(0)}h`, color: "text-[var(--primary)]" },
-            { label: "Media horas/día", value: `${stats.mediaHorasDia.toFixed(1)}h`, color: "text-slate-700" },
-            { label: "Horas de contrato", value: `${stats.horasContrato.toFixed(0)}h`, color: "text-slate-700" },
+            { label: "Media horas/día", value: `${stats.mediaHorasDia.toFixed(1)}h`, color: "text-[var(--text-body)]" },
+            { label: "Horas de contrato", value: `${stats.horasContrato.toFixed(0)}h`, color: "text-[var(--text-body)]" },
             {
               label: "Diferencia",
               value: `${stats.diferencia > 0 ? "+" : ""}${stats.diferencia.toFixed(1)}h`,
-              color: stats.diferencia > 0 ? "text-amber-600" : "text-slate-500",
+              color: stats.diferencia > 0 ? "text-[var(--warning-text)]" : "text-[var(--text-muted)]",
             },
-            { label: "Horas extra", value: `${stats.horasExtra.toFixed(0)}h`, color: "text-amber-600" },
-            { label: "Ausencias", value: stats.totalAusencias.toString(), color: "text-red-500" },
+            { label: "Horas extra", value: `${stats.horasExtra.toFixed(0)}h`, color: "text-[var(--warning-text)]" },
+            { label: "Ausencias", value: stats.totalAusencias.toString(), color: "text-[var(--danger)]" },
           ].map((s) => (
             <Card key={s.label}>
               <CardContent className="pt-4 pb-4">
-                <p className="text-sm text-slate-500">{s.label}</p>
+                <p className="text-sm text-[var(--text-muted)]">{s.label}</p>
                 <p className={`text-3xl font-bold mt-1 ${s.color}`}>{s.value}</p>
               </CardContent>
             </Card>
@@ -252,40 +252,40 @@ export default function ManagerInformesPage() {
         <CardContent className="p-0">
           {loading ? (
             <div className="p-4 space-y-2">
-              {[1, 2, 3].map((i) => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />)}
+              {[1, 2, 3].map((i) => <div key={i} className="h-10 bg-[var(--muted)] rounded animate-pulse" />)}
             </div>
           ) : datos.length === 0 ? (
-            <p className="text-center py-8 text-slate-400">No hay datos para el período seleccionado</p>
+            <p className="text-center py-8 text-[var(--text-muted)]">No hay datos para el período seleccionado</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-slate-50 border-b">
+                <thead className="bg-[var(--muted)] border-b">
                   <tr>
                     {["Empleado", "Días trab.", "Horas totales", "Horas de contrato", "Diferencia", "Horas extra", "Ausencias"].map((h) => (
-                      <th key={h} className="text-left text-xs font-semibold text-slate-500 px-4 py-3">{h}</th>
+                      <th key={h} className="text-left text-xs font-semibold text-[var(--text-muted)] px-4 py-3">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {datos.map((e) => (
-                    <tr key={e.userId} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-medium text-sm text-slate-900">
+                    <tr key={e.userId} className="hover:bg-[var(--muted)]">
+                      <td className="px-4 py-3 font-medium text-sm text-[var(--text-dark)]">
                         {e.nombre} {e.apellidos}
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{e.diasTrabajados}</td>
-                      <td className="px-4 py-3 text-sm font-semibold text-slate-900">{e.horasTotales.toFixed(1)}h</td>
-                      <td className="px-4 py-3 text-sm text-slate-600 tabular-nums">{e.horasContrato.toFixed(1)}h</td>
+                      <td className="px-4 py-3 text-sm text-[var(--text-body)]">{e.diasTrabajados}</td>
+                      <td className="px-4 py-3 text-sm font-semibold text-[var(--text-dark)]">{e.horasTotales.toFixed(1)}h</td>
+                      <td className="px-4 py-3 text-sm text-[var(--text-body)] tabular-nums">{e.horasContrato.toFixed(1)}h</td>
                       <td className="px-4 py-3 text-sm">
-                        <span className={e.diferencia > 0 ? "text-amber-600 font-medium tabular-nums" : "text-slate-500 tabular-nums"}>
+                        <span className={e.diferencia > 0 ? "text-[var(--warning-text)] font-medium tabular-nums" : "text-[var(--text-muted)] tabular-nums"}>
                           {e.diferencia > 0 ? "+" : ""}{e.diferencia.toFixed(1)}h
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        <span className={e.horasExtra > 0 ? "text-amber-600 font-medium" : "text-slate-400"}>
+                        <span className={e.horasExtra > 0 ? "text-[var(--warning-text)] font-medium" : "text-[var(--text-muted)]"}>
                           {e.horasExtra > 0 ? `+${e.horasExtra.toFixed(1)}h` : "0h"}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{e.diasAusencia} días</td>
+                      <td className="px-4 py-3 text-sm text-[var(--text-body)]">{e.diasAusencia} días</td>
                     </tr>
                   ))}
                 </tbody>

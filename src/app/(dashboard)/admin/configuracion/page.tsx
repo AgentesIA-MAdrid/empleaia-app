@@ -117,13 +117,13 @@ const EVENTOS_NOTIF = [
 function Toggle({ value, onChange, label }: { value: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <div className="flex items-center justify-between gap-4 py-3 border-b border-slate-50 last:border-0">
-      <span className="text-sm text-slate-700 flex-1 min-w-0">{label}</span>
+      <span className="text-sm text-[var(--text-body)] flex-1 min-w-0">{label}</span>
       <button
         type="button"
         onClick={() => onChange(!value)}
         className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${value ? "bg-[var(--primary)]" : "bg-slate-200"}`}
       >
-        <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${value ? "translate-x-6" : "translate-x-1"}`} />
+        <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-[var(--card)] shadow transition-transform ${value ? "translate-x-6" : "translate-x-1"}`} />
       </button>
     </div>
   );
@@ -420,21 +420,21 @@ function ConfiguracionPageInner() {
 
   // handleReset eliminado en Fase 4 (legacy mono-tenant).
 
-  if (!config) return <div className="p-6 animate-pulse"><div className="h-40 bg-slate-100 rounded-xl" /></div>;
+  if (!config) return <div className="p-6 animate-pulse"><div className="h-40 bg-[var(--muted)] rounded-xl" /></div>;
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Configuración</h1>
-        <p className="text-slate-500 text-sm mt-1">Parámetros generales de la empresa</p>
+        <h1 className="text-2xl font-bold text-[var(--text-dark)]">Configuración</h1>
+        <p className="text-[var(--text-muted)] text-sm mt-1">Parámetros generales de la empresa</p>
       </div>
 
       <PlanUsageCard />
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-slate-200">
+      <div className="flex gap-1 border-b border-[var(--border)]">
         {TABS.filter((t) => t !== "catalogo" || tieneCierreTurno).map((t) => {
           const labels: Record<Tab, string> = {
             general: "General",
@@ -454,7 +454,7 @@ function ConfiguracionPageInner() {
               className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
                 tab === t
                   ? "border-[var(--primary)] text-[var(--primary)]"
-                  : "border-transparent text-slate-500 hover:text-slate-700"
+                  : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-body)]"
               }`}
             >
               {labels[t]}
@@ -507,7 +507,7 @@ function ConfiguracionPageInner() {
                 <Toggle label="Face ID obligatorio (empleados con rostro registrado deben verificarlo al fichar)" value={config.faceIdObligatorio} onChange={(v) => setConfig((c) => c && ({ ...c, faceIdObligatorio: v }))} />
                 <Toggle label="Guardar foto al fichar con Face ID (dato biométrico — RGPD art. 9, requiere consentimiento explícito de los empleados)" value={config.faceIdGuardarFoto} onChange={(v) => setConfig((c) => c && ({ ...c, faceIdGuardarFoto: v }))} />
                 {config.faceIdGuardarFoto && (
-                  <div className="ml-6 mt-2 mb-3 p-3 rounded-md bg-amber-50 border border-amber-200">
+                  <div className="ml-6 mt-2 mb-3 p-3 rounded-md bg-[var(--warning-bg)] border border-[var(--warning-bg)]">
                     <Label className="text-sm font-medium">Días de retención de la foto biométrica</Label>
                     <div className="flex items-center gap-2 mt-1">
                       <Input
@@ -530,7 +530,7 @@ function ConfiguracionPageInner() {
                 )}
                 <Toggle label="Fichar solo dentro del horario del turno (el cuadrante manda: fuera de su horario el empleado no ficha directamente)" value={config.exigirFichajeEnHorario} onChange={(v) => setConfig((c) => c && ({ ...c, exigirFichajeEnHorario: v }))} />
                 {config.exigirFichajeEnHorario && (
-                  <div className="ml-6 mt-2 mb-3 p-3 rounded-md bg-amber-50 border border-amber-200">
+                  <div className="ml-6 mt-2 mb-3 p-3 rounded-md bg-[var(--warning-bg)] border border-[var(--warning-bg)]">
                     <Label className="text-sm font-medium">Margen antes y después del turno</Label>
                     <div className="flex items-center gap-2 mt-1">
                       <Input
@@ -588,15 +588,15 @@ function ConfiguracionPageInner() {
           </CardHeader>
           <CardContent className="p-0">
             {tipos.length === 0 ? (
-              <p className="text-center py-8 text-slate-400">No hay tipos de ausencia</p>
+              <p className="text-center py-8 text-[var(--text-muted)]">No hay tipos de ausencia</p>
             ) : (
               <div className="divide-y">
                 {tipos.map((t) => (
-                  <div key={t.id} className="flex items-center gap-3 px-6 py-3 hover:bg-slate-50">
+                  <div key={t.id} className="flex items-center gap-3 px-6 py-3 hover:bg-[var(--muted)]">
                     <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900">{t.nombre}</p>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-sm font-medium text-[var(--text-dark)]">{t.nombre}</p>
+                      <p className="text-xs text-[var(--text-muted)]">
                         {t.pagada ? "Pagada" : "No pagada"} ·{" "}
                         {t.requiereAprobacion ? "Requiere aprobación" : "Aprobación automática"}{" "}
                         {t.diasMaximos ? `· Máx. ${t.diasMaximos} días` : ""}
@@ -605,7 +605,7 @@ function ConfiguracionPageInner() {
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => abrirEditarTipo(t)} title="Editar">
                       <Settings className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteTipo(t)} title="Eliminar">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-[var(--danger-text)] hover:text-[var(--danger-text)] hover:bg-[var(--danger-bg)]" onClick={() => handleDeleteTipo(t)} title="Eliminar">
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -633,17 +633,17 @@ function ConfiguracionPageInner() {
                   const field = `notif${key}` as keyof Configuracion;
                   const value = config[field] as boolean;
                   return (
-                    <div key={key} className="flex items-center justify-between px-6 py-3 hover:bg-slate-50">
+                    <div key={key} className="flex items-center justify-between px-6 py-3 hover:bg-[var(--muted)]">
                       <div>
-                        <p className="text-sm font-medium text-slate-900">{label}</p>
-                        <p className="text-xs text-slate-400">{desc}</p>
+                        <p className="text-sm font-medium text-[var(--text-dark)]">{label}</p>
+                        <p className="text-xs text-[var(--text-muted)]">{desc}</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => setConfig((c) => c && { ...c, [field]: !value })}
                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${value ? "bg-[var(--primary)]" : "bg-slate-200"}`}
                       >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${value ? "translate-x-6" : "translate-x-1"}`} />
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-[var(--card)] transition-transform ${value ? "translate-x-6" : "translate-x-1"}`} />
                       </button>
                     </div>
                   );
@@ -673,7 +673,7 @@ function ConfiguracionPageInner() {
                     <Label htmlFor="aviso-hora">Hora del aviso</Label>
                     <select
                       id="aviso-hora"
-                      className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                      className="mt-1 w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm"
                       value={config.avisoCierresHora}
                       disabled={!config.avisoCierresActivo}
                       onChange={(e) =>
@@ -691,7 +691,7 @@ function ConfiguracionPageInner() {
                     <Label htmlFor="aviso-zona">Zona horaria</Label>
                     <select
                       id="aviso-zona"
-                      className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                      className="mt-1 w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm"
                       value={config.avisoCierresZona}
                       disabled={!config.avisoCierresActivo}
                       onChange={(e) =>
@@ -703,7 +703,7 @@ function ConfiguracionPageInner() {
                     </select>
                   </div>
                 </div>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[var(--text-muted)]">
                   El aviso sale a esta hora, en tu horario local, e incluye solo a quien tenía
                   turno ese día. Si eliges una hora de madrugada, el resumen es de la jornada
                   que acaba de terminar. Va un correo por sede a administración y al
@@ -738,19 +738,19 @@ function ConfiguracionPageInner() {
                         onChange={(e) => setConfig((c) => c && ({ ...c, emailPassword: e.target.value }))}
                         className="pr-9 font-mono text-sm"
                       />
-                      <button type="button" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      <button type="button" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-body)]"
                         onClick={() => setShowPassword((s) => !s)}>
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">Obtén tu API Key en resend.com → API Keys</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">Obtén tu API Key en resend.com → API Keys</p>
                   </div>
                   <div>
                     <Label>Remitente (From)</Label>
                     <Input className="mt-1" placeholder="Empresa &lt;noreply@tudominio.com&gt;"
                       value={config.emailFrom}
                       onChange={(e) => setConfig((c) => c && ({ ...c, emailFrom: e.target.value }))} />
-                    <p className="text-xs text-slate-400 mt-1">El dominio debe estar verificado en Resend</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">El dominio debe estar verificado en Resend</p>
                   </div>
                   <div className="flex justify-end">
                     <Button variant="outline" size="sm" onClick={handleTestEmail} disabled={testingEmail}>
@@ -781,14 +781,14 @@ function ConfiguracionPageInner() {
                   <Label>Clave pública VAPID</Label>
                   {config.pushVapidPublicKey ? (
                     <div className="mt-1 flex items-center gap-2">
-                      <code className="flex-1 text-xs bg-slate-50 border rounded px-3 py-2 text-slate-600 break-all">
+                      <code className="flex-1 text-xs bg-[var(--muted)] border rounded px-3 py-2 text-[var(--text-body)] break-all">
                         {config.pushVapidPublicKey}
                       </code>
-                      <span className="flex-shrink-0 text-emerald-500"><Check className="h-4 w-4" /></span>
+                      <span className="flex-shrink-0 text-[var(--success)]"><Check className="h-4 w-4" /></span>
                     </div>
                   ) : (
                     <div className="mt-1 flex items-center gap-2">
-                      <div className="flex-1 text-xs bg-slate-50 border border-dashed rounded px-3 py-2 text-slate-400 flex items-center gap-2">
+                      <div className="flex-1 text-xs bg-[var(--muted)] border border-dashed rounded px-3 py-2 text-[var(--text-muted)] flex items-center gap-2">
                         <X className="h-3 w-3" /> Sin claves VAPID configuradas
                       </div>
                     </div>
@@ -808,7 +808,7 @@ function ConfiguracionPageInner() {
                     {config.pushVapidPublicKey ? "Regenerar claves VAPID" : "Generar claves VAPID"}
                   </Button>
                   {config.pushVapidPublicKey && (
-                    <p className="text-xs text-amber-600 mt-1">
+                    <p className="text-xs text-[var(--warning-text)] mt-1">
                       ⚠ Regenerar claves invalidará todas las suscripciones existentes.
                     </p>
                   )}
@@ -833,7 +833,7 @@ function ConfiguracionPageInner() {
           fallback={
             <div className="space-y-4">
               <UpsellCTA feature="branding_personalizado" />
-              <p className="text-sm text-slate-500 text-center">
+              <p className="text-sm text-[var(--text-muted)] text-center">
                 Tu plan actual no permite personalizar el branding (logo,
                 colores, nombre de la app). Actualiza tu plan para acceder a
                 esta función.
@@ -857,14 +857,14 @@ function ConfiguracionPageInner() {
                   <Input className="mt-1" placeholder="empleaIA"
                     value={config.appNombre}
                     onChange={(e) => setConfig((c) => c && ({ ...c, appNombre: e.target.value }))} />
-                  <p className="text-xs text-slate-400 mt-1">Aparece en el título del navegador y emails</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-1">Aparece en el título del navegador y emails</p>
                 </div>
                 <div>
                   <Label>Nombre de la empresa</Label>
                   <Input className="mt-1" placeholder="Mi Empresa"
                     value={config.nombre}
                     onChange={(e) => setConfig((c) => c && ({ ...c, nombre: e.target.value }))} />
-                  <p className="text-xs text-slate-400 mt-1">Aparece en emails y cabeceras</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-1">Aparece en emails y cabeceras</p>
                 </div>
               </div>
             </CardContent>
@@ -881,10 +881,10 @@ function ConfiguracionPageInner() {
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <Label>Color primario</Label>
-                  <p className="text-xs text-slate-400 mb-2">Botones, elementos activos, focus</p>
+                  <p className="text-xs text-[var(--text-muted)] mb-2">Botones, elementos activos, focus</p>
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-10 h-10 rounded-lg border-2 border-slate-200 shadow-sm flex-shrink-0 cursor-pointer overflow-hidden relative"
+                      className="w-10 h-10 rounded-lg border-2 border-[var(--border)] shadow-sm flex-shrink-0 cursor-pointer overflow-hidden relative"
                       style={{ backgroundColor: config.colorPrimario }}
                     >
                       <input
@@ -919,10 +919,10 @@ function ConfiguracionPageInner() {
 
                 <div>
                   <Label>Color del sidebar</Label>
-                  <p className="text-xs text-slate-400 mb-2">Fondo de la barra lateral de navegación</p>
+                  <p className="text-xs text-[var(--text-muted)] mb-2">Fondo de la barra lateral de navegación</p>
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-10 h-10 rounded-lg border-2 border-slate-200 shadow-sm flex-shrink-0 cursor-pointer overflow-hidden relative"
+                      className="w-10 h-10 rounded-lg border-2 border-[var(--border)] shadow-sm flex-shrink-0 cursor-pointer overflow-hidden relative"
                       style={{ backgroundColor: config.colorSidebar }}
                     >
                       <input
@@ -957,24 +957,24 @@ function ConfiguracionPageInner() {
               </div>
 
               {/* Preview */}
-              <div className="mt-2 rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+              <div className="mt-2 rounded-xl overflow-hidden border border-[var(--border)] shadow-sm">
                 <div className="flex" style={{ height: "80px" }}>
                   <div className="w-28 flex flex-col" style={{ backgroundColor: config.colorSidebar }}>
                     <div className="flex items-center gap-1.5 px-2 py-2">
                       <div className="w-4 h-4 rounded flex-shrink-0" style={{ backgroundColor: config.colorPrimario }} />
-                      <div className="h-2 w-12 bg-white/30 rounded" />
+                      <div className="h-2 w-12 bg-[var(--card)]/30 rounded" />
                     </div>
                     <div className="mx-2 rounded px-2 py-1 flex items-center gap-1" style={{ backgroundColor: config.colorPrimario }}>
-                      <div className="w-2.5 h-2.5 bg-white/80 rounded-sm" />
-                      <div className="h-1.5 w-10 bg-white/70 rounded" />
+                      <div className="w-2.5 h-2.5 bg-[var(--card)]/80 rounded-sm" />
+                      <div className="h-1.5 w-10 bg-[var(--card)]/70 rounded" />
                     </div>
                     <div className="mx-2 mt-0.5 rounded px-2 py-1 flex items-center gap-1">
-                      <div className="w-2.5 h-2.5 bg-white/30 rounded-sm" />
-                      <div className="h-1.5 w-8 bg-white/25 rounded" />
+                      <div className="w-2.5 h-2.5 bg-[var(--card)]/30 rounded-sm" />
+                      <div className="h-1.5 w-8 bg-[var(--card)]/25 rounded" />
                     </div>
                   </div>
-                  <div className="flex-1 bg-slate-50 flex flex-col">
-                    <div className="h-8 border-b border-slate-200 bg-white flex items-center px-3 gap-2">
+                  <div className="flex-1 bg-[var(--muted)] flex flex-col">
+                    <div className="h-8 border-b border-[var(--border)] bg-[var(--card)] flex items-center px-3 gap-2">
                       <div className="h-2 w-16 bg-slate-200 rounded" />
                       <div className="ml-auto h-5 w-5 rounded-full" style={{ backgroundColor: config.colorPrimario + "40" }} />
                     </div>
@@ -983,8 +983,8 @@ function ConfiguracionPageInner() {
                     </div>
                   </div>
                 </div>
-                <div className="bg-slate-50 border-t border-slate-200 px-3 py-1.5 text-center">
-                  <span className="text-xs text-slate-400">Vista previa</span>
+                <div className="bg-[var(--muted)] border-t border-[var(--border)] px-3 py-1.5 text-center">
+                  <span className="text-xs text-[var(--text-muted)]">Vista previa</span>
                 </div>
               </div>
             </CardContent>
@@ -998,23 +998,23 @@ function ConfiguracionPageInner() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-slate-500">El logo aparece en los emails y en la cabecera del sidebar. Formatos: PNG, JPG, SVG. Máx. 2 MB.</p>
+              <p className="text-sm text-[var(--text-muted)]">El logo aparece en los emails y en la cabecera del sidebar. Formatos: PNG, JPG, SVG. Máx. 2 MB.</p>
               <div className="flex items-start gap-4">
                 {/* Preview */}
-                <div className="w-32 h-20 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center bg-slate-50 flex-shrink-0 overflow-hidden">
+                <div className="w-32 h-20 rounded-xl border-2 border-dashed border-[var(--border)] flex items-center justify-center bg-[var(--muted)] flex-shrink-0 overflow-hidden">
                   {config.logo ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={config.logo} alt="Logo" className="max-w-full max-h-full object-contain p-2" />
                   ) : (
                     <div className="text-center">
-                      <Image className="h-6 w-6 text-slate-300 mx-auto mb-1" />
-                      <span className="text-xs text-slate-400">Sin logo</span>
+                      <Image className="h-6 w-6 text-[var(--text-muted)] mx-auto mb-1" />
+                      <span className="text-xs text-[var(--text-muted)]">Sin logo</span>
                     </div>
                   )}
                 </div>
                 <div className="space-y-2">
                   <label className="cursor-pointer">
-                    <div className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium text-slate-700">
+                    <div className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg hover:bg-[var(--muted)] transition-colors text-sm font-medium text-[var(--text-body)]">
                       <Upload className="h-4 w-4" />
                       Subir logo
                     </div>
@@ -1022,7 +1022,7 @@ function ConfiguracionPageInner() {
                       onChange={(e) => handleFileUpload("logo", e)} />
                   </label>
                   {config.logo && (
-                    <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600"
+                    <Button variant="ghost" size="sm" className="text-[var(--danger)] hover:text-[var(--danger-text)]"
                       onClick={() => setConfig((c) => c && ({ ...c, logo: null }))}>
                       <X className="h-3.5 w-3.5 mr-1" /> Eliminar logo
                     </Button>
@@ -1040,19 +1040,19 @@ function ConfiguracionPageInner() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-slate-500">Icono que aparece en la pestaña del navegador. Usa un PNG cuadrado de 32×32 o 64×64 px. Máx. 2 MB.</p>
+              <p className="text-sm text-[var(--text-muted)]">Icono que aparece en la pestaña del navegador. Usa un PNG cuadrado de 32×32 o 64×64 px. Máx. 2 MB.</p>
               <div className="flex items-start gap-4">
-                <div className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center bg-slate-50 flex-shrink-0 overflow-hidden">
+                <div className="w-16 h-16 rounded-xl border-2 border-dashed border-[var(--border)] flex items-center justify-center bg-[var(--muted)] flex-shrink-0 overflow-hidden">
                   {config.favicon ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={config.favicon} alt="Favicon" className="w-8 h-8 object-contain" />
                   ) : (
-                    <Image className="h-5 w-5 text-slate-300" />
+                    <Image className="h-5 w-5 text-[var(--text-muted)]" />
                   )}
                 </div>
                 <div className="space-y-2">
                   <label className="cursor-pointer">
-                    <div className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors text-sm font-medium text-slate-700">
+                    <div className="flex items-center gap-2 px-4 py-2 border border-[var(--border)] rounded-lg hover:bg-[var(--muted)] transition-colors text-sm font-medium text-[var(--text-body)]">
                       <Upload className="h-4 w-4" />
                       Subir favicon
                     </div>
@@ -1060,7 +1060,7 @@ function ConfiguracionPageInner() {
                       onChange={(e) => handleFileUpload("favicon", e)} />
                   </label>
                   {config.favicon && (
-                    <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600"
+                    <Button variant="ghost" size="sm" className="text-[var(--danger)] hover:text-[var(--danger-text)]"
                       onClick={() => setConfig((c) => c && ({ ...c, favicon: null }))}>
                       <X className="h-3.5 w-3.5 mr-1" /> Eliminar favicon
                     </Button>
@@ -1110,7 +1110,7 @@ function ConfiguracionPageInner() {
               <CardTitle className="text-base">Reglas de cálculo de prenómina</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-slate-500 -mt-2">
+              <p className="text-sm text-[var(--text-muted)] -mt-2">
                 Estos valores se aplican al calcular la prenómina mensual. Las
                 horas trabajadas por encima de la jornada mensual cuentan como
                 extras. Plus de nocturnidad y festivos son opcionales.
@@ -1152,7 +1152,7 @@ function ConfiguracionPageInner() {
                       setConfig({ ...config, nominaHoraExtraFactor: parseFloat(e.target.value) || 1 })
                     }
                   />
-                  <p className="text-xs text-slate-500 mt-1">Multiplicador sobre el precio/hora.</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-1">Multiplicador sobre el precio/hora.</p>
                 </div>
                 <div>
                   <Label>Moneda</Label>
@@ -1237,7 +1237,7 @@ function ConfiguracionPageInner() {
                       setConfig({ ...config, nominaPlusFestivoFactor: parseFloat(e.target.value) || 1 })
                     }
                   />
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="text-xs text-[var(--text-muted)] mt-1">
                     Multiplicador sobre el precio/hora cuando el día está marcado como festivo en el calendario.
                   </p>
                 </div>
@@ -1319,11 +1319,11 @@ function ConfiguracionPageInner() {
             <div className="space-y-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={tipoForm.pagada} onChange={(e) => setTipoForm((f) => ({ ...f, pagada: e.target.checked }))} className="rounded" />
-                <span className="text-sm text-slate-700">Ausencia pagada</span>
+                <span className="text-sm text-[var(--text-body)]">Ausencia pagada</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={tipoForm.requiereAprobacion} onChange={(e) => setTipoForm((f) => ({ ...f, requiereAprobacion: e.target.checked }))} className="rounded" />
-                <span className="text-sm text-slate-700">Requiere aprobación del manager</span>
+                <span className="text-sm text-[var(--text-body)]">Requiere aprobación del manager</span>
               </label>
             </div>
           </div>
@@ -1341,7 +1341,7 @@ function ConfiguracionPageInner() {
 // /admin/aceptar-invitacion). Envolvemos el contenido para no romper el SSG.
 export default function ConfiguracionPage() {
   return (
-    <Suspense fallback={<div className="p-6 animate-pulse"><div className="h-40 bg-slate-100 rounded-xl" /></div>}>
+    <Suspense fallback={<div className="p-6 animate-pulse"><div className="h-40 bg-[var(--muted)] rounded-xl" /></div>}>
       <ConfiguracionPageInner />
     </Suspense>
   );

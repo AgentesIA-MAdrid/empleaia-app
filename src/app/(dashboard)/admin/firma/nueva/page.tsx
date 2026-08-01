@@ -34,7 +34,7 @@ async function NuevaSolicitudFirmaPage() {
         </div>
       </header>
 
-      <div className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white p-6">
+      <div className="rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] p-6">
         {documentos.length === 0 ? (
           <p className="text-sm text-[var(--color-text-muted,#94A3B8)]">
             Primero sube un documento desde Documentos.

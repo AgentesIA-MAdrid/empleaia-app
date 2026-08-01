@@ -13,7 +13,7 @@ export function DescargarFirmadoButton({ url, nombre }: { url: string; nombre: s
     <button
       type="button"
       onClick={() => downloadDoc(url, `${nombre} (firmado).pdf`)}
-      className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-800 hover:underline"
+      className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--success-text)] hover:underline"
     >
       <Download className="h-4 w-4" />
       Descargar documento firmado

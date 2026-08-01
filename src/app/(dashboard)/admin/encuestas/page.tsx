@@ -29,9 +29,9 @@ interface Encuesta {
 }
 
 const ESTADO_CLS: Record<Encuesta["estado"], string> = {
-  borrador: "bg-slate-100 text-slate-500",
-  abierta: "bg-emerald-50 text-emerald-700",
-  cerrada: "bg-slate-100 text-slate-500",
+  borrador: "bg-[var(--muted)] text-[var(--text-muted)]",
+  abierta: "bg-[var(--success-bg)] text-[var(--success-text)]",
+  cerrada: "bg-[var(--muted)] text-[var(--text-muted)]",
 };
 
 export default function AdminEncuestasPage() {
@@ -144,12 +144,12 @@ export default function AdminEncuestasPage() {
   if (featureUnavailable) {
     return (
       <div className="p-6">
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-[var(--warning-bg)] bg-[var(--warning-bg)]">
           <CardContent className="pt-4 pb-4 flex items-start gap-3">
-            <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <Lock className="h-5 w-5 text-[var(--warning-text)] shrink-0 mt-0.5" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-900">Encuestas de clima — plan Pro o superior</p>
-              <p className="text-sm text-amber-800 mt-0.5">Lanza encuestas anónimas para medir el clima laboral y obtener feedback del equipo.</p>
+              <p className="text-sm font-semibold text-[var(--warning-text)]">Encuestas de clima — plan Pro o superior</p>
+              <p className="text-sm text-[var(--warning-text)] mt-0.5">Lanza encuestas anónimas para medir el clima laboral y obtener feedback del equipo.</p>
             </div>
             <Link href="/admin/planes"><Button size="sm">Ver planes</Button></Link>
           </CardContent>
@@ -166,8 +166,8 @@ export default function AdminEncuestasPage() {
             <ClipboardList className="h-5 w-5 text-[var(--primary)]" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Encuestas de clima</h1>
-            <p className="text-slate-500 text-sm mt-0.5">Lanza encuestas y mide el feedback del equipo</p>
+            <h1 className="text-2xl font-bold text-[var(--text-dark)]">Encuestas de clima</h1>
+            <p className="text-[var(--text-muted)] text-sm mt-0.5">Lanza encuestas y mide el feedback del equipo</p>
           </div>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
@@ -176,12 +176,12 @@ export default function AdminEncuestasPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>
+        <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" /></div>
       ) : encuestas.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <ClipboardList className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500 text-sm">Aún no hay encuestas. Crea la primera.</p>
+            <ClipboardList className="h-10 w-10 text-[var(--text-muted)] mx-auto mb-3" />
+            <p className="text-[var(--text-muted)] text-sm">Aún no hay encuestas. Crea la primera.</p>
           </CardContent>
         </Card>
       ) : (
@@ -192,7 +192,7 @@ export default function AdminEncuestasPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <CardTitle className="text-base leading-snug">{e.titulo}</CardTitle>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="text-xs text-[var(--text-muted)] mt-1">
                       {e.preguntas.length} pregunta(s) · {e.anonima ? "Anónima" : "Nominal"}
                     </p>
                   </div>
@@ -202,31 +202,31 @@ export default function AdminEncuestasPage() {
                 </div>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col gap-3">
-                {e.descripcion && <p className="text-sm text-slate-600 line-clamp-3">{e.descripcion}</p>}
-                <div className="flex items-center gap-2 text-xs text-slate-500">
+                {e.descripcion && <p className="text-sm text-[var(--text-body)] line-clamp-3">{e.descripcion}</p>}
+                <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
                   <BarChart2 className="h-3.5 w-3.5" />
                   <span className="font-semibold">{e._count.respuestas}</span> respuestas
                   {e.cierraAt && (
-                    <span className="ml-auto text-slate-400">
+                    <span className="ml-auto text-[var(--text-muted)]">
                       Cierra {format(new Date(e.cierraAt), "dd MMM", { locale: es })}
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-1 mt-auto pt-2 border-t border-slate-100">
+                <div className="flex items-center gap-1 mt-auto pt-2 border-t border-[var(--border)]">
                   <Link href={`/admin/encuestas/${e.id}`}>
                     <Button size="sm" variant="ghost">Ver resultados</Button>
                   </Link>
                   {e.estado === "abierta" ? (
-                    <Button size="sm" variant="ghost" className="text-slate-500" onClick={() => handleEstado(e.id, "cerrada")}>
+                    <Button size="sm" variant="ghost" className="text-[var(--text-muted)]" onClick={() => handleEstado(e.id, "cerrada")}>
                       <XCircle className="h-4 w-4 mr-1" /> Cerrar
                     </Button>
                   ) : e.estado === "borrador" ? (
-                    <Button size="sm" variant="ghost" className="text-emerald-600" onClick={() => handleEstado(e.id, "abierta")}>
+                    <Button size="sm" variant="ghost" className="text-[var(--success-text)]" onClick={() => handleEstado(e.id, "abierta")}>
                       <CheckCircle2 className="h-4 w-4 mr-1" /> Abrir
                     </Button>
                   ) : null}
                   <div className="flex-1" />
-                  <Button size="sm" variant="ghost" className="text-red-500" onClick={() => handleDelete(e.id)}>
+                  <Button size="sm" variant="ghost" className="text-[var(--danger)]" onClick={() => handleDelete(e.id)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -247,7 +247,7 @@ export default function AdminEncuestasPage() {
             <div>
               <Label>Descripción (opcional)</Label>
               <textarea
-                className="mt-1 w-full min-h-[80px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                className="mt-1 w-full min-h-[80px] rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                 value={descripcion}
                 onChange={(e) => setDescripcion(e.target.value)}
               />
@@ -278,9 +278,9 @@ export default function AdminEncuestasPage() {
               </div>
               <div className="space-y-3">
                 {preguntas.map((p) => (
-                  <div key={p.idx} className="rounded-lg border border-slate-200 p-3 space-y-2">
+                  <div key={p.idx} className="rounded-lg border border-[var(--border)] p-3 space-y-2">
                     <div className="flex items-start gap-2">
-                      <span className="text-xs font-semibold text-slate-400 mt-2 w-6">{p.idx + 1}.</span>
+                      <span className="text-xs font-semibold text-[var(--text-muted)] mt-2 w-6">{p.idx + 1}.</span>
                       <Input
                         className="flex-1"
                         value={p.texto}
@@ -296,7 +296,7 @@ export default function AdminEncuestasPage() {
                         </SelectContent>
                       </Select>
                       {preguntas.length > 1 && (
-                        <Button size="sm" variant="ghost" className="text-red-500" onClick={() => removePregunta(p.idx)}>
+                        <Button size="sm" variant="ghost" className="text-[var(--danger)]" onClick={() => removePregunta(p.idx)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       )}
@@ -315,7 +315,7 @@ export default function AdminEncuestasPage() {
                               placeholder={`Opción ${i + 1}`}
                             />
                             {(p.opciones ?? []).length > 2 && (
-                              <Button size="sm" variant="ghost" className="text-red-500" onClick={() => {
+                              <Button size="sm" variant="ghost" className="text-[var(--danger)]" onClick={() => {
                                 const next = (p.opciones ?? []).filter((_, j) => j !== i);
                                 updatePregunta(p.idx, { opciones: next });
                               }}>

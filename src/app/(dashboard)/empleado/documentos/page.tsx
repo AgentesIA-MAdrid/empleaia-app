@@ -28,8 +28,8 @@ function tieneRespuestas(doc: Documento): boolean {
   return respuestasDe(doc).some((r) => r.trim() !== "");
 }
 const TIPO_COLOR: Record<string, string> = {
-  contrato: "bg-sky-100 text-sky-700", nomina: "bg-emerald-100 text-emerald-700",
-  certificado: "bg-purple-100 text-purple-700", formacion: "bg-amber-100 text-amber-700", otro: "bg-slate-100 text-slate-600",
+  contrato: "bg-sky-100 text-sky-700", nomina: "bg-[var(--success-bg)] text-[var(--success-text)]",
+  certificado: "bg-purple-100 text-purple-700", formacion: "bg-[var(--warning-bg)] text-[var(--warning-text)]", otro: "bg-[var(--muted)] text-[var(--text-body)]",
 };
 const MAX_MB = 5;
 
@@ -148,7 +148,7 @@ export default function EmpleadoDocumentosPage() {
   return (
     <div className="p-6 space-y-6 max-w-2xl mx-auto">
       <div className="flex items-start justify-between gap-3">
-        <div><h1 className="text-2xl font-bold text-slate-900">Mis Documentos</h1><p className="text-slate-500 text-sm mt-1">{documentos.length} documentos</p></div>
+        <div><h1 className="text-2xl font-bold text-[var(--text-dark)]">Mis Documentos</h1><p className="text-[var(--text-muted)] text-sm mt-1">{documentos.length} documentos</p></div>
         <div>
           <input ref={fileRef} type="file" accept=".pdf,image/*" className="hidden" onChange={(e) => adjuntar(e.target.files?.[0])} />
           <Button size="sm" onClick={() => fileRef.current?.click()} disabled={subiendo}>
@@ -157,29 +157,29 @@ export default function EmpleadoDocumentosPage() {
         </div>
       </div>
       {loading ? (
-        <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-20 bg-slate-100 rounded-xl animate-pulse" />)}</div>
+        <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-20 bg-[var(--muted)] rounded-xl animate-pulse" />)}</div>
       ) : documentos.length === 0 ? (
-        <Card><CardContent className="py-12 text-center"><FolderOpen className="h-10 w-10 text-slate-200 mx-auto mb-3" /><p className="text-slate-400">No tienes documentos disponibles</p></CardContent></Card>
+        <Card><CardContent className="py-12 text-center"><FolderOpen className="h-10 w-10 text-slate-200 mx-auto mb-3" /><p className="text-[var(--text-muted)]">No tienes documentos disponibles</p></CardContent></Card>
       ) : (
         <div className="space-y-2">
           {documentos.map((doc) => {
             const campos = camposDe(doc);
             const relleno = campos.length > 0 && tieneRespuestas(doc);
             return (
-            <div key={doc.id} className="flex items-center gap-4 p-4 bg-white rounded-xl border hover:shadow-sm transition-all">
+            <div key={doc.id} className="flex items-center gap-4 p-4 bg-[var(--card)] rounded-xl border hover:shadow-sm transition-all">
               <div className="w-10 h-10 bg-[var(--primary-light)] rounded-lg flex items-center justify-center shrink-0"><FileText className="h-5 w-5 text-[var(--primary)]" /></div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-medium text-slate-900 truncate">{doc.nombre}</p>
-                  <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium capitalize", TIPO_COLOR[doc.tipo] ?? "bg-slate-100")}>{doc.tipo}</span>
+                  <p className="font-medium text-[var(--text-dark)] truncate">{doc.nombre}</p>
+                  <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium capitalize", TIPO_COLOR[doc.tipo] ?? "bg-[var(--muted)]")}>{doc.tipo}</span>
                   {campos.length > 0 && (
-                    <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", relleno ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700")}>
+                    <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", relleno ? "bg-[var(--success-bg)] text-[var(--success-text)]" : "bg-[var(--warning-bg)] text-[var(--warning-text)]")}>
                       {relleno ? "Rellenado" : `${campos.length} campo${campos.length === 1 ? "" : "s"} por rellenar`}
                     </span>
                   )}
                 </div>
-                {doc.descripcion && <p className="text-sm text-slate-500 truncate">{doc.descripcion}</p>}
-                <p className="text-xs text-slate-400 mt-0.5">{format(new Date(doc.createdAt), "d MMM yyyy", { locale: es })}</p>
+                {doc.descripcion && <p className="text-sm text-[var(--text-muted)] truncate">{doc.descripcion}</p>}
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">{format(new Date(doc.createdAt), "d MMM yyyy", { locale: es })}</p>
               </div>
               {campos.length > 0 && (
                 <Button size="sm" variant="outline" onClick={() => abrirRellenar(doc)}>
@@ -206,9 +206,9 @@ export default function EmpleadoDocumentosPage() {
               ) : (
                 <>
                   {isSafeDocUrl(doc.documentoRellenoUrl) && (
-                    <button type="button" onClick={() => downloadDoc(doc.documentoRellenoUrl, `${doc.nombre} (con mis datos).pdf`)} title="Descargar con mis datos" className="p-2 text-slate-400 hover:text-emerald-600"><FileCheck className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => downloadDoc(doc.documentoRellenoUrl, `${doc.nombre} (con mis datos).pdf`)} title="Descargar con mis datos" className="p-2 text-[var(--text-muted)] hover:text-[var(--success-text)]"><FileCheck className="h-4 w-4" /></button>
                   )}
-                  {isSafeDocUrl(doc.url) && <button type="button" onClick={() => openDocInNewTab(doc.url)} title="Abrir documento" className="p-2 text-slate-400 hover:text-[var(--primary)]"><Download className="h-4 w-4" /></button>}
+                  {isSafeDocUrl(doc.url) && <button type="button" onClick={() => openDocInNewTab(doc.url)} title="Abrir documento" className="p-2 text-[var(--text-muted)] hover:text-[var(--primary)]"><Download className="h-4 w-4" /></button>}
                 </>
               )}
             </div>

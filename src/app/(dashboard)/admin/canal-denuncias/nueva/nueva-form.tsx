@@ -9,10 +9,10 @@ import {
 } from "@/lib/denuncias/categorias";
 
 const INPUT =
-  "flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors";
+  "flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors";
 
 const TEXTAREA =
-  "flex w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors min-h-[140px] resize-y";
+  "flex w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors min-h-[140px] resize-y";
 
 export function NuevaDenunciaForm() {
   const router = useRouter();
@@ -69,33 +69,33 @@ export function NuevaDenunciaForm() {
   if (accessToken) {
     return (
       <div className="space-y-4">
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-          <p className="font-semibold text-emerald-900">
+        <div className="rounded-lg border border-[var(--success-bg)] bg-[var(--success-bg)] p-4">
+          <p className="font-semibold text-[var(--success-text)]">
             ✓ Denuncia recibida
           </p>
-          <p className="text-sm text-emerald-800 mt-1">
+          <p className="text-sm text-[var(--success-text)] mt-1">
             Tu denuncia se ha registrado correctamente. El comité del canal
             te enviará un acuse de recibo en máximo 7 días naturales.
           </p>
         </div>
 
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <p className="font-semibold text-amber-900">
+        <div className="rounded-lg border border-[var(--warning-bg)] bg-[var(--warning-bg)] p-4">
+          <p className="font-semibold text-[var(--warning-text)]">
             Guarda este código de acceso
           </p>
-          <p className="text-sm text-amber-800 mt-1">
+          <p className="text-sm text-[var(--warning-text)] mt-1">
             Si denunciaste de forma anónima, este es tu único acceso al caso
             para consultar el estado o aportar información. <strong>No se mostrará
             de nuevo</strong>.
           </p>
           <div className="mt-3 flex items-center gap-2">
-            <code className="flex-1 rounded bg-white border border-amber-200 px-3 py-2 font-mono text-xs break-all">
+            <code className="flex-1 rounded bg-[var(--card)] border border-[var(--warning-bg)] px-3 py-2 font-mono text-xs break-all">
               {accessToken}
             </code>
             <button
               type="button"
               onClick={copyToken}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-medium text-amber-900 hover:bg-amber-100"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-[var(--card)] px-3 py-2 text-xs font-medium text-[var(--warning-text)] hover:bg-[var(--warning-bg)]"
             >
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
               {copied ? "Copiado" : "Copiar"}
@@ -118,14 +118,14 @@ export function NuevaDenunciaForm() {
     <form onSubmit={handleSubmit} className="grid gap-4">
       <label className="grid gap-1.5">
         <span className="text-sm font-medium text-[var(--color-text-dark,#0F172A)]">
-          Asunto <span className="text-red-600">*</span>
+          Asunto <span className="text-[var(--danger-text)]">*</span>
         </span>
         <input name="asunto" required minLength={5} maxLength={200} className={INPUT} placeholder="Resumen breve de los hechos" />
       </label>
 
       <label className="grid gap-1.5">
         <span className="text-sm font-medium text-[var(--color-text-dark,#0F172A)]">
-          Categoría <span className="text-red-600">*</span>
+          Categoría <span className="text-[var(--danger-text)]">*</span>
         </span>
         <select name="categoria" required className={INPUT}>
           {CATEGORIAS_ORDER.map((c) => (
@@ -136,7 +136,7 @@ export function NuevaDenunciaForm() {
 
       <label className="grid gap-1.5">
         <span className="text-sm font-medium text-[var(--color-text-dark,#0F172A)]">
-          Descripción detallada <span className="text-red-600">*</span>
+          Descripción detallada <span className="text-[var(--danger-text)]">*</span>
         </span>
         <textarea
           name="descripcion"
@@ -198,7 +198,7 @@ export function NuevaDenunciaForm() {
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-800">
+        <div className="rounded-lg border border-[var(--danger-bg)] bg-[var(--danger-bg)] px-3.5 py-2.5 text-sm text-[var(--danger-text)]">
           {error}
         </div>
       )}

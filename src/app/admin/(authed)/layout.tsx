@@ -18,7 +18,7 @@ import { NewTicketsBanner } from "@/components/admin/new-tickets-banner";
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-[var(--bg-subtle,#F8FAFC)]">
-      <header className="bg-white border-b border-[var(--color-border,#E2E8F0)]">
+      <header className="bg-[var(--card)] border-b border-[var(--color-border,#E2E8F0)]">
         <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <Link href="/admin/dashboard" className="inline-flex items-center gap-2 font-bold tracking-[-0.02em]">
@@ -42,7 +42,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <form action="/api/admin/logout" method="POST">
             <button
               type="submit"
-              className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-body,#475569)] hover:text-[var(--color-text-dark,#0F172A)] hover:bg-slate-100 rounded-md px-3 py-1.5 transition-colors"
+              className="inline-flex items-center gap-1.5 text-sm text-[var(--color-text-body,#475569)] hover:text-[var(--color-text-dark,#0F172A)] hover:bg-[var(--muted)] rounded-md px-3 py-1.5 transition-colors"
             >
               <LogOut className="h-4 w-4" />
               Salir
@@ -68,7 +68,7 @@ function NavLink({
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[var(--color-text-body,#475569)] hover:text-[var(--color-text-dark,#0F172A)] hover:bg-slate-100 transition-colors"
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[var(--color-text-body,#475569)] hover:text-[var(--color-text-dark,#0F172A)] hover:bg-[var(--muted)] transition-colors"
     >
       <Icon className="h-4 w-4" />
       {children}

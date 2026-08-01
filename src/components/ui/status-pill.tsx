@@ -7,10 +7,10 @@ const pillVariants = cva(
   {
     variants: {
       tone: {
-        success: "bg-emerald-50 text-emerald-800",
-        warning: "bg-amber-50 text-amber-800",
-        danger: "bg-red-50 text-red-800",
-        neutral: "bg-slate-100 text-slate-600",
+        success: "bg-[var(--success-bg)] text-[var(--success-text)]",
+        warning: "bg-[var(--warning-bg)] text-[var(--warning-text)]",
+        danger: "bg-[var(--danger-bg)] text-[var(--danger-text)]",
+        neutral: "bg-[var(--muted)] text-[var(--text-body)]",
         info: "bg-sky-50 text-sky-800",
         primary: "bg-[var(--primary-light)] text-[var(--primary)]",
       },
@@ -22,9 +22,9 @@ const pillVariants = cva(
 );
 
 const dotColor: Record<NonNullable<VariantProps<typeof pillVariants>["tone"]>, string> = {
-  success: "bg-emerald-500",
-  warning: "bg-amber-500",
-  danger: "bg-red-500",
+  success: "bg-[var(--success)]",
+  warning: "bg-[var(--warning)]",
+  danger: "bg-[var(--danger)]",
   neutral: "bg-slate-400",
   info: "bg-sky-500",
   primary: "bg-[var(--primary)]",

@@ -41,10 +41,10 @@ interface Plantilla { id: string; tipo: string; titulo: string; descripcion?: st
 
 const ESTADOS = ["PENDIENTE", "EN_PROCESO", "COMPLETADO", "CANCELADO"];
 const ESTADO_CONFIG: Record<string, { label: string; icon: typeof CheckCircle; color: string }> = {
-  PENDIENTE: { label: "Pendiente", icon: Clock, color: "bg-amber-100 text-amber-700" },
+  PENDIENTE: { label: "Pendiente", icon: Clock, color: "bg-[var(--warning-bg)] text-[var(--warning-text)]" },
   EN_PROCESO: { label: "En proceso", icon: Clock, color: "bg-sky-100 text-sky-700" },
-  COMPLETADO: { label: "Completado", icon: CheckCircle, color: "bg-emerald-100 text-emerald-700" },
-  CANCELADO: { label: "Cancelado", icon: XCircle, color: "bg-red-100 text-red-700" },
+  COMPLETADO: { label: "Completado", icon: CheckCircle, color: "bg-[var(--success-bg)] text-[var(--success-text)]" },
+  CANCELADO: { label: "Cancelado", icon: XCircle, color: "bg-[var(--danger-bg)] text-[var(--danger-text)]" },
 };
 
 const FORM_INICIAL = { userId: "", tipo: "ONBOARDING", estado: "PENDIENTE", fechaInicio: "", fechaFin: "", notas: "" };
@@ -277,8 +277,8 @@ export default function AdminOnboardingPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Incorporaciones y Bajas</h1>
-          <p className="text-slate-500 text-sm mt-1">Gestión de onboarding y offboarding de empleados</p>
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">Incorporaciones y Bajas</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-1">Gestión de onboarding y offboarding de empleados</p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" /> Nuevo proceso
@@ -300,7 +300,7 @@ export default function AdminOnboardingPage() {
                 onClick={() => setFiltroTipo(t)}
                 className={cn(
                   "px-4 py-1.5 rounded-full text-sm font-medium border transition-all",
-                  filtroTipo === t ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "bg-white text-slate-600 border-slate-200 hover:border-[var(--primary)]"
+                  filtroTipo === t ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "bg-[var(--card)] text-[var(--text-body)] border-[var(--border)] hover:border-[var(--primary)]"
                 )}
               >
                 {t === "TODOS" ? "Todos" : t === "ONBOARDING" ? "Incorporaciones" : "Bajas"}
@@ -309,12 +309,12 @@ export default function AdminOnboardingPage() {
           </div>
 
           {loading ? (
-            <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-20 bg-slate-100 rounded-xl animate-pulse" />)}</div>
+            <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-20 bg-[var(--muted)] rounded-xl animate-pulse" />)}</div>
           ) : procesosFiltrados.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <ArrowUpCircle className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-                <p className="text-slate-400">No hay procesos de {filtroTipo === "TODOS" ? "incorporación/baja" : filtroTipo === "ONBOARDING" ? "incorporación" : "baja"}</p>
+                <p className="text-[var(--text-muted)]">No hay procesos de {filtroTipo === "TODOS" ? "incorporación/baja" : filtroTipo === "ONBOARDING" ? "incorporación" : "baja"}</p>
               </CardContent>
             </Card>
           ) : (
@@ -327,30 +327,30 @@ export default function AdminOnboardingPage() {
                 const completadas = tareas.filter((t) => t.completada).length;
 
                 return (
-                  <div key={p.id} className="bg-white rounded-xl border hover:shadow-sm transition-all">
+                  <div key={p.id} className="bg-[var(--card)] rounded-xl border hover:shadow-sm transition-all">
                     {/* Cabecera del proceso */}
                     <div className="flex items-center gap-4 p-4">
                       <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-                        p.tipo === "ONBOARDING" ? "bg-emerald-50" : "bg-red-50")}>
+                        p.tipo === "ONBOARDING" ? "bg-[var(--success-bg)]" : "bg-[var(--danger-bg)]")}>
                         {p.tipo === "ONBOARDING"
-                          ? <ArrowUpCircle className="h-5 w-5 text-emerald-600" />
-                          : <ArrowDownCircle className="h-5 w-5 text-red-600" />}
+                          ? <ArrowUpCircle className="h-5 w-5 text-[var(--success-text)]" />
+                          : <ArrowDownCircle className="h-5 w-5 text-[var(--danger-text)]" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                          <p className="font-medium text-slate-900">{p.user.nombre} {p.user.apellidos}</p>
+                          <p className="font-medium text-[var(--text-dark)]">{p.user.nombre} {p.user.apellidos}</p>
                           <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium",
-                            p.tipo === "ONBOARDING" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700")}>
+                            p.tipo === "ONBOARDING" ? "bg-[var(--success-bg)] text-[var(--success-text)]" : "bg-[var(--danger-bg)] text-[var(--danger-text)]")}>
                             {p.tipo === "ONBOARDING" ? "Incorporación" : "Baja"}
                           </span>
                           <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1", estadoConf.color)}>
                             <Icon className="h-3 w-3" /> {estadoConf.label}
                           </span>
                           {tareas.length > 0 && (
-                            <span className="text-xs text-slate-400">{completadas}/{tareas.length} tareas</span>
+                            <span className="text-xs text-[var(--text-muted)]">{completadas}/{tareas.length} tareas</span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-400">
+                        <p className="text-xs text-[var(--text-muted)]">
                           {p.user.tienda?.nombre ?? "Sin sede"} · Inicio: {format(new Date(p.fechaInicio), "d MMM yyyy", { locale: es })}
                           {p.fechaFin ? ` · Fin: ${format(new Date(p.fechaFin), "d MMM yyyy", { locale: es })}` : ""}
                         </p>
@@ -362,10 +362,10 @@ export default function AdminOnboardingPage() {
                             {ESTADOS.map((e) => <SelectItem key={e} value={e} className="text-xs">{ESTADO_CONFIG[e]?.label ?? e}</SelectItem>)}
                           </SelectContent>
                         </Select>
-                        <button onClick={() => toggleExpand(p.id)} className="p-1.5 text-slate-400 hover:text-[var(--primary)] transition-colors">
+                        <button onClick={() => toggleExpand(p.id)} className="p-1.5 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors">
                           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </button>
-                        <button onClick={() => handleEliminarProceso(p.id)} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors">
+                        <button onClick={() => handleEliminarProceso(p.id)} className="p-1.5 text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -375,25 +375,25 @@ export default function AdminOnboardingPage() {
                     {isExpanded && (
                       <div className="border-t px-4 pb-4 pt-3 space-y-2">
                         {tareas.length === 0 && (
-                          <p className="text-xs text-slate-400 py-1">Sin tareas — añade una abajo</p>
+                          <p className="text-xs text-[var(--text-muted)] py-1">Sin tareas — añade una abajo</p>
                         )}
                         {tareas.map((tarea) => (
                           <div key={tarea.id} className="flex items-center gap-3 group">
                             <button
                               onClick={() => toggleTarea(p.id, tarea)}
                               className={cn("w-5 h-5 rounded flex items-center justify-center border-2 shrink-0 transition-all",
-                                tarea.completada ? "bg-emerald-500 border-green-500" : "border-slate-300 hover:border-green-400"
+                                tarea.completada ? "bg-[var(--success)] border-green-500" : "border-[var(--border-strong)] hover:border-green-400"
                               )}
                             >
                               {tarea.completada && <Check className="h-3 w-3 text-white" />}
                             </button>
-                            <span className={cn("text-sm flex-1", tarea.completada && "line-through text-slate-400")}>
+                            <span className={cn("text-sm flex-1", tarea.completada && "line-through text-[var(--text-muted)]")}>
                               {tarea.titulo}
-                              {tarea.descripcion && <span className="text-slate-400 ml-1">— {tarea.descripcion}</span>}
+                              {tarea.descripcion && <span className="text-[var(--text-muted)] ml-1">— {tarea.descripcion}</span>}
                             </span>
                             <button
                               onClick={() => deleteTarea(p.id, tarea.id)}
-                              className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-red-400 transition-all"
+                              className="opacity-0 group-hover:opacity-100 p-1 text-[var(--text-muted)] hover:text-[var(--danger)] transition-all"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -431,34 +431,34 @@ export default function AdminOnboardingPage() {
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm flex items-center gap-2">
                       {tipo === "ONBOARDING"
-                        ? <ArrowUpCircle className="h-4 w-4 text-emerald-600" />
-                        : <ArrowDownCircle className="h-4 w-4 text-red-600" />}
+                        ? <ArrowUpCircle className="h-4 w-4 text-[var(--success-text)]" />
+                        : <ArrowDownCircle className="h-4 w-4 text-[var(--danger-text)]" />}
                       Plantilla de {tipo === "ONBOARDING" ? "Incorporación" : "Baja"}
                     </CardTitle>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-[var(--text-muted)]">
                       Estas tareas se añaden automáticamente al crear un proceso de {tipo === "ONBOARDING" ? "incorporación" : "baja"}
                     </p>
                   </CardHeader>
                   <CardContent className="space-y-2">
                     {lista.length === 0 && (
-                      <p className="text-xs text-slate-400 py-2 text-center">Sin tareas configuradas</p>
+                      <p className="text-xs text-[var(--text-muted)] py-2 text-center">Sin tareas configuradas</p>
                     )}
                     {lista.map((p) => (
                       <div key={p.id} className="flex items-center gap-2 py-1.5 border-b last:border-0">
-                        <GripVertical className="h-4 w-4 text-slate-300 shrink-0" />
+                        <GripVertical className="h-4 w-4 text-[var(--text-muted)] shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className={cn("text-sm", !p.activa && "line-through text-slate-400")}>{p.titulo}</p>
-                          {p.descripcion && <p className="text-xs text-slate-400 truncate">{p.descripcion}</p>}
+                          <p className={cn("text-sm", !p.activa && "line-through text-[var(--text-muted)]")}>{p.titulo}</p>
+                          {p.descripcion && <p className="text-xs text-[var(--text-muted)] truncate">{p.descripcion}</p>}
                         </div>
                         <button
                           onClick={() => togglePlantillaActiva(p)}
                           className={cn("text-xs px-2 py-0.5 rounded-full border transition-all shrink-0",
-                            p.activa ? "bg-emerald-50 text-emerald-700 border-green-200" : "bg-slate-50 text-slate-400 border-slate-200"
+                            p.activa ? "bg-[var(--success-bg)] text-[var(--success-text)] border-[var(--success-bg)]" : "bg-[var(--muted)] text-[var(--text-muted)] border-[var(--border)]"
                           )}
                         >
                           {p.activa ? "Activa" : "Inactiva"}
                         </button>
-                        <button onClick={() => deletePlantilla(p.id)} className="p-1 text-slate-300 hover:text-red-400 transition-colors shrink-0">
+                        <button onClick={() => deletePlantilla(p.id)} className="p-1 text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors shrink-0">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
@@ -523,7 +523,7 @@ export default function AdminOnboardingPage() {
                   onChange={(e) => setForm((f) => ({ ...f, fechaInicio: e.target.value }))} />
               </div>
               <div>
-                <Label>Fecha fin <span className="text-slate-400 font-normal">(opcional)</span></Label>
+                <Label>Fecha fin <span className="text-[var(--text-muted)] font-normal">(opcional)</span></Label>
                 <Input className="mt-1" type="date" value={form.fechaFin}
                   onChange={(e) => setForm((f) => ({ ...f, fechaFin: e.target.value }))} />
               </div>
@@ -571,7 +571,7 @@ export default function AdminOnboardingPage() {
                 placeholder="Ej: Firma del contrato" />
             </div>
             <div>
-              <Label>Descripción <span className="text-slate-400 font-normal">(opcional)</span></Label>
+              <Label>Descripción <span className="text-[var(--text-muted)] font-normal">(opcional)</span></Label>
               <Input className="mt-1" value={plantillaForm.descripcion}
                 onChange={(e) => setPlantillaForm((f) => ({ ...f, descripcion: e.target.value }))}
                 placeholder="Instrucciones o detalle" />

@@ -11,10 +11,10 @@ const ESTADO_LABEL: Record<string, string> = {
 };
 
 const ESTADO_TONE: Record<string, string> = {
-  pendiente: "bg-amber-50 text-amber-800",
-  firmada: "bg-emerald-50 text-emerald-800",
-  rechazada: "bg-red-50 text-red-800",
-  expirada: "bg-slate-100 text-slate-600",
+  pendiente: "bg-[var(--warning-bg)] text-[var(--warning-text)]",
+  firmada: "bg-[var(--success-bg)] text-[var(--success-text)]",
+  rechazada: "bg-[var(--danger-bg)] text-[var(--danger-text)]",
+  expirada: "bg-[var(--muted)] text-[var(--text-body)]",
 };
 
 async function FirmaPage() {
@@ -58,34 +58,34 @@ async function FirmaPage() {
       </header>
 
       <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-lg border bg-white p-4">
-          <p className="text-xs font-medium text-slate-500 uppercase">Total</p>
+        <div className="rounded-lg border bg-[var(--card)] p-4">
+          <p className="text-xs font-medium text-[var(--text-muted)] uppercase">Total</p>
           <p className="text-2xl font-bold mt-1">{solicitudes.length}</p>
         </div>
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <p className="text-xs font-medium text-amber-700 uppercase">Pendientes</p>
-          <p className="text-2xl font-bold mt-1 text-amber-900">{pendientes}</p>
+        <div className="rounded-lg border border-[var(--warning-bg)] bg-[var(--warning-bg)] p-4">
+          <p className="text-xs font-medium text-[var(--warning-text)] uppercase">Pendientes</p>
+          <p className="text-2xl font-bold mt-1 text-[var(--warning-text)]">{pendientes}</p>
         </div>
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-          <p className="text-xs font-medium text-emerald-700 uppercase">Firmadas</p>
-          <p className="text-2xl font-bold mt-1 text-emerald-900">{firmadas}</p>
+        <div className="rounded-lg border border-[var(--success-bg)] bg-[var(--success-bg)] p-4">
+          <p className="text-xs font-medium text-[var(--success-text)] uppercase">Firmadas</p>
+          <p className="text-2xl font-bold mt-1 text-[var(--success-text)]">{firmadas}</p>
         </div>
       </div>
 
       {solicitudes.length === 0 ? (
-        <div className="rounded-lg border border-dashed bg-white p-12 text-center">
-          <Pen className="h-10 w-10 mx-auto text-slate-300" />
+        <div className="rounded-lg border border-dashed bg-[var(--card)] p-12 text-center">
+          <Pen className="h-10 w-10 mx-auto text-[var(--text-muted)]" />
           <p className="mt-3 text-sm text-[var(--color-text-body,#475569)]">
             Aún no hay solicitudes de firma. Crea una para empezar.
           </p>
         </div>
       ) : (
-        <div className="rounded-lg border bg-white overflow-hidden">
+        <div className="rounded-lg border bg-[var(--card)] overflow-hidden">
           <table className="w-full">
             <thead className="bg-[var(--bg-subtle,#F8FAFC)] border-b">
               <tr>
                 {["Documento", "Destinatario", "Solicitada por", "Estado", "Creada", "Firmada"].map((h) => (
-                  <th key={h} className="text-left text-xs font-semibold uppercase tracking-wide text-slate-600 px-4 py-3">
+                  <th key={h} className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-body)] px-4 py-3">
                     {h}
                   </th>
                 ))}
@@ -100,7 +100,7 @@ async function FirmaPage() {
                   <td className="px-4 py-3 text-sm">
                     {s.destinatario.nombre} {s.destinatario.apellidos}
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-600">
+                  <td className="px-4 py-3 text-sm text-[var(--text-body)]">
                     {s.solicitadaPor.nombre} {s.solicitadaPor.apellidos}
                   </td>
                   <td className="px-4 py-3">
@@ -108,10 +108,10 @@ async function FirmaPage() {
                       {ESTADO_LABEL[s.estado]}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 tabular-nums">
+                  <td className="px-4 py-3 text-sm text-[var(--text-body)] tabular-nums">
                     {new Date(s.createdAt).toLocaleDateString("es-ES")}
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 tabular-nums">
+                  <td className="px-4 py-3 text-sm text-[var(--text-body)] tabular-nums">
                     {s.firma?.firmadoEn ? new Date(s.firma.firmadoEn).toLocaleDateString("es-ES") : "—"}
                   </td>
                 </tr>

@@ -91,16 +91,16 @@ export function LibroCaja({
       <div>
         <Link
           href="/admin/conciliacion"
-          className="text-sm text-slate-500 hover:text-slate-800 inline-flex items-center gap-1.5"
+          className="text-sm text-[var(--text-muted)] hover:text-[var(--text-dark)] inline-flex items-center gap-1.5"
         >
           <ArrowLeft className="h-4 w-4" />
           Conciliación
         </Link>
-        <h1 className="text-2xl font-bold text-slate-900 mt-1 flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-[var(--text-dark)] mt-1 flex items-center gap-2">
           <Wallet className="h-6 w-6 text-[var(--primary)]" />
           Efectivo · {datos?.tienda.nombre ?? "…"}
         </h1>
-        <p className="text-slate-500 text-sm mt-1 max-w-2xl">
+        <p className="text-[var(--text-muted)] text-sm mt-1 max-w-2xl">
           Lo que ha entrado en la caja con cada cierre y lo que se ha retirado, con quién y
           cuándo. El saldo es lo que debería quedar en el cajón después de cada movimiento.
         </p>
@@ -147,13 +147,13 @@ export function LibroCaja({
 
       <div className="grid gap-4 sm:grid-cols-3">
         {[
-          { label: "Ha entrado", valor: datos?.totales.entradas, color: "text-emerald-700" },
-          { label: "Se ha retirado", valor: datos?.totales.salidas, color: "text-slate-900" },
+          { label: "Ha entrado", valor: datos?.totales.entradas, color: "text-[var(--success-text)]" },
+          { label: "Se ha retirado", valor: datos?.totales.salidas, color: "text-[var(--text-dark)]" },
           { label: "Saldo al final", valor: datos?.totales.saldoFinal, color: "text-[var(--primary)]" },
         ].map((k) => (
           <Card key={k.label}>
             <CardContent className="pt-4 pb-4">
-              <p className="text-sm text-slate-500">{k.label}</p>
+              <p className="text-sm text-[var(--text-muted)]">{k.label}</p>
               <p className={`text-xl font-bold mt-1 tabular-nums ${k.color}`}>
                 {k.valor === undefined ? "—" : eur(k.valor)}
               </p>
@@ -167,22 +167,22 @@ export function LibroCaja({
           {cargando ? (
             <div className="space-y-2">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />
+                <div key={i} className="h-10 bg-[var(--muted)] rounded animate-pulse" />
               ))}
             </div>
           ) : (datos?.movimientos.length ?? 0) === 0 ? (
-            <p className="text-center py-8 text-slate-400 text-sm">
+            <p className="text-center py-8 text-[var(--text-muted)] text-sm">
               No hay movimientos de caja en estas fechas.
             </p>
           ) : (
             <div className="overflow-x-auto -mx-6">
               <table className="w-full">
-                <thead className="bg-slate-50 border-y border-slate-200">
+                <thead className="bg-[var(--muted)] border-y border-[var(--border)]">
                   <tr>
                     {["Fecha", "Concepto", "Quién", "Entra", "Sale", "Saldo"].map((h, i) => (
                       <th
                         key={h}
-                        className={`text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-2.5 ${
+                        className={`text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-2.5 ${
                           i >= 3 ? "text-right" : "text-left"
                         }`}
                       >
@@ -193,30 +193,30 @@ export function LibroCaja({
                 </thead>
                 <tbody>
                   {datos?.movimientos.map((m, i) => (
-                    <tr key={`${m.fecha}-${i}`} className="border-b border-slate-100 last:border-0">
-                      <td className="px-4 py-2 text-sm text-slate-600 whitespace-nowrap">
+                    <tr key={`${m.fecha}-${i}`} className="border-b border-[var(--border)] last:border-0">
+                      <td className="px-4 py-2 text-sm text-[var(--text-body)] whitespace-nowrap">
                         {fechaLarga(m.fecha)}
                       </td>
-                      <td className="px-4 py-2 text-sm text-slate-800">
+                      <td className="px-4 py-2 text-sm text-[var(--text-dark)]">
                         <span className="flex items-center gap-1.5">
                           {m.tipo === "entrada" ? (
-                            <ArrowUpRight className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                            <ArrowUpRight className="h-3.5 w-3.5 text-[var(--success-text)] shrink-0" />
                           ) : m.tipo === "salida" ? (
                             <ArrowDownRight className="h-3.5 w-3.5 text-rose-600 shrink-0" />
                           ) : (
-                            <Wallet className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                            <Wallet className="h-3.5 w-3.5 text-[var(--text-muted)] shrink-0" />
                           )}
                           {m.concepto}
                         </span>
                       </td>
-                      <td className="px-4 py-2 text-sm text-slate-500">{m.quien ?? "—"}</td>
-                      <td className="px-4 py-2 text-sm text-right tabular-nums text-emerald-700">
+                      <td className="px-4 py-2 text-sm text-[var(--text-muted)]">{m.quien ?? "—"}</td>
+                      <td className="px-4 py-2 text-sm text-right tabular-nums text-[var(--success-text)]">
                         {m.tipo === "entrada" ? eur(m.importe) : ""}
                       </td>
                       <td className="px-4 py-2 text-sm text-right tabular-nums text-rose-700">
                         {m.tipo === "salida" ? eur(m.importe) : ""}
                       </td>
-                      <td className="px-4 py-2 text-sm text-right tabular-nums font-semibold text-slate-900">
+                      <td className="px-4 py-2 text-sm text-right tabular-nums font-semibold text-[var(--text-dark)]">
                         {eur(m.saldo)}
                       </td>
                     </tr>

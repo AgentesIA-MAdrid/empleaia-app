@@ -37,12 +37,12 @@ async function FaceIdEmpleadoPage() {
       </header>
 
       {template ? (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-5 space-y-3">
+        <div className="rounded-lg border border-[var(--success-bg)] bg-[var(--success-bg)] p-5 space-y-3">
           <div className="flex items-center gap-3">
-            <ShieldCheck className="h-6 w-6 text-emerald-700" />
+            <ShieldCheck className="h-6 w-6 text-[var(--success-text)]" />
             <div className="flex-1">
-              <p className="font-semibold text-emerald-900">Rostro registrado</p>
-              <p className="text-sm text-emerald-800">
+              <p className="font-semibold text-[var(--success-text)]">Rostro registrado</p>
+              <p className="text-sm text-[var(--success-text)]">
                 Registrado el{" "}
                 {new Date(template.createdAt).toLocaleDateString("es-ES")} ·
                 Algoritmo {template.algoritmo}
@@ -55,8 +55,8 @@ async function FaceIdEmpleadoPage() {
         <FaceIdManager mode="enroll" userId={userId} />
       )}
 
-      <div className="rounded-xl border bg-slate-50 p-5 text-sm text-slate-700 space-y-2">
-        <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+      <div className="rounded-xl border bg-[var(--muted)] p-5 text-sm text-[var(--text-body)] space-y-2">
+        <h2 className="font-semibold text-[var(--text-dark)] flex items-center gap-2">
           <ShieldCheck className="h-4 w-4" />
           Privacidad y datos biométricos
         </h2>

@@ -200,8 +200,8 @@ const eur = (n: number) =>
  * cuando el objetivo sigue sin cumplirse.
  */
 function colorConsecucion(v: number | null): string {
-  if (v === null) return "text-slate-400";
-  if (v >= 100) return "text-emerald-700 font-semibold";
+  if (v === null) return "text-[var(--text-muted)]";
+  if (v >= 100) return "text-[var(--success-text)] font-semibold";
   return "text-rose-600";
 }
 
@@ -237,21 +237,21 @@ function MiObjetivo({ datos }: { datos: ObjetivoPropio }) {
   return (
     <Card className="border-[var(--primary)]/30">
       <CardContent className="pt-4 pb-4">
-        <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+        <p className="text-sm font-semibold text-[var(--text-dark)] flex items-center gap-2">
           <Target className="h-4 w-4 text-[var(--primary)]" /> Mi objetivo
         </p>
-        <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+        <p className="text-xs text-[var(--text-muted)] mt-1 max-w-2xl">
           El objetivo de tu zona: la suma de los de tus puntos de venta frente a lo que llevan
           vendido este mes. No se fija a mano, se cumple cuando lo cumplen tus sedes.
         </p>
         <div className="overflow-x-auto mt-3 -mx-6">
           <table className="w-full">
-            <thead className="bg-slate-50 border-y border-slate-200">
+            <thead className="bg-[var(--muted)] border-y border-[var(--border)]">
               <tr>
                 {["Objetivo", "Vendido", "Consecución", "Sedes que cumplen", "Mi equipo"].map((h) => (
                   <th
                     key={h}
-                    className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-2.5"
+                    className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-2.5"
                   >
                     {h}
                   </th>
@@ -260,21 +260,21 @@ function MiObjetivo({ datos }: { datos: ObjetivoPropio }) {
             </thead>
             <tbody>
               <tr>
-                <td className="px-4 py-3 text-lg font-bold tabular-nums text-slate-900">
+                <td className="px-4 py-3 text-lg font-bold tabular-nums text-[var(--text-dark)]">
                   {datos.objetivo}
                 </td>
-                <td className="px-4 py-3 text-lg font-bold tabular-nums text-slate-900">
+                <td className="px-4 py-3 text-lg font-bold tabular-nums text-[var(--text-dark)]">
                   {datos.vendido}
                 </td>
                 <td className="px-4 py-3">
                   <Consecucion valor={datos.consecucion} />
                 </td>
-                <td className="px-4 py-3 text-sm tabular-nums text-slate-600">
+                <td className="px-4 py-3 text-sm tabular-nums text-[var(--text-body)]">
                   {datos.sedesConObjetivo === 0
                     ? "—"
                     : `${datos.sedesCumplen} de ${datos.sedesConObjetivo}`}
                 </td>
-                <td className="px-4 py-3 text-sm tabular-nums text-slate-600">
+                <td className="px-4 py-3 text-sm tabular-nums text-[var(--text-body)]">
                   {datos.comercialesConObjetivo === 0
                     ? "—"
                     : `${datos.comercialesCumplen} de ${datos.comercialesConObjetivo}`}
@@ -290,7 +290,7 @@ function MiObjetivo({ datos }: { datos: ObjetivoPropio }) {
 
 /** El porcentaje y, debajo, la barra de avance hacia el objetivo. */
 function Consecucion({ valor }: { valor: number | null }) {
-  if (valor === null) return <span className="text-sm tabular-nums text-slate-400">—</span>;
+  if (valor === null) return <span className="text-sm tabular-nums text-[var(--text-muted)]">—</span>;
   return (
     <div className="min-w-[7rem] space-y-1.5">
       <span className={`text-sm tabular-nums ${colorConsecucion(valor)}`}>{valor} %</span>
@@ -345,31 +345,31 @@ function TablaObjetivos({
     <Card>
       <CardContent className="p-0">
         <div className="px-6 pt-4 pb-3">
-          <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+          <p className="text-sm font-semibold text-[var(--text-dark)] flex items-center gap-2">
             {icono} {titulo}
           </p>
-          <p className="text-xs text-slate-400 mt-1 max-w-2xl">{descripcion}</p>
+          <p className="text-xs text-[var(--text-muted)] mt-1 max-w-2xl">{descripcion}</p>
         </div>
         {filas.length === 0 ? (
-          <p className="text-center py-10 text-slate-400 text-sm border-t border-slate-200">{vacio}</p>
+          <p className="text-center py-10 text-[var(--text-muted)] text-sm border-t border-[var(--border)]">{vacio}</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full border-t border-slate-200">
-              <thead className="bg-slate-50 border-b border-slate-200">
+            <table className="w-full border-t border-[var(--border)]">
+              <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
                 <tr>
-                  <th className="sticky left-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3 min-w-[13rem]">
+                  <th className="sticky left-0 z-10 bg-[var(--muted)] text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-3 min-w-[13rem]">
                     {etiquetaSujeto}
                   </th>
                   {columnas.map((c) => (
                     <th
                       key={c.id || "total"}
-                      className={`text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-3 py-3 min-w-[8rem] ${
-                        c.grupo ? "bg-slate-100" : ""
+                      className={`text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-3 py-3 min-w-[8rem] ${
+                        c.grupo ? "bg-[var(--muted)]" : ""
                       }`}
                     >
                       {c.nombre}
                       {c.detalle && (
-                        <span className="block font-normal normal-case text-slate-400">{c.detalle}</span>
+                        <span className="block font-normal normal-case text-[var(--text-muted)]">{c.detalle}</span>
                       )}
                     </th>
                   ))}
@@ -377,11 +377,11 @@ function TablaObjetivos({
               </thead>
               <tbody>
                 {filas.map((f) => (
-                  <tr key={f.sujetoId} className="border-b border-slate-100 last:border-0">
-                    <td className="sticky left-0 z-10 bg-white px-4 py-2.5 text-sm font-medium text-slate-800">
+                  <tr key={f.sujetoId} className="border-b border-[var(--border)] last:border-0">
+                    <td className="sticky left-0 z-10 bg-[var(--card)] px-4 py-2.5 text-sm font-medium text-[var(--text-dark)]">
                       {f.sujeto}
                       {mostrarSede && (
-                        <span className="block text-xs font-normal text-slate-400">{f.sede ?? "Sin sede"}</span>
+                        <span className="block text-xs font-normal text-[var(--text-muted)]">{f.sede ?? "Sin sede"}</span>
                       )}
                     </td>
                     {columnas.map((c) => {
@@ -390,11 +390,11 @@ function TablaObjetivos({
                       return (
                         <td
                           key={c.id || "total"}
-                          className={`px-3 py-2.5 align-top ${c.grupo ? "bg-slate-50/70" : ""}`}
+                          className={`px-3 py-2.5 align-top ${c.grupo ? "bg-[var(--muted)]/70" : ""}`}
                         >
                           {soloLectura ? (
                             <span
-                              className={`text-sm tabular-nums ${celda.derivado ? "text-slate-500" : ""}`}
+                              className={`text-sm tabular-nums ${celda.derivado ? "text-[var(--text-muted)]" : ""}`}
                               title={celda.derivado ? "Suma de los objetivos por producto" : undefined}
                             >
                               {celda.objetivo ?? "—"}
@@ -433,9 +433,9 @@ function TablaObjetivos({
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-slate-50 border-t border-slate-200">
+              <tfoot className="bg-[var(--muted)] border-t border-[var(--border)]">
                 <tr>
-                  <td className="sticky left-0 z-10 bg-slate-50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <td className="sticky left-0 z-10 bg-[var(--muted)] px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
                     Total
                   </td>
                   {columnas.map((c) => {
@@ -444,10 +444,10 @@ function TablaObjetivos({
                       <td
                         key={c.id || "total"}
                         className={`px-3 py-2.5 align-top text-sm tabular-nums ${
-                          c.grupo ? "bg-slate-100" : ""
+                          c.grupo ? "bg-[var(--muted)]" : ""
                         }`}
                       >
-                        <span className="font-semibold text-slate-800">{t?.objetivo ?? 0}</span>
+                        <span className="font-semibold text-[var(--text-dark)]">{t?.objetivo ?? 0}</span>
                         <PieCelda vendido={t?.vendido ?? 0} consecucion={t?.consecucion ?? null} />
                       </td>
                     );
@@ -725,30 +725,30 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
             </div>
           </div>
 
-          <p className="text-xs text-slate-400 mt-3 max-w-3xl">
-            <strong className="font-medium text-slate-500">Con Excel:</strong> descarga la plantilla
+          <p className="text-xs text-[var(--text-muted)] mt-3 max-w-3xl">
+            <strong className="font-medium text-[var(--text-muted)]">Con Excel:</strong> descarga la plantilla
             del mes elegido —baja con una fila por comercial, por punto de venta y por grupo, y una
             columna por grupo de productos y por producto, ya con los objetivos que tengas
             puestos—, rellénala y vuelve a subirla. Una casilla en blanco se deja como está; para
             quitar un objetivo, escribe 0.
           </p>
-          <p className="text-xs text-slate-400 mt-3 max-w-3xl">
+          <p className="text-xs text-[var(--text-muted)] mt-3 max-w-3xl">
             Cada casilla es el objetivo de unidades del mes elegido. Debajo de la casilla verás lo
             que se lleva vendido y la consecución. Hay tres tablas y son independientes entre sí:
             la de cada comercial, la de cada punto de venta —que se compara con lo que vende la
             sede completa, no con la suma de los de su equipo— y la de los{" "}
-            <strong className="font-medium text-slate-500">grupos de objetivos</strong> que montes
+            <strong className="font-medium text-[var(--text-muted)]">grupos de objetivos</strong> que montes
             tú (TMT, televenta…), que se compara con lo que venden sus miembros.
           </p>
-          <p className="text-xs text-slate-400 mt-2 max-w-3xl">
-            <strong className="font-medium text-slate-500">Unidades totales</strong> es la suma de
+          <p className="text-xs text-[var(--text-muted)] mt-2 max-w-3xl">
+            <strong className="font-medium text-[var(--text-muted)]">Unidades totales</strong> es la suma de
             lo que pongas grupo a grupo en esa fila (aparece en gris). Si quieres otro total —por
             ejemplo, para contar también lo que no tiene columna propia— escríbelo encima y manda el
             tuyo; bórralo y vuelve a mandar la suma.
           </p>
-          <p className="text-xs text-slate-400 mt-2 max-w-3xl">
+          <p className="text-xs text-[var(--text-muted)] mt-2 max-w-3xl">
             Los objetivos se fijan por{" "}
-            <strong className="font-medium text-slate-500">grupo de productos</strong>: una columna
+            <strong className="font-medium text-[var(--text-muted)]">grupo de productos</strong>: una columna
             por subcategoría del catálogo (FFTH, Pospago, Terminales…). Tu equipo sigue registrando
             cada producto por separado, y para el objetivo del grupo se suman las unidades de todos
             sus productos, cuelguen de la categoría que cuelguen: si tienes FFTH en Particular y en
@@ -759,7 +759,7 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
           {/* Lo que el cliente ha dejado fuera a propósito. Sin decirlo, un
               producto sin columna parece un fallo del catálogo. */}
           {(datos?.excluidos.length ?? 0) > 0 && (
-            <p className="text-xs text-slate-400 mt-2 max-w-3xl">
+            <p className="text-xs text-[var(--text-muted)] mt-2 max-w-3xl">
               No cuentan para ningún objetivo: {datos?.excluidos.join(", ")}. Se siguen vendiendo y
               registrando en el cierre; simplemente no suman.{" "}
               {!soloLectura && (
@@ -776,7 +776,7 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
           {!soloLectura &&
             (datos?.articulos.length ?? 0) === 0 &&
             (datos?.excluidos.length ?? 0) === 0 && (
-              <p className="text-xs text-amber-700 mt-2">
+              <p className="text-xs text-[var(--warning-text)] mt-2">
                 Todavía no tienes productos en el catálogo, así que solo puedes fijar objetivos de
                 unidades totales. Añádelos en{" "}
                 <a href="/admin/configuracion?tab=catalogo" className="underline font-medium">
@@ -800,18 +800,18 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
       {resumenImport && (
         <Card>
           <CardContent className="pt-4 pb-4 text-sm space-y-2">
-            <p className="font-medium text-slate-800 flex items-center gap-2">
-              <FileSpreadsheet className="h-4 w-4 text-slate-400" />
+            <p className="font-medium text-[var(--text-dark)] flex items-center gap-2">
+              <FileSpreadsheet className="h-4 w-4 text-[var(--text-muted)]" />
               Resultado de la importación ({resumenImport.mes})
             </p>
-            <p className="text-slate-600">
+            <p className="text-[var(--text-body)]">
               {resumenImport.creados} nuevos · {resumenImport.actualizados} actualizados ·{" "}
               {resumenImport.borrados} quitados · {resumenImport.sinCambios} sin cambios
             </p>
             {resumenImport.columnasIgnoradas.length > 0 && (
               <div>
-                <p className="text-amber-700">Columnas que no hemos podido usar:</p>
-                <ul className="mt-1 space-y-0.5 text-slate-500">
+                <p className="text-[var(--warning-text)]">Columnas que no hemos podido usar:</p>
+                <ul className="mt-1 space-y-0.5 text-[var(--text-muted)]">
                   {resumenImport.columnasIgnoradas.map((c) => (
                     <li key={c.columna}>
                       {c.columna}: {c.motivo}
@@ -822,11 +822,11 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
             )}
             {resumenImport.totalIgnoradas > 0 && (
               <div>
-                <p className="text-amber-700">
+                <p className="text-[var(--warning-text)]">
                   {resumenImport.totalIgnoradas} casilla
                   {resumenImport.totalIgnoradas === 1 ? "" : "s"} sin importar:
                 </p>
-                <ul className="mt-1 space-y-0.5 text-slate-500">
+                <ul className="mt-1 space-y-0.5 text-[var(--text-muted)]">
                   {resumenImport.ignoradas.map((ig, i) => (
                     <li key={`${ig.fila}-${i}`}>
                       Fila {ig.fila}: {ig.motivo}
@@ -845,8 +845,8 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         {[
-          { label: "Objetivo del mes", valor: String(resumen?.objetivo ?? 0), color: "text-slate-900", barra: null },
-          { label: "Vendido", valor: String(resumen?.vendido ?? 0), color: "text-slate-900", barra: null },
+          { label: "Objetivo del mes", valor: String(resumen?.objetivo ?? 0), color: "text-[var(--text-dark)]", barra: null },
+          { label: "Vendido", valor: String(resumen?.vendido ?? 0), color: "text-[var(--text-dark)]", barra: null },
           {
             label: "Consecución",
             valor: consecucionGlobal === null ? "—" : `${consecucionGlobal} %`,
@@ -862,7 +862,7 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
         ].map((k) => (
           <Card key={k.label}>
             <CardContent className="pt-4 pb-4">
-              <p className="text-sm text-slate-500">{k.label}</p>
+              <p className="text-sm text-[var(--text-muted)]">{k.label}</p>
               <p className={`text-2xl font-bold mt-1 tabular-nums ${k.color}`}>{k.valor}</p>
               {k.barra !== null && (
                 <ProgressBar
@@ -876,7 +876,7 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
           </Card>
         ))}
       </div>
-      <p className="text-xs text-slate-400 -mt-3">
+      <p className="text-xs text-[var(--text-muted)] -mt-3">
         Estas cuatro cifras resumen el objetivo de unidades totales de los comerciales (el que
         pongas a mano o, si no, la suma de sus productos). El total de cada producto y el de las
         sedes están al pie de su tabla.
@@ -886,14 +886,14 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
         <Card>
           <CardContent className="p-4 space-y-2">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />
+              <div key={i} className="h-10 bg-[var(--muted)] rounded animate-pulse" />
             ))}
           </CardContent>
         </Card>
       ) : datos?.sinSede ? (
         <Card>
           <CardContent className="pt-4 pb-4">
-            <p className="text-center py-10 text-slate-500 text-sm max-w-md mx-auto">
+            <p className="text-center py-10 text-[var(--text-muted)] text-sm max-w-md mx-auto">
               No tienes ninguna sede asignada, así que no hay objetivos que consultar. Pídele a
               administración que te asigne tu punto de venta.
             </p>
@@ -937,7 +937,7 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
           <TablaObjetivos
             titulo="TMT punto de venta"
             descripcion="El objetivo que impone el operador a cada tienda. Se compara con las mismas ventas que el vuestro, pero es una cifra aparte: la de arriba la ponéis vosotros, esta la manda el operador."
-            icono={<Building2 className="h-4 w-4 text-amber-600" />}
+            icono={<Building2 className="h-4 w-4 text-[var(--warning-text)]" />}
             etiquetaSujeto="Punto de venta"
             vacio="No hay puntos de venta activos."
             columnas={columnas}
@@ -987,7 +987,7 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
       )}
 
       {!soloLectura && (
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-[var(--text-muted)]">
           Cada objetivo se guarda al salir de la casilla. Déjala vacía o escribe 0 para quitarlo.
         </p>
       )}
@@ -996,17 +996,17 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
           repasar lo fijado y quitar de un tirón lo que sobre. */}
       <Card>
         <CardContent className="pt-4 pb-4">
-          <p className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-3">
+          <p className="text-sm font-semibold text-[var(--text-dark)] flex items-center gap-2 mb-3">
             <Target className="h-4 w-4 text-[var(--primary)]" /> Todos los objetivos de este mes
           </p>
           {(datos?.objetivosDelMes.length ?? 0) === 0 ? (
-            <p className="text-sm text-slate-400 py-4">
+            <p className="text-sm text-[var(--text-muted)] py-4">
               Todavía no hay ningún objetivo fijado para este mes.
             </p>
           ) : (
             <div className="overflow-x-auto -mx-6">
               <table className="w-full">
-                <thead className="bg-slate-50 border-y border-slate-200">
+                <thead className="bg-[var(--muted)] border-y border-[var(--border)]">
                   <tr>
                     {[
                       "Ámbito",
@@ -1020,7 +1020,7 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
                     ].map((h, i) => (
                       <th
                         key={`${h}-${i}`}
-                        className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-2.5"
+                        className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-2.5"
                       >
                         {h}
                       </th>
@@ -1029,18 +1029,18 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
                 </thead>
                 <tbody>
                   {datos?.objetivosDelMes.map((o) => (
-                    <tr key={o.id} className="border-b border-slate-100 last:border-0">
-                      <td className="px-4 py-2 text-sm text-slate-500">
+                    <tr key={o.id} className="border-b border-[var(--border)] last:border-0">
+                      <td className="px-4 py-2 text-sm text-[var(--text-muted)]">
                         {o.ambito === "sede" ? "Sede" : o.ambito === "grupo" ? "Grupo" : "Comercial"}
                       </td>
-                      <td className="px-4 py-2 text-sm font-medium text-slate-800">{o.sujeto}</td>
-                      <td className="px-4 py-2 text-sm text-slate-500">
+                      <td className="px-4 py-2 text-sm font-medium text-[var(--text-dark)]">{o.sujeto}</td>
+                      <td className="px-4 py-2 text-sm text-[var(--text-muted)]">
                         {o.articulo ?? (o.grupo ? `Grupo: ${o.grupo}` : "Unidades totales")}
                       </td>
                       <td className="px-4 py-2 text-sm tabular-nums">{o.objetivo}</td>
                       <td className="px-4 py-2 text-sm tabular-nums">{o.vendido}</td>
                       {datos?.preciosActivos && (
-                        <td className="px-4 py-2 text-sm tabular-nums text-slate-600">
+                        <td className="px-4 py-2 text-sm tabular-nums text-[var(--text-body)]">
                           {o.importe === null ? "—" : eur(o.importe)}
                         </td>
                       )}
@@ -1063,8 +1063,8 @@ export function ObjetivosVenta({ mes }: { mes: string }) {
         </CardContent>
       </Card>
 
-      <p className="text-sm text-slate-500 max-w-2xl flex items-start gap-2">
-        <TrendingUp className="h-4 w-4 mt-0.5 shrink-0 text-slate-400" />
+      <p className="text-sm text-[var(--text-muted)] max-w-2xl flex items-start gap-2">
+        <TrendingUp className="h-4 w-4 mt-0.5 shrink-0 text-[var(--text-muted)]" />
         <span>
           Lo vendido sale de los cierres de turno del mes, contando cada venta en la sede donde
           se hizo. Es distinto del área <strong>Objetivos (OKRs)</strong> de recursos humanos, que

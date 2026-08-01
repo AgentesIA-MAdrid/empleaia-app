@@ -162,14 +162,14 @@ export function DetalleCierre({
           {cargando ? (
             <div className="space-y-2">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-9 bg-slate-100 rounded animate-pulse" />
+                <div key={i} className="h-9 bg-[var(--muted)] rounded animate-pulse" />
               ))}
             </div>
           ) : error ? (
             <p className="text-sm text-rose-700">{error}</p>
           ) : !detalle ? null : (
             <>
-              <div className="text-sm text-slate-500">
+              <div className="text-sm text-[var(--text-muted)]">
                 {fechaLarga(detalle.fecha)} · {detalle.sede?.nombre ?? "Sin sede"} ·{" "}
                 {detalle.completado ? "Cerrado" : "Sin terminar"}
               </div>
@@ -186,18 +186,18 @@ export function DetalleCierre({
 
               {/* Ventas */}
               <div>
-                <p className="text-sm font-semibold text-slate-800 mb-2">Ventas declaradas</p>
+                <p className="text-sm font-semibold text-[var(--text-dark)] mb-2">Ventas declaradas</p>
                 {detalle.ventas.length === 0 ? (
-                  <p className="text-sm text-slate-400">No registró ninguna venta.</p>
+                  <p className="text-sm text-[var(--text-muted)]">No registró ninguna venta.</p>
                 ) : (
-                  <div className="overflow-x-auto rounded-md border border-slate-200">
+                  <div className="overflow-x-auto rounded-md border border-[var(--border)]">
                     <table className="w-full">
-                      <thead className="bg-slate-50 border-b border-slate-200">
+                      <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
                         <tr>
                           {["Artículo", "Unidades", ...(detalle.preciosActivos ? ["Importe"] : [])].map((h) => (
                             <th
                               key={h}
-                              className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-3 py-2"
+                              className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-3 py-2"
                             >
                               {h}
                             </th>
@@ -206,11 +206,11 @@ export function DetalleCierre({
                       </thead>
                       <tbody>
                         {detalle.ventas.map((v) => (
-                          <tr key={v.id} className="border-b border-slate-100 last:border-0">
-                            <td className="px-3 py-2 text-sm text-slate-800">{v.nombre}</td>
+                          <tr key={v.id} className="border-b border-[var(--border)] last:border-0">
+                            <td className="px-3 py-2 text-sm text-[var(--text-dark)]">{v.nombre}</td>
                             <td className="px-3 py-2 text-sm tabular-nums">{v.cantidad}</td>
                             {detalle.preciosActivos && (
-                              <td className="px-3 py-2 text-sm tabular-nums text-slate-600">
+                              <td className="px-3 py-2 text-sm tabular-nums text-[var(--text-body)]">
                                 {v.importe === null ? "Sin precio" : eur(v.importe)}
                               </td>
                             )}
@@ -218,8 +218,8 @@ export function DetalleCierre({
                         ))}
                       </tbody>
                       <tfoot>
-                        <tr className="bg-slate-50">
-                          <td className="px-3 py-2 text-sm font-semibold text-slate-700">Total</td>
+                        <tr className="bg-[var(--muted)]">
+                          <td className="px-3 py-2 text-sm font-semibold text-[var(--text-body)]">Total</td>
                           <td className="px-3 py-2 text-sm font-bold tabular-nums">{detalle.unidades}</td>
                           {detalle.preciosActivos && (
                             <td className="px-3 py-2 text-sm font-bold tabular-nums">
@@ -235,43 +235,43 @@ export function DetalleCierre({
 
               {detalle.detalleJornada && (
                 <div>
-                  <p className="text-sm font-semibold text-slate-800 mb-1">Detalle de la jornada</p>
-                  <p className="text-sm text-slate-600 whitespace-pre-wrap">{detalle.detalleJornada}</p>
+                  <p className="text-sm font-semibold text-[var(--text-dark)] mb-1">Detalle de la jornada</p>
+                  <p className="text-sm text-[var(--text-body)] whitespace-pre-wrap">{detalle.detalleJornada}</p>
                 </div>
               )}
 
               {/* Caja */}
               <div>
-                <p className="text-sm font-semibold text-slate-800 mb-2">Cierre de caja</p>
+                <p className="text-sm font-semibold text-[var(--text-dark)] mb-2">Cierre de caja</p>
                 {!detalle.caja ? (
-                  <p className="text-sm text-slate-400">No llegó a cerrar la caja.</p>
+                  <p className="text-sm text-[var(--text-muted)]">No llegó a cerrar la caja.</p>
                 ) : (
                   <>
                     <div className="grid sm:grid-cols-3 gap-3 text-sm">
-                      <div className="rounded-md border border-slate-200 px-3 py-2">
-                        <p className="text-slate-500">Efectivo</p>
+                      <div className="rounded-md border border-[var(--border)] px-3 py-2">
+                        <p className="text-[var(--text-muted)]">Efectivo</p>
                         <p className="font-semibold tabular-nums">{eur(detalle.caja.efectivo)}</p>
                       </div>
-                      <div className="rounded-md border border-slate-200 px-3 py-2">
-                        <p className="text-slate-500">Tarjeta</p>
+                      <div className="rounded-md border border-[var(--border)] px-3 py-2">
+                        <p className="text-[var(--text-muted)]">Tarjeta</p>
                         <p className="font-semibold tabular-nums">{eur(detalle.caja.tarjeta)}</p>
                       </div>
-                      <div className="rounded-md border border-slate-200 px-3 py-2">
-                        <p className="text-slate-500">Total</p>
+                      <div className="rounded-md border border-[var(--border)] px-3 py-2">
+                        <p className="text-[var(--text-muted)]">Total</p>
                         <p className="font-semibold tabular-nums">
                           {eur(detalle.caja.efectivo + detalle.caja.tarjeta)}
                         </p>
                       </div>
                     </div>
                     {detalle.preciosActivos && detalle.importeVendido !== null && (
-                      <p className="text-xs text-slate-500 mt-2">
+                      <p className="text-xs text-[var(--text-muted)] mt-2">
                         Vendido {eur(detalle.importeVendido)} · en caja{" "}
                         {eur(detalle.caja.efectivo + detalle.caja.tarjeta)} · diferencia{" "}
                         <strong
                           className={
                             Math.abs(detalle.importeVendido - (detalle.caja.efectivo + detalle.caja.tarjeta)) >= 1
-                              ? "text-amber-700"
-                              : "text-slate-600"
+                              ? "text-[var(--warning-text)]"
+                              : "text-[var(--text-body)]"
                           }
                         >
                           {eur(
@@ -285,21 +285,21 @@ export function DetalleCierre({
 
                     {/* Adjuntos */}
                     <div className="mt-3">
-                      <p className="text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
-                        <Paperclip className="h-3.5 w-3.5 text-slate-400" /> Documentación
+                      <p className="text-sm font-medium text-[var(--text-body)] mb-1.5 flex items-center gap-1.5">
+                        <Paperclip className="h-3.5 w-3.5 text-[var(--text-muted)]" /> Documentación
                       </p>
                       {detalle.caja.adjuntos.length === 0 ? (
-                        <p className="text-sm text-slate-400">No adjuntó ningún archivo.</p>
+                        <p className="text-sm text-[var(--text-muted)]">No adjuntó ningún archivo.</p>
                       ) : (
-                        <ul className="divide-y divide-slate-100 rounded-md border border-slate-200">
+                        <ul className="divide-y divide-slate-100 rounded-md border border-[var(--border)]">
                           {detalle.caja.adjuntos.map((a) => (
                             <li key={a.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
                               <span className="min-w-0">
-                                <span className="text-slate-400 text-xs uppercase tracking-wide mr-2">
+                                <span className="text-[var(--text-muted)] text-xs uppercase tracking-wide mr-2">
                                   {a.tipo === "stock" ? "Stock" : a.tipo === "gasto" ? "Gasto" : "TPV"}
                                 </span>
-                                <span className="text-slate-800 break-all">{a.nombre}</span>
-                                <span className="text-slate-400 text-xs ml-2 tabular-nums">
+                                <span className="text-[var(--text-dark)] break-all">{a.nombre}</span>
+                                <span className="text-[var(--text-muted)] text-xs ml-2 tabular-nums">
                                   {kb(a.tamañoBytes)}
                                 </span>
                               </span>
@@ -323,21 +323,21 @@ export function DetalleCierre({
                     {/* Rastro de correcciones */}
                     {detalle.caja.ediciones.length > 0 && (
                       <div className="mt-3">
-                        <p className="text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
-                          <History className="h-3.5 w-3.5 text-slate-400" /> Correcciones
+                        <p className="text-sm font-medium text-[var(--text-body)] mb-1.5 flex items-center gap-1.5">
+                          <History className="h-3.5 w-3.5 text-[var(--text-muted)]" /> Correcciones
                         </p>
                         <ul className="space-y-1.5">
                           {detalle.caja.ediciones.map((e) => (
-                            <li key={e.id} className="text-sm text-slate-600">
+                            <li key={e.id} className="text-sm text-[var(--text-body)]">
                               <span className="tabular-nums">
                                 {e.campo === "efectivo" ? "Efectivo" : "Tarjeta"}: {eur(e.valorAntes)} →{" "}
                                 {eur(e.valorDespues)}
                               </span>
-                              <span className="text-slate-400">
+                              <span className="text-[var(--text-muted)]">
                                 {" "}
                                 · {e.admin}, {cuando(e.cuando)}
                               </span>
-                              <span className="block text-slate-500">«{e.motivo}»</span>
+                              <span className="block text-[var(--text-muted)]">«{e.motivo}»</span>
                             </li>
                           ))}
                         </ul>
@@ -352,7 +352,7 @@ export function DetalleCierre({
                             Corregir importes
                           </Button>
                         ) : (
-                          <div className="rounded-md border border-slate-200 p-3 space-y-3">
+                          <div className="rounded-md border border-[var(--border)] p-3 space-y-3">
                             <div className="grid sm:grid-cols-2 gap-3">
                               <div>
                                 <Label htmlFor="corr-efectivo">Efectivo</Label>
@@ -384,7 +384,7 @@ export function DetalleCierre({
                               <textarea
                                 id="corr-motivo"
                                 rows={2}
-                                className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                                className="mt-1 w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                                 value={motivo}
                                 onChange={(e) => setMotivo(e.target.value)}
                                 placeholder="Por qué cambias los importes (queda registrado)."

@@ -66,15 +66,15 @@ export function PlanesGrid({ currentPlan, empleadosActivos }: PlanesGridProps) {
 
   return (
     <>
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 mb-6 flex items-start gap-3">
-        <div className="flex-shrink-0 mt-0.5 w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
-          <span className="font-bold text-amber-800 text-sm">{MIN_BILLABLE_SEATS}</span>
+      <div className="rounded-lg border border-[var(--warning-bg)] bg-[var(--warning-bg)] p-4 mb-6 flex items-start gap-3">
+        <div className="flex-shrink-0 mt-0.5 w-8 h-8 rounded-full bg-[var(--warning-bg)] flex items-center justify-center">
+          <span className="font-bold text-[var(--warning-text)] text-sm">{MIN_BILLABLE_SEATS}</span>
         </div>
         <div className="flex-1 text-sm">
-          <p className="font-semibold text-amber-900">
+          <p className="font-semibold text-[var(--warning-text)]">
             Facturación mínima: {MIN_BILLABLE_SEATS} usuarios
           </p>
-          <p className="text-amber-800 mt-0.5">
+          <p className="text-[var(--warning-text)] mt-0.5">
             Todos los planes facturan un mínimo de {MIN_BILLABLE_SEATS} usuarios al mes
             independientemente de tus empleados activos. Si tienes menos, igualmente
             se aplica este mínimo.
@@ -90,7 +90,7 @@ export function PlanesGrid({ currentPlan, empleadosActivos }: PlanesGridProps) {
             <div
               key={key}
               className={cn(
-                "relative flex flex-col rounded-2xl border bg-white p-6 transition-shadow",
+                "relative flex flex-col rounded-2xl border bg-[var(--card)] p-6 transition-shadow",
                 plan.popular
                   ? "border-[var(--primary)] ring-1 ring-[var(--primary)] shadow-sm"
                   : "border-[var(--color-border,#E2E8F0)]",
@@ -104,7 +104,7 @@ export function PlanesGrid({ currentPlan, empleadosActivos }: PlanesGridProps) {
               )}
 
               {state === "actual" && (
-                <div className="absolute -top-3 right-4 inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-emerald-200">
+                <div className="absolute -top-3 right-4 inline-flex items-center rounded-full bg-[var(--success-bg)] px-2.5 py-0.5 text-xs font-medium text-[var(--success-text)] ring-1 ring-emerald-200">
                   Plan actual
                 </div>
               )}
@@ -127,14 +127,14 @@ export function PlanesGrid({ currentPlan, empleadosActivos }: PlanesGridProps) {
                     /usuario/mes
                   </span>
                 </div>
-                <div className="mt-3 rounded-md bg-slate-100 px-3 py-2">
-                  <p className="text-xs font-medium text-slate-600">
+                <div className="mt-3 rounded-md bg-[var(--muted)] px-3 py-2">
+                  <p className="text-xs font-medium text-[var(--text-body)]">
                     Importe mínimo
                   </p>
                   <p className="text-base font-bold text-[var(--color-text-dark,#0F172A)]">
                     {formatEuros(plan.monthlyMinimumCents, { compact: true })}/mes
                   </p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
                     {MIN_BILLABLE_SEATS} usuarios mínimo
                   </p>
                 </div>
@@ -143,7 +143,7 @@ export function PlanesGrid({ currentPlan, empleadosActivos }: PlanesGridProps) {
               <ul className="space-y-2 flex-1">
                 {plan.highlights.map((h, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-[var(--color-text-body,#475569)]">
-                    <Check className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                    <Check className="h-4 w-4 text-[var(--success)] shrink-0 mt-0.5" />
                     <span>{h}</span>
                   </li>
                 ))}

@@ -53,7 +53,7 @@ function generatePassword(): string {
 }
 
 const INPUT_CLASS =
-  "flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3.5 py-2 text-sm text-[var(--color-text-dark,#0F172A)] placeholder:text-[var(--color-text-muted,#94A3B8)] focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors";
+  "flex h-10 w-full rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3.5 py-2 text-sm text-[var(--color-text-dark,#0F172A)] placeholder:text-[var(--color-text-muted,#94A3B8)] focus-visible:outline-none focus-visible:border-[var(--primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 transition-colors";
 
 function SetPasswordForm() {
   const router = useRouter();
@@ -121,7 +121,7 @@ function SetPasswordForm() {
 
   if (!token) {
     return (
-      <div className="flex items-start gap-3 rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800">
+      <div className="flex items-start gap-3 rounded-md border border-[var(--danger-bg)] bg-[var(--danger-bg)] px-3 py-2.5 text-sm text-[var(--danger-text)]">
         <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
         <span>Enlace no válido. Contacta con tu administrador.</span>
       </div>
@@ -131,12 +131,12 @@ function SetPasswordForm() {
   if (done) {
     return (
       <div className="flex flex-col items-center gap-4 py-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50">
-          <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--success-bg)]">
+          <CheckCircle2 className="h-8 w-8 text-[var(--success-text)]" />
         </div>
         <div className="text-center">
-          <p className="text-slate-900 font-semibold text-lg">¡Contraseña creada!</p>
-          <p className="text-slate-500 text-sm mt-1">Redirigiendo al inicio de sesión...</p>
+          <p className="text-[var(--text-dark)] font-semibold text-lg">¡Contraseña creada!</p>
+          <p className="text-[var(--text-muted)] text-sm mt-1">Redirigiendo al inicio de sesión...</p>
         </div>
       </div>
     );
@@ -145,14 +145,14 @@ function SetPasswordForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="flex items-start gap-3 rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800">
+        <div className="flex items-start gap-3 rounded-md border border-[var(--danger-bg)] bg-[var(--danger-bg)] px-3 py-2.5 text-sm text-[var(--danger-text)]">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
       )}
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+        <label className="block text-sm font-medium text-[var(--text-body)] mb-1.5">
           Nueva contraseña
         </label>
         <div className="relative">
@@ -168,7 +168,7 @@ function SetPasswordForm() {
           <button
             type="button"
             onClick={() => setShowPwd((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-body)] transition-colors"
           >
             {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
@@ -177,7 +177,7 @@ function SetPasswordForm() {
 
       {!generated && (
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          <label className="block text-sm font-medium text-[var(--text-body)] mb-1.5">
             Confirmar contraseña
           </label>
           <input
@@ -195,7 +195,7 @@ function SetPasswordForm() {
         <button
           type="button"
           onClick={handleGenerate}
-          className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-[var(--color-border,#E2E8F0)] bg-white px-3.5 py-2 text-sm font-medium text-[var(--color-text-dark,#0F172A)] transition-colors hover:bg-[var(--bg-subtle,#F8FAFC)]"
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-[var(--color-border,#E2E8F0)] bg-[var(--card)] px-3.5 py-2 text-sm font-medium text-[var(--color-text-dark,#0F172A)] transition-colors hover:bg-[var(--bg-subtle,#F8FAFC)]"
         >
           <Shuffle className="h-4 w-4" />
           Generar contraseña
@@ -207,8 +207,8 @@ function SetPasswordForm() {
             onClick={handleCopy}
             className={`flex items-center justify-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium transition-colors ${
               copied
-                ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                : "border-[var(--color-border,#E2E8F0)] bg-white text-[var(--color-text-dark,#0F172A)] hover:bg-[var(--bg-subtle,#F8FAFC)]"
+                ? "border-emerald-300 bg-[var(--success-bg)] text-[var(--success-text)]"
+                : "border-[var(--color-border,#E2E8F0)] bg-[var(--card)] text-[var(--color-text-dark,#0F172A)] hover:bg-[var(--bg-subtle,#F8FAFC)]"
             }`}
           >
             {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -218,7 +218,7 @@ function SetPasswordForm() {
       </div>
 
       {generated && (
-        <p className="text-xs text-slate-500 text-center -mt-1">
+        <p className="text-xs text-[var(--text-muted)] text-center -mt-1">
           Contraseña generada automáticamente — cópiala antes de continuar
         </p>
       )}
@@ -249,7 +249,7 @@ function SetPasswordPageInner() {
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--muted)]">
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
         <div className="absolute -top-32 -right-32 h-72 w-72 rounded-full bg-[var(--primary-light)] blur-3xl opacity-60" />
         <div className="absolute -bottom-32 -left-32 h-72 w-72 rounded-full bg-[var(--primary-light)] blur-3xl opacity-50" />
@@ -267,17 +267,17 @@ function SetPasswordPageInner() {
           ) : (
             <EmpleaIALogo appNombre={branding.appNombre} symbolSize={80} className="mb-4" />
           )}
-          <p className="text-sm text-slate-500">Activa tu cuenta para acceder a la plataforma</p>
+          <p className="text-sm text-[var(--text-muted)]">Activa tu cuenta para acceder a la plataforma</p>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-lg shadow-sm">
+        <div className="bg-[var(--card)] border border-[var(--border)] rounded-lg shadow-sm">
           <div className="px-6 py-6 sm:px-8 sm:py-8">
             <div className="mb-6 text-center">
-              <h1 className="text-xl font-semibold text-slate-900">Crea tu contraseña</h1>
-              <p className="text-sm text-slate-500 mt-1">Mínimo 6 caracteres</p>
+              <h1 className="text-xl font-semibold text-[var(--text-dark)]">Crea tu contraseña</h1>
+              <p className="text-sm text-[var(--text-muted)] mt-1">Mínimo 6 caracteres</p>
             </div>
 
-            <Suspense fallback={<div className="text-slate-500 text-sm text-center">Cargando...</div>}>
+            <Suspense fallback={<div className="text-[var(--text-muted)] text-sm text-center">Cargando...</div>}>
               <SetPasswordForm />
             </Suspense>
           </div>
@@ -289,7 +289,7 @@ function SetPasswordPageInner() {
 
 export default function SetPasswordPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[var(--muted)]" />}>
       <SetPasswordPageInner />
     </Suspense>
   );

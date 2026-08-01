@@ -55,8 +55,8 @@ const TIPO_LABEL: Record<FichajeDetalle["tipo"], string> = {
   SALIDA: "Salida",
 };
 const TIPO_CLS: Record<FichajeDetalle["tipo"], string> = {
-  ENTRADA: "bg-emerald-50 text-emerald-700",
-  PAUSA: "bg-amber-50 text-amber-700",
+  ENTRADA: "bg-[var(--success-bg)] text-[var(--success-text)]",
+  PAUSA: "bg-[var(--warning-bg)] text-[var(--warning-text)]",
   VUELTA_PAUSA: "bg-sky-50 text-sky-700",
   SALIDA: "bg-rose-50 text-rose-700",
 };
@@ -193,8 +193,8 @@ function AdminFichajesContent() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Fichajes</h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <h1 className="text-2xl font-bold text-[var(--text-dark)]">Fichajes</h1>
+          <p className="text-[var(--text-muted)] text-sm mt-1">
             Registro de entradas y salidas de tu plantilla
           </p>
         </div>
@@ -261,16 +261,16 @@ function AdminFichajesContent() {
           </CardHeader>
           <CardContent className="p-0">
             {loading ? (
-              <div className="p-4 space-y-2">{[1, 2, 3, 4].map(i => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />)}</div>
+              <div className="p-4 space-y-2">{[1, 2, 3, 4].map(i => <div key={i} className="h-10 bg-[var(--muted)] rounded animate-pulse" />)}</div>
             ) : fichajes.length === 0 ? (
-              <p className="text-center py-8 text-slate-400">No hay fichajes en el periodo seleccionado</p>
+              <p className="text-center py-8 text-[var(--text-muted)]">No hay fichajes en el periodo seleccionado</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-slate-50 border-b border-slate-200">
+                  <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
                     <tr>
                       {["Fecha", "Hora", "Empleado", "Tipo", "Método", "Sede"].map(h => (
-                        <th key={h} className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3">{h}</th>
+                        <th key={h} className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-3">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -278,17 +278,17 @@ function AdminFichajesContent() {
                     {fichajes.map(f => {
                       const d = new Date(f.timestamp);
                       return (
-                        <tr key={f.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{format(d, "dd/MM/yyyy")}</td>
-                          <td className="px-4 py-3 text-sm font-mono text-slate-900 whitespace-nowrap">{format(d, "HH:mm:ss")}</td>
-                          <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{f.user.nombre} {f.user.apellidos}</td>
+                        <tr key={f.id} className="hover:bg-[var(--muted)] transition-colors">
+                          <td className="px-4 py-3 text-sm text-[var(--text-body)] whitespace-nowrap">{format(d, "dd/MM/yyyy")}</td>
+                          <td className="px-4 py-3 text-sm font-mono text-[var(--text-dark)] whitespace-nowrap">{format(d, "HH:mm:ss")}</td>
+                          <td className="px-4 py-3 text-sm text-[var(--text-body)] whitespace-nowrap">{f.user.nombre} {f.user.apellidos}</td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${TIPO_CLS[f.tipo]}`}>
                               {TIPO_LABEL[f.tipo]}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-slate-500"><MetodoIcon m={f.metodo} /></td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{f.tienda?.nombre ?? "—"}</td>
+                          <td className="px-4 py-3 text-sm text-[var(--text-muted)]"><MetodoIcon m={f.metodo} /></td>
+                          <td className="px-4 py-3 text-sm text-[var(--text-body)]">{f.tienda?.nombre ?? "—"}</td>
                         </tr>
                       );
                     })}
@@ -317,7 +317,7 @@ function AdminFichajesContent() {
               )}
               <div className="flex-1 min-w-0">
                 <CardTitle className="text-lg">{empleadoSel.nombre} {empleadoSel.apellidos}</CardTitle>
-                <p className="text-sm text-slate-500 mt-0.5">
+                <p className="text-sm text-[var(--text-muted)] mt-0.5">
                   {empleadoTienda ? empleadoTienda.nombre : "Sin sede asignada"}
                   {" · "}
                   <strong>{fichajes.length}</strong> fichajes en el periodo
@@ -330,16 +330,16 @@ function AdminFichajesContent() {
           </CardHeader>
           <CardContent className="p-0">
             {loading ? (
-              <div className="p-4 space-y-2">{[1, 2, 3, 4].map(i => <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />)}</div>
+              <div className="p-4 space-y-2">{[1, 2, 3, 4].map(i => <div key={i} className="h-10 bg-[var(--muted)] rounded animate-pulse" />)}</div>
             ) : fichajes.length === 0 ? (
-              <p className="text-center py-8 text-slate-400">No hay fichajes en el periodo seleccionado</p>
+              <p className="text-center py-8 text-[var(--text-muted)]">No hay fichajes en el periodo seleccionado</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-slate-50 border-b border-slate-200">
+                  <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
                     <tr>
                       {["Fecha", "Hora", "Tipo", "Método", "Sede", "Localización", "Foto", "Comprobaciones", "Nota"].map(h => (
-                        <th key={h} className={`text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3${(h === "Localización" || h === "Foto") ? " hidden md:table-cell" : ""}`}>{h}</th>
+                        <th key={h} className={`text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-3${(h === "Localización" || h === "Foto") ? " hidden md:table-cell" : ""}`}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -356,11 +356,11 @@ function AdminFichajesContent() {
                       const fueraDeSede =
                         f.distancia != null && radio != null && f.distancia > radio;
                       return (
-                        <tr key={f.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">
+                        <tr key={f.id} className="hover:bg-[var(--muted)] transition-colors">
+                          <td className="px-4 py-3 text-sm text-[var(--text-body)] whitespace-nowrap">
                             {format(d, "dd/MM/yyyy")}
                           </td>
-                          <td className="px-4 py-3 text-sm font-mono text-slate-900 whitespace-nowrap">
+                          <td className="px-4 py-3 text-sm font-mono text-[var(--text-dark)] whitespace-nowrap">
                             {format(d, "HH:mm:ss")}
                           </td>
                           <td className="px-4 py-3">
@@ -369,12 +369,12 @@ function AdminFichajesContent() {
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <span className="inline-flex items-center gap-1 text-xs text-slate-600">
+                            <span className="inline-flex items-center gap-1 text-xs text-[var(--text-body)]">
                               <MetodoIcon m={f.metodo} />
                               {f.metodo}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
+                          <td className="px-4 py-3 text-sm text-[var(--text-body)] whitespace-nowrap">
                             {f.tienda?.nombre ?? "—"}
                           </td>
                           <td className="hidden md:table-cell px-4 py-3 text-sm">
@@ -394,8 +394,8 @@ function AdminFichajesContent() {
                                   <span
                                     className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium whitespace-nowrap ${
                                       fueraDeSede
-                                        ? "bg-amber-50 text-amber-700"
-                                        : "bg-slate-100 text-slate-600"
+                                        ? "bg-[var(--warning-bg)] text-[var(--warning-text)]"
+                                        : "bg-[var(--muted)] text-[var(--text-body)]"
                                     }`}
                                     title={
                                       radio != null
@@ -409,7 +409,7 @@ function AdminFichajesContent() {
                                 )}
                               </div>
                             ) : (
-                              <span className="text-slate-400 text-xs">Sin ubicación</span>
+                              <span className="text-[var(--text-muted)] text-xs">Sin ubicación</span>
                             )}
                           </td>
                           <td className="hidden md:table-cell px-4 py-3">
@@ -419,28 +419,28 @@ function AdminFichajesContent() {
                                 <img
                                   src={`/api/fichajes/${f.id}/foto`}
                                   alt="Snapshot Face ID"
-                                  className="h-10 w-10 rounded-md object-cover border border-slate-200 hover:scale-110 transition-transform"
+                                  className="h-10 w-10 rounded-md object-cover border border-[var(--border)] hover:scale-110 transition-transform"
                                   loading="lazy"
                                 />
                               </a>
                             ) : (
-                              <span className="text-slate-300 text-xs">—</span>
+                              <span className="text-[var(--text-muted)] text-xs">—</span>
                             )}
                           </td>
                           <td className="px-4 py-3 text-sm">
                             {f.checklist && f.checklist.length > 0 ? (
                               <span
-                                className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700"
+                                className="inline-flex items-center gap-1 rounded-md bg-[var(--success-bg)] px-1.5 py-0.5 text-xs font-medium text-[var(--success-text)]"
                                 title={f.checklist.map(c => `${c.marcado ? "✔" : "✘"} ${c.texto}`).join("\n")}
                               >
                                 <ClipboardCheck className="h-3.5 w-3.5" />
                                 {f.checklist.filter(c => c.marcado).length}/{f.checklist.length}
                               </span>
                             ) : (
-                              <span className="text-slate-300 text-xs">—</span>
+                              <span className="text-[var(--text-muted)] text-xs">—</span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-sm text-slate-600 max-w-[200px] truncate" title={f.nota ?? ""}>
+                          <td className="px-4 py-3 text-sm text-[var(--text-body)] max-w-[200px] truncate" title={f.nota ?? ""}>
                             {f.nota || "—"}
                           </td>
                         </tr>
@@ -461,7 +461,7 @@ function AdminFichajesContent() {
 // que /admin/configuracion).
 export default function AdminFichajesPage() {
   return (
-    <Suspense fallback={<div className="p-6 animate-pulse"><div className="h-40 bg-slate-100 rounded-xl" /></div>}>
+    <Suspense fallback={<div className="p-6 animate-pulse"><div className="h-40 bg-[var(--muted)] rounded-xl" /></div>}>
       <AdminFichajesContent />
     </Suspense>
   );

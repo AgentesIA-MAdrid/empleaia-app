@@ -65,8 +65,8 @@ export function PanelCierres({ titulo }: { titulo: string }) {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">{titulo}</h1>
-        <p className="text-slate-500 text-sm mt-1">
+        <h1 className="text-2xl font-bold text-[var(--text-dark)]">{titulo}</h1>
+        <p className="text-[var(--text-muted)] text-sm mt-1">
           Ventas, caja e incidencias que ha registrado tu equipo cada día.
         </p>
       </div>
@@ -90,14 +90,14 @@ export function PanelCierres({ titulo }: { titulo: string }) {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         {[
-          { label: "Cierres del día", valor: String(filas.length), color: "text-slate-900" },
-          { label: "Sin cerrar", valor: String(sinCerrar), color: sinCerrar ? "text-amber-600" : "text-slate-900" },
-          { label: "Con incidencia", valor: String(conIncidencia), color: conIncidencia ? "text-rose-600" : "text-slate-900" },
+          { label: "Cierres del día", valor: String(filas.length), color: "text-[var(--text-dark)]" },
+          { label: "Sin cerrar", valor: String(sinCerrar), color: sinCerrar ? "text-[var(--warning-text)]" : "text-[var(--text-dark)]" },
+          { label: "Con incidencia", valor: String(conIncidencia), color: conIncidencia ? "text-rose-600" : "text-[var(--text-dark)]" },
           { label: "Efectivo + tarjeta", valor: eur(efectivo + tarjeta), color: "text-[var(--primary)]" },
         ].map((k) => (
           <Card key={k.label}>
             <CardContent className="pt-4 pb-4">
-              <p className="text-sm text-slate-500">{k.label}</p>
+              <p className="text-sm text-[var(--text-muted)]">{k.label}</p>
               <p className={`text-2xl font-bold mt-1 tabular-nums ${k.color}`}>{k.valor}</p>
             </CardContent>
           </Card>
@@ -109,22 +109,22 @@ export function PanelCierres({ titulo }: { titulo: string }) {
           {cargando ? (
             <div className="p-4 space-y-2">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />
+                <div key={i} className="h-10 bg-[var(--muted)] rounded animate-pulse" />
               ))}
             </div>
           ) : filas.length === 0 ? (
-            <p className="text-center py-10 text-slate-400 text-sm">
+            <p className="text-center py-10 text-[var(--text-muted)] text-sm">
               Nadie ha registrado cierre este día.
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
+                <thead className="bg-[var(--muted)] border-b border-[var(--border)]">
                   <tr>
                     {["Empleado", "Sede", "Estado", "Artículos", "Efectivo", "Tarjeta", ""].map((h) => (
                       <th
                         key={h}
-                        className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-3"
+                        className="text-left text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] px-4 py-3"
                       >
                         {h}
                       </th>
@@ -133,20 +133,20 @@ export function PanelCierres({ titulo }: { titulo: string }) {
                 </thead>
                 <tbody>
                   {filas.map((f) => (
-                    <tr key={f.id} className="border-b border-slate-100 last:border-0">
-                      <td className="px-4 py-3 text-sm font-medium text-slate-800">{f.empleado}</td>
-                      <td className="px-4 py-3 text-sm text-slate-500">{f.sede ?? "—"}</td>
+                    <tr key={f.id} className="border-b border-[var(--border)] last:border-0">
+                      <td className="px-4 py-3 text-sm font-medium text-[var(--text-dark)]">{f.empleado}</td>
+                      <td className="px-4 py-3 text-sm text-[var(--text-muted)]">{f.sede ?? "—"}</td>
                       <td className="px-4 py-3 text-sm">
                         {f.tieneIncidencia ? (
                           <span className="inline-flex items-center gap-1.5 text-rose-700">
                             <AlertTriangle className="h-3.5 w-3.5" /> Con incidencia
                           </span>
                         ) : f.completado ? (
-                          <span className="inline-flex items-center gap-1.5 text-emerald-700">
+                          <span className="inline-flex items-center gap-1.5 text-[var(--success-text)]">
                             <CheckCircle2 className="h-3.5 w-3.5" /> Cerrado
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 text-amber-700">
+                          <span className="inline-flex items-center gap-1.5 text-[var(--warning-text)]">
                             <CircleDashed className="h-3.5 w-3.5" /> Sin terminar
                           </span>
                         )}

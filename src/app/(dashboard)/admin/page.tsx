@@ -58,9 +58,9 @@ interface Stats {
 import { EmployeeAvatar } from "@/components/ui/employee-avatar";
 
 const PRIORIDAD_COLOR: Record<string, string> = {
-  ALTA: "bg-red-50 text-red-800",
-  MEDIA: "bg-amber-50 text-amber-800",
-  BAJA: "bg-slate-100 text-slate-600",
+  ALTA: "bg-[var(--danger-bg)] text-[var(--danger-text)]",
+  MEDIA: "bg-[var(--warning-bg)] text-[var(--warning-text)]",
+  BAJA: "bg-[var(--muted)] text-[var(--text-body)]",
 };
 
 export default function AdminDashboardPage() {
@@ -117,7 +117,7 @@ export default function AdminDashboardPage() {
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-4 right-4 text-white hover:bg-white/20 z-20"
+          className="absolute top-4 right-4 text-white hover:bg-[var(--card)]/20 z-20"
           onClick={fetchData}
         >
           <RefreshCw className="h-4 w-4" />
@@ -128,9 +128,9 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: "Empleados", value: stats?.totalEmpleados ?? "—", icon: Users, color: "text-[var(--primary)]", bg: "bg-[var(--primary-light)]" },
-          { label: "Trabajando", value: stats?.trabajando ?? "—", icon: UserCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "En pausa", value: stats?.enPausa ?? "—", icon: Coffee, color: "text-amber-600", bg: "bg-amber-50" },
-          { label: "Ausentes", value: stats?.ausentes ?? "—", icon: UserX, color: "text-red-500", bg: "bg-red-50" },
+          { label: "Trabajando", value: stats?.trabajando ?? "—", icon: UserCheck, color: "text-[var(--success-text)]", bg: "bg-[var(--success-bg)]" },
+          { label: "En pausa", value: stats?.enPausa ?? "—", icon: Coffee, color: "text-[var(--warning-text)]", bg: "bg-[var(--warning-bg)]" },
+          { label: "Ausentes", value: stats?.ausentes ?? "—", icon: UserX, color: "text-[var(--danger)]", bg: "bg-[var(--danger-bg)]" },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="pt-4 pb-4">
@@ -139,7 +139,7 @@ export default function AdminDashboardPage() {
                   <s.icon className={cn("h-5 w-5", s.color)} />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">{s.label}</p>
+                  <p className="text-xs text-[var(--text-muted)]">{s.label}</p>
                   <p className={cn("text-2xl font-bold", s.color)}>{s.value}</p>
                 </div>
               </div>
@@ -155,25 +155,25 @@ export default function AdminDashboardPage() {
         <Card className="lg:col-span-2">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+              <div className="w-2 h-2 bg-[var(--success)] rounded-full animate-pulse" />
               Who&apos;s in
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {loading ? (
               <div className="space-y-3">
-                {[1, 2, 3].map((i) => <div key={i} className="h-8 bg-slate-100 rounded animate-pulse" />)}
+                {[1, 2, 3].map((i) => <div key={i} className="h-8 bg-[var(--muted)] rounded animate-pulse" />)}
               </div>
             ) : !whosIn ? null : (
               <>
                 {whosIn.trabajando.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Trabajando</p>
+                    <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2">Trabajando</p>
                     <div className="flex flex-wrap gap-2">
                       {whosIn.trabajando.map((p) => (
-                        <div key={p.id} className="flex items-center gap-1.5 bg-emerald-50 rounded-full pl-1 pr-3 py-1">
+                        <div key={p.id} className="flex items-center gap-1.5 bg-[var(--success-bg)] rounded-full pl-1 pr-3 py-1">
                           <EmployeeAvatar nombre={p.nombre} apellidos={p.apellidos} seed={p.id} />
-                          <span className="text-sm font-medium text-slate-800">{p.nombre} {p.apellidos}</span>
+                          <span className="text-sm font-medium text-[var(--text-dark)]">{p.nombre} {p.apellidos}</span>
                         </div>
                       ))}
                     </div>
@@ -181,12 +181,12 @@ export default function AdminDashboardPage() {
                 )}
                 {whosIn.enPausa.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">En pausa</p>
+                    <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2">En pausa</p>
                     <div className="flex flex-wrap gap-2">
                       {whosIn.enPausa.map((p) => (
-                        <div key={p.id} className="flex items-center gap-1.5 bg-amber-50 rounded-full pl-1 pr-3 py-1">
+                        <div key={p.id} className="flex items-center gap-1.5 bg-[var(--warning-bg)] rounded-full pl-1 pr-3 py-1">
                           <EmployeeAvatar nombre={p.nombre} apellidos={p.apellidos} seed={p.id} />
-                          <span className="text-sm font-medium text-slate-800">{p.nombre} {p.apellidos}</span>
+                          <span className="text-sm font-medium text-[var(--text-dark)]">{p.nombre} {p.apellidos}</span>
                         </div>
                       ))}
                     </div>
@@ -194,12 +194,12 @@ export default function AdminDashboardPage() {
                 )}
                 {whosIn.ausente.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Ausentes</p>
+                    <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2">Ausentes</p>
                     <div className="flex flex-wrap gap-2">
                       {whosIn.ausente.map((p) => (
-                        <div key={p.id} className="flex items-center gap-1.5 bg-red-50 rounded-full pl-1 pr-3 py-1">
+                        <div key={p.id} className="flex items-center gap-1.5 bg-[var(--danger-bg)] rounded-full pl-1 pr-3 py-1">
                           <EmployeeAvatar nombre={p.nombre} apellidos={p.apellidos} seed={p.id} />
-                          <span className="text-sm font-medium text-slate-800">{p.nombre} {p.apellidos}</span>
+                          <span className="text-sm font-medium text-[var(--text-dark)]">{p.nombre} {p.apellidos}</span>
                         </div>
                       ))}
                     </div>
@@ -207,19 +207,19 @@ export default function AdminDashboardPage() {
                 )}
                 {whosIn.sinFichar.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Sin fichar</p>
+                    <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2">Sin fichar</p>
                     <div className="flex flex-wrap gap-2">
                       {whosIn.sinFichar.map((p) => (
-                        <div key={p.id} className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-full pl-1 pr-3 py-1">
+                        <div key={p.id} className="flex items-center gap-1.5 bg-[var(--muted)] border border-[var(--border)] rounded-full pl-1 pr-3 py-1">
                           <EmployeeAvatar nombre={p.nombre} apellidos={p.apellidos} seed={p.id} />
-                          <span className="text-sm text-slate-500">{p.nombre} {p.apellidos}</span>
+                          <span className="text-sm text-[var(--text-muted)]">{p.nombre} {p.apellidos}</span>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
                 {!whosIn.trabajando.length && !whosIn.enPausa.length && !whosIn.ausente.length && !whosIn.sinFichar.length && (
-                  <p className="text-slate-400 text-sm text-center py-6">No hay empleados registrados todavía</p>
+                  <p className="text-[var(--text-muted)] text-sm text-center py-6">No hay empleados registrados todavía</p>
                 )}
               </>
             )}
@@ -237,7 +237,7 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               {!data?.proximosCumpleanos.length ? (
-                <p className="text-sm text-slate-400 py-2">Sin cumpleaños próximos</p>
+                <p className="text-sm text-[var(--text-muted)] py-2">Sin cumpleaños próximos</p>
               ) : (
                 <div className="space-y-3">
                   {data.proximosCumpleanos.map((c) => {
@@ -247,8 +247,8 @@ export default function AdminDashboardPage() {
                       <div key={c.id} className="flex items-center gap-3">
                         <EmployeeAvatar nombre={c.nombre} apellidos={c.apellidos} seed={c.id} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-900 truncate">{c.nombre} {c.apellidos}</p>
-                          <p className="text-xs text-slate-500">{label}</p>
+                          <p className="text-sm font-medium text-[var(--text-dark)] truncate">{c.nombre} {c.apellidos}</p>
+                          <p className="text-xs text-[var(--text-muted)]">{label}</p>
                         </div>
                         {c.diasRestantes === 0 && <span className="text-lg">🎂</span>}
                       </div>
@@ -269,7 +269,7 @@ export default function AdminDashboardPage() {
             <CardContent>
               {!data?.proximosFestivos.length ? (
                 <div className="space-y-1">
-                  <p className="text-sm text-slate-400">Sin festivos configurados</p>
+                  <p className="text-sm text-[var(--text-muted)]">Sin festivos configurados</p>
                   <Link href="/admin/configuracion" className="text-xs text-[var(--primary)] hover:underline">Añadir festivos →</Link>
                 </div>
               ) : (
@@ -279,12 +279,12 @@ export default function AdminDashboardPage() {
                     return (
                       <div key={f.id} className="flex items-center gap-3">
                         <div className="text-center w-10 shrink-0">
-                          <p className="text-xs text-slate-400 uppercase">{format(fecha, "MMM", { locale: es })}</p>
+                          <p className="text-xs text-[var(--text-muted)] uppercase">{format(fecha, "MMM", { locale: es })}</p>
                           <p className="text-lg font-bold text-[var(--primary)] leading-tight">{format(fecha, "d")}</p>
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-slate-900">{f.nombre}</p>
-                          <p className="text-xs text-slate-400 capitalize">{f.ambito}</p>
+                          <p className="text-sm font-medium text-[var(--text-dark)]">{f.nombre}</p>
+                          <p className="text-xs text-[var(--text-muted)] capitalize">{f.ambito}</p>
                         </div>
                       </div>
                     );
@@ -313,25 +313,25 @@ export default function AdminDashboardPage() {
             {!data?.tareasActivas.length ? (
               <div className="text-center py-6">
                 <CheckSquare className="h-8 w-8 text-slate-200 mx-auto mb-2" />
-                <p className="text-sm text-slate-400">No hay tareas activas</p>
+                <p className="text-sm text-[var(--text-muted)]">No hay tareas activas</p>
                 <Link href="/admin/tareas" className="text-xs text-[var(--primary)] hover:underline mt-1 block">Crear tarea →</Link>
               </div>
             ) : (
               <div className="space-y-2">
                 {data.tareasActivas.map((t) => (
-                  <div key={t.id} className="flex items-start gap-3 p-2 rounded-md hover:bg-slate-50">
+                  <div key={t.id} className="flex items-start gap-3 p-2 rounded-md hover:bg-[var(--muted)]">
                     <div className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] mt-1.5 shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900 truncate">{t.titulo}</p>
+                      <p className="text-sm font-medium text-[var(--text-dark)] truncate">{t.titulo}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium", PRIORIDAD_COLOR[t.prioridad] ?? "bg-slate-100 text-slate-600")}>
+                        <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium", PRIORIDAD_COLOR[t.prioridad] ?? "bg-[var(--muted)] text-[var(--text-body)]")}>
                           {t.prioridad}
                         </span>
                         {t.asignadoA && (
-                          <span className="text-xs text-slate-400">{t.asignadoA.nombre} {t.asignadoA.apellidos}</span>
+                          <span className="text-xs text-[var(--text-muted)]">{t.asignadoA.nombre} {t.asignadoA.apellidos}</span>
                         )}
                         {t.fechaLimite && (
-                          <span className="text-xs text-slate-400">{format(new Date(t.fechaLimite), "d MMM", { locale: es })}</span>
+                          <span className="text-xs text-[var(--text-muted)]">{format(new Date(t.fechaLimite), "d MMM", { locale: es })}</span>
                         )}
                       </div>
                     </div>
@@ -351,21 +351,21 @@ export default function AdminDashboardPage() {
             <div className="grid grid-cols-2 gap-3">
               {[
                 { label: "Empleados", href: "/admin/empleados", icon: Users, color: "bg-sky-50 text-sky-700" },
-                { label: "Ausencias", href: "/admin/ausencias", icon: Calendar, color: "bg-amber-50 text-amber-700", badge: stats?.ausenciasPendientes },
+                { label: "Ausencias", href: "/admin/ausencias", icon: Calendar, color: "bg-[var(--warning-bg)] text-[var(--warning-text)]", badge: stats?.ausenciasPendientes },
                 { label: "Comunicados", href: "/admin/comunicados", icon: Megaphone, color: "bg-violet-50 text-violet-700" },
-                { label: "Informes", href: "/admin/informes", icon: CheckSquare, color: "bg-emerald-50 text-emerald-700" },
+                { label: "Informes", href: "/admin/informes", icon: CheckSquare, color: "bg-[var(--success-bg)] text-[var(--success-text)]" },
               ].map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="relative flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-[var(--primary)] hover:bg-[var(--primary-light)]/40 transition-colors group"
+                  className="relative flex items-center gap-3 p-3 rounded-lg border border-[var(--border)] hover:border-[var(--primary)] hover:bg-[var(--primary-light)]/40 transition-colors group"
                 >
                   <div className={cn("w-9 h-9 rounded-md flex items-center justify-center", item.color)}>
                     <item.icon className="h-4 w-4" />
                   </div>
-                  <span className="text-sm font-medium text-slate-700 group-hover:text-[var(--primary)]">{item.label}</span>
+                  <span className="text-sm font-medium text-[var(--text-body)] group-hover:text-[var(--primary)]">{item.label}</span>
                   {item.badge !== undefined && item.badge > 0 && (
-                    <span className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                    <span className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--danger)] text-xs font-bold text-white">
                       {item.badge}
                     </span>
                   )}
