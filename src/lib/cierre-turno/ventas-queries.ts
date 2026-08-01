@@ -32,6 +32,28 @@ export interface FiltroVentas {
   tiendaIds?: string[] | null;
   /** Limita a un comercial. */
   userId?: string | null;
+  /**
+   * Limita a un conjunto de comerciales, sin mirar la sede (ticket 4e81b6c3).
+   * Es lo que hace falta para el objetivo INDIVIDUAL de alguien que ha cubierto
+   * en otra tienda: sus ventas de ese día son de aquella tienda, pero suman en
+   * su propia cuenta igual.
+   */
+  userIds?: string[] | null;
+}
+
+/**
+ * Une dos lecturas de ventas sin contar nada dos veces: la clave de una venta
+ * agregada es (comercial, sede, artículo), así que lo que aparezca en las dos
+ * listas es la MISMA venta, no dos.
+ */
+export function fusionarVentas(...listas: VentaAgregada[][]): VentaAgregada[] {
+  const acc = new Map<string, VentaAgregada>();
+  for (const lista of listas) {
+    for (const v of lista) {
+      acc.set(`${v.userId}|${v.tiendaId ?? ""}|${v.articuloId ?? ""}`, v);
+    }
+  }
+  return [...acc.values()];
 }
 
 function ventanaDe(f: FiltroVentas): { desde: Date; hasta: Date } {
@@ -95,6 +117,7 @@ export async function ventasPorDia(
           }
         : {}),
       ...(filtro.userId ? { userId: filtro.userId } : {}),
+      ...(filtro.userIds ? { userId: { in: filtro.userIds } } : {}),
     },
     select: { id: true, userId: true, tiendaId: true, fecha: true },
   });

@@ -90,7 +90,8 @@ export const GET = withTenant(
     if (!mesOk.ok) return NextResponse.json({ error: mesOk.error }, { status: 400 });
     const mes = mesOk.mes;
 
-    const [objetivos, ventasBrutas, articulos, tienda, preciosOn] = await Promise.all([
+    const [objetivos, ventasPropiasBrutas, ventasSedeBrutas, articulos, tienda, preciosOn] =
+      await Promise.all([
       prisma.objetivoVenta.findMany({
         where: {
           mes,
@@ -110,11 +111,16 @@ export const GET = withTenant(
           cantidad: true,
         },
       }),
-      // Las ventas de toda la sede: hacen falta para el total de la tienda, y
-      // las propias son un subconjunto. Sin sede asignada se piden solo las
-      // suyas: con `tiendaId: null` el filtro desaparecería y traeríamos las
-      // ventas de toda la empresa para nada.
-      ventasAgregadas(prisma, tiendaId ? { mes, tiendaId } : { mes, userId }),
+      // Dos lecturas distintas a propósito (ticket 4e81b6c3):
+      //
+      //  - Las SUYAS, del mes entero y sin filtrar por tienda: su objetivo
+      //    individual lo suma todo lo que ha vendido él, cubra donde cubra. Si
+      //    esto se acotara a la tienda de hoy, un domingo cubriendo en otra sede
+      //    desaparecería de su propio objetivo al día siguiente.
+      //  - Las de la SEDE en la que está hoy, que son las de todos sus
+      //    compañeros allí y las que miden los dos objetivos de tienda.
+      ventasAgregadas(prisma, { mes, userId }),
+      tiendaId ? ventasAgregadas(prisma, { mes, tiendaId }) : Promise.resolve([]),
       prisma.articuloVenta.findMany({
         where: { activo: true },
         select: {
@@ -137,12 +143,12 @@ export const GET = withTenant(
     // Las ventas se anotan con el catálogo completo: así los productos que
     // administración ha dejado fuera de los objetivos no empujan el progreso, y
     // cada venta sabe a qué grupo pertenece.
-    const ventas = anotarVentas(ventasBrutas, articulos);
-
-    // Sin sede asignada no hay ventas de sede que enseñar: `ventasAgregadas`
-    // devolvería las de todo el mundo y eso no es "tu tienda".
-    const ventasPropias = ventas.filter((v) => v.userId === userId);
-    const ventasSede = tiendaId ? ventas : ventasPropias;
+    const ventasPropias = anotarVentas(ventasPropiasBrutas, articulos).filter(
+      (v) => v.userId === userId,
+    );
+    // Sin sede confirmada no hay ventas de sede que enseñar: lo suyo es lo único
+    // que se puede medir.
+    const ventasSede = tiendaId ? anotarVentas(ventasSedeBrutas, articulos) : ventasPropias;
 
     const paraObjetivos = articulos.filter((a) => cuentaParaObjetivos(a));
     const articuloIds = paraObjetivos.map((a) => a.id);

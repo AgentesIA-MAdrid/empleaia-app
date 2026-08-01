@@ -49,10 +49,30 @@ const CIERRES = [
   { id: "c_luis", userId: "u_luis", tiendaId: "t1", fecha: new Date("2026-07-16T00:00:00Z") },
 ];
 
+/**
+ * El doble respeta el filtro de la consulta (sede y/o comercial): sin eso, un
+ * test sobre "de qué tienda son estas ventas" no probaría nada.
+ */
+type WhereCierres = {
+  AND?: ({ tiendaId?: string } | { tiendaId?: { in: string[] } })[];
+  userId?: string;
+};
+function cierresFiltrados(args?: { where?: WhereCierres }) {
+  const where = args?.where ?? {};
+  return CIERRES.filter((c) => {
+    if (where.userId && c.userId !== where.userId) return false;
+    for (const cond of where.AND ?? []) {
+      const t = (cond as { tiendaId?: string }).tiendaId;
+      if (typeof t === "string" && c.tiendaId !== t) return false;
+    }
+    return true;
+  });
+}
+
 const prismaMock = {
   objetivoVenta: { findMany: vi.fn(async () => OBJETIVOS) },
   cierreTurno: {
-    findMany: vi.fn(async () => CIERRES),
+    findMany: vi.fn(async (args?: { where?: WhereCierres }) => cierresFiltrados(args)),
     // La sede que confirmó al empezar el cierre de hoy. null = aún no ha dicho
     // nada y vale la de su ficha.
     findUnique: vi.fn(async () => null as { tiendaId: string | null } | null),
@@ -129,7 +149,9 @@ beforeEach(async () => {
   prismaMock.objetivoVenta.findMany.mockResolvedValue(OBJETIVOS);
   prismaMock.tienda.findUnique.mockResolvedValue({ nombre: "NEKSUS ALCALA MARQUES" });
   prismaMock.cierreTurno.findUnique.mockResolvedValue(null);
-  prismaMock.cierreTurno.findMany.mockResolvedValue(CIERRES);
+  prismaMock.cierreTurno.findMany.mockImplementation(async (args?: { where?: WhereCierres }) =>
+    cierresFiltrados(args),
+  );
   const { _setFeatureCatalogForTest } = await import("@/lib/tenant/features");
   _setFeatureCatalogForTest(["cierre_turno"]);
 });
@@ -202,5 +224,75 @@ describe("GET /api/cierre-turno/progreso", () => {
 
   it("un mes mal escrito se rechaza", async () => {
     expect((await get("?mes=2026-13")).status).toBe(400);
+  });
+});
+
+/**
+ * Dónde cuenta cada venta cuando alguien cubre en otra tienda (ticket 4e81b6c3).
+ *
+ * La regla del cliente, en sus palabras: "si un correturnos cubre horario en una
+ * tienda, las ventas de ese día son de esa tienda; y luego todas suman para su
+ * cometido individual".
+ */
+describe("GET /api/cierre-turno/progreso — cubrir en otra tienda", () => {
+  /** Ana vende 2 en su sede (t1) y 3 el domingo cubriendo en otra (t9). */
+  const CIERRES_CUBRIENDO = [
+    { id: "c_ana_t1", userId: "u_ana", tiendaId: "t1", fecha: new Date("2026-07-15T00:00:00Z") },
+    { id: "c_ana_t9", userId: "u_ana", tiendaId: "t9", fecha: new Date("2026-07-19T00:00:00Z") },
+    { id: "c_luis", userId: "u_luis", tiendaId: "t1", fecha: new Date("2026-07-16T00:00:00Z") },
+  ];
+
+  beforeEach(() => {
+    prismaMock.cierreTurno.findMany.mockImplementation(async (args?: { where?: WhereCierres }) => {
+      const where = args?.where ?? {};
+      return CIERRES_CUBRIENDO.filter((c) => {
+        if (where.userId && c.userId !== where.userId) return false;
+        for (const cond of where.AND ?? []) {
+          const t = (cond as { tiendaId?: string }).tiendaId;
+          if (typeof t === "string" && c.tiendaId !== t) return false;
+        }
+        return true;
+      });
+    });
+    prismaMock.cierreTurnoVenta.groupBy.mockResolvedValue([
+      { cierreId: "c_ana_t1", articuloId: "art_fibra", _sum: { cantidad: 2 } },
+      { cierreId: "c_ana_t9", articuloId: "art_fibra", _sum: { cantidad: 3 } },
+      { cierreId: "c_luis", articuloId: "art_fibra", _sum: { cantidad: 4 } },
+    ]);
+  });
+
+  it("su objetivo individual suma lo que vendió en LAS DOS tiendas", () => {
+    // 2 en la suya + 3 cubriendo = 5. Antes solo contaban las de la tienda en la
+    // que estuviera hoy, así que un domingo fuera desaparecía de su objetivo.
+    return get().then(({ data }) => {
+      expect(data.propio.vendido).toBe(5);
+    });
+  });
+
+  it("el objetivo de la tienda cuenta solo lo vendido ALLÍ", async () => {
+    // En t1: 2 de Ana + 4 de Luis. Las 3 que Ana hizo cubriendo en t9 no son de
+    // esta tienda y no la ayudan a llegar a su objetivo.
+    const { data } = await get();
+    expect(data.sede?.vendido).toBe(6);
+  });
+
+  it("el desglose por producto es el suyo entero, cubra donde cubra", async () => {
+    const { data } = await get();
+    expect(data.porArticulo).toEqual([expect.objectContaining({ nombre: "Fibra General", vendido: 5 })]);
+  });
+
+  it("las ventas de la sede se piden por sede y las suyas por persona", async () => {
+    await get();
+    const wheres = prismaMock.cierreTurno.findMany.mock.calls.map(
+      (c) => (c[0] as { where?: WhereCierres } | undefined)?.where ?? {},
+    );
+    // Una consulta acotada a él sin filtro de tienda…
+    expect(wheres.some((w) => w.userId === "u_ana" && !w.AND)).toBe(true);
+    // …y otra acotada a la tienda sin filtro de persona.
+    expect(
+      wheres.some(
+        (w) => !w.userId && (w.AND ?? []).some((c) => (c as { tiendaId?: string }).tiendaId === "t1"),
+      ),
+    ).toBe(true);
   });
 });

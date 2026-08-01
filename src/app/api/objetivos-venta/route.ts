@@ -58,6 +58,7 @@ import { normalizarCategoriaArticulo } from "@/lib/cierre-turno/catalogo";
 import {
   preciosActivos as leerPreciosActivos,
   ventasAgregadas,
+  fusionarVentas,
 } from "@/lib/cierre-turno/ventas-queries";
 import { sedesDelUsuario } from "@/lib/tiendas/sedes-usuario";
 
@@ -220,7 +221,19 @@ export const GET = withTenant(
     // Las ventas se anotan con el catálogo COMPLETO: es lo que permite saber
     // que una venta es de un producto excluido y no sumarla en el total. Los
     // grupos marcan en qué agrupación cae cada venta (una sola vez por grupo).
-    const ventas = anotarVentas(ventasBrutas, articulos, grupos);
+    // Y, para quien coordina, también las ventas que su gente haya hecho
+    // CUBRIENDO en sedes que él no lleva (ticket 4e81b6c3): esas ventas son de
+    // la tienda donde se hicieron —y ahí se quedan, porque las filas de sede
+    // filtran por tienda—, pero suman en el objetivo individual de la persona,
+    // que es suyo y no de un punto de venta. Administración ya las ve: no filtra
+    // por sede.
+    const ventasBrutasTotales = sedesFiltro
+      ? fusionarVentas(
+          ventasBrutas,
+          await ventasAgregadas(prisma, { mes, userIds: personas.map((p) => p.id) }),
+        )
+      : ventasBrutas;
+    const ventas = anotarVentas(ventasBrutasTotales, articulos, grupos);
 
     // Dos matrices independientes: los objetivos personales y los de la sede son
     // objetivos distintos y no se suman entre sí.
