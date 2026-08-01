@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FileSpreadsheet, FileText, BarChart2, CalendarRange, Search, Lock, AlarmClock } from "lucide-react";
+import { FileSpreadsheet, FileText, BarChart2, CalendarRange, Search, Lock, AlarmClock, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FeatureGateClient } from "@/components/feature-gate-client";
 import { useFeatures } from "@/lib/hooks/use-features";
@@ -50,6 +50,19 @@ interface FilaRetraso {
   mediaMinutos: number;
   peorRetraso: number;
   ultimoRetraso: string | null;
+}
+/** Una incidencia del cuadro de discrepancias (ticket 5f83b0c7). */
+interface Discrepancia {
+  userId: string;
+  empleado: string;
+  dia: string;
+  tipo: "sede_distinta" | "sin_turno" | "turno_sin_fichaje";
+  sedeTurno: string | null;
+  sedeFichaje: string | null;
+  hora: string;
+  distancia: number | null;
+  /** Fichó a más de la tolerancia de su sede: estaba en otro sitio. */
+  lejos: boolean;
 }
 interface Stats {
   totalHoras: number; mediaHorasDia: number; totalAusencias: number;
@@ -105,6 +118,14 @@ function AdminInformesContent() {
   const [datos, setDatos] = useState<ResumenEmpleado[]>([]);
   const [retrasos, setRetrasos] = useState<FilaRetraso[]>([]);
   const [margenRetrasos, setMargenRetrasos] = useState(15);
+  const [discrepancias, setDiscrepancias] = useState<Discrepancia[]>([]);
+  const [resumenDisc, setResumenDisc] = useState<{
+    sede_distinta: number;
+    sin_turno: number;
+    turno_sin_fichaje: number;
+  } | null>(null);
+  const [totalDisc, setTotalDisc] = useState(0);
+  const [toleranciaMetros, setToleranciaMetros] = useState(2000);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [exportando, setExportando] = useState(false);
@@ -162,9 +183,10 @@ function AdminInformesContent() {
     try {
       // Los dos informes del periodo van juntos: el resumen de horas y el
       // cuadro de retrasos, que sale del mismo filtro de fechas y sede.
-      const [res, resRetrasos] = await Promise.all([
+      const [res, resRetrasos, resDisc] = await Promise.all([
         fetch(`/api/informes?${buildParams()}&tipo=resumen`),
         fetch(`/api/informes?${buildParams()}&tipo=retrasos`),
+        fetch(`/api/informes?${buildParams()}&tipo=discrepancias`),
       ]);
       const data = await res.json();
       setDatos(data.empleados || []);
@@ -176,10 +198,24 @@ function AdminInformesContent() {
       } else {
         setRetrasos([]);
       }
+      if (resDisc.ok) {
+        const dd = await resDisc.json();
+        setDiscrepancias(dd.incidencias || []);
+        setResumenDisc(dd.resumen ?? null);
+        setTotalDisc(dd.total ?? 0);
+        setToleranciaMetros(dd.toleranciaMetros ?? 2000);
+      } else {
+        setDiscrepancias([]);
+        setResumenDisc(null);
+        setTotalDisc(0);
+      }
     } catch {
       setDatos([]);
       setStats(null);
       setRetrasos([]);
+      setDiscrepancias([]);
+      setResumenDisc(null);
+      setTotalDisc(0);
     } finally {
       setLoading(false);
     }
@@ -656,6 +692,134 @@ function AdminInformesContent() {
                     </tbody>
                   </table>
                 </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Discrepancias entre cuadrante y fichajes (ticket 5f83b0c7). Tres
+              cosas que no cuadran y que no salían en ninguna pantalla: fichar en
+              una sede distinta de la del turno, fichar un día sin turno y tener
+              turno y no fichar. */}
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-rose-600" /> Discrepancias con el cuadrante
+              </p>
+              <p className="text-xs text-slate-400 mt-1 max-w-3xl">
+                El fichaje guarda la sede asignada al empleado, así que esto compara lo que decía el
+                cuadrante con lo que quedó registrado. Cuando el móvil dio ubicación se añade a
+                cuántos metros de su sede fichó, y se señala si pasa de{" "}
+                {(toleranciaMetros / 1000).toFixed(0)} km: por debajo se da por hecho que estaba
+                allí, porque el GPS de ciudad se desvía.
+              </p>
+
+              {resumenDisc && (
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-3">
+                  {[
+                    { label: "Sede distinta", valor: resumenDisc.sede_distinta, color: "text-amber-700" },
+                    { label: "Fichó sin turno", valor: resumenDisc.sin_turno, color: "text-sky-700" },
+                    { label: "Turno sin fichaje", valor: resumenDisc.turno_sin_fichaje, color: "text-rose-700" },
+                  ].map((k) => (
+                    <div key={k.label} className="rounded-lg border border-slate-200 px-3 py-2">
+                      <p className="text-xs text-slate-500">{k.label}</p>
+                      <p className={`text-2xl font-bold tabular-nums ${k.color}`}>{k.valor}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {discrepancias.length === 0 ? (
+                <p className="text-center py-8 text-slate-400 text-sm">
+                  Todo cuadra con el cuadrante en este periodo.
+                </p>
+              ) : (
+                <>
+                  <div className="overflow-x-auto mt-4 -mx-6">
+                    <table className="w-full">
+                      <thead className="bg-slate-50 border-y border-slate-200">
+                        <tr>
+                          {["Día", "Empleado", "Qué pasó", "Cuadrante", "Fichaje", "Ubicación", ""].map(
+                            (h, i) => (
+                              <th
+                                key={`${h}-${i}`}
+                                className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-2.5"
+                              >
+                                {h}
+                              </th>
+                            ),
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {discrepancias.map((d, i) => (
+                          <tr
+                            key={`${d.userId}-${d.dia}-${d.tipo}-${i}`}
+                            className="border-b border-slate-100 last:border-0"
+                          >
+                            <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">
+                              {new Date(`${d.dia}T00:00:00`).toLocaleDateString("es-ES", {
+                                day: "2-digit",
+                                month: "short",
+                              })}
+                              <span className="block text-xs text-slate-400 tabular-nums">
+                                {d.hora}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm font-medium text-slate-800">
+                              {d.empleado}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                  d.tipo === "sede_distinta"
+                                    ? "bg-amber-100 text-amber-700"
+                                    : d.tipo === "sin_turno"
+                                      ? "bg-sky-100 text-sky-700"
+                                      : "bg-rose-100 text-rose-700"
+                                }`}
+                              >
+                                {d.tipo === "sede_distinta"
+                                  ? "Sede distinta"
+                                  : d.tipo === "sin_turno"
+                                    ? "Fichó sin turno"
+                                    : "Turno sin fichaje"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-slate-600">
+                              {d.sedeTurno ?? "—"}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-slate-600">
+                              {d.sedeFichaje ?? "—"}
+                            </td>
+                            <td className="px-4 py-3 text-sm tabular-nums">
+                              {d.distancia === null ? (
+                                <span className="text-slate-400">—</span>
+                              ) : (
+                                <span className={d.lejos ? "text-rose-600 font-medium" : "text-slate-500"}>
+                                  {d.distancia >= 1000
+                                    ? `${(d.distancia / 1000).toFixed(1)} km`
+                                    : `${d.distancia} m`}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <Link href={enlaceFichajes(d.userId)}>
+                                <Button variant="ghost" size="sm">Ver fichajes →</Button>
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {/* Sin decir el tope, una lista cortada parece la lista entera. */}
+                  {totalDisc > discrepancias.length && (
+                    <p className="text-xs text-slate-400 mt-2">
+                      Se enseñan las {discrepancias.length} más recientes de {totalDisc}. Acota el
+                      periodo o filtra por sede para verlas todas.
+                    </p>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

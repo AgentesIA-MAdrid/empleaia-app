@@ -17,6 +17,11 @@
 import { Rol, TipoFichaje } from "@/generated/prisma-tenant/client";
 import type { PrismaClient } from "@/generated/prisma-tenant/client";
 import { calcularRetrasos } from "@/lib/informes/retrasos";
+import {
+  detectarDiscrepancias,
+  resumirDiscrepancias,
+  TOLERANCIA_UBICACION_M,
+} from "@/lib/informes/discrepancias";
 import { MARGEN_FICHAJE_DEFAULT } from "@/lib/fichajes/horario-turno";
 import {
   diasDelPeriodo,
@@ -34,7 +39,9 @@ export type InformeTipo =
   | "presencia"
   | "presencia-global"
   /** Retrasos acumulados por empleado (ticket 4a71c8d3). */
-  | "retrasos";
+  | "retrasos"
+  /** Fichajes que no cuadran con el cuadrante (ticket 5f83b0c7). */
+  | "discrepancias";
 
 export type InformeQueryArgs = {
   tipo: InformeTipo;
@@ -80,6 +87,7 @@ export async function getInformeData(
     "presencia",
     "presencia-global",
     "retrasos",
+    "discrepancias",
   ];
   if (!tiposValidos.includes(tipo)) {
     return { ok: false, error: "Parámetro 'tipo' inválido", status: 400 };
@@ -147,6 +155,12 @@ export async function getInformeData(
     return {
       ok: true,
       data: await informeRetrasos(prisma, roleFilter, inicio!, fin!),
+    };
+  }
+  if (tipo === "discrepancias") {
+    return {
+      ok: true,
+      data: await informeDiscrepancias(prisma, roleFilter, inicio!, fin!),
     };
   }
   if (tipo === "presencia-global") {
@@ -526,6 +540,80 @@ async function informeRetrasos(
         ultimoRetraso: f.ultimoRetraso,
       };
     }),
+  };
+}
+
+/**
+ * Fichajes que no cuadran con el cuadrante (ticket 5f83b0c7): sede distinta de
+ * la del turno, fichaje sin turno publicado y turno sin ningún fichaje.
+ *
+ * Las ausencias aprobadas entran en el cruce para no sacar como incidencia a
+ * quien estaba de vacaciones o de baja.
+ */
+async function informeDiscrepancias(
+  prisma: PrismaClient,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  roleFilter: any,
+  inicio: Date,
+  fin: Date,
+): Promise<InformePayload> {
+  const [entradas, turnos, ausencias, cfg, sedes] = await Promise.all([
+    prisma.fichaje.findMany({
+      where: { ...roleFilter, tipo: "ENTRADA", timestamp: { gte: inicio, lte: fin } },
+      select: { userId: true, timestamp: true, tiendaId: true, distancia: true },
+      orderBy: { timestamp: "asc" },
+    }),
+    prisma.turno.findMany({
+      where: { ...roleFilter, estado: "PUBLICADO", fecha: { gte: inicio, lte: fin } },
+      select: { userId: true, fecha: true, tiendaId: true, horaInicio: true },
+    }),
+    // Una ausencia aprobada explica un turno sin fichaje.
+    prisma.ausencia.findMany({
+      where: {
+        ...(roleFilter.userId ? { userId: roleFilter.userId } : {}),
+        estado: "APROBADA",
+        fechaInicio: { lte: fin },
+        fechaFin: { gte: inicio },
+      },
+      select: { userId: true, fechaInicio: true, fechaFin: true },
+    }),
+    prisma.configuracionEmpresa.findUnique({
+      where: { id: "singleton" },
+      select: { zonaHoraria: true },
+    }),
+    prisma.tienda.findMany({ select: { id: true, nombre: true } }),
+  ]);
+
+  const discrepancias = detectarDiscrepancias({
+    entradas,
+    turnos,
+    ausencias,
+    zona: cfg?.zonaHoraria ?? "Europe/Madrid",
+  });
+
+  const nombreSede = new Map(sedes.map((t) => [t.id, t.nombre]));
+  const personas = await prisma.user.findMany({
+    where: { id: { in: [...new Set(discrepancias.map((d) => d.userId))] } },
+    select: { id: true, nombre: true, apellidos: true },
+  });
+  const nombrePersona = new Map(
+    personas.map((p) => [p.id, `${p.nombre} ${p.apellidos}`.trim()]),
+  );
+
+  return {
+    tipo: "discrepancias",
+    toleranciaMetros: TOLERANCIA_UBICACION_M,
+    resumen: resumirDiscrepancias(discrepancias),
+    // Tope de filas: con un mes de una cadena entera esto puede ser largo, y la
+    // pantalla es para revisar lo de arriba, no para leerlo entero. El resumen
+    // sí cuenta todas.
+    total: discrepancias.length,
+    incidencias: discrepancias.slice(0, 300).map((d) => ({
+      ...d,
+      empleado: nombrePersona.get(d.userId) ?? "—",
+      sedeTurno: d.sedeTurnoId ? (nombreSede.get(d.sedeTurnoId) ?? "Sede retirada") : null,
+      sedeFichaje: d.sedeFichajeId ? (nombreSede.get(d.sedeFichajeId) ?? "Sede retirada") : null,
+    })),
   };
 }
 
