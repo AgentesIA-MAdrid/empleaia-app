@@ -289,6 +289,23 @@ describe("el aviso de fuera de horario no dice que se le impida fichar", () => {
     expect(body.ajustable).toBe(true);
   });
 
+  it("dice cómo está hecho el fichaje: el margen configurado, con su cifra", async () => {
+    // Un dato objetivo del programa se discute mucho peor que "tu empresa no
+    // te deja". Y va la cifra de verdad, no una redonda inventada.
+    const res = await ficharA("05:40");
+    const body = await res.json();
+    expect(body.error).toContain("15 minutos antes de entrar");
+    expect(body.margen).toBe(15);
+  });
+
+  it("sin margen configurado no se habla de minutos de cortesía", async () => {
+    cfg.margenFichajeMinutos = 0;
+    const res = await ficharA("05:40");
+    const body = await res.json();
+    expect(body.error).not.toMatch(/pensado para hacerse/);
+    expect(body.error).toContain("09:00");
+  });
+
   it("después del turno: lo mismo por el otro lado", async () => {
     await conEntradaFichada();
     const res = await ficharA("16:30", { tipo: "SALIDA" });

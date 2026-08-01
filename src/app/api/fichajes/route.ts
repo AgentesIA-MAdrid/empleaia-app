@@ -340,9 +340,12 @@ export const POST = withTenant(async (request: NextRequest) => {
             {
               error:
                 `Tu turno de ${ev.turno.horaInicio} a ${ev.turno.horaFin} ${cuando}, ` +
-                `así que ${queEs} no cuadra con el horario de hoy. Pídela desde ` +
-                `Mis Fichajes con la hora real y administración la registra: tu ` +
-                `tiempo de trabajo no se pierde.`,
+                (cfg.margenFichajeMinutos > 0
+                  ? `y el fichaje está pensado para hacerse como mucho ${cfg.margenFichajeMinutos} ` +
+                    `minutos antes de entrar o ${cfg.margenFichajeMinutos} después de salir. `
+                  : "") +
+                `Pide ${queEs} desde Mis Fichajes con la hora real y administración la ` +
+                `registra: tu tiempo de trabajo no se pierde.`,
               code: "fuera_de_horario",
               // Sin ajuste posible: la ventana no ofrece registrar, solo explica.
               ajustable: false,
@@ -359,9 +362,15 @@ export const POST = withTenant(async (request: NextRequest) => {
               // Nunca "tu empresa no te deja fichar": el registro de jornada es
               // un derecho y decirlo así, además de sonar a castigo, da a
               // entender lo contrario de lo que hace el sistema —que registra la
-              // jornada y anota la hora real del intento— (ticket 9a3f27d0).
+              // jornada y anota la hora real del intento— (ticket 9a3f27d0). Se
+              // explica cómo está hecho el fichaje: un margen de cortesía a cada
+              // lado del turno, que es un dato objetivo y configurado.
               error:
                 `Tu turno de ${ev.turno.horaInicio} a ${ev.turno.horaFin} ${cuando}. ` +
+                (cfg.margenFichajeMinutos > 0
+                  ? `El fichaje está pensado para hacerse como mucho ${cfg.margenFichajeMinutos} ` +
+                    `minutos antes de entrar o ${cfg.margenFichajeMinutos} después de salir. `
+                  : "") +
                 `Puedes registrar ${tipo === "ENTRADA" ? "tu entrada" : "tu salida"} a las ` +
                 `${ev.ajusteHora}, la hora de tu turno; queda anotada también la hora a la ` +
                 `que has fichado.`,

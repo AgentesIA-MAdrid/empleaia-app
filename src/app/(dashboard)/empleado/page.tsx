@@ -198,6 +198,8 @@ export default function EmpleadoPage() {
     ajusteISO: string;
     /** false = no hay hora del turno con la que cuadrarlo. */
     ajustable: boolean;
+    /** Minutos de cortesía a cada lado del turno que admite el fichaje. */
+    margen: number;
     mensaje: string;
   } | null>(null);
   const [motivoFueraHorario, setMotivoFueraHorario] = useState("");
@@ -535,6 +537,7 @@ export default function EmpleadoPage() {
               ajusteHora: data.ajusteHora ?? "",
               ajusteISO: data.ajuste ?? "",
               ajustable: data.ajustable !== false,
+              margen: typeof data.margen === "number" ? data.margen : 0,
               mensaje: data.error ?? "",
             });
             return;
@@ -1186,11 +1189,21 @@ export default function EmpleadoPage() {
             {/* Nunca "tu empresa no permite fichar": registrar la jornada es un
                 derecho del trabajador, decirlo así suena a castigo y encima da a
                 entender lo contrario de lo que hace el sistema, que registra la
-                jornada igual (ticket 9a3f27d0). Se dice el hecho —el turno es
-                este— y qué puede hacer. */}
+                jornada igual (ticket 9a3f27d0). Se explica cómo está hecho el
+                fichaje —un margen a cada lado del turno— y qué puede hacer. */}
             <p className="text-sm text-muted-foreground">
               Tu turno de hoy es de <strong>{fueraHorario.horaInicio}</strong> a{" "}
               <strong>{fueraHorario.horaFin}</strong>.
+              {fueraHorario.margen > 0 && (
+                <>
+                  {" "}
+                  El fichaje está pensado para hacerse como mucho{" "}
+                  <strong>
+                    {fueraHorario.margen} minuto{fueraHorario.margen === 1 ? "" : "s"}
+                  </strong>{" "}
+                  antes de entrar o {fueraHorario.margen} después de salir.
+                </>
+              )}
             </p>
             {fueraHorario.ajustable ? (
               <>
