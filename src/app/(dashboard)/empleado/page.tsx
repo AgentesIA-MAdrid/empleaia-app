@@ -1376,7 +1376,7 @@ export default function EmpleadoPage() {
                             className="inline-flex items-center gap-1.5 rounded-md border border-sky-300 bg-white px-2 py-1 text-xs font-medium text-sky-800 hover:bg-sky-100"
                           >
                             <Paperclip className="h-3.5 w-3.5" />
-                            {a.tipo === "stock" ? "Stock" : a.tipo === "tpv" ? "TPV" : a.nombre}
+                            {a.tipo === "stock" ? "Stock" : a.tipo === "tpv" ? "TPV" : a.tipo === "gasto" ? "Gasto" : a.nombre}
                           </a>
                         ))}
                       </div>

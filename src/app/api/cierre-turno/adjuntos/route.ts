@@ -1,6 +1,7 @@
 /**
- * Adjuntos del cierre de caja: el Excel del stock de la tienda y los
- * comprobantes del TPV.
+ * Adjuntos del cierre de caja: el Excel del stock de la tienda, los
+ * comprobantes del TPV y los tickets de gastos pagados con el efectivo de la
+ * caja (ticket 7f52ba3e).
  *
  * POST   — sube un fichero al cierre de caja de hoy del propio comercial.
  * GET    — lista los adjuntos de un cierre (metadatos, sin el contenido).
@@ -21,7 +22,12 @@ import { withFeature } from "@/lib/feature-guard/with-feature";
 import { adjuntoAceptado, alcanceSegunRol, diaMadrid } from "@/lib/cierre-turno/core";
 import { sedesDelUsuario } from "@/lib/tiendas/sedes-usuario";
 
-const TIPOS = ["stock", "tpv"] as const;
+/**
+ * "gasto" es el ticket de una compra pagada con el dinero de la caja —folios,
+ * productos de limpieza, una urgencia—. Sin él, ese dinero sale del sobre y
+ * aparece como un descuadre que nadie sabe explicar tres días después.
+ */
+const TIPOS = ["stock", "tpv", "gasto"] as const;
 
 export const POST = withTenant(
   withFeature("cierre_turno", async (req: NextRequest) => {
@@ -44,7 +50,10 @@ export const POST = withTenant(
       ? (body.tipo as (typeof TIPOS)[number])
       : null;
     if (!tipo) {
-      return NextResponse.json({ error: "Indica si es el stock o un comprobante del TPV." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Indica si es el stock, un comprobante del TPV o el ticket de un gasto." },
+        { status: 400 },
+      );
     }
 
     const nombre = typeof body.nombre === "string" && body.nombre.trim() ? body.nombre.trim().slice(0, 200) : "archivo";

@@ -53,7 +53,7 @@ interface Articulo {
   subcategoria: string | null;
 }
 
-type TipoAdjuntoUI = "stock" | "tpv";
+type TipoAdjuntoUI = "stock" | "tpv" | "gasto";
 
 interface AdjuntoCierre {
   id: string;
@@ -301,6 +301,7 @@ export function AsistenteCierre({
   const [subiendo, setSubiendo] = useState<TipoAdjuntoUI | null>(null);
   const inputStock = useRef<HTMLInputElement>(null);
   const inputTpv = useRef<HTMLInputElement>(null);
+  const inputGasto = useRef<HTMLInputElement>(null);
   const [cajaConfirmada, setCajaConfirmada] = useState(false);
   const [cerrado, setCerrado] = useState(false);
   const [progreso, setProgreso] = useState<Progreso | null>(null);
@@ -603,10 +604,16 @@ export function AsistenteCierre({
   };
 
   // Los adjuntos se cargan al llegar al paso de caja, no antes: con datos del
-  // móvil, cada petición cuenta.
+  // móvil, cada petición cuenta. También al llegar al arqueo, que es donde se
+  // sube el ticket de un gasto pagado con el efectivo (ticket 7f52ba3e).
   useEffect(() => {
-    if (paso === "caja") void cargarAdjuntos();
+    if (paso === "caja" || paso === "arqueo") void cargarAdjuntos();
   }, [paso, cargarAdjuntos]);
+
+  /** Los tickets de gastos, que se listan en el paso del arqueo. */
+  const ticketsGasto = adjuntos.filter((a) => a.tipo === "gasto");
+  /** Lo que se enseña en el paso de caja: el ticket del gasto vive en el arqueo. */
+  const adjuntosCaja = adjuntos.filter((a) => a.tipo !== "gasto");
 
   /**
    * El progreso del mes se pide cada vez que se entra al paso 2, no una sola
@@ -1198,9 +1205,9 @@ export function AsistenteCierre({
                 </Button>
               </div>
 
-              {adjuntos.length > 0 ? (
+              {adjuntosCaja.length > 0 ? (
                 <ul className="divide-y divide-slate-100 rounded-md border border-slate-200">
-                  {adjuntos.map((a) => (
+                  {adjuntosCaja.map((a) => (
                     <li key={a.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
                       <span className="min-w-0">
                         <span className="text-slate-400 text-xs uppercase tracking-wide mr-2">
@@ -1316,15 +1323,72 @@ export function AsistenteCierre({
                   </p>
                 </div>
                 <div>
-                  <Label htmlFor="arqueo-notas">¿Algo que aclarar? (opcional)</Label>
+                  <Label htmlFor="arqueo-notas">Gastos y aclaraciones (opcional)</Label>
+                  {/* El dinero que se saca de la caja para comprar algo de la
+                      tienda sale del sobre y, sin explicarlo aquí, aparece como
+                      un descuadre que nadie sabe justificar tres días después
+                      (ticket 7f52ba3e). */}
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Si has pagado algo de la tienda con el dinero de la caja —folios, productos
+                    de limpieza, una urgencia—, escríbelo aquí con el importe y adjunta el
+                    ticket. Y cualquier otra cosa que no cuadre.
+                  </p>
                   <textarea
                     id="arqueo-notas"
                     rows={2}
                     className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                     value={arqueoNotas}
                     onChange={(e) => setArqueoNotas(e.target.value)}
-                    placeholder="Faltan 20 € que puse de cambio, un billete roto…"
+                    placeholder="12,50 € de folios y bolsas en el bazar de al lado, faltan 20 € que puse de cambio…"
                   />
+                </div>
+
+                <div>
+                  <input
+                    ref={inputGasto}
+                    type="file"
+                    accept=".pdf,image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) void subirAdjunto("gasto", f);
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={subiendo !== null || cerrado}
+                    onClick={() => inputGasto.current?.click()}
+                  >
+                    <Paperclip className="h-3.5 w-3.5 mr-1.5" />
+                    {subiendo === "gasto" ? "Subiendo…" : "Adjuntar ticket del gasto"}
+                  </Button>
+                  {ticketsGasto.length > 0 ? (
+                    <ul className="mt-2 divide-y divide-slate-100 rounded-md border border-slate-200">
+                      {ticketsGasto.map((a) => (
+                        <li
+                          key={a.id}
+                          className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                        >
+                          <span className="min-w-0">
+                            <span className="text-slate-800 break-all">{a.nombre}</span>
+                            <span className="text-slate-400 text-xs ml-2 tabular-nums">
+                              {kb(a.tamañoBytes)}
+                            </span>
+                          </span>
+                          {!cerrado && (
+                            <Button variant="ghost" size="sm" onClick={() => void quitarAdjunto(a.id)}>
+                              Quitar
+                            </Button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-slate-400 mt-1.5">
+                      Una foto del ticket vale. Sin él, ese dinero parece que falta.
+                    </p>
+                  )}
                 </div>
                 <div className="flex justify-end">
                   <Button variant="outline" disabled={guardando} onClick={() => void guardarArqueo()}>

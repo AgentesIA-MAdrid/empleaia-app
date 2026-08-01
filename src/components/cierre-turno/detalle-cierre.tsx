@@ -296,7 +296,7 @@ export function DetalleCierre({
                             <li key={a.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
                               <span className="min-w-0">
                                 <span className="text-slate-400 text-xs uppercase tracking-wide mr-2">
-                                  {a.tipo === "stock" ? "Stock" : "TPV"}
+                                  {a.tipo === "stock" ? "Stock" : a.tipo === "gasto" ? "Gasto" : "TPV"}
                                 </span>
                                 <span className="text-slate-800 break-all">{a.nombre}</span>
                                 <span className="text-slate-400 text-xs ml-2 tabular-nums">
