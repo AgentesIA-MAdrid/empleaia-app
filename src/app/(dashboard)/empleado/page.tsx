@@ -99,7 +99,7 @@ function formatFechaLarga(date: Date): string {
   return `${dia}, ${num} de ${mes} de ${anio}`;
 }
 
-/** Importe en euros, para el fondo de caja del turno anterior. */
+/** Importe en euros, para el acumulado en caja del turno anterior. */
 const eur = (n: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n);
 
@@ -249,7 +249,7 @@ export default function EmpleadoPage() {
    * caja, el Excel del stock y la incidencia que escribiera. Se le pedía
    * revisarlo en los puntos de control y no había forma de verlo.
    */
-  /** Fondo de caja registrado de su sede: contra esto cuenta el cajón al abrir. */
+  /** Efectivo acumulado registrado de su sede: contra esto cuenta el cajón al abrir. */
   const [fondoCaja, setFondoCaja] = useState<{
     fecha: string;
     importe: number | null;
@@ -1287,14 +1287,17 @@ export default function EmpleadoPage() {
                     {fondoCaja.incidencia ? (
                       <>
                         <p className="text-sm font-semibold text-amber-700">
-                          Fondo de caja en incidencia
+                          Caja pendiente de aclarar
                         </p>
                         <p className="text-xs text-amber-800 mt-0.5">{fondoCaja.incidencia}</p>
                       </>
                     ) : (
                       <p className="text-sm text-sky-900">
-                        Fondo de caja que debería haber:{" "}
+                        Efectivo acumulado que debería haber en el cajón:{" "}
                         <strong className="tabular-nums">{eur(fondoCaja.importe ?? 0)}</strong>
+                        <span className="block text-xs text-sky-800 mt-0.5">
+                          Sin contar el fondo de cambio. Si no cuadra, dilo en tu cierre.
+                        </span>
                       </p>
                     )}
                     <p className="text-xs text-sky-700 mt-0.5">

@@ -3,10 +3,21 @@
  *
  * GET  /api/arqueos?semana=YYYY-Www&tiendaId=…
  *   Devuelve el arqueo de esa semana por sede, con lo que declaró la tienda y
- *   lo que suman los cierres de caja confirmados de esos días. La diferencia se
- *   calcula siempre en vivo para el arqueo pendiente y queda congelada al
- *   recogerse (`efectivoCierres` guardado): si luego se corrige un cierre, lo
- *   que se firmó aquel día no cambia.
+ *   lo que DEBERÍA haber en el cajón. La diferencia se calcula siempre en vivo
+ *   para el arqueo pendiente y queda congelada al recogerse (`efectivoCierres`
+ *   guardado): si luego se corrige un cierre, lo que se firmó aquel día no
+ *   cambia.
+ *
+ *   Lo esperado NO es solo lo cobrado esta semana: es el efectivo ACUMULADO
+ *   pendiente de arquear (ticket 5f0a92c7) — lo que ya había en el cajón más lo
+ *   cobrado desde entonces. Una tienda que ya venía funcionando tiene dinero
+ *   dentro antes de estrenar el sistema, y compararla contra cero descuadraba
+ *   las 16 a la vez. El fondo de cambio (fijo, igual en todas) no entra en esta
+ *   cuenta. Ver `lib/cierre-turno/saldo-caja.ts`.
+ *
+ *   Al declarar el arqueo, el acumulado pasa al sobre y la caja queda a CERO:
+ *   se registra ese cero como arranque de la semana siguiente, de modo que la
+ *   caja se encadena sola y nadie vuelve a cargar saldos a mano.
  *
  * POST /api/arqueos — declarar (o corregir) el efectivo apartado de una semana.
  *   Uno por sede y semana: es el sobre de la tienda, no el de cada persona. Un
@@ -22,7 +33,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
-import { diferenciaArqueo, esDescuadre, filtroSede } from "@/lib/cierre-turno/core";
+import { esDescuadre, filtroSede } from "@/lib/cierre-turno/core";
 import { sedesDelUsuario } from "@/lib/tiendas/sedes-usuario";
 import {
   normalizarEfectivoArqueo,
@@ -32,7 +43,14 @@ import {
   semanaISO,
   semanaLegible,
 } from "@/lib/cierre-turno/arqueos";
-import { totalesCajaPorSede, umbralDescuadre } from "@/lib/cierre-turno/caja-queries";
+import {
+  acumuladoDeSede,
+  arranquePorSede,
+  cobradoDesdeArranque,
+  totalesCajaPorSede,
+  umbralDescuadre,
+} from "@/lib/cierre-turno/caja-queries";
+import { acumuladoEnCaja, diferenciaSaldo } from "@/lib/cierre-turno/saldo-caja";
 
 interface Sesion {
   userId: string;
@@ -93,6 +111,7 @@ export const GET = withTenant(
           efectivoDeclarado: true,
           efectivoCierres: true,
           efectivoRecogido: true,
+          saldoEsperado: true,
           notas: true,
           estado: true,
           declaradoEn: true,
@@ -125,6 +144,15 @@ export const GET = withTenant(
       }),
     ]);
 
+    // De dónde arranca la caja de cada sede y lo cobrado desde entonces. Dos
+    // consultas más, no una por tienda.
+    const arranques = await arranquePorSede(prisma, { antesDe: hasta, tiendaIds: tiendaFiltro });
+    const cobradoPorSede = await cobradoDesdeArranque(prisma, {
+      arranques,
+      hasta,
+      tiendaIds: tiendaFiltro,
+    });
+
     const porTienda = new Map(arqueos.map((a) => [a.tiendaId, a]));
 
     const filas = sedes.map((sede) => {
@@ -133,13 +161,32 @@ export const GET = withTenant(
       const declarado = a ? Number(a.efectivoDeclarado) : null;
       // Congelado al recoger; en vivo mientras siga pendiente.
       const segunCierres = a && a.estado === "recogido" ? Number(a.efectivoCierres) : cierres;
-      const diferencia = declarado === null ? null : diferenciaArqueo(declarado, segunCierres);
+
+      const arranque = arranques.get(sede.id) ?? null;
+      const saldo = acumuladoEnCaja({ arranque, cobrado: cobradoPorSede.get(sede.id) ?? 0 });
+      // Congelado al declarar: a partir de ahí el dinero ya está en el sobre y
+      // la caja vuelve a cero, así que recalcularlo daría otro número. Lo que se
+      // declaró aquel día es lo que tiene que seguir viéndose.
+      const esperado = a && a.saldoEsperado !== null ? Number(a.saldoEsperado) : saldo.esperado;
+      const diferencia = declarado === null ? null : diferenciaSaldo(declarado, esperado);
+
       return {
         arqueoId: a?.id ?? null,
         tiendaId: sede.id,
         sede: sede.nombre,
         declarado,
         segunCierres,
+        // El desglose de la cuenta, para poder enseñarla entera en la tarjeta.
+        arranque: arranque
+          ? {
+              fecha: arranque.fecha.toISOString().slice(0, 10),
+              importe: arranque.importe,
+              incidencia: arranque.incidencia,
+            }
+          : null,
+        cobradoDesdeArranque: saldo.cobrado,
+        esperado,
+        sinSaldoMotivo: esperado === null ? saldo.motivo : null,
         diferencia,
         descuadre: diferencia === null ? false : esDescuadre(diferencia, umbral),
         estado: (a?.estado ?? "sin_declarar") as "sin_declarar" | "pendiente" | "recogido",
@@ -242,32 +289,62 @@ export const POST = withTenant(
     // arqueo lleva encima con qué se comparó, no solo el resultado.
     const porSede = await totalesCajaPorSede(prisma, { desde, hasta, tiendaId });
     const segunCierres = porSede.get(tiendaId)?.efectivo ?? 0;
+    const saldo = await acumuladoDeSede(prisma, { tiendaId, hasta });
 
-    const arqueo = await prisma.arqueo.upsert({
-      where: { tiendaId_semana: { tiendaId, semana: semanaOk.semana } },
-      create: {
-        tiendaId,
-        semana: semanaOk.semana,
-        desde,
-        hasta,
-        efectivoDeclarado: efectivoOk.importe,
-        efectivoCierres: segunCierres,
-        notas,
-        declaradoPorId: s.userId,
-        declaradoEn: new Date(),
-      },
-      update: {
-        efectivoDeclarado: efectivoOk.importe,
-        efectivoCierres: segunCierres,
-        notas,
-        declaradoPorId: s.userId,
-        declaradoEn: new Date(),
-      },
-      select: { id: true, efectivoDeclarado: true, efectivoCierres: true, estado: true },
+    const arqueo = await prisma.$transaction(async (tx) => {
+      const a = await tx.arqueo.upsert({
+        where: { tiendaId_semana: { tiendaId, semana: semanaOk.semana } },
+        create: {
+          tiendaId,
+          semana: semanaOk.semana,
+          desde,
+          hasta,
+          efectivoDeclarado: efectivoOk.importe,
+          efectivoCierres: segunCierres,
+          saldoEsperado: saldo.esperado,
+          notas,
+          declaradoPorId: s.userId,
+          declaradoEn: new Date(),
+        },
+        update: {
+          efectivoDeclarado: efectivoOk.importe,
+          efectivoCierres: segunCierres,
+          saldoEsperado: saldo.esperado,
+          notas,
+          declaradoPorId: s.userId,
+          declaradoEn: new Date(),
+        },
+        select: { id: true, efectivoDeclarado: true, efectivoCierres: true, estado: true },
+      });
+
+      // El acumulado se ha metido en el sobre: la caja vuelve a CERO y ese cero
+      // es el arranque de la semana siguiente (ticket 5f0a92c7). Va con la fecha
+      // del último día arqueado, así que los cobros que cuentan a partir de
+      // ahora son los del día siguiente. Se re-escribe si corrigen la
+      // declaración: sigue siendo cero, y la nota deja dicho de dónde sale.
+      await tx.fondoCaja.upsert({
+        where: { tiendaId_fecha: { tiendaId, fecha: hasta } },
+        create: {
+          tiendaId,
+          fecha: hasta,
+          importe: 0,
+          incidencia: null,
+          nota: `Arqueo de la semana ${semanaOk.semana}: el acumulado pasa al sobre.`,
+          registradoPorId: s.userId,
+        },
+        update: {
+          importe: 0,
+          incidencia: null,
+          nota: `Arqueo de la semana ${semanaOk.semana}: el acumulado pasa al sobre.`,
+          registradoPorId: s.userId,
+        },
+      });
+      return a;
     });
 
     const declarado = Number(arqueo.efectivoDeclarado);
-    const diferencia = diferenciaArqueo(declarado, segunCierres);
+    // Contra el saldo de la caja, no contra los cierres a secas (ticket 5f0a92c7).
+    const diferencia = diferenciaSaldo(declarado, saldo.esperado);
     const umbral = await umbralDescuadre(prisma);
 
     return NextResponse.json({
@@ -275,8 +352,10 @@ export const POST = withTenant(
       semana: semanaOk.semana,
       declarado,
       segunCierres,
+      esperado: saldo.esperado,
+      sinSaldoMotivo: saldo.motivo,
       diferencia,
-      descuadre: esDescuadre(diferencia, umbral),
+      descuadre: diferencia === null ? false : esDescuadre(diferencia, umbral),
       estado: arqueo.estado,
     });
   }),

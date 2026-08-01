@@ -1,0 +1,11 @@
+-- Saldo esperado del arqueo (ticket 5f0a92c7).
+--
+-- El arqueo comparaba lo declarado contra la suma de los cierres de esa semana,
+-- dando por hecho que la caja arrancaba vacía. Ahora se compara contra el saldo
+-- real (fondo de partida + cobrado − retirado), y ese saldo se congela al
+-- firmar la recogida, igual que ya se congelaba `efectivo_cierres`.
+--
+-- Null en los arqueos anteriores a este cambio y en las sedes sin fondo de
+-- partida fiable: ahí no hay saldo que comparar, y un 0 diría que la caja
+-- estaba vacía.
+ALTER TABLE "Arqueo" ADD COLUMN IF NOT EXISTS "saldo_esperado" DECIMAL(10,2);

@@ -2106,6 +2106,10 @@ model Arqueo {
 
   efectivoDeclarado Decimal @default(0) @db.Decimal(10, 2)
   efectivoCierres   Decimal @default(0) @db.Decimal(10, 2)
+  /// Saldo que DEBERÍA haber en el cajón (fondo + cobrado − retirado), congelado
+  /// al recoger. Null en arqueos anteriores al saldo de caja, o cuando la sede
+  /// no tiene fondo de partida fiable.
+  saldoEsperado     Decimal? @map("saldo_esperado") @db.Decimal(10, 2)
 
   /// Quién apartó el efectivo y cuándo lo declaró. El arqueo es de la tienda
   /// (uno por semana), así que si lo declara otra persona esto refleja la

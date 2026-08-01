@@ -15,9 +15,11 @@
  *  - Los adjuntos: el Excel del stock y el comprobante del TPV, por id y nombre.
  *    El contenido NO va aquí —son data URL de cientos de KB— sino que se
  *    descarga de `/api/cierre-turno/adjuntos/[id]`.
- *  - El fondo de caja registrado de esa sede (ticket 7ab2c5d9): el efectivo que
- *    debería haber en el cajón al abrir, que es contra lo que cuenta. Si esa
- *    sede está en incidencia se dice, en vez de dar una cifra que no vale.
+ *  - El efectivo ACUMULADO registrado de esa sede (tabla `FondoCaja`, tickets
+ *    7ab2c5d9 y 5f0a92c7): lo que debería haber en el cajón al abrir, sin contar
+ *    el fondo de cambio (que es fijo y no se arquea). Es contra lo que cuenta, y
+ *    sirve para validar que lo que dejó el compañero cuadra. Si esa sede está en
+ *    incidencia se dice, en vez de dar una cifra que no vale.
  *
  * Es de lectura y de su propia tienda: se acota a las sedes del usuario
  * (`sedesDelUsuario`), nunca a un id que venga del cliente. Un comercial ve la

@@ -36,6 +36,8 @@ const arqueo = {
   tiendaId: "t1",
   estado: "pendiente",
   efectivoDeclarado: 500,
+  /** El acumulado con el que se declaró el domingo (ticket 5f0a92c7). */
+  saldoEsperado: 480 as number | null,
   tienda: { id: "t1", nombre: "Centro" },
 };
 
@@ -122,6 +124,7 @@ beforeEach(async () => {
   yo.pinRecogidaIntentos = 0;
   yo.pinRecogidaBloqueoHasta = null;
   arqueo.estado = "pendiente";
+  arqueo.saldoEsperado = 480;
   prismaMock.user.findUnique.mockResolvedValue(yo);
   prismaMock.arqueo.findUnique.mockResolvedValue(arqueo);
   const { _setFeatureCatalogForTest } = await import("@/lib/tenant/features");
@@ -167,6 +170,17 @@ describe("POST /api/arqueos/recoger", () => {
     expect(prismaMock.arqueo.update).not.toHaveBeenCalled();
   });
 
+  it("un arqueo sin acumulado guardado no inventa una diferencia", async () => {
+    // Arqueos anteriores a esta cuenta, o sedes sin punto de partida: se firma
+    // la recogida igual, pero no se dice que cuadra ni que descuadra.
+    arqueo.saldoEsperado = null;
+    const res = await recoger({ arqueoId: "arq1", pin: PIN });
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { diferencia: number | null; descuadre: boolean };
+    expect(data.diferencia).toBeNull();
+    expect(data.descuadre).toBe(false);
+  });
+
   it("un bloqueo ya vencido no estorba", async () => {
     yo.pinRecogidaBloqueoHasta = new Date(Date.now() - 60_000);
     const res = await recoger({ arqueoId: "arq1", pin: PIN });
@@ -180,7 +194,7 @@ describe("POST /api/arqueos/recoger", () => {
     const data = (await res.json()) as { recogido: number; segunCierres: number; diferencia: number; descuadre: boolean };
     expect(data.recogido).toBe(500);
     expect(data.segunCierres).toBe(480);
-    // 500 declarados frente a 480 en los cierres: 20 € de más, es descuadre.
+    // 500 en el sobre frente a 480 acumulados en caja: 20 € de más, es descuadre.
     expect(data.diferencia).toBe(20);
     expect(data.descuadre).toBe(true);
 

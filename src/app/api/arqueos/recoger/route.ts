@@ -11,6 +11,11 @@
  *
  * Al recoger se congela `efectivoCierres`: si mañana se corrige un cierre de esa
  * semana, lo que se firmó aquel día no cambia.
+ *
+ * Aquí NO se toca el saldo de la caja: el dinero salió del cajón cuando se
+ * declaró el arqueo el domingo y se metió en el sobre (ahí es donde la caja
+ * quedó a cero, ver POST /api/arqueos). Esto es la firma de que un responsable
+ * se llevó ese sobre.
  */
 
 import bcrypt from "bcryptjs";
@@ -20,7 +25,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
-import { diferenciaArqueo, esDescuadre } from "@/lib/cierre-turno/core";
+import { esDescuadre } from "@/lib/cierre-turno/core";
+import { diferenciaSaldo } from "@/lib/cierre-turno/saldo-caja";
 import {
   minutosDeBloqueo,
   normalizarEfectivoArqueo,
@@ -121,6 +127,7 @@ export const POST = withTenant(
         tiendaId: true,
         estado: true,
         efectivoDeclarado: true,
+        saldoEsperado: true,
         tienda: { select: { id: true, nombre: true } },
       },
     });
@@ -151,7 +158,12 @@ export const POST = withTenant(
     const porSede = await totalesCajaPorSede(prisma, { desde, hasta, tiendaId: arqueo.tiendaId });
     const segunCierres = porSede.get(arqueo.tiendaId)?.efectivo ?? 0;
     const umbral = await umbralDescuadre(prisma);
-    const diferencia = diferenciaArqueo(declarado, segunCierres);
+    // Contra el acumulado con el que se declaró, que es el número que la tienda
+    // tenía delante al contar el dinero (ticket 5f0a92c7). Si el arqueo es
+    // anterior a esta cuenta no hay saldo guardado: entonces no hay diferencia
+    // que dar, en vez de inventar una.
+    const esperado = arqueo.saldoEsperado === null ? null : Number(arqueo.saldoEsperado);
+    const diferencia = diferenciaSaldo(declarado, esperado);
 
     const limpio = trasAciertoPin();
     await prisma.$transaction(async (tx) => {
@@ -180,8 +192,8 @@ export const POST = withTenant(
       declarado,
       recogido,
       segunCierres,
-      diferencia,
-      descuadre: esDescuadre(diferencia, umbral),
+      diferencia: diferencia ?? 0,
+      descuadre: diferencia === null ? false : esDescuadre(diferencia, umbral),
     });
 
     return NextResponse.json({
@@ -189,8 +201,9 @@ export const POST = withTenant(
       arqueoId: arqueo.id,
       recogido,
       segunCierres,
+      esperado,
       diferencia,
-      descuadre: esDescuadre(diferencia, umbral),
+      descuadre: diferencia === null ? false : esDescuadre(diferencia, umbral),
     });
   }),
 );

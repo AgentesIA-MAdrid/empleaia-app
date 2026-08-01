@@ -28,6 +28,12 @@ interface FilaArqueo {
   sede: string;
   declarado: number | null;
   segunCierres: number;
+  /** De dónde arranca la caja: lo que quedó del arqueo anterior (o la carga inicial). */
+  arranque: { fecha: string; importe: number | null; incidencia: string | null } | null;
+  cobradoDesdeArranque: number;
+  /** Lo que debería haber acumulado en el cajón, sin el fondo de cambio. */
+  esperado: number | null;
+  sinSaldoMotivo: "sin_arranque" | "arranque_en_incidencia" | null;
   diferencia: number | null;
   descuadre: boolean;
   estado: "sin_declarar" | "pendiente" | "recogido";
@@ -54,6 +60,15 @@ interface Respuesta {
 
 const eur = (n: number) =>
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n);
+
+/** "2026-07-31" → "31 jul". La fecha de dónde viene la caja, sin ruido. */
+function fechaCorta(iso: string): string {
+  const [a, m, d] = iso.split("-").map(Number);
+  if (!a || !m || !d) return iso;
+  return new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "UTC" })
+    .format(new Date(Date.UTC(a, m - 1, d)))
+    .replace(".", "");
+}
 
 /** Semana ISO de hoy, en el formato que pide el input `type="week"`. */
 function semanaActual(): string {
@@ -300,10 +315,64 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                       {f.declarado === null ? "—" : eur(f.declarado)}
                     </p>
                     <p className="text-xs text-slate-500">
-                      Según cierres: <span className="tabular-nums">{eur(f.segunCierres)}</span>
+                      {f.esperado === null ? (
+                        "Sin acumulado calculable"
+                      ) : (
+                        <>
+                          Debería haber: <span className="tabular-nums">{eur(f.esperado)}</span>
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
+
+                {/* La cuenta entera, que es lo que la tienda tiene delante el
+                    domingo al preparar el sobre: de dónde venía la caja, lo que
+                    ha entrado y lo que debería haber. El fondo de cambio no
+                    aparece porque no se arquea. */}
+                {f.esperado !== null ? (
+                  <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span>
+                      Venía de{" "}
+                      <span className="tabular-nums font-medium text-slate-800">
+                        {eur(f.arranque?.importe ?? 0)}
+                      </span>
+                      {f.arranque && (
+                        <span className="text-slate-400"> ({fechaCorta(f.arranque.fecha)})</span>
+                      )}
+                    </span>
+                    <span className="text-slate-300">+</span>
+                    <span>
+                      cobrado{" "}
+                      <span className="tabular-nums font-medium text-slate-800">
+                        {eur(f.cobradoDesdeArranque)}
+                      </span>
+                    </span>
+                    <span className="text-slate-300">=</span>
+                    <span className="font-semibold text-slate-900">
+                      acumulado <span className="tabular-nums">{eur(f.esperado)}</span>
+                    </span>
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                    {f.sinSaldoMotivo === "arranque_en_incidencia" ? (
+                      <>
+                        La caja de esta sede quedó pendiente de aclarar
+                        {f.arranque && ` el ${fechaCorta(f.arranque.fecha)}`}, así que no se puede
+                        decir cuánto debería haber acumulado. Lleva{" "}
+                        <span className="tabular-nums">{eur(f.cobradoDesdeArranque)}</span> cobrados
+                        desde entonces.
+                      </>
+                    ) : (
+                      <>
+                        Esta sede no tiene punto de partida registrado, así que no se puede decir
+                        cuánto debería haber acumulado. Lleva{" "}
+                        <span className="tabular-nums">{eur(f.segunCierres)}</span> cobrados esta
+                        semana.
+                      </>
+                    )}
+                  </div>
+                )}
 
                 {f.diferencia !== null && (
                   <div
@@ -322,8 +391,8 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                       {f.descuadre
                         ? `Diferencia de ${eur(f.diferencia)} ${
                             f.diferencia > 0 ? "de más" : "de menos"
-                          } respecto a los cierres de caja de la semana.`
-                        : "Cuadra con los cierres de caja de la semana."}
+                          } respecto al efectivo acumulado en caja.`
+                        : "Cuadra con el efectivo acumulado en caja."}
                     </span>
                   </div>
                 )}
@@ -337,7 +406,9 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                       <div className="rounded-md border border-slate-200 p-3 space-y-3">
                         <div className="grid sm:grid-cols-2 gap-3">
                           <div>
-                            <Label htmlFor={`efectivo-${f.tiendaId}`}>Efectivo apartado</Label>
+                            <Label htmlFor={`efectivo-${f.tiendaId}`}>
+                              Efectivo que va al sobre
+                            </Label>
                             <Input
                               id={`efectivo-${f.tiendaId}`}
                               type="number"

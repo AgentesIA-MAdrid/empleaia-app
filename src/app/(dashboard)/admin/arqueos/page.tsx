@@ -5,7 +5,7 @@ export default function AdminArqueosPage() {
   return (
     <PanelArqueos
       titulo="Arqueos"
-      descripcion="Retiradas semanales de efectivo por punto de venta, con la diferencia contra los cierres de caja y la recogida firmada con PIN."
+      descripcion="El efectivo acumulado de cada punto de venta, lo que se apartó en el sobre y la recogida firmada con PIN. El fondo de cambio no entra: no se arquea."
     />
   );
 }

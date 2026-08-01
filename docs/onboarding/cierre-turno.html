@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cierre de turno · Guía para el equipo de tienda</title>
+    <meta name="hz:slide-selector" content=".page" />
+    <meta name="hz:canvas-width" content="794" />
+    <meta name="hz:canvas-height" content="1123" />
+    <link rel="stylesheet" href="https://use.typekit.net/nwf7txm.css">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        background: #e8e8ee;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8mm;
+        padding: 8mm 0;
+      }
+
+      .page {
+        position: relative;
+        width: 210mm;
+        height: 297mm;
+        background: #ffffff;
+        overflow: hidden;
+        font-family: "acumin-pro", "Helvetica Neue", Arial, sans-serif;
+        color: #2a2a35;
+      }
+
+      /* ---------- Estilos de texto (los mismos en todas las páginas) ---------- */
+      .display { font-family: "acumin-pro", "Helvetica Neue", Arial, sans-serif; font-weight: 900; font-size: 30pt; line-height: 1.02; color: #1e1b4b; letter-spacing: -0.4pt; }
+      .heading { font-family: "acumin-pro", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: 17pt; line-height: 1.15; color: #1e1b4b; }
+      .subheading { font-family: "acumin-pro", "Helvetica Neue", Arial, sans-serif; font-weight: 600; font-size: 11.5pt; line-height: 1.25; color: #1e1b4b; }
+      .body { font-family: "acumin-pro", "Helvetica Neue", Arial, sans-serif; font-weight: 400; font-size: 10.5pt; line-height: 1.5; color: #3c3c48; }
+      .body strong { font-weight: 700; color: #1e1b4b; }
+      .caption { font-family: "acumin-pro", "Helvetica Neue", Arial, sans-serif; font-weight: 400; font-size: 8.5pt; line-height: 1.4; color: #7a7a8c; }
+      .label { font-family: "acumin-pro", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: 7.5pt; letter-spacing: 1.1pt; text-transform: uppercase; }
+
+      /* ---------- Cabecera y pie corrientes ---------- */
+      .marco { padding: 18mm 20mm 0 20mm; height: 100%; display: flex; flex-direction: column; }
+      .cabecera { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 0.6mm solid #1e1b4b; padding-bottom: 3mm; margin-bottom: 8mm; }
+      .cabecera .label { color: #1e1b4b; }
+      .pie { position: absolute; left: 20mm; right: 20mm; bottom: 12mm; display: flex; justify-content: space-between; align-items: center; border-top: 0.2mm solid #d8d8e2; padding-top: 3mm; }
+
+      .paso-num { display: inline-flex; align-items: center; justify-content: center; width: 11mm; height: 11mm; border-radius: 50%; color: #ffffff; font-family: "acumin-pro", "Helvetica Neue", Arial, sans-serif; font-weight: 900; font-size: 15pt; }
+      .titulo-paso { display: flex; align-items: center; gap: 5mm; margin-bottom: 5mm; }
+
+      /* ---------- Bloques ---------- */
+      .bloque { margin-bottom: 6mm; }
+      .lista { list-style: none; }
+      .lista li { position: relative; padding-left: 6mm; margin-bottom: 2.5mm; }
+      .lista li::before { content: ""; position: absolute; left: 0; top: 2mm; width: 2mm; height: 2mm; border-radius: 50%; background: #1e1b4b; }
+      .num { list-style: none; counter-reset: n; }
+      .num li { position: relative; padding-left: 8mm; margin-bottom: 3mm; counter-increment: n; }
+      .num li::before { content: counter(n); position: absolute; left: 0; top: 0.2mm; width: 5.5mm; height: 5.5mm; border-radius: 1mm; background: #1e1b4b; color: #fff; font-size: 8pt; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
+      .aviso { border-left: 1.4mm solid #d97706; background: #fffbeb; padding: 4mm 5mm; }
+      .aviso .label { color: #b45309; display: block; margin-bottom: 1.5mm; }
+      .ojo { border-left: 1.4mm solid #be123c; background: #fff1f2; padding: 4mm 5mm; }
+      .ojo .label { color: #be123c; display: block; margin-bottom: 1.5mm; }
+      .info { border-left: 1.4mm solid #0284c7; background: #f0f9ff; padding: 4mm 5mm; }
+      .info .label { color: #0369a1; display: block; margin-bottom: 1.5mm; }
+
+      /* ---------- Maqueta de pantalla ---------- */
+      .pantalla { border: 0.3mm solid #d8d8e2; border-radius: 2mm; overflow: hidden; background: #fff; }
+      .pantalla-barra { background: #f4f4f8; border-bottom: 0.3mm solid #d8d8e2; padding: 2.5mm 4mm; display: flex; gap: 2mm; }
+      .chip { font-size: 8pt; font-weight: 600; padding: 1.2mm 3mm; border-radius: 1.2mm; background: #ffffff; border: 0.2mm solid #d8d8e2; color: #7a7a8c; }
+      .chip.on { background: #1e1b4b; border-color: #1e1b4b; color: #ffffff; }
+      .pantalla-cuerpo { padding: 4mm; }
+
+      table.cat { width: 100%; border-collapse: collapse; }
+      table.cat td { padding: 2mm 3mm; font-size: 9.5pt; border-bottom: 0.2mm solid #eeeef4; }
+      table.cat td.cantidad { text-align: right; width: 22mm; color: #7a7a8c; }
+      tr.cabecera-cat td { color: #ffffff; font-weight: 700; font-size: 9pt; letter-spacing: 0.8pt; text-transform: uppercase; border-bottom: none; }
+      .celda-num { display: inline-block; min-width: 14mm; border: 0.25mm solid #d8d8e2; border-radius: 1mm; padding: 0.8mm 2mm; text-align: right; background: #fff; }
+
+      .cuadros { display: flex; gap: 4mm; }
+      .cuadro { flex: 1; border-radius: 2mm; padding: 4mm; color: #ffffff; }
+      .cuadro .label { display: block; opacity: 0.85; margin-bottom: 1.5mm; }
+      .cuadro .cifra { font-weight: 900; font-size: 21pt; line-height: 1; }
+      .cuadro .pie-cuadro { font-size: 8pt; opacity: 0.9; margin-top: 1.5mm; }
+      .barra { height: 2.2mm; border-radius: 1.1mm; background: rgba(255,255,255,0.32); margin-top: 3mm; overflow: hidden; }
+      .barra span { display: block; height: 100%; background: #ffffff; }
+
+      .campo { border: 0.25mm solid #d8d8e2; border-radius: 1.2mm; padding: 2.5mm 3mm; font-size: 9.5pt; color: #a4a4b4; }
+      .boton { display: inline-block; background: #1e1b4b; color: #fff; font-size: 9pt; font-weight: 700; padding: 2mm 5mm; border-radius: 1.5mm; }
+      .boton.hueco { background: #fff; color: #1e1b4b; border: 0.3mm solid #1e1b4b; }
+
+      .faq { border-top: 0.2mm solid #e4e4ec; padding-top: 3mm; margin-top: 3mm; }
+      .faq:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+
+      @page { size: A4; margin: 0; }
+      @media print {
+        body { background: #ffffff; gap: 0; padding: 0; }
+        .page { break-after: page; }
+        .page:last-child { break-after: auto; }
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- ============================ PORTADA ============================ -->
+    <div class="page" data-canvas-width="794" data-canvas-height="1123">
+      <div style="position:absolute; top:0; left:0; right:0; height:150mm; background:#1e1b4b;"></div>
+
+      <div style="position:absolute; top:24mm; left:20mm; right:20mm; color:#ffffff;">
+        <span class="label" style="color:#a9a4e8;">empleaIA · Guía del equipo de tienda</span>
+        <h1 class="display" style="color:#ffffff; font-size:40pt; margin-top:6mm;">Cierre<br />de turno</h1>
+        <p class="body" style="color:#c9c6ee; font-size:12.5pt; margin-top:6mm; max-width:110mm;">
+          Cinco minutos al final de tu jornada para dejar registrado lo que has vendido,
+          cuadrar tu caja y avisar de cualquier incidencia.
+        </p>
+      </div>
+
+      <div style="position:absolute; top:118mm; left:20mm; right:20mm; display:flex; gap:4mm;">
+        <div style="flex:1; background:#ffffff; border-radius:2mm; padding:5mm; border-top:1.6mm solid #0284c7;">
+          <span class="label" style="color:#0284c7;">Paso 1</span>
+          <p class="subheading" style="margin-top:2mm;">Ventas<br />del día</p>
+        </div>
+        <div style="flex:1; background:#ffffff; border-radius:2mm; padding:5mm; border-top:1.6mm solid #7c3aed;">
+          <span class="label" style="color:#7c3aed;">Paso 2</span>
+          <p class="subheading" style="margin-top:2mm;">Cómo<br />vas</p>
+        </div>
+        <div style="flex:1; background:#ffffff; border-radius:2mm; padding:5mm; border-top:1.6mm solid #0d9488;">
+          <span class="label" style="color:#0d9488;">Paso 3</span>
+          <p class="subheading" style="margin-top:2mm;">Cierre<br />de caja</p>
+        </div>
+        <div style="flex:1; background:#ffffff; border-radius:2mm; padding:5mm; border-top:1.6mm solid #d97706;">
+          <span class="label" style="color:#d97706;">Paso 4</span>
+          <p class="subheading" style="margin-top:2mm;">Incidencias</p>
+        </div>
+      </div>
+
+      <div style="position:absolute; top:172mm; left:20mm; right:20mm;">
+        <h2 class="heading">Por qué lo hacemos</h2>
+        <p class="body" style="margin-top:3mm;">
+          Lo que registras aquí es lo que luego se ve en los objetivos, en la caja de tu
+          tienda y en tu seguimiento del mes. Si un día no se cierra, al siguiente nadie
+          sabe qué dinero había ni qué se vendió, y el descuadre acaba siendo de alguien.
+        </p>
+        <p class="body" style="margin-top:3mm;">
+          Cada persona cierra <strong>su</strong> caja: la del turno, no la de la tienda entera.
+        </p>
+
+        <div class="info" style="margin-top:8mm;">
+          <span class="label">Lo primero de todo</span>
+          <p class="body">
+            El cierre <strong>no bloquea tu fichaje</strong>. Puedes fichar la salida aunque
+            todavía no lo hayas hecho. Pero hazlo antes de irte: al día siguiente ya no te
+            acordarás de las unidades.
+          </p>
+        </div>
+      </div>
+
+      <div class="pie">
+        <span class="caption">empleaIA · Cierre de turno</span>
+        <span class="caption">Guía del equipo de tienda</span>
+      </div>
+    </div>
+
+    <!-- ======================== ANTES DE EMPEZAR ======================== -->
+    <div class="page" data-canvas-width="794" data-canvas-height="1123">
+      <div class="marco">
+        <div class="cabecera">
+          <span class="label">Antes de empezar</span>
+          <span class="caption">empleaIA · Cierre de turno</span>
+        </div>
+
+        <h2 class="display" style="font-size:26pt;">Dónde está y cuándo se hace</h2>
+
+        <div class="bloque" style="margin-top:7mm;">
+          <ol class="num body">
+            <li>Entra en empleaIA con tu usuario, como para fichar.</li>
+            <li>En el menú de la izquierda pulsa <strong>Cierre de turno</strong>.</li>
+            <li>Hazlo <strong>al final de tu jornada</strong>, antes de irte.</li>
+          </ol>
+        </div>
+
+        <p class="body">
+          Si te vas a media faena no pasa nada: lo que hayas escrito se guarda al pasar de
+          paso. Cuando vuelvas a entrar, lo tendrás como lo dejaste.
+        </p>
+
+        <div class="titulo-paso" style="margin-top:10mm;">
+          <span class="paso-num" style="background:#1e1b4b;">0</span>
+          <h3 class="heading">Confirma tu centro de trabajo</h3>
+        </div>
+
+        <p class="body" style="margin-bottom:5mm;">
+          Lo primero que verás es esta pregunta, con tu tienda <strong>ya elegida</strong>:
+          normalmente es donde has fichado hoy. Si es la correcta, pulsa
+          <strong>Confirmar y empezar</strong> y sigue.
+        </p>
+
+        <div class="pantalla" style="max-width:120mm; margin:0 auto;">
+          <div class="pantalla-cuerpo" style="text-align:center; padding:7mm 6mm;">
+            <p class="subheading">Confirma tu centro de trabajo de hoy</p>
+            <p class="caption" style="margin-top:1.5mm;">Es la tienda donde has fichado hoy.</p>
+            <div style="text-align:left; margin-top:5mm;">
+              <span class="caption" style="color:#3c3c48;">Tienda</span>
+              <div class="campo" style="margin-top:1.2mm; color:#2a2a35; display:flex; justify-content:space-between;">
+                <span>NEKSUS CC ISLA AZUL</span><span style="color:#a4a4b4;">▾</span>
+              </div>
+            </div>
+            <div style="margin-top:5mm;"><span class="boton" style="display:block;">Confirmar y empezar</span></div>
+          </div>
+        </div>
+
+        <div class="aviso" style="margin-top:7mm;">
+          <span class="label">Si hoy cubres en otra tienda</span>
+          <p class="body">
+            Abre el desplegable y elige la tienda en la que estás de verdad. Tus ventas, tu
+            caja y los objetivos que verás serán los de <strong>esa</strong> tienda. Es
+            importante: si lo dejas mal, tu dinero acaba contado en la tienda equivocada.
+          </p>
+        </div>
+
+        <p class="body" style="margin-top:6mm;">
+          Ya dentro, arriba verás siempre <strong>«Cerrando en…»</strong> con el nombre de la
+          tienda. Si te has equivocado, pulsa <strong>No es esta</strong> y cámbiala (mientras
+          no hayas confirmado la caja).
+        </p>
+
+        <div class="pie">
+          <span class="caption">empleaIA · Cierre de turno</span>
+          <span class="caption">2</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================== PASO 1 · VENTAS ======================== -->
+    <div class="page" data-canvas-width="794" data-canvas-height="1123">
+      <div class="marco">
+        <div class="cabecera">
+          <span class="label" style="color:#0284c7;">Paso 1</span>
+          <span class="caption">empleaIA · Cierre de turno</span>
+        </div>
+
+        <div class="titulo-paso">
+          <span class="paso-num" style="background:#0284c7;">1</span>
+          <h2 class="display" style="font-size:26pt;">Ventas del día</h2>
+        </div>
+
+        <p class="body" style="margin-bottom:5mm;">
+          Escribe <strong>cuántas unidades</strong> has vendido hoy de cada cosa. Solo las
+          tuyas, solo las de hoy. Lo que no hayas vendido se queda en blanco.
+        </p>
+
+        <div class="pantalla">
+          <div class="pantalla-barra">
+            <span class="chip on">1 Ventas del día</span>
+            <span class="chip">2 Cómo vas</span>
+            <span class="chip">3 Cierre de caja</span>
+            <span class="chip">4 Incidencias</span>
+          </div>
+          <div class="pantalla-cuerpo" style="padding:0;">
+            <table class="cat">
+              <tr class="cabecera-cat"><td colspan="2" style="background:#0284c7;">Particular</td></tr>
+              <tr><td>Fibra General</td><td class="cantidad"><span class="celda-num">2</span></td></tr>
+              <tr><td>Pospago</td><td class="cantidad"><span class="celda-num">1</span></td></tr>
+              <tr><td>Terminal libre</td><td class="cantidad"><span class="celda-num">0</span></td></tr>
+              <tr class="cabecera-cat"><td colspan="2" style="background:#7c3aed;">Empresa</td></tr>
+              <tr><td>Fibra General</td><td class="cantidad"><span class="celda-num">1</span></td></tr>
+              <tr><td>Pospago</td><td class="cantidad"><span class="celda-num">0</span></td></tr>
+              <tr style="background:#f4f4f8;"><td style="font-weight:700;">Total</td><td class="cantidad" style="font-weight:700; color:#1e1b4b;">4</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="ojo" style="margin-top:6mm;">
+          <span class="label">Lo que más se falla: Particular y Empresa</span>
+          <p class="body">
+            Hay productos que se llaman <strong>igual</strong> en los dos bloques —«Fibra
+            General» está en Particular y en Empresa—. Mira siempre la <strong>banda de
+            color</strong> de arriba antes de escribir el número: azul es
+            <strong>Particular</strong>, morada es <strong>Empresa</strong>. La banda va
+            pegada arriba mientras bajas por la lista, para que no la pierdas de vista.
+          </p>
+        </div>
+
+        <div class="bloque" style="margin-top:7mm;">
+          <h3 class="subheading" style="margin-bottom:2.5mm;">Detalle de la jornada</h3>
+          <p class="body">
+            Debajo de la lista hay un cuadro de texto. Cuenta en dos líneas qué has hecho:
+            visitas, gestiones, seguimiento, una venta que quedó pendiente de firma…
+            No hace falta escribir una redacción, pero es lo que explica un día con pocas ventas.
+          </p>
+        </div>
+
+        <div class="info" style="margin-top:5mm;">
+          <span class="label">Se guarda solo</span>
+          <p class="body">
+            Al pulsar <strong>Siguiente</strong>, lo del paso 1 queda guardado. No hay que
+            buscar ningún botón de guardar.
+          </p>
+        </div>
+
+        <div class="pie">
+          <span class="caption">empleaIA · Cierre de turno</span>
+          <span class="caption">3</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================== PASO 2 · CÓMO VAS ======================== -->
+    <div class="page" data-canvas-width="794" data-canvas-height="1123">
+      <div class="marco">
+        <div class="cabecera">
+          <span class="label" style="color:#7c3aed;">Paso 2</span>
+          <span class="caption">empleaIA · Cierre de turno</span>
+        </div>
+
+        <div class="titulo-paso">
+          <span class="paso-num" style="background:#7c3aed;">2</span>
+          <h2 class="display" style="font-size:26pt;">Cómo vas</h2>
+        </div>
+
+        <p class="body" style="margin-bottom:6mm;">
+          Aquí no hay nada que rellenar: es tu foto del mes, con lo de hoy ya contado.
+          Tres objetivos, tres cuadros.
+        </p>
+
+        <div class="cuadros">
+          <div class="cuadro" style="background:#4338ca;">
+            <span class="label">Tu objetivo</span>
+            <span class="cifra">62 %</span>
+            <div class="barra"><span style="width:62%;"></span></div>
+            <p class="pie-cuadro">Objetivo individual<br />26 de 42 unidades</p>
+          </div>
+          <div class="cuadro" style="background:#0d9488;">
+            <span class="label">Tu punto de venta</span>
+            <span class="cifra">78 %</span>
+            <div class="barra"><span style="width:78%;"></span></div>
+            <p class="pie-cuadro">Objetivo de tu PDV completo<br />156 de 200 unidades</p>
+          </div>
+          <div class="cuadro" style="background:#c2410c;">
+            <span class="label">TMT</span>
+            <span class="cifra">45 %</span>
+            <div class="barra"><span style="width:45%;"></span></div>
+            <p class="pie-cuadro">Objetivo Tu máquina del tiempo<br />90 de 200 unidades</p>
+          </div>
+        </div>
+
+        <div class="bloque" style="margin-top:8mm;">
+          <ul class="lista body">
+            <li><strong>Tu objetivo</strong> — el tuyo, solo con tus ventas.</li>
+            <li><strong>Tu punto de venta</strong> — el de la tienda entera, con las ventas de todos los compañeros.</li>
+            <li><strong>TMT</strong> — «Tu máquina del tiempo», el objetivo que nos pone el operador sobre las mismas ventas de la tienda. Son otras cifras, no es un error.</li>
+          </ul>
+        </div>
+
+        <p class="body">
+          Debajo de los tres cuadros tienes el desglose por grupo de productos: todos los
+          grupos, hayas vendido o no. El que va a cero también se ve, que es justo el que
+          hay que mirar.
+        </p>
+
+        <div class="aviso" style="margin-top:6mm;">
+          <span class="label">Si un cuadro dice «Sin objetivo»</span>
+          <p class="body">
+            Es que este mes todavía no te lo han fijado. No es un cero ni un fallo tuyo:
+            verás lo que llevas vendido y ya está.
+          </p>
+        </div>
+
+        <div class="info" style="margin-top:5mm;">
+          <span class="label">Recuerda</span>
+          <p class="body">
+            Los cuadros de tienda son los de la sede que confirmaste al empezar. Si hoy
+            cubres en otra tienda, verás los de esa.
+          </p>
+        </div>
+
+        <div class="pie">
+          <span class="caption">empleaIA · Cierre de turno</span>
+          <span class="caption">4</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================== PASO 3 · CAJA ======================== -->
+    <div class="page" data-canvas-width="794" data-canvas-height="1123">
+      <div class="marco">
+        <div class="cabecera">
+          <span class="label" style="color:#0d9488;">Paso 3</span>
+          <span class="caption">empleaIA · Cierre de turno</span>
+        </div>
+
+        <div class="titulo-paso">
+          <span class="paso-num" style="background:#0d9488;">3</span>
+          <h2 class="display" style="font-size:26pt;">Cierre de caja</h2>
+        </div>
+
+        <p class="body" style="margin-bottom:5mm;">
+          Dos importes de <strong>tu</strong> turno: lo cobrado en efectivo y lo cobrado con
+          tarjeta. Con decimales y con coma o punto, como te salga.
+        </p>
+
+        <div style="display:flex; gap:5mm; margin-bottom:6mm;">
+          <div style="flex:1;">
+            <span class="caption" style="color:#3c3c48;">Cobrado en efectivo</span>
+            <div class="campo" style="margin-top:1.2mm; text-align:right; color:#2a2a35;">340,50</div>
+          </div>
+          <div style="flex:1;">
+            <span class="caption" style="color:#3c3c48;">Cobrado con tarjeta</span>
+            <div class="campo" style="margin-top:1.2mm; text-align:right; color:#2a2a35;">1.210,00</div>
+          </div>
+        </div>
+
+        <div class="bloque">
+          <h3 class="subheading" style="margin-bottom:2.5mm;">Documentación del cierre</h3>
+          <p class="body" style="margin-bottom:3mm;">
+            Adjunta lo que ya sacas cada día. Vale Excel, CSV, PDF y fotos hechas con el
+            móvil, hasta 10 MB cada una.
+          </p>
+          <div style="display:flex; gap:3mm;">
+            <span class="boton hueco">Excel del stock</span>
+            <span class="boton hueco">Comprobante del TPV</span>
+          </div>
+        </div>
+
+        <div class="ojo" style="margin-top:6mm;">
+          <span class="label">Confirmar la caja no tiene vuelta atrás</span>
+          <p class="body">
+            Al pulsar <strong>Confirmar cierre de caja</strong>, los importes quedan cerrados:
+            tú ya no puedes cambiarlos. Solo un administrador podrá corregirlos, y queda
+            registrado quién lo hizo. <strong>Cuenta el dinero antes de pulsar.</strong>
+            Los archivos sí puedes seguir subiéndolos después.
+          </p>
+        </div>
+
+        <div class="info" style="margin-top:6mm;">
+          <span class="label">Tiendas donde no se cuenta caja</span>
+          <p class="body">
+            En un córner dentro de un centro (por ejemplo El Corte Inglés), el cobro lo hace
+            el centro y nos lo liquida después. Ahí <strong>no hay efectivo ni tarjeta que
+            declarar</strong>: la pantalla no te los pedirá. Registra tus ventas como siempre
+            y sube el <strong>stock</strong> y los <strong>tickets de las ventas
+            facturadas</strong>. Con eso se cuadra la liquidación.
+          </p>
+        </div>
+
+        <p class="body" style="margin-top:6mm;">
+          Arriba del todo, cuando entres, verás el <strong>fondo de caja</strong> que te
+          dejaron en el turno anterior. Es contra esa cifra contra la que cuentas.
+        </p>
+
+        <div class="pie">
+          <span class="caption">empleaIA · Cierre de turno</span>
+          <span class="caption">5</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- =================== PASO 4 · INCIDENCIAS + FAQ =================== -->
+    <div class="page" data-canvas-width="794" data-canvas-height="1123">
+      <div class="marco">
+        <div class="cabecera">
+          <span class="label" style="color:#d97706;">Paso 4</span>
+          <span class="caption">empleaIA · Cierre de turno</span>
+        </div>
+
+        <div class="titulo-paso">
+          <span class="paso-num" style="background:#d97706;">4</span>
+          <h2 class="display" style="font-size:26pt;">Incidencias y cerrar</h2>
+        </div>
+
+        <p class="body" style="margin-bottom:4mm;">
+          Una sola pregunta: <strong>¿ha habido alguna incidencia en el turno?</strong>
+          Contesta <strong>Sí</strong> o <strong>No</strong> y pulsa <strong>Cerrar turno</strong>.
+        </p>
+
+        <p class="body" style="margin-bottom:4mm;">
+          Si contestas que sí, escribe qué ha pasado: <strong>qué ha ocurrido, con qué importe
+          o artículo, y qué has hecho</strong>. Al cerrar, tus responsables reciben el aviso
+          con tu cierre y la incidencia. No hace falta que llames a nadie.
+        </p>
+
+        <div class="aviso" style="margin-bottom:8mm;">
+          <span class="label">Qué es una incidencia</span>
+          <p class="body">
+            Falta o sobra dinero, un cobro que no cuadra con el TPV, una devolución rara, un
+            terminal que no aparece, el datáfono caído… Si dudas, ponlo. Se prefiere una
+            incidencia de más que un descuadre sin explicación.
+          </p>
+        </div>
+
+        <h2 class="heading" style="margin-bottom:4mm;">Lo que más se pregunta</h2>
+
+        <div class="faq">
+          <p class="subheading">Me he equivocado en una cantidad y ya he cerrado el turno.</p>
+          <p class="body">Díselo a un administrador. Un cierre cerrado solo lo corrige él, y queda registrado.</p>
+        </div>
+        <div class="faq">
+          <p class="subheading">Se me ha ido el móvil a media faena.</p>
+          <p class="body">Vuelve a entrar. Lo que hubieras guardado sigue ahí; retomas donde lo dejaste.</p>
+        </div>
+        <div class="faq">
+          <p class="subheading">Dice que no hay catálogo de ventas.</p>
+          <p class="body">Falta que tu empresa suba la lista de artículos. Avisa y no pierdas tiempo.</p>
+        </div>
+        <div class="faq">
+          <p class="subheading">Hoy no he vendido nada.</p>
+          <p class="body">Cierra igual: deja las cantidades en blanco, cuenta en el detalle qué has hecho y cierra la caja. Un día sin cierre es un día que no existe.</p>
+        </div>
+        <div class="faq">
+          <p class="subheading">He fichado en una tienda pero mi cuadrante dice otra.</p>
+          <p class="body">Confirma la tienda en la que estás de verdad. Y avisa a tu coordinador para que corrija el cuadrante.</p>
+        </div>
+        <div class="faq">
+          <p class="subheading">Trabajo en la oficina, no en tienda.</p>
+          <p class="body">La oficina no hace cierres ni checks de fichaje. Esta guía no te aplica.</p>
+        </div>
+
+        <div style="margin-top:8mm; background:#1e1b4b; border-radius:2mm; padding:6mm;">
+          <p class="body" style="color:#ffffff; font-size:11.5pt;">
+            <strong style="color:#ffffff;">En resumen:</strong> confirma tu tienda, escribe tus
+            unidades, mira cómo vas, cuenta tu caja y avisa si algo ha pasado. Cinco minutos.
+          </p>
+        </div>
+
+        <div class="pie">
+          <span class="caption">empleaIA · Cierre de turno</span>
+          <span class="caption">6</span>
+        </div>
+      </div>
+    </div>
+
+  </body>
+</html>
