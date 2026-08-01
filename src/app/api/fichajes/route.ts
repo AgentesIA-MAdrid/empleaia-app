@@ -12,7 +12,7 @@ import { currentTenant } from "@/lib/tenant/context";
 import { resolveEmpresaScope, fichajeScopeFilter } from "@/lib/multi-empresa/scope";
 import { calcularDistancia } from "@/lib/utils";
 import { notifyFichajeFueraSede } from "@/lib/fichajes/notify-fuera-sede";
-import { evaluarFichajeEnHorario } from "@/lib/fichajes/horario-turno";
+import { accionFueraHorario, evaluarFichajeEnHorario } from "@/lib/fichajes/horario-turno";
 import { diaMadrid } from "@/lib/cierre-turno/core";
 import { exentoDeControlesDeTienda } from "@/lib/cierre-turno/exencion-coordinacion";
 import {
@@ -329,11 +329,35 @@ export const POST = withTenant(async (request: NextRequest) => {
       });
       if (ev.estado === "fuera") {
         const cuando = ev.motivo === "antes" ? "aún no ha empezado" : "ya ha terminado";
+        // Qué toca según lo que se ficha y por qué lado se sale del turno: el
+        // ajuste solo vale para entrada-antes y salida-después (y las pausas por
+        // los dos lados). Los cruces se bloquean, porque ajustarlos dejaría una
+        // hora absurda — ver `accionFueraHorario` (ticket b7d3e5a9).
+        const accion = accionFueraHorario(tipo, ev.motivo);
+        if (accion === "bloquear") {
+          const queEs = tipo === "ENTRADA" ? "la entrada" : "la salida";
+          return Response.json(
+            {
+              error:
+                `Tu turno de ${ev.turno.horaInicio} a ${ev.turno.horaFin} ${cuando}, ` +
+                `así que ${queEs} no se puede cuadrar con tu horario. Pídelo desde ` +
+                `Mis Fichajes y administración lo registra a mano.`,
+              code: "fuera_de_horario",
+              // Sin ajuste posible: la ventana no ofrece registrar, solo explica.
+              ajustable: false,
+              motivo: ev.motivo,
+              turno: { horaInicio: ev.turno.horaInicio, horaFin: ev.turno.horaFin },
+              margen: cfg.margenFichajeMinutos,
+            },
+            { status: 409 },
+          );
+        }
         if (!ajustarAlTurno) {
           return Response.json(
             {
               error: `Tu turno de ${ev.turno.horaInicio} a ${ev.turno.horaFin} ${cuando} y tu empresa no permite fichar fuera del horario del cuadrante.`,
               code: "fuera_de_horario",
+              ajustable: true,
               motivo: ev.motivo,
               turno: { horaInicio: ev.turno.horaInicio, horaFin: ev.turno.horaFin },
               ajuste: ev.ajuste.toISOString(),

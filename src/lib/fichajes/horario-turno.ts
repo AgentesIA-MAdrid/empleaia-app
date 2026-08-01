@@ -271,3 +271,36 @@ export async function evaluarFichajeEnHorario(
     ajusteHora: minToHHMM(ev.ajusteMin),
   };
 }
+
+/**
+ * Qué se hace con un intento fuera de horario, según QUÉ se está fichando y por
+ * qué lado se sale del turno (ticket b7d3e5a9).
+ *
+ * El ajuste al borde del turno solo tiene sentido en los dos casos que pidió el
+ * cliente:
+ *
+ *  - **Entrada antes** de que empiece: se registra al inicio. Llega temprano a
+ *    abrir y no queremos regalarle esos minutos.
+ *  - **Salida después** de que acabe: se registra al fin. Se queda cerrando y la
+ *    jornada se cuadra al turno.
+ *
+ * Los cruces NO se ajustan, porque el resultado sería una hora absurda: una
+ * entrada a las 18:30 ajustada "al borde" quedaría registrada a las 17:00, la
+ * hora en que su turno ya había acabado, y con la salida ajustada igual la
+ * jornada saldría de cero minutos. En esos casos se bloquea y se le dice que lo
+ * pida desde Mis Fichajes, donde administración se lo registra a mano.
+ *
+ * Las pausas sí se ajustan (decisión del cliente): si alguien pausa o vuelve
+ * fuera de la ventana, su hora se cuadra al borde más cercano.
+ */
+export type AccionFueraHorario = "ajustar" | "bloquear";
+
+export function accionFueraHorario(
+  tipo: "ENTRADA" | "SALIDA" | "PAUSA" | "VUELTA_PAUSA" | string,
+  motivo: MotivoFueraHorario,
+): AccionFueraHorario {
+  if (tipo === "ENTRADA") return motivo === "antes" ? "ajustar" : "bloquear";
+  if (tipo === "SALIDA") return motivo === "despues" ? "ajustar" : "bloquear";
+  // Pausa y vuelta de pausa: siempre al borde.
+  return "ajustar";
+}
