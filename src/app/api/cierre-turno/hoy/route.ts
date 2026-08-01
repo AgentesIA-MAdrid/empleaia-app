@@ -19,8 +19,21 @@ export const GET = withTenant(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
     const userId = session.user.id!;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tiendaId = ((session.user as any).tiendaId as string | null) ?? null;
     const dia = diaMadrid();
     const fecha = new Date(`${dia}T00:00:00Z`);
+
+    // Si su sede es de las que venden sin que el dinero sea nuestro (un córner
+    // que liquida el tercero), el paso de caja no pide importes: pide el stock y
+    // los tickets de las ventas facturadas (ticket 9d4e17c2).
+    const sede = tiendaId
+      ? await prisma.tienda.findUnique({
+          where: { id: tiendaId },
+          select: { nombre: true, sinEfectivo: true },
+        })
+      : null;
+    const sedeSinEfectivo = sede?.sinEfectivo === true;
 
     const cierre = await prisma.cierreTurno.findUnique({
       where: { userId_fecha: { userId, fecha } },
@@ -35,12 +48,20 @@ export const GET = withTenant(
     });
 
     if (!cierre) {
-      return NextResponse.json({ dia, existe: false, pendientes: ["ventas", "caja", "incidencias"] });
+      return NextResponse.json({
+        dia,
+        existe: false,
+        sedeSinEfectivo,
+        sedeNombre: sede?.nombre ?? null,
+        pendientes: ["ventas", "caja", "incidencias"],
+      });
     }
 
     return NextResponse.json({
       dia,
       existe: true,
+      sedeSinEfectivo,
+      sedeNombre: sede?.nombre ?? null,
       cerrado: Boolean(cierre.completadoEn),
       detalleJornada: cierre.detalleJornada ?? "",
       incidencia: cierre.incidencia,

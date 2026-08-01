@@ -29,6 +29,7 @@ interface Tienda {
   // Marca la sede que hace de oficina (destino del relleno automático del
   // cuadrante). Solo una sede puede tenerlo activo.
   esOficina?: boolean;
+  sinEfectivo?: boolean;
   exigirFichajeEnSede?: boolean;
   // Responsable de la sede (dato informativo). Null si no se ha asignado.
   managerId?: string | null;
@@ -144,7 +145,7 @@ const COLORES = [
 const FORM_INICIAL = {
   nombre: "", direccion: "", ciudad: "", codigoPostal: "", telefono: "",
   email: "", latitud: "", longitud: "", radio: "200", color: "#6366f1",
-  managerId: "", esOficina: false, exigirFichajeEnSede: false,
+  managerId: "", esOficina: false, sinEfectivo: false, exigirFichajeEnSede: false,
 };
 
 export default function TiendasPage() {
@@ -224,6 +225,7 @@ export default function TiendasPage() {
       email: t.email || "", latitud: t.latitud?.toString() || "",
       longitud: t.longitud?.toString() || "", radio: t.radio.toString(),
       color: t.color, managerId: t.managerId || "", esOficina: t.esOficina ?? false,
+      sinEfectivo: t.sinEfectivo ?? false,
       exigirFichajeEnSede: t.exigirFichajeEnSede ?? false,
     });
     setDialogOpen(true);
@@ -438,9 +440,28 @@ export default function TiendasPage() {
                   que no tengan turno en ninguna tienda. Solo una sede puede ser la oficina.
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
-                  También exime a los coordinadores: el día que su turno es aquí no firman los puntos
-                  de control del fichaje ni tienen que cerrar caja. El día que cubren en un punto de
-                  venta, sí.
+                  En la oficina no se cierra turno ni se firman los puntos de control al fichar, sea
+                  quien sea: es trabajo de oficina, no de tienda, y ahí no hay caja que cuadrar ni
+                  stock que revisar.
+                </p>
+              </div>
+              <div className="col-span-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-[var(--primary)]"
+                    checked={form.sinEfectivo}
+                    onChange={(e) => setForm((f) => ({ ...f, sinEfectivo: e.target.checked }))}
+                  />
+                  <span className="text-sm font-medium text-slate-800">
+                    El dinero de esta sede lo liquida un tercero
+                  </span>
+                </label>
+                <p className="mt-1 text-xs text-slate-400">
+                  Para un córner que cobra el propio centro y nos liquida después. Su equipo registra
+                  las ventas igual que el resto, pero el cierre no pide efectivo ni tarjeta: pide el
+                  stock y los tickets de las ventas facturadas. Queda fuera de arqueos y de la
+                  conciliación bancaria.
                 </p>
               </div>
               <div className="col-span-2 flex items-center justify-between rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">

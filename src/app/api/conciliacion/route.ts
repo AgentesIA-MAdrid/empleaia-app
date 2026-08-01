@@ -76,7 +76,15 @@ export const GET = withTenant(
 
     const [sedes, cajaPorSede, arqueos, banco, umbral] = await Promise.all([
       prisma.tienda.findMany({
-        where: { activa: true, ...(tiendaId ? { id: tiendaId } : {}) },
+        where: {
+          activa: true,
+          // Fuera las sedes sin efectivo nuestro y la oficina (ticket 9d4e17c2):
+          // en un córner el dinero lo liquida el tercero y en la oficina no hay
+          // caja. Enseñarlas aquí sería pedir un arqueo que nadie puede hacer.
+          esOficina: false,
+          sinEfectivo: false,
+          ...(tiendaId ? { id: tiendaId } : {}),
+        },
         select: { id: true, nombre: true },
         orderBy: { nombre: "asc" },
       }),

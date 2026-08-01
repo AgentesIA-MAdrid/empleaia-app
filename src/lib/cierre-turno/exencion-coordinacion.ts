@@ -11,9 +11,11 @@
  * comprobaciones del fichaje (ver `horario-turno.ts`).
  *
  * Reglas:
- *  - Solo exime al coordinador (MANAGER). Un comercial nunca está exento, y
- *    administración no ficha en tienda.
- *  - Con turno en la sede marcada como oficina (`Tienda.esOficina`), exenta.
+ *  - Turno en la sede marcada como oficina (`Tienda.esOficina`): exento SEA
+ *    QUIEN SEA (ticket 9d4e17c2). Allí no hay caja ni stock, así que firmar que
+ *    se han revisado sería firmar en falso.
+ *  - Sin turno ese día solo se exime al coordinador: su sitio por defecto es la
+ *    oficina, mientras que un comercial que ficha está en una tienda.
  *  - Con turno en cualquier otro punto de venta, NO exenta: ese día abre,
  *    vende y cuadra caja como el resto del equipo.
  *  - Jornada partida en dos sitios (oficina por la mañana, tienda por la
@@ -37,7 +39,15 @@ export function exentoDeControlesDeTienda(opts: {
   rol: string;
   turnosDelDia: TurnoSede[];
 }): boolean {
+  // En la oficina no se cierra turno ni se firman los puntos de control, sea
+  // quien sea: es trabajo de oficina, no de tienda, y ahí no hay caja que
+  // cuadrar ni stock que revisar (ticket 9d4e17c2). Antes esto solo eximía al
+  // coordinador, y dejaba a la gente de administración firmando que había
+  // revisado una tienda en la que no estaba.
+  if (opts.turnosDelDia.length > 0 && opts.turnosDelDia.every((t) => t.esOficina)) return true;
+  // Sin turno ese día, solo se exime al coordinador: su sitio por defecto es la
+  // oficina. A un comercial sin turno no se le quitan los controles, porque si
+  // ficha es que está en una tienda.
   if (opts.rol !== "MANAGER") return false;
-  if (opts.turnosDelDia.length === 0) return true;
-  return opts.turnosDelDia.every((t) => t.esOficina);
+  return opts.turnosDelDia.length === 0;
 }

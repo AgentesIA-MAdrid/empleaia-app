@@ -107,7 +107,22 @@ model Tienda {
   // Marca la sede que hace de "oficina": destino del relleno automático del
   // cuadrante (ver `User.turnoOficinaPorDefecto`). Solo una sede debería
   // tenerlo activo; la API lo garantiza al guardar.
+  //
+  // Además (ticket 9d4e17c2): en la oficina no se cierra turno ni se firman los
+  // puntos de control al fichar. Es trabajo de oficina, no de tienda, y quien
+  // ficha ahí —sea del rol que sea— no tiene caja que cuadrar ni stock que
+  // revisar.
   esOficina           Boolean           @default(false) @map("es_oficina")
+  /// La sede vende, pero el dinero NO es nuestro: lo liquida un tercero (el
+  /// caso de un córner en unos grandes almacenes, que factura él y liquida
+  /// después — ticket 9d4e17c2).
+  ///
+  /// Su cierre de turno es el de siempre en las VENTAS, pero el paso de caja no
+  /// pide efectivo ni tarjeta: pide el stock y los tickets de las ventas
+  /// facturadas, que se cuadran luego contra la liquidación del tercero. Y queda
+  /// fuera de arqueos y de conciliación bancaria: no hay efectivo que apartar ni
+  /// ingreso nuestro que casar.
+  sinEfectivo         Boolean           @default(false) @map("sin_efectivo")
   // Responsable de la sede (dato informativo / de visualización). NO altera
   // la jerarquía de aprobaciones: el coordinador que aprueba fichajes sigue
   // siendo `User.managerId` (relación ManagerSubordinados). Relación propia

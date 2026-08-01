@@ -72,6 +72,7 @@ export const POST = withTenant(
       color = "#6366f1",
       managerId,
       esOficina = false,
+      sinEfectivo = false,
       exigirFichajeEnSede = false,
     } = body as {
       nombre: string;
@@ -86,6 +87,7 @@ export const POST = withTenant(
       color?: string;
       managerId?: string | null;
       esOficina?: boolean;
+      sinEfectivo?: boolean;
       exigirFichajeEnSede?: boolean;
     };
 
@@ -150,6 +152,7 @@ export const POST = withTenant(
           // Responsable informativo: cadena vacía → sin responsable.
           managerId: managerId || null,
           esOficina: Boolean(esOficina),
+          sinEfectivo: Boolean(sinEfectivo),
           exigirFichajeEnSede: Boolean(exigirFichajeEnSede),
         },
       });

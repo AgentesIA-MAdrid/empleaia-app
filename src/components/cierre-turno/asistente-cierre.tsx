@@ -247,6 +247,12 @@ export function AsistenteCierre({
   const [detalle, setDetalle] = useState("");
   const [efectivo, setEfectivo] = useState("");
   const [tarjeta, setTarjeta] = useState("");
+  /**
+   * Su sede vende, pero el dinero no es nuestro: lo liquida el tercero (ticket
+   * 9d4e17c2). El paso de caja no pide importes; pide el stock y los tickets de
+   * las ventas facturadas.
+   */
+  const [sedeSinEfectivo, setSedeSinEfectivo] = useState(false);
   const [hayIncidencia, setHayIncidencia] = useState<boolean | null>(null);
   const [incidencia, setIncidencia] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -284,7 +290,9 @@ export function AsistenteCierre({
             incidencia?: string | null;
             ventas?: { articuloId: string; cantidad: number }[];
             caja?: { efectivo: number; tarjeta: number; confirmado: boolean } | null;
+            sedeSinEfectivo?: boolean;
           };
+          if (!cancelado) setSedeSinEfectivo(hoy.sedeSinEfectivo === true);
           if (!cancelado && hoy.existe) {
             setDetalle(hoy.detalleJornada ?? "");
             setCantidades(
@@ -801,6 +809,21 @@ export function AsistenteCierre({
       {paso === "caja" && (
         <Card>
           <CardContent className="pt-4 pb-4 space-y-4">
+            {/* En un córner el dinero lo cobra y lo liquida el tercero, así que
+                pedir efectivo y tarjeta sería pedir un dato que no existe: lo que
+                cuadra su cierre son el stock y los tickets facturados. */}
+            {sedeSinEfectivo ? (
+              <div className="rounded-lg border border-sky-200 bg-sky-50 p-3">
+                <p className="text-sm font-semibold text-sky-900">
+                  En esta tienda no se cuenta caja
+                </p>
+                <p className="text-xs text-sky-800 mt-1">
+                  El cobro lo hace el centro y nos lo liquida después, así que aquí no hay efectivo
+                  ni tarjeta que declarar. Registra tus ventas como siempre y sube el stock y los
+                  tickets de las ventas facturadas: con eso se cuadra la liquidación.
+                </p>
+              </div>
+            ) : (
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="efectivo">Cobrado en efectivo</Label>
@@ -831,6 +854,7 @@ export function AsistenteCierre({
                 />
               </div>
             </div>
+            )}
             {/* Adjuntos: se pueden seguir subiendo tras confirmar los importes,
                 porque los comprobantes del datáfono a veces salen después. */}
             <div className="space-y-2">
@@ -872,7 +896,11 @@ export function AsistenteCierre({
                   onClick={() => inputTpv.current?.click()}
                 >
                   <Paperclip className="h-3.5 w-3.5 mr-1.5" />
-                  {subiendo === "tpv" ? "Subiendo…" : "Comprobante del TPV"}
+                  {subiendo === "tpv"
+                    ? "Subiendo…"
+                    : sedeSinEfectivo
+                      ? "Tickets de ventas facturadas"
+                      : "Comprobante del TPV"}
                 </Button>
               </div>
 
