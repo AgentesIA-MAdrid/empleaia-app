@@ -223,6 +223,26 @@ function CuadroObjetivo({
   );
 }
 
+/**
+ * Color de cada bloque de categoría al registrar las ventas (ticket 41c7d0e2).
+ *
+ * El cliente lo pidió así: su equipo se equivocaba de bloque, porque los mismos
+ * productos existen en Particular y en Empresa y la cabecera era una línea gris
+ * como cualquier otra. Con color fuerte, cabecera pegada arriba mientras se
+ * rellena y la categoría repetida en las filas que se llaman igual, meter la
+ * cifra en el sitio equivocado cuesta bastante más.
+ *
+ * Los colores van por POSICIÓN, no por nombre: cada cliente tiene sus
+ * categorías, y "Particular"/"Empresa" son las de este.
+ */
+const COLOR_CATEGORIA = [
+  { fondo: "bg-sky-600", chip: "bg-sky-100 text-sky-800", borde: "border-l-sky-500" },
+  { fondo: "bg-violet-600", chip: "bg-violet-100 text-violet-800", borde: "border-l-violet-500" },
+  { fondo: "bg-teal-600", chip: "bg-teal-100 text-teal-800", borde: "border-l-teal-500" },
+  { fondo: "bg-amber-600", chip: "bg-amber-100 text-amber-800", borde: "border-l-amber-500" },
+  { fondo: "bg-rose-600", chip: "bg-rose-100 text-rose-800", borde: "border-l-rose-500" },
+];
+
 const TITULOS: Record<PasoCierre, string> = {
   ventas: "Ventas del día",
   resultados: "Cómo vas",
@@ -525,14 +545,29 @@ export function AsistenteCierre({
    * enseña al rellenar (ticket c60153e3). `ambiguos` son los pocos artículos a
    * los que sí hace falta ponérsela para poder distinguirlos.
    */
-  const { grupos, ambiguos } = useMemo(() => {
+  const { grupos, ambiguos, enVariasCategorias } = useMemo(() => {
     const agrupado = agruparCatalogo(articulos);
+    // Nombres que existen en MÁS DE UNA categoría ("Fibra General" en Particular
+    // y en Empresa). Son los que hacen que se rellene la fila equivocada, así
+    // que en esos la categoría se repite en la propia fila: quien está
+    // escribiendo no tiene por qué acordarse de bajo qué cabecera está
+    // (ticket 41c7d0e2).
+    const categoriasPorNombre = new Map<string, Set<string>>();
+    for (const a of articulos) {
+      const clave = a.nombre.trim().toLowerCase();
+      const previo = categoriasPorNombre.get(clave) ?? new Set<string>();
+      previo.add(a.categoria ?? "");
+      categoriasPorNombre.set(clave, previo);
+    }
     return {
       grupos: agrupado.map((g) => ({
         categoria: g.categoria,
         articulos: aplanarCatalogo([g]),
       })),
       ambiguos: articulosConNombreAmbiguo(agrupado),
+      enVariasCategorias: new Set(
+        [...categoriasPorNombre.entries()].filter(([, cats]) => cats.size > 1).map(([n]) => n),
+      ),
     };
   }, [articulos]);
 
@@ -622,26 +657,53 @@ export function AsistenteCierre({
                         subcategoría ordena los artículos dentro de su categoría
                         pero no se enseña: es un dato interno de los objetivos
                         (ticket c60153e3). */}
-                    {grupos.map((grupo) => (
+                    {grupos.map((grupo, iGrupo) => {
+                      const color = COLOR_CATEGORIA[iGrupo % COLOR_CATEGORIA.length]!;
+                      return (
                       <Fragment key={`cat-${grupo.categoria ?? "__sin__"}`}>
                         {/* Si la empresa no usa categorías, el catálogo es una
                             lista corrida y no hay nada que encabezar; en cuanto
                             hay alguna, lo que se quedó fuera se ve como "Otros"
-                            en vez de aparecer suelto sin explicación. */}
+                            en vez de aparecer suelto sin explicación.
+
+                            La cabecera va PEGADA ARRIBA (sticky) y con color
+                            fuerte: en un catálogo largo se rellena bajando, y si
+                            la etiqueta se pierde de vista ya no se sabe en qué
+                            bloque se está escribiendo (ticket 41c7d0e2). */}
                         {(grupo.categoria || grupos.length > 1) && (
-                          <tr className="bg-slate-50 border-y border-slate-200">
+                          <tr>
+                            {/* El sticky va en la CELDA y no en la fila: en
+                                Safari e iOS `position: sticky` sobre un <tr> no
+                                hace nada, y su equipo ficha desde el móvil. */}
                             <td
                               colSpan={2}
-                              className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600"
+                              className={`sticky top-0 z-10 px-3 py-2 ${color.fondo}`}
                             >
-                              {grupo.categoria ?? "Otros"}
+                              <span className="text-sm font-bold uppercase tracking-wider text-white">
+                                {grupo.categoria ?? "Otros"}
+                              </span>
                             </td>
                           </tr>
                         )}
                         {grupo.articulos.map((a) => (
-                          <tr key={a.id} className="border-b border-slate-100 last:border-0">
+                          <tr
+                            key={a.id}
+                            className={`border-b border-slate-100 last:border-0 border-l-4 ${color.borde}`}
+                          >
                             <td className="px-3 py-2 text-sm text-slate-800">
                               {a.nombre}
+                              {/* El mismo nombre en dos categorías es lo que
+                                  hace que se rellene la fila equivocada: se
+                                  repite la categoría aquí, para no depender de
+                                  que se vea la cabecera. */}
+                              {grupo.categoria &&
+                                enVariasCategorias.has(a.nombre.trim().toLowerCase()) && (
+                                  <span
+                                    className={`ml-2 align-middle text-[11px] font-semibold uppercase px-1.5 py-0.5 rounded ${color.chip}`}
+                                  >
+                                    {grupo.categoria}
+                                  </span>
+                                )}
                               {/* Dos artículos de la misma categoría con el
                                   mismo nombre solo se distinguen por su
                                   subcategoría: ahí sí se dice, o serían dos
@@ -667,7 +729,8 @@ export function AsistenteCierre({
                           </tr>
                         ))}
                       </Fragment>
-                    ))}
+                      );
+                    })}
                   </tbody>
                   <tfoot>
                     <tr className="bg-slate-50">
