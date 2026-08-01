@@ -778,20 +778,27 @@ export function AsistenteCierre({
                     barra se lee sin buscar la fila. */}
                 <div className="grid gap-3 md:grid-cols-3">
                   <CuadroObjetivo
-                    titulo="Tu objetivo"
+                    titulo="Objetivo individual"
                     subtitulo="Lo que te toca a ti este mes"
                     tono={TONOS.propio}
                     dato={progreso?.propio ?? null}
                   />
                   <CuadroObjetivo
-                    titulo={progreso?.sedeNombre ?? "Tu punto de venta"}
-                    subtitulo="El objetivo de la tienda entera"
+                    titulo="Objetivo de tu PDV completo"
+                    /* El nombre de la tienda baja al subtítulo: el título dice de
+                       qué objetivo se trata y el subtítulo, de qué tienda. Quien
+                       cubre en varias necesita las dos cosas. */
+                    subtitulo={progreso?.sedeNombre ?? "El objetivo de la tienda entera"}
                     tono={TONOS.sede}
                     dato={progreso?.sede ?? null}
                   />
                   <CuadroObjetivo
-                    titulo={progreso?.sedeNombre ? `TMT · ${progreso.sedeNombre}` : "TMT"}
-                    subtitulo="Lo que pide el operador a la tienda"
+                    titulo="Objetivo Tu máquina del tiempo"
+                    subtitulo={
+                      progreso?.sedeNombre
+                        ? `TMT · ${progreso.sedeNombre}`
+                        : "Lo que pide el operador a la tienda"
+                    }
                     tono={TONOS.tmt}
                     dato={progreso?.sedeTmt ?? null}
                   />
