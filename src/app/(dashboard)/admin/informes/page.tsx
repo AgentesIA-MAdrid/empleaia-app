@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FileSpreadsheet, FileText, BarChart2, CalendarRange, Search, Lock } from "lucide-react";
+import { FileSpreadsheet, FileText, BarChart2, CalendarRange, Search, Lock, AlarmClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FeatureGateClient } from "@/components/feature-gate-client";
 import { useFeatures } from "@/lib/hooks/use-features";
@@ -38,6 +38,18 @@ interface ResumenEmpleado {
   /** `horasTotales − horasContrato`: positiva = exceso, negativa = déficit. */
   diferencia: number;
   horasExtra: number; diasAusencia: number;
+}
+/** Fila del cuadro de retrasos acumulados (ticket 4a71c8d3). */
+interface FilaRetraso {
+  userId: string;
+  nombre: string;
+  sede: string | null;
+  turnos: number;
+  retrasos: number;
+  minutosTotales: number;
+  mediaMinutos: number;
+  peorRetraso: number;
+  ultimoRetraso: string | null;
 }
 interface Stats {
   totalHoras: number; mediaHorasDia: number; totalAusencias: number;
@@ -91,6 +103,8 @@ function AdminInformesContent() {
   const [vista, setVista] = useState<"asistencia" | "ventas">("asistencia");
 
   const [datos, setDatos] = useState<ResumenEmpleado[]>([]);
+  const [retrasos, setRetrasos] = useState<FilaRetraso[]>([]);
+  const [margenRetrasos, setMargenRetrasos] = useState(15);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [exportando, setExportando] = useState(false);
@@ -146,13 +160,26 @@ function AdminInformesContent() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`/api/informes?${buildParams()}&tipo=resumen`);
+      // Los dos informes del periodo van juntos: el resumen de horas y el
+      // cuadro de retrasos, que sale del mismo filtro de fechas y sede.
+      const [res, resRetrasos] = await Promise.all([
+        fetch(`/api/informes?${buildParams()}&tipo=resumen`),
+        fetch(`/api/informes?${buildParams()}&tipo=retrasos`),
+      ]);
       const data = await res.json();
       setDatos(data.empleados || []);
       setStats(data.stats || null);
+      if (resRetrasos.ok) {
+        const dr = await resRetrasos.json();
+        setRetrasos(dr.empleados || []);
+        setMargenRetrasos(dr.margenMinutos ?? 15);
+      } else {
+        setRetrasos([]);
+      }
     } catch {
       setDatos([]);
       setStats(null);
+      setRetrasos([]);
     } finally {
       setLoading(false);
     }
@@ -518,6 +545,114 @@ function AdminInformesContent() {
                           </tr>
                         );
                       })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Retrasos acumulados (ticket 4a71c8d3). Va después del resumen de
+              horas porque contesta a otra pregunta: no cuánto se trabaja, sino
+              quién llega tarde. Fichar pasada la hora de entrada no se bloquea
+              ni se ajusta —eso sería regalar minutos—, así que sin este cuadro
+              el retraso queda registrado y no salta en ninguna parte. */}
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                    <AlarmClock className="h-4 w-4 text-amber-600" /> Retrasos acumulados
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+                    Entradas fichadas más tarde de la hora de su turno, con{" "}
+                    <strong className="font-medium text-slate-500">
+                      {margenRetrasos} min de cortesía
+                    </strong>{" "}
+                    (el mismo margen que el fichaje fuera de horario, en Configuración → Fichajes).
+                    Solo cuentan los días con cuadrante publicado: sin hora de entrada fijada no hay
+                    retraso que medir.
+                  </p>
+                </div>
+              </div>
+
+              {retrasos.length === 0 ? (
+                <p className="text-center py-8 text-slate-400 text-sm">
+                  Nadie ha llegado tarde en este periodo.
+                </p>
+              ) : (
+                <div className="overflow-x-auto mt-3 -mx-6">
+                  <table className="w-full">
+                    <thead className="bg-slate-50 border-y border-slate-200">
+                      <tr>
+                        {[
+                          "Empleado",
+                          "Retrasos",
+                          "Minutos acumulados",
+                          "Media",
+                          "El peor",
+                          "Último",
+                          "",
+                        ].map((h, i) => (
+                          <th
+                            key={`${h}-${i}`}
+                            className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 px-4 py-2.5"
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {retrasos.map((r) => (
+                        <tr key={r.userId} className="border-b border-slate-100 last:border-0">
+                          <td className="px-4 py-3 text-sm">
+                            <span className="font-medium text-slate-800">{r.nombre}</span>
+                            <span className="block text-xs text-slate-400">
+                              {r.sede ?? "Sin sede"} · {r.turnos} turno{r.turnos === 1 ? "" : "s"}{" "}
+                              en el periodo
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={
+                                r.retrasos > 0
+                                  ? "text-base font-bold tabular-nums text-amber-700"
+                                  : "text-sm tabular-nums text-slate-400"
+                              }
+                            >
+                              {r.retrasos}
+                            </span>
+                            {r.turnos > 0 && r.retrasos > 0 && (
+                              <span className="block text-xs text-slate-400 tabular-nums">
+                                {Math.round((r.retrasos / r.turnos) * 100)} % de sus turnos
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm tabular-nums text-slate-700">
+                            {r.minutosTotales} min
+                          </td>
+                          <td className="px-4 py-3 text-sm tabular-nums text-slate-500">
+                            {r.retrasos > 0 ? `${r.mediaMinutos} min` : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-sm tabular-nums text-slate-500">
+                            {r.peorRetraso > 0 ? `${r.peorRetraso} min` : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-slate-500">
+                            {r.ultimoRetraso
+                              ? new Date(`${r.ultimoRetraso}T00:00:00`).toLocaleDateString("es-ES", {
+                                  day: "2-digit",
+                                  month: "short",
+                                })
+                              : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Link href={enlaceFichajes(r.userId)}>
+                              <Button variant="ghost" size="sm">Ver fichajes →</Button>
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>

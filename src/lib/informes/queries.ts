@@ -16,6 +16,8 @@
 
 import { Rol, TipoFichaje } from "@/generated/prisma-tenant/client";
 import type { PrismaClient } from "@/generated/prisma-tenant/client";
+import { calcularRetrasos } from "@/lib/informes/retrasos";
+import { MARGEN_FICHAJE_DEFAULT } from "@/lib/fichajes/horario-turno";
 import {
   diasDelPeriodo,
   diferenciaContrato,
@@ -30,7 +32,9 @@ export type InformeTipo =
   | "turnos"
   | "resumen"
   | "presencia"
-  | "presencia-global";
+  | "presencia-global"
+  /** Retrasos acumulados por empleado (ticket 4a71c8d3). */
+  | "retrasos";
 
 export type InformeQueryArgs = {
   tipo: InformeTipo;
@@ -75,6 +79,7 @@ export async function getInformeData(
     "resumen",
     "presencia",
     "presencia-global",
+    "retrasos",
   ];
   if (!tiposValidos.includes(tipo)) {
     return { ok: false, error: "Parámetro 'tipo' inválido", status: 400 };
@@ -136,6 +141,12 @@ export async function getInformeData(
     return {
       ok: true,
       data: await informePresencia(prisma, roleFilter, userRol, userTiendaId, fecha),
+    };
+  }
+  if (tipo === "retrasos") {
+    return {
+      ok: true,
+      data: await informeRetrasos(prisma, roleFilter, inicio!, fin!),
     };
   }
   if (tipo === "presencia-global") {
@@ -435,6 +446,86 @@ async function informeResumen(
     empleados: empleadosResumen,
     stats,
     total: empleados.length,
+  };
+}
+
+/**
+ * Retrasos acumulados por empleado (ticket 4a71c8d3): quién llega tarde y
+ * cuánto, sobre la hora de entrada de su cuadrante.
+ *
+ * Fichar después de la hora de entrada no se bloquea ni se ajusta —ajustarlo
+ * sería regalar minutos y falsear la jornada—, así que el retraso se registra y
+ * no salta en ninguna parte. Este informe es el que lo saca.
+ *
+ * Se mide con el mismo margen de cortesía que el bloqueo de fichaje fuera de
+ * horario: dos definiciones distintas de "llegar tarde" en el mismo producto
+ * serían imposibles de explicar.
+ */
+async function informeRetrasos(
+  prisma: PrismaClient,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  roleFilter: any,
+  inicio: Date,
+  fin: Date,
+): Promise<InformePayload> {
+  const [entradas, turnos, cfg] = await Promise.all([
+    prisma.fichaje.findMany({
+      where: { ...roleFilter, tipo: "ENTRADA", timestamp: { gte: inicio, lte: fin } },
+      select: { userId: true, timestamp: true },
+      orderBy: { timestamp: "asc" },
+    }),
+    prisma.turno.findMany({
+      where: {
+        ...roleFilter,
+        estado: "PUBLICADO",
+        // La ventana de turnos se abre un día por cada lado: un turno de noche
+        // cruza medianoche y su entrada puede caer en el día de al lado.
+        fecha: {
+          gte: new Date(inicio.getTime() - 86_400_000),
+          lte: new Date(fin.getTime() + 86_400_000),
+        },
+      },
+      select: { userId: true, fecha: true, horaInicio: true },
+    }),
+    prisma.configuracionEmpresa.findUnique({
+      where: { id: "singleton" },
+      select: { margenFichajeMinutos: true, zonaHoraria: true },
+    }),
+  ]);
+
+  const filas = calcularRetrasos({
+    entradas,
+    turnos,
+    margenMin: cfg?.margenFichajeMinutos ?? MARGEN_FICHAJE_DEFAULT,
+    zona: cfg?.zonaHoraria ?? "Europe/Madrid",
+  });
+
+  // Nombres y sede para pintar la tabla; el cálculo va por id.
+  const personas = await prisma.user.findMany({
+    where: { id: { in: filas.map((f) => f.userId) } },
+    select: { id: true, nombre: true, apellidos: true, tienda: { select: { nombre: true } } },
+  });
+  const porId = new Map(personas.map((p) => [p.id, p]));
+
+  return {
+    tipo: "retrasos",
+    margenMinutos: cfg?.margenFichajeMinutos ?? MARGEN_FICHAJE_DEFAULT,
+    empleados: filas.map((f) => {
+      const p = porId.get(f.userId);
+      return {
+        userId: f.userId,
+        nombre: p ? `${p.nombre} ${p.apellidos}`.trim() : "—",
+        sede: p?.tienda?.nombre ?? null,
+        turnos: f.turnosConEntrada,
+        retrasos: f.retrasos,
+        minutosTotales: f.minutosTotales,
+        // Media sobre los días que llegó tarde, no sobre todos: es "cuánto
+        // llega tarde cuando llega tarde".
+        mediaMinutos: f.retrasos > 0 ? Math.round(f.minutosTotales / f.retrasos) : 0,
+        peorRetraso: f.peorRetraso,
+        ultimoRetraso: f.ultimoRetraso,
+      };
+    }),
   };
 }
 
