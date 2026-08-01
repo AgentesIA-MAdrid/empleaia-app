@@ -1,7 +1,7 @@
 /**
  * GET /api/cierre-turno/hoy — el cierre de hoy del propio comercial, con lo que
  * ya tenga guardado. Sirve para que el asistente recupere el borrador si cierra
- * el móvil a media faena, en vez de empezar de cero.
+ * a media faena, en vez de empezar de cero.
  *
  * Devuelve también EN QUÉ TIENDA está trabajando hoy (ticket 8c05f3e1): la que
  * ya tenga fijada el cierre o, si aún no hay, la que se le va a proponer para
@@ -15,6 +15,11 @@
  * Y dice si hoy le toca a esta persona **preparar el arqueo semanal**
  * (ticket 3b7e05d1): último turno del domingo en su sede, sin que nadie lo haya
  * declarado ya. Es un paso obligatorio más del cierre.
+ *
+ * `pendienteEnSede` es distinto de `toca`: es domingo, la tienda no ha declarado
+ * su arqueo y a esta persona no le sale el paso porque el cuadrante dice que sale
+ * otro después. Si el cuadrante está mal —y a veces lo está—, el domingo se
+ * quedaría sin arquear sin que nadie se entere. Se le avisa para que lo diga.
  */
 
 import { auth } from "@/lib/auth";
@@ -25,7 +30,7 @@ import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
 import { diaMadrid, pasosPendientes } from "@/lib/cierre-turno/core";
 import { sugerirSedeDelDia } from "@/lib/cierre-turno/sede-del-dia";
-import { tocaArqueo } from "@/lib/cierre-turno/arqueo-obligatorio";
+import { esUltimoDiaDeLaSemana, tocaArqueo } from "@/lib/cierre-turno/arqueo-obligatorio";
 import { semanaISO } from "@/lib/cierre-turno/arqueos";
 
 export const GET = withTenant(
@@ -103,8 +108,15 @@ export const GET = withTenant(
     // ¿Le toca hoy preparar el arqueo de la semana? Solo se mira si ya sabemos
     // en qué tienda está: sin sede no hay caja que arquear.
     const semana = semanaISO(fecha);
-    let arqueo: { toca: boolean; semana: string; sede: string | null } = {
+    let arqueo: {
+      toca: boolean;
+      /** Domingo y la tienda sigue sin declarar, aunque a él no le salga el paso. */
+      pendienteEnSede: boolean;
+      semana: string;
+      sede: string | null;
+    } = {
       toca: false,
+      pendienteEnSede: false,
       semana,
       sede: sede?.nombre ?? null,
     };
@@ -119,14 +131,18 @@ export const GET = withTenant(
           select: { id: true },
         }),
       ]);
+      const sedeSinCaja = sedeCompleta.sinEfectivo || sedeCompleta.esOficina;
+      const toca = tocaArqueo({
+        fecha,
+        userId,
+        turnosDeLaSede,
+        arqueoYaDeclarado: Boolean(arqueoSemana),
+        sedeSinCaja,
+      });
       arqueo = {
-        toca: tocaArqueo({
-          fecha,
-          userId,
-          turnosDeLaSede,
-          arqueoYaDeclarado: Boolean(arqueoSemana),
-          sedeSinCaja: sedeCompleta.sinEfectivo || sedeCompleta.esOficina,
-        }),
+        toca,
+        pendienteEnSede:
+          !toca && !sedeSinCaja && !arqueoSemana && esUltimoDiaDeLaSemana(fecha),
         semana,
         sede: sedeCompleta.nombre,
       };

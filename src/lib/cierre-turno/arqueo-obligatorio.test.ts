@@ -83,3 +83,51 @@ describe("tocaArqueo", () => {
     expect(tocaArqueo({ ...base, sedeSinCaja: true })).toBe(false);
   });
 });
+
+/**
+ * El aviso de "tu tienda sigue sin arquear" (misma regla, otra lectura): es
+ * domingo, nadie ha declarado y a esta persona no le sale el paso porque el
+ * cuadrante dice que sale otro después. Si el cuadrante está mal, el domingo se
+ * quedaría sin arquear sin que nadie se entere.
+ */
+describe("cuándo hay que avisar de que la tienda sigue sin arquear", () => {
+  const pendienteEnSede = (args: {
+    fecha: Date;
+    userId: string;
+    turnosDeLaSede: { userId: string; horaFin: string }[];
+    arqueoYaDeclarado: boolean;
+    sedeSinCaja: boolean;
+  }) =>
+    !tocaArqueo(args) &&
+    !args.sedeSinCaja &&
+    !args.arqueoYaDeclarado &&
+    esUltimoDiaDeLaSemana(args.fecha);
+
+  const base = {
+    fecha: DOMINGO,
+    userId: "u_mañana",
+    turnosDeLaSede: TURNOS,
+    arqueoYaDeclarado: false,
+    sedeSinCaja: false,
+  };
+
+  it("al de la mañana se le avisa: puede que sea él quien cierre de verdad", () => {
+    expect(pendienteEnSede(base)).toBe(true);
+  });
+
+  it("a quien le toca hacerlo no se le avisa: ya tiene el paso", () => {
+    expect(pendienteEnSede({ ...base, userId: "u_tarde" })).toBe(false);
+  });
+
+  it("declarado por un compañero: nada que avisar", () => {
+    expect(pendienteEnSede({ ...base, arqueoYaDeclarado: true })).toBe(false);
+  });
+
+  it("entre semana no se avisa de nada", () => {
+    expect(pendienteEnSede({ ...base, fecha: SABADO })).toBe(false);
+  });
+
+  it("en una sede sin caja nuestra, tampoco", () => {
+    expect(pendienteEnSede({ ...base, sedeSinCaja: true })).toBe(false);
+  });
+});

@@ -156,7 +156,7 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
       }
       await cargar();
     } catch {
-      toast({ title: "Sin conexión", description: "Revisa la cobertura.", variant: "destructive" });
+      toast({ title: "Sin conexión", description: "Revisa la conexión.", variant: "destructive" });
     } finally {
       setConfirmandoSede(false);
     }

@@ -5,11 +5,12 @@
  * sobres esperando en la misma tienda (ticket 6d24af90). Por eso acepta
  * `arqueoIds` y los firma todos de una vez, con un solo PIN.
  *
- * Quién firma es **`recogidoPorId`**, no quien tiene la sesión abierta: en la
- * tienda el móvil lo lleva el comercial, y quien se lleva el dinero es el
- * responsable que acaba de entrar por la puerta. Se elige de la lista de
- * autorizados y teclea su PIN ahí mismo; esa es la firma. Si no se manda, firma
- * quien esté en sesión (el caso de que el propio responsable use su móvil).
+ * Quién firma es **`recogidoPorId`**, no quien tiene la sesión abierta: el
+ * dispositivo desde el que se opera es el de la tienda —el ordenador del
+ * mostrador, o un móvil— y quien se lleva el dinero es el responsable que acaba
+ * de entrar por la puerta. Se elige de la lista de autorizados y teclea su PIN
+ * ahí mismo; esa es la firma. Si no se manda, firma quien esté en sesión (el
+ * caso de que el responsable entre con su propia cuenta).
  *
  * El PIN se guarda en bcrypt, nunca en claro. Tras varios fallos seguidos se
  * bloquea la firma un rato (no la cuenta): quien recoge está físicamente en la

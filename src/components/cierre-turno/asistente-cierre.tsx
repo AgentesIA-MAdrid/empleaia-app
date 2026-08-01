@@ -5,7 +5,7 @@
  *
  * Cada comercial cierra SU caja (decidido con el cliente el 2026-07-30): es lo
  * que permite atribuir un descuadre a una persona. El borrador se guarda al
- * avanzar de paso, así que cerrar el móvil a media faena no pierde el trabajo.
+ * avanzar de paso, así que dejarlo a media faena no pierde el trabajo.
  *
  * Confirmar la caja es irreversible para el comercial: a partir de ahí solo un
  * administrador puede corregirla, y queda registrado. Se avisa antes.
@@ -312,11 +312,13 @@ export function AsistenteCierre({
   const [motivoSede, setMotivoSede] = useState<MotivoSede>("ninguna");
   const [confirmandoSede, setConfirmandoSede] = useState(false);
   /** Hoy cierra él la tienda: le toca el arqueo de la semana (ticket 3b7e05d1). */
-  const [arqueo, setArqueo] = useState<{ toca: boolean; semana: string; sede: string | null }>({
-    toca: false,
-    semana: "",
-    sede: null,
-  });
+  const [arqueo, setArqueo] = useState<{
+    toca: boolean;
+    /** Domingo y su tienda sin arquear, aunque a él no le salga el paso. */
+    pendienteEnSede: boolean;
+    semana: string;
+    sede: string | null;
+  }>({ toca: false, pendienteEnSede: false, semana: "", sede: null });
   const [arqueoEfectivo, setArqueoEfectivo] = useState("");
   const [arqueoNotas, setArqueoNotas] = useState("");
   const [arqueoHecho, setArqueoHecho] = useState<{
@@ -342,7 +344,7 @@ export function AsistenteCierre({
             setCatalogoVacio(Boolean(data.catalogoVacio));
           }
         }
-        // Recupera lo ya guardado hoy: cerrar el móvil no debe costar el trabajo.
+        // Recupera lo ya guardado hoy: cerrar la sesión a medias no debe costar el trabajo.
         if (resHoy.ok) {
           const hoy = (await resHoy.json()) as {
             existe: boolean;
@@ -355,7 +357,12 @@ export function AsistenteCierre({
             sedeCierre?: string | null;
             sedes?: { id: string; nombre: string }[];
             sugerida?: { sedeId: string | null; motivo: MotivoSede };
-            arqueo?: { toca: boolean; semana: string; sede: string | null };
+            arqueo?: {
+              toca: boolean;
+              pendienteEnSede: boolean;
+              semana: string;
+              sede: string | null;
+            };
           };
           if (!cancelado) {
             setSedeSinEfectivo(hoy.sedeSinEfectivo === true);
@@ -417,7 +424,7 @@ export function AsistenteCierre({
       setProgreso(null);
       onGuardado?.();
     } catch {
-      toast({ title: "Sin conexión", description: "No se ha podido guardar. Revisa la cobertura.", variant: "destructive" });
+      toast({ title: "Sin conexión", description: "No se ha podido guardar. Revisa la conexión.", variant: "destructive" });
     } finally {
       setConfirmandoSede(false);
     }
@@ -495,7 +502,7 @@ export function AsistenteCierre({
       onGuardado?.();
       return true;
     } catch {
-      toast({ title: "Sin conexión", description: "No se ha podido guardar. Revisa la cobertura.", variant: "destructive" });
+      toast({ title: "Sin conexión", description: "No se ha podido guardar. Revisa la conexión.", variant: "destructive" });
       return false;
     } finally {
       setGuardando(false);
@@ -595,8 +602,8 @@ export function AsistenteCierre({
     await cargarAdjuntos();
   };
 
-  // Los adjuntos se cargan al llegar al paso de caja, no antes: en el móvil
-  // cada petición cuenta.
+  // Los adjuntos se cargan al llegar al paso de caja, no antes: con datos del
+  // móvil, cada petición cuenta.
   useEffect(() => {
     if (paso === "caja") void cargarAdjuntos();
   }, [paso, cargarAdjuntos]);
@@ -885,7 +892,7 @@ export function AsistenteCierre({
                           <tr>
                             {/* El sticky va en la CELDA y no en la fila: en
                                 Safari e iOS `position: sticky` sobre un <tr> no
-                                hace nada, y su equipo ficha desde el móvil. */}
+                                hace nada, y parte del equipo cierra desde el móvil. */}
                             <td
                               colSpan={2}
                               className={`sticky top-0 z-10 px-3 py-2 ${color.fondo}`}
@@ -957,13 +964,19 @@ export function AsistenteCierre({
 
             <div>
               <Label htmlFor="detalle-jornada">Detalle de la jornada</Label>
+              {/* Lo que no es una venta del catálogo no se declara arriba y, sin
+                  esto, un día entero de gestiones parece un día vacío. */}
+              <p className="text-xs text-slate-500 mt-0.5">
+                Aquí va lo que no es una venta de la lista: duplicados, recargas, gestiones,
+                seguimiento. Rellénalo también los días flojos: es lo que los explica.
+              </p>
               <textarea
                 id="detalle-jornada"
                 rows={4}
                 className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                 value={detalle}
                 onChange={(e) => setDetalle(e.target.value)}
-                placeholder="Qué has hecho durante el turno: visitas, gestiones, seguimiento…"
+                placeholder="Duplicados, recargas, cambios de titular, una portabilidad que se cayó, un cliente que vuelve mañana a firmar…"
               />
             </div>
           </CardContent>
@@ -1327,6 +1340,24 @@ export function AsistenteCierre({
       {paso === "incidencias" && (
         <Card>
           <CardContent className="pt-4 pb-4 space-y-4">
+            {/* Es domingo, la tienda sigue sin arquear y a esta persona no le ha
+                salido el paso porque el cuadrante dice que sale otro después. Si
+                el cuadrante está mal, el domingo se quedaría sin arquear sin que
+                nadie se entere: se le avisa para que lo diga. */}
+            {arqueo.pendienteEnSede && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>
+                  <strong>
+                    {arqueo.sede ?? "Tu tienda"} todavía no ha declarado el arqueo de esta
+                    semana.
+                  </strong>{" "}
+                  Si eres tú quien cierra hoy la tienda, avisa a un responsable y cuéntalo aquí
+                  como incidencia: el dinero no se puede quedar sin arquear.
+                </span>
+              </div>
+            )}
+
             <div>
               <p className="text-sm font-medium text-slate-800 mb-2">
                 ¿Ha habido alguna incidencia en el turno?

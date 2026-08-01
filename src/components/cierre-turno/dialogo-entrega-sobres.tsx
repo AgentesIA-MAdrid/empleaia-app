@@ -14,10 +14,11 @@
  *  1. **Qué sobres se lleva.** Todos los pendientes, de todas las semanas, con
  *     su importe y cuánto llevan esperando. Vienen todos marcados: lo normal es
  *     llevárselos todos, y desmarcar es más rápido que ir marcando.
- *  2. **Quién se los lleva, y su PIN.** El móvil lo tiene el comercial de la
- *     tienda, así que el responsable se elige de la lista y teclea su PIN ahí
- *     mismo: esa es la firma. Solo salen los que tienen PIN puesto — sin PIN no
- *     hay forma de firmar.
+ *  2. **Quién se los lleva, y su PIN.** Quien tiene el dispositivo delante es
+ *     la tienda —el ordenador del mostrador o un móvil, según el sitio—, así que
+ *     el responsable se elige de la lista y teclea su PIN ahí mismo: esa es la
+ *     firma. Solo salen los que tienen PIN puesto — sin PIN no hay forma de
+ *     firmar.
  *
  * El PIN se comprueba en el servidor contra el hash de esa persona, y los tres
  * fallos seguidos bloquean la firma un rato. Aquí no se guarda ni se enseña.
@@ -141,7 +142,7 @@ export function DialogoEntregaSobres({
       onFirmado();
       onCerrar();
     } catch {
-      toast({ title: "Sin conexión", description: "No se ha podido firmar. Revisa la cobertura.", variant: "destructive" });
+      toast({ title: "Sin conexión", description: "No se ha podido firmar. Revisa la conexión.", variant: "destructive" });
     } finally {
       setFirmando(false);
     }
@@ -280,7 +281,8 @@ export function DialogoEntregaSobres({
                 placeholder="••••"
               />
               <p className="text-xs text-slate-400 mt-1">
-                Lo teclea el responsable. Queda registrado que este dinero se lo llevó él.
+                Que lo teclee el responsable en este dispositivo. Queda registrado que este
+                dinero se lo llevó él.
               </p>
             </div>
 
