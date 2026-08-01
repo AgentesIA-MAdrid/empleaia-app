@@ -504,8 +504,23 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
 
                 {f.notas && <p className="text-sm text-slate-600">«{f.notas}»</p>}
 
-                {/* Declarar / corregir. Un arqueo recogido ya no se toca. */}
-                {f.estado !== "recogido" && (
+                {/* Declarar / corregir. Un arqueo recogido ya no se toca.
+                    Y solo administración: el arqueo lo prepara quien cierra la
+                    tienda el domingo, DENTRO de su cierre de turno (ticket
+                    3b7e05d1). Tener aquí un segundo sitio donde declararlo se
+                    presta a que se meta dos veces o a destiempo; esto queda como
+                    lo que es, la pantalla de control, con la corrección en manos
+                    de quien puede arreglarlo. */}
+                {/* Al equipo se le dice dónde se hace, para que no busque aquí
+                    un botón que ya no está. */}
+                {f.estado === "sin_declarar" && !esAdmin && (
+                  <p className="text-xs text-slate-500">
+                    El arqueo se prepara al cerrar el turno del domingo, en tu Cierre de turno.
+                    Si hay algo que corregir, lo hace administración.
+                  </p>
+                )}
+
+                {f.estado !== "recogido" && esAdmin && (
                   <>
                     {declarando === f.tiendaId ? (
                       <div className="rounded-md border border-slate-200 p-3 space-y-3">
