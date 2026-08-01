@@ -106,3 +106,44 @@ describe("generarPDF", () => {
     expect(buf.length).toBeGreaterThan(100);
   });
 });
+
+describe("hoja de incidencias (ticket c1e94a7b)", () => {
+  const CON_INCIDENCIAS: Record<string, unknown> = {
+    tipo: "resumen",
+    empleados: [{ nombre: "Ana", horasTotales: 120 }],
+    incidenciasTurnos: [
+      {
+        Fecha: "2026-07-15",
+        Empleado: "Luis Pérez",
+        Sede: "NEKSUS CARTAGENA",
+        Turno: "10:00-17:00",
+        Incidencia: "Turno previsto sin fichaje (no trabajado)",
+        Detalle: "Corregido el 2026-08-01",
+      },
+    ],
+  };
+
+  it("los turnos no trabajados salen en su propia hoja, no en la principal", async () => {
+    const ExcelJS = (await import("exceljs")).default;
+    const buf = await generarExcel(CON_INCIDENCIAS);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf as unknown as ArrayBuffer);
+
+    const hojas = wb.worksheets.map((w) => w.name);
+    expect(hojas).toContain("Incidencias");
+
+    const ws = wb.getWorksheet("Incidencias")!;
+    // Cabecera + una fila.
+    expect(ws.rowCount).toBe(2);
+    expect(ws.getRow(2).values).toContain("Luis Pérez");
+    expect(ws.getRow(2).values).toContain("10:00-17:00");
+  });
+
+  it("sin incidencias no se añade la hoja: no se enseña una pestaña vacía", async () => {
+    const ExcelJS = (await import("exceljs")).default;
+    const buf = await generarExcel({ tipo: "resumen", empleados: [{ nombre: "Ana" }] });
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf as unknown as ArrayBuffer);
+    expect(wb.worksheets.map((w) => w.name)).not.toContain("Incidencias");
+  });
+});

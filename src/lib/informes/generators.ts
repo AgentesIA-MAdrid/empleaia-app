@@ -134,6 +134,21 @@ export async function generarExcel(payload: InformePayload): Promise<Buffer> {
       wsStats.addRow([k, typeof v === "object" ? JSON.stringify(v) : v as string | number | boolean | null]);
     }
   }
+  // Hoja "Incidencias": los turnos que estaban en el cuadrante y no se
+  // trabajaron (ticket c1e94a7b). Sus horas NO cuentan en el informe de horas
+  // —por eso el cliente las quería aparte— pero tienen que poder mirarse: son
+  // justo los días que hay que revisar con cada persona.
+  const incidencias = payload.incidenciasTurnos;
+  if (Array.isArray(incidencias) && incidencias.length > 0) {
+    const ws2 = wb.addWorksheet("Incidencias");
+    const filas = incidencias as Record<string, unknown>[];
+    const colsInc = columnsFromRows(filas);
+    ws2.addRow(colsInc);
+    for (const row of filas) {
+      ws2.addRow(colsInc.map((c) => (row[c] ?? "") as string | number | boolean | null));
+    }
+  }
+
   const arrayBuffer = await wb.xlsx.writeBuffer();
   return Buffer.from(arrayBuffer as ArrayBuffer);
 }
