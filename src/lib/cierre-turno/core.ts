@@ -10,8 +10,18 @@
  */
 
 /** Pasos del asistente diario, en orden. */
-export const PASOS_CIERRE = ["ventas", "resultados", "caja", "incidencias"] as const;
+export const PASOS_CIERRE = ["ventas", "resultados", "caja", "arqueo", "incidencias"] as const;
 export type PasoCierre = (typeof PASOS_CIERRE)[number];
+
+/**
+ * Los pasos que ve esta persona hoy. El arqueo solo aparece cuando le toca
+ * —último turno del domingo en su sede, ver `arqueo-obligatorio.ts`—: al resto
+ * de la gente y el resto de la semana no se le enseña un paso que no puede
+ * hacer (ticket 3b7e05d1).
+ */
+export function pasosDelCierre(opts: { conArqueo: boolean }): PasoCierre[] {
+  return PASOS_CIERRE.filter((p) => p !== "arqueo" || opts.conArqueo);
+}
 
 /** Estados de un cierre. "incompleto" no se guarda: se deduce del día. */
 export type EstadoCierre = "borrador" | "completado" | "revisado";

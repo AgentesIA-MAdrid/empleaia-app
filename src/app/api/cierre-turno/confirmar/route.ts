@@ -5,6 +5,11 @@
  * Exige tener la caja confirmada: sin caja, el cierre no está hecho. Lo que NO
  * exige es haber vendido algo — un día sin ventas es un dato válido.
  *
+ * Y, si es el último turno del domingo en su sede, exige el **arqueo semanal**
+ * declarado (ticket 3b7e05d1): quien cierra la tienda ese día es quien cuenta el
+ * efectivo acumulado y lo mete en el sobre. Se comprueba aquí y no solo en la
+ * pantalla, que es donde de verdad se decide.
+ *
  * Si marca incidencia, sale el aviso a administración y al coordinador de la
  * sede. El correo es best-effort: el cierre queda registrado aunque falle.
  */
@@ -17,6 +22,8 @@ import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
 import { diaMadrid, normalizarIncidencia } from "@/lib/cierre-turno/core";
 import { notifyCierreConIncidencia } from "@/lib/cierre-turno/notify";
+import { tocaArqueo } from "@/lib/cierre-turno/arqueo-obligatorio";
+import { semanaISO } from "@/lib/cierre-turno/arqueos";
 
 export const POST = withTenant(
   withFeature("cierre_turno", async (req: NextRequest) => {
@@ -41,8 +48,9 @@ export const POST = withTenant(
       select: {
         id: true,
         completadoEn: true,
+        tiendaId: true,
         user: { select: { id: true, nombre: true, apellidos: true } },
-        tienda: { select: { id: true, nombre: true } },
+        tienda: { select: { id: true, nombre: true, sinEfectivo: true, esOficina: true } },
         caja: { select: { efectivo: true, tarjeta: true, confirmadoEn: true } },
         ventas: { select: { nombreArticulo: true, cantidad: true } },
       },
@@ -65,6 +73,42 @@ export const POST = withTenant(
         { error: "Antes de cerrar el turno tienes que confirmar el cierre de caja.", code: "sin_caja" },
         { status: 409 },
       );
+    }
+
+    // El arqueo del domingo: si le toca a esta persona y no está declarado, el
+    // turno no se cierra. Es el único paso del cierre que es de la TIENDA y no
+    // suyo, y por eso se comprueba contra el arqueo de la sede, no contra algo
+    // que él lleve encima.
+    if (cierre.tiendaId && cierre.tienda) {
+      const semana = semanaISO(fecha);
+      const [turnosDeLaSede, arqueoSemana] = await Promise.all([
+        prisma.turno.findMany({
+          where: { tiendaId: cierre.tiendaId, fecha, estado: "PUBLICADO" },
+          select: { userId: true, horaFin: true },
+        }),
+        prisma.arqueo.findUnique({
+          where: { tiendaId_semana: { tiendaId: cierre.tiendaId, semana } },
+          select: { id: true },
+        }),
+      ]);
+      if (
+        tocaArqueo({
+          fecha,
+          userId,
+          turnosDeLaSede,
+          arqueoYaDeclarado: Boolean(arqueoSemana),
+          sedeSinCaja: cierre.tienda.sinEfectivo || cierre.tienda.esOficina,
+        })
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Hoy cierras tú la tienda: cuenta el efectivo acumulado, mételo en el sobre y declara el arqueo de la semana antes de cerrar el turno.",
+            code: "sin_arqueo",
+          },
+          { status: 409 },
+        );
+      }
     }
 
     await prisma.cierreTurno.update({

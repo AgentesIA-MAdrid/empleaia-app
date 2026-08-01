@@ -40,6 +40,7 @@ export const ETIQUETA_PASO: Record<PasoCierre, string> = {
   ventas: "ventas del día",
   resultados: "resultados",
   caja: "cierre de caja",
+  arqueo: "arqueo semanal",
   incidencias: "cerrar el turno",
 };
 

@@ -13,6 +13,12 @@
  * El asistente NO condiciona el fichaje: se puede fichar la salida sin haber
  * cerrado (RD 8/2019, misma regla que el geofencing y el checklist de fichaje).
  *
+ * Los domingos, a quien cierra la tienda le sale un paso más: el **arqueo
+ * semanal** (ticket 3b7e05d1). Cuenta el efectivo acumulado, lo mete en un sobre
+ * y lo declara; sin eso no puede cerrar el turno. El importe se pide a ciegas —
+ * la cifra esperada se le enseña DESPUÉS de guardar—: si la ve antes, la teclea
+ * sin contar y el arqueo deja de detectar descuadres.
+ *
  * Lo primero que se le pregunta es en qué tienda ha trabajado hoy, con la
  * respuesta ya elegida (ticket 8c05f3e1): el cierre usaba la sede de su ficha, y
  * quien no tiene ninguna —un correturnos— se encontraba los objetivos de tienda
@@ -31,7 +37,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PASOS_CIERRE, type PasoCierre } from "@/lib/cierre-turno/core";
+import { pasosDelCierre, type PasoCierre } from "@/lib/cierre-turno/core";
 import type { MotivoSede } from "@/lib/cierre-turno/sede-del-dia";
 import {
   agruparCatalogo,
@@ -261,6 +267,7 @@ const TITULOS: Record<PasoCierre, string> = {
   ventas: "Ventas del día",
   resultados: "Cómo vas",
   caja: "Cierre de caja",
+  arqueo: "Arqueo semanal",
   incidencias: "Incidencias",
 };
 
@@ -304,6 +311,20 @@ export function AsistenteCierre({
   const [sedeElegida, setSedeElegida] = useState("");
   const [motivoSede, setMotivoSede] = useState<MotivoSede>("ninguna");
   const [confirmandoSede, setConfirmandoSede] = useState(false);
+  /** Hoy cierra él la tienda: le toca el arqueo de la semana (ticket 3b7e05d1). */
+  const [arqueo, setArqueo] = useState<{ toca: boolean; semana: string; sede: string | null }>({
+    toca: false,
+    semana: "",
+    sede: null,
+  });
+  const [arqueoEfectivo, setArqueoEfectivo] = useState("");
+  const [arqueoNotas, setArqueoNotas] = useState("");
+  const [arqueoHecho, setArqueoHecho] = useState<{
+    declarado: number;
+    esperado: number | null;
+    diferencia: number | null;
+    descuadre: boolean;
+  } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -334,6 +355,7 @@ export function AsistenteCierre({
             sedeCierre?: string | null;
             sedes?: { id: string; nombre: string }[];
             sugerida?: { sedeId: string | null; motivo: MotivoSede };
+            arqueo?: { toca: boolean; semana: string; sede: string | null };
           };
           if (!cancelado) {
             setSedeSinEfectivo(hoy.sedeSinEfectivo === true);
@@ -343,6 +365,7 @@ export function AsistenteCierre({
             // buscar su tienda en una lista de veinte.
             setSedeElegida(hoy.sedeCierre ?? hoy.sugerida?.sedeId ?? "");
             setMotivoSede(hoy.sugerida?.motivo ?? "ninguna");
+            if (hoy.arqueo) setArqueo(hoy.arqueo);
           }
           if (!cancelado && hoy.existe) {
             setDetalle(hoy.detalleJornada ?? "");
@@ -400,7 +423,54 @@ export function AsistenteCierre({
     }
   };
 
-  const indice = PASOS_CIERRE.indexOf(paso);
+  // Los pasos de HOY: el arqueo solo si le toca cerrar la tienda.
+  const pasos = pasosDelCierre({ conArqueo: arqueo.toca || arqueoHecho !== null });
+  const indice = pasos.indexOf(paso);
+
+  /**
+   * Declara el arqueo de la semana de su tienda. El importe va a ciegas: la
+   * comparación con lo que debería haber se le enseña al volver la respuesta.
+   */
+  const guardarArqueo = async (): Promise<boolean> => {
+    if (!arqueoEfectivo.trim()) {
+      toast({
+        title: "Falta el importe",
+        description: "Cuenta el efectivo del sobre y escribe cuánto hay.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    setGuardando(true);
+    try {
+      const res = await fetch("/api/arqueos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          semana: arqueo.semana,
+          efectivo: arqueoEfectivo,
+          notas: arqueoNotas,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({ title: "No se pudo guardar el arqueo", description: data.error ?? "", variant: "destructive" });
+        return false;
+      }
+      setArqueoHecho({
+        declarado: data.declarado,
+        esperado: data.esperado ?? null,
+        diferencia: data.diferencia ?? null,
+        descuadre: Boolean(data.descuadre),
+      });
+      onGuardado?.();
+      return true;
+    } catch {
+      toast({ title: "Sin conexión", description: "No se ha podido guardar el arqueo.", variant: "destructive" });
+      return false;
+    } finally {
+      setGuardando(false);
+    }
+  };
 
 
   /** Guarda el paso 1. Se llama al avanzar: nadie tiene que acordarse de pulsar guardar. */
@@ -575,6 +645,12 @@ export function AsistenteCierre({
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast({ title: "No se pudo cerrar", description: data.error ?? "Inténtalo de nuevo.", variant: "destructive" });
+        // Le falta el arqueo del domingo: se le lleva al paso, en vez de dejarlo
+        // con un aviso y sin saber dónde se hace.
+        if (data.code === "sin_arqueo") {
+          setArqueo((a) => ({ ...a, toca: true }));
+          setPaso("arqueo");
+        }
         return;
       }
       setCerrado(true);
@@ -596,7 +672,9 @@ export function AsistenteCierre({
   const siguiente = async () => {
     if (paso === "ventas" && !(await guardarBorrador())) return;
     if (paso === "caja" && !cajaConfirmada && !(await guardarCaja(false))) return;
-    setPaso(PASOS_CIERRE[Math.min(PASOS_CIERRE.length - 1, indice + 1)]);
+    // Del arqueo no se sale sin declararlo: es el paso que cierra la tienda.
+    if (paso === "arqueo" && !arqueoHecho && !(await guardarArqueo())) return;
+    setPaso(pasos[Math.min(pasos.length - 1, indice + 1)]!);
   };
   const totalUnidades = useMemo(
     () => Object.values(cantidades).reduce((n, v) => n + (parseInt(v, 10) || 0), 0),
@@ -717,7 +795,7 @@ export function AsistenteCierre({
 
       {/* Tira de pasos: la numeración es información real, es una secuencia. */}
       <ol className="flex flex-wrap gap-2">
-        {PASOS_CIERRE.map((p, i) => (
+        {pasos.map((p, i) => (
           <li key={p}>
             <button
               type="button"
@@ -1149,6 +1227,103 @@ export function AsistenteCierre({
         </Card>
       )}
 
+      {paso === "arqueo" && (
+        <Card>
+          <CardContent className="pt-4 pb-4 space-y-4">
+            <div className="rounded-lg border border-violet-200 bg-violet-50 p-3">
+              <p className="text-sm font-semibold text-violet-900">
+                Hoy cierras tú la tienda: toca el arqueo de la semana
+              </p>
+              <p className="text-xs text-violet-800 mt-1">
+                Cuenta todo el efectivo acumulado de {arqueo.sede ?? "la tienda"}, mételo en un
+                sobre y escribe aquí cuánto hay. <strong>El fondo de cambio se queda en el
+                cajón</strong>: no lo cuentes ni lo metas en el sobre. El sobre espera en la
+                tienda a que pase un responsable a recogerlo y firmarlo.
+              </p>
+            </div>
+
+            {arqueoHecho ? (
+              <>
+                <div
+                  className={
+                    arqueoHecho.descuadre
+                      ? "rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 flex items-start gap-2"
+                      : "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 flex items-start gap-2"
+                  }
+                >
+                  {arqueoHecho.descuadre ? (
+                    <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+                  )}
+                  <span>
+                    {arqueoHecho.esperado === null ? (
+                      <>
+                        Arqueo registrado: <strong>{eur(arqueoHecho.declarado)}</strong>. La caja
+                        de esta tienda estaba pendiente de aclarar, así que no se puede comparar.
+                      </>
+                    ) : arqueoHecho.descuadre ? (
+                      <>
+                        Has metido <strong>{eur(arqueoHecho.declarado)}</strong> y debería haber{" "}
+                        <strong>{eur(arqueoHecho.esperado)}</strong>:{" "}
+                        {eur(Math.abs(arqueoHecho.diferencia ?? 0))}{" "}
+                        {(arqueoHecho.diferencia ?? 0) > 0 ? "de más" : "de menos"}. Cuéntalo en
+                        el siguiente paso como incidencia.
+                      </>
+                    ) : (
+                      <>
+                        Cuadra: <strong>{eur(arqueoHecho.declarado)}</strong>. El sobre queda a la
+                        espera de que lo recojan.
+                      </>
+                    )}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Si te has equivocado, un administrador puede corregirlo desde Arqueos.
+                </p>
+              </>
+            ) : (
+              <>
+                <div>
+                  <Label htmlFor="arqueo-efectivo">Efectivo que va al sobre</Label>
+                  <Input
+                    id="arqueo-efectivo"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="mt-1 tabular-nums"
+                    value={arqueoEfectivo}
+                    onChange={(e) => setArqueoEfectivo(e.target.value)}
+                    placeholder="0,00"
+                  />
+                  {/* A ciegas a propósito: si ve antes lo que debería haber, lo
+                      teclea sin contar y el arqueo no detecta nada. */}
+                  <p className="text-xs text-slate-400 mt-1">
+                    Cuéntalo primero. Al guardar te decimos si cuadra.
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="arqueo-notas">¿Algo que aclarar? (opcional)</Label>
+                  <textarea
+                    id="arqueo-notas"
+                    rows={2}
+                    className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                    value={arqueoNotas}
+                    onChange={(e) => setArqueoNotas(e.target.value)}
+                    placeholder="Faltan 20 € que puse de cambio, un billete roto…"
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <Button variant="outline" disabled={guardando} onClick={() => void guardarArqueo()}>
+                    {guardando ? "Guardando…" : "Declarar el arqueo"}
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {paso === "incidencias" && (
         <Card>
           <CardContent className="pt-4 pb-4 space-y-4">
@@ -1196,11 +1371,11 @@ export function AsistenteCierre({
         <Button
           variant="outline"
           disabled={indice === 0}
-          onClick={() => setPaso(PASOS_CIERRE[Math.max(0, indice - 1)])}
+          onClick={() => setPaso(pasos[Math.max(0, indice - 1)]!)}
         >
           Atrás
         </Button>
-        {indice === PASOS_CIERRE.length - 1 ? (
+        {indice === pasos.length - 1 ? (
           <Button disabled={guardando || cerrado} onClick={() => void cerrarTurno()}>
             {cerrado ? "Turno cerrado" : guardando ? "Cerrando…" : "Cerrar turno"}
           </Button>

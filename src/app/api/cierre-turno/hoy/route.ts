@@ -11,6 +11,10 @@
  * Por qué: el cierre usaba la sede de la ficha, y un correturnos sin sede veía
  * "No tienes sede asignada" en los objetivos de tienda y en la caja estando de
  * hecho trabajando en una.
+ *
+ * Y dice si hoy le toca a esta persona **preparar el arqueo semanal**
+ * (ticket 3b7e05d1): último turno del domingo en su sede, sin que nadie lo haya
+ * declarado ya. Es un paso obligatorio más del cierre.
  */
 
 import { auth } from "@/lib/auth";
@@ -21,6 +25,8 @@ import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
 import { diaMadrid, pasosPendientes } from "@/lib/cierre-turno/core";
 import { sugerirSedeDelDia } from "@/lib/cierre-turno/sede-del-dia";
+import { tocaArqueo } from "@/lib/cierre-turno/arqueo-obligatorio";
+import { semanaISO } from "@/lib/cierre-turno/arqueos";
 
 export const GET = withTenant(
   withFeature("cierre_turno", async () => {
@@ -39,7 +45,14 @@ export const GET = withTenant(
     const [sedesActivas, entradaHoy, turnoHoy, cierre] = await Promise.all([
       prisma.tienda.findMany({
         where: { activa: true },
-        select: { id: true, nombre: true, latitud: true, longitud: true, sinEfectivo: true },
+        select: {
+          id: true,
+          nombre: true,
+          latitud: true,
+          longitud: true,
+          sinEfectivo: true,
+          esOficina: true,
+        },
         orderBy: { nombre: "asc" },
       }),
       prisma.fichaje.findFirst({
@@ -79,12 +92,45 @@ export const GET = withTenant(
     // La sede del día es la que confirmó al empezar; mientras no confirme, la
     // de su ficha (que es lo que se usaba antes de existir el selector).
     const sedeEfectivaId = cierre?.tiendaId ?? tiendaId;
-    const sede = sedesActivas.find((t) => t.id === sedeEfectivaId) ?? null;
+    const sedeCompleta = sedesActivas.find((t) => t.id === sedeEfectivaId) ?? null;
+    const sede = sedeCompleta;
     // Si su sede es de las que venden sin que el dinero sea nuestro (un córner
     // que liquida el tercero), el paso de caja no pide importes: pide el stock y
     // los tickets de las ventas facturadas (ticket 9d4e17c2).
     const sedeSinEfectivo = sede?.sinEfectivo === true;
     const sedes = sedesActivas.map((t) => ({ id: t.id, nombre: t.nombre }));
+
+    // ¿Le toca hoy preparar el arqueo de la semana? Solo se mira si ya sabemos
+    // en qué tienda está: sin sede no hay caja que arquear.
+    const semana = semanaISO(fecha);
+    let arqueo: { toca: boolean; semana: string; sede: string | null } = {
+      toca: false,
+      semana,
+      sede: sede?.nombre ?? null,
+    };
+    if (sedeEfectivaId && sedeCompleta) {
+      const [turnosDeLaSede, arqueoSemana] = await Promise.all([
+        prisma.turno.findMany({
+          where: { tiendaId: sedeEfectivaId, fecha, estado: "PUBLICADO" },
+          select: { userId: true, horaFin: true },
+        }),
+        prisma.arqueo.findUnique({
+          where: { tiendaId_semana: { tiendaId: sedeEfectivaId, semana } },
+          select: { id: true },
+        }),
+      ]);
+      arqueo = {
+        toca: tocaArqueo({
+          fecha,
+          userId,
+          turnosDeLaSede,
+          arqueoYaDeclarado: Boolean(arqueoSemana),
+          sedeSinCaja: sedeCompleta.sinEfectivo || sedeCompleta.esOficina,
+        }),
+        semana,
+        sede: sedeCompleta.nombre,
+      };
+    }
 
     if (!cierre) {
       return NextResponse.json({
@@ -96,6 +142,7 @@ export const GET = withTenant(
         sedeCierre: null,
         sugerida,
         sedes,
+        arqueo,
         pendientes: ["ventas", "caja", "incidencias"],
       });
     }
@@ -108,6 +155,7 @@ export const GET = withTenant(
       sedeCierre: cierre.tiendaId,
       sugerida,
       sedes,
+      arqueo,
       cerrado: Boolean(cierre.completadoEn),
       detalleJornada: cierre.detalleJornada ?? "",
       incidencia: cierre.incidencia,
