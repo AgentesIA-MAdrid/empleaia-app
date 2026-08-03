@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, KeyRound, Wallet } from "lucide-react";
+import { AlertTriangle, CheckCircle2, KeyRound, Pencil, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -44,6 +44,17 @@ interface FilaArqueo {
   recogidoPor: string | null;
   recogidoEn: string | null;
   efectivoRecogido: number | null;
+  /** Correcciones de administración, la más reciente primero. */
+  correcciones: {
+    id: string;
+    declaradoAntes: number;
+    declaradoDespues: number;
+    recogidoAntes: number | null;
+    recogidoDespues: number | null;
+    motivo: string;
+    cuando: string;
+    quien: string;
+  }[];
 }
 
 interface Respuesta {
@@ -110,6 +121,16 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
   const [recogido, setRecogido] = useState("");
   const [guardando, setGuardando] = useState(false);
   /** Sin sede propia: la tienda que dice que está cubriendo hoy (ticket 8c05f3e1). */
+  /**
+   * Corrección de un arqueo ya firmado (ticket 5a71fe28). Va aparte del
+   * formulario de declarar porque pide algo que ese no pide: el motivo, que aquí
+   * es obligatorio y queda registrado con nombre y fecha.
+   */
+  const [corrigiendo, setCorrigiendo] = useState<string | null>(null);
+  const [corDeclarado, setCorDeclarado] = useState("");
+  const [corRecogido, setCorRecogido] = useState("");
+  const [corMotivo, setCorMotivo] = useState("");
+
   const [sedeElegida, setSedeElegida] = useState("");
   const [confirmandoSede, setConfirmandoSede] = useState(false);
   /** Ventana de entrega: el responsable se lleva varios sobres de una vez. */
@@ -253,6 +274,52 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
     } finally {
       setGuardando(false);
     }
+  };
+
+  /** Corrige los importes de un arqueo firmado, dejando constancia de por qué. */
+  const corregir = async (f: FilaArqueo) => {
+    if (!f.arqueoId) return;
+    setGuardando(true);
+    try {
+      const res = await fetch("/api/arqueos/corregir", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          arqueoId: f.arqueoId,
+          efectivoDeclarado: corDeclarado,
+          // Solo se manda si el arqueo está firmado: si no, el servidor lo rechaza.
+          ...(f.estado === "recogido" ? { efectivoRecogido: corRecogido } : {}),
+          motivo: corMotivo,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({
+          title: "No se ha corregido",
+          description: (data as { error?: string }).error ?? "",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Arqueo corregido",
+        description: `${f.sede}: ${eur(Number((data as { declarado: number }).declarado))}. Queda registrado quién lo ha cambiado y por qué.`,
+      });
+      setCorrigiendo(null);
+      setCorMotivo("");
+      await cargar();
+    } catch {
+      toast({ title: "Sin conexión", description: "No se ha corregido nada.", variant: "destructive" });
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const abrirCorreccion = (f: FilaArqueo) => {
+    setCorrigiendo(f.arqueoId);
+    setCorDeclarado(f.declarado === null ? "" : String(f.declarado));
+    setCorRecogido(f.efectivoRecogido === null ? "" : String(f.efectivoRecogido));
+    setCorMotivo("");
   };
 
   const esAdmin = datos?.yo.rol === "OWNER";
@@ -519,6 +586,104 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                     Cierre de turno.
                     Si hay algo que corregir, lo hace administración.
                   </p>
+                )}
+
+                {/* Un arqueo YA FIRMADO también se puede corregir, pero solo
+                    administración y con motivo: si el importe estaba mal, antes
+                    se quedaba mal para siempre (ticket 5a71fe28). */}
+                {f.estado === "recogido" && esAdmin && (
+                  corrigiendo === f.arqueoId ? (
+                    <div className="rounded-md border border-[var(--border)] p-3 space-y-3">
+                      <p className="text-sm text-[var(--text-body)]">
+                        Este arqueo ya lo firmó {f.recogidoPor ?? "un responsable"}. Corrige los
+                        importes y di por qué: queda registrado con tu nombre.
+                      </p>
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        <div>
+                          <Label htmlFor={`cor-declarado-${f.tiendaId}`}>
+                            Efectivo que había en el sobre
+                          </Label>
+                          <Input
+                            id={`cor-declarado-${f.tiendaId}`}
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className="mt-1 tabular-nums"
+                            value={corDeclarado}
+                            onChange={(e) => setCorDeclarado(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor={`cor-recogido-${f.tiendaId}`}>
+                            Efectivo que se llevó
+                          </Label>
+                          <Input
+                            id={`cor-recogido-${f.tiendaId}`}
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className="mt-1 tabular-nums"
+                            value={corRecogido}
+                            onChange={(e) => setCorRecogido(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor={`cor-motivo-${f.tiendaId}`}>Por qué lo corriges</Label>
+                        <Input
+                          id={`cor-motivo-${f.tiendaId}`}
+                          className="mt-1"
+                          value={corMotivo}
+                          onChange={(e) => setCorMotivo(e.target.value)}
+                          placeholder="Se contó dos veces un billete de 50; recuento con la tienda el lunes."
+                        />
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button variant="ghost" size="sm" onClick={() => setCorrigiendo(null)}>
+                          Cancelar
+                        </Button>
+                        <Button
+                          size="sm"
+                          disabled={guardando || corMotivo.trim().length < 5}
+                          onClick={() => void corregir(f)}
+                        >
+                          {guardando ? "Guardando…" : "Guardar corrección"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <Button variant="outline" size="sm" onClick={() => abrirCorreccion(f)}>
+                        <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                        Corregir arqueo
+                      </Button>
+                    </div>
+                  )
+                )}
+
+                {/* El rastro, para todos: el empleado tiene derecho a ver que le
+                    han cambiado su arqueo y por qué. */}
+                {f.correcciones.length > 0 && (
+                  <div className="rounded-md border border-[var(--border)] bg-[var(--muted)] px-3 py-2 space-y-1.5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                      Corregido por administración
+                    </p>
+                    {f.correcciones.map((c) => (
+                      <p key={c.id} className="text-xs text-[var(--text-body)]">
+                        <span className="tabular-nums">
+                          {eur(c.declaradoAntes)} → <strong>{eur(c.declaradoDespues)}</strong>
+                        </span>
+                        {c.recogidoAntes !== c.recogidoDespues && (
+                          <span className="tabular-nums">
+                            {" "}· se llevó {eur(c.recogidoAntes ?? 0)} →{" "}
+                            <strong>{eur(c.recogidoDespues ?? 0)}</strong>
+                          </span>
+                        )}
+                        {" · "}
+                        {c.quien}, {fechaCorta(c.cuando.slice(0, 10))} · «{c.motivo}»
+                      </p>
+                    ))}
+                  </div>
                 )}
 
                 {f.estado !== "recogido" && esAdmin && (

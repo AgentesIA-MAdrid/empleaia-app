@@ -394,6 +394,7 @@ model User {
   /// daría acceso a nóminas y al resto de la administración.
   cierreTurnoPiloto    Boolean             @default(false) @map("cierre_turno_piloto")
   arqueosDeclarados    Arqueo[]            @relation("ArqueoDeclaradoPor")
+  arqueosCorregidos    ArqueoCorreccion[]  @relation("ArqueoCorregidoPor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2148,8 +2149,40 @@ model Arqueo {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  correcciones ArqueoCorreccion[]
+
   @@unique([tiendaId, semana])
   @@index([estado])
+}
+
+/// Cada vez que administración corrige un arqueo (ticket 5a71fe28).
+///
+/// La app le promete al empleado que sus importes solo los puede cambiar un
+/// administrador y que "quedará registrado quién lo cambió y por qué". Esto es
+/// ese registro: sin él, corregir dinero ya firmado sería un cambio invisible.
+///
+/// Se guardan los importes ANTERIORES, no un diff: dentro de un año el arqueo
+/// puede haberse corregido tres veces y lo que interesa es la cadena.
+model ArqueoCorreccion {
+  id       String @id @default(cuid())
+  arqueoId String
+  arqueo   Arqueo @relation(fields: [arqueoId], references: [id], onDelete: Cascade)
+
+  /// Lo que había antes de esta corrección.
+  declaradoAntes Decimal  @db.Decimal(10, 2) @map("declarado_antes")
+  recogidoAntes  Decimal? @db.Decimal(10, 2) @map("recogido_antes")
+  /// Y lo que quedó.
+  declaradoDespues Decimal  @db.Decimal(10, 2) @map("declarado_despues")
+  recogidoDespues  Decimal? @db.Decimal(10, 2) @map("recogido_despues")
+
+  /// Por qué. Obligatorio: un importe corregido sin motivo no se puede auditar.
+  motivo String
+
+  corregidoPorId String   @map("corregido_por_id")
+  corregidoPor   User     @relation("ArqueoCorregidoPor", fields: [corregidoPorId], references: [id])
+  createdAt      DateTime @default(now())
+
+  @@index([arqueoId, createdAt])
 }
 
 /// Importes que constan facturados en el sistema del operador, importados desde

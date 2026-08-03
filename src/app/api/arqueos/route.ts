@@ -157,6 +157,22 @@ export const GET = withTenant(
           recogidoEn: true,
           declaradoPor: { select: { nombre: true, apellidos: true } },
           recogidoPor: { select: { nombre: true, apellidos: true } },
+          // El rastro de las correcciones de administración (ticket 5a71fe28):
+          // un importe cambiado a mano tiene que verse en la misma pantalla en
+          // la que se mira el dinero, no en un log aparte que nadie abre.
+          correcciones: {
+            select: {
+              id: true,
+              declaradoAntes: true,
+              declaradoDespues: true,
+              recogidoAntes: true,
+              recogidoDespues: true,
+              motivo: true,
+              createdAt: true,
+              corregidoPor: { select: { nombre: true, apellidos: true } },
+            },
+            orderBy: { createdAt: "desc" },
+          },
         },
       }),
       prisma.tienda.findMany({
@@ -237,6 +253,16 @@ export const GET = withTenant(
         recogidoPor: a?.recogidoPor ? `${a.recogidoPor.nombre} ${a.recogidoPor.apellidos}`.trim() : null,
         recogidoEn: a?.recogidoEn?.toISOString() ?? null,
         efectivoRecogido: a?.efectivoRecogido === null || a?.efectivoRecogido === undefined ? null : Number(a.efectivoRecogido),
+        correcciones: (a?.correcciones ?? []).map((c) => ({
+          id: c.id,
+          declaradoAntes: Number(c.declaradoAntes),
+          declaradoDespues: Number(c.declaradoDespues),
+          recogidoAntes: c.recogidoAntes === null ? null : Number(c.recogidoAntes),
+          recogidoDespues: c.recogidoDespues === null ? null : Number(c.recogidoDespues),
+          motivo: c.motivo,
+          cuando: c.createdAt.toISOString(),
+          quien: `${c.corregidoPor.nombre} ${c.corregidoPor.apellidos}`.trim(),
+        })),
       };
     });
 
