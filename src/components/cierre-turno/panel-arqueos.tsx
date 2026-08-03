@@ -34,6 +34,9 @@ interface FilaArqueo {
   cobradoDesdeArranque: number;
   /** Lo que debería haber acumulado en el cajón, sin el fondo de cambio. */
   esperado: number | null;
+  /** El mismo cálculo con los saldos de hoy (puede diferir del congelado). */
+  esperadoEnVivo: number | null;
+  esperadoDesfasado: boolean;
   sinSaldoMotivo: "sin_arranque" | "arranque_en_incidencia" | null;
   diferencia: number | null;
   descuadre: boolean;
@@ -132,6 +135,7 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
   const [corDeclarado, setCorDeclarado] = useState("");
   const [corRecogido, setCorRecogido] = useState("");
   const [corMotivo, setCorMotivo] = useState("");
+  const [corRecalcular, setCorRecalcular] = useState(false);
 
   const [sedeElegida, setSedeElegida] = useState("");
   const [confirmandoSede, setConfirmandoSede] = useState(false);
@@ -292,6 +296,7 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
           // Solo se manda si el arqueo está firmado: si no, el servidor lo rechaza.
           ...(f.estado === "recogido" ? { efectivoRecogido: corRecogido } : {}),
           motivo: corMotivo,
+          recalcularEsperado: corRecalcular,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -309,6 +314,7 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
       });
       setCorrigiendo(null);
       setCorMotivo("");
+      setCorRecalcular(false);
       await cargar();
     } catch {
       toast({ title: "Sin conexión", description: "No se ha corregido nada.", variant: "destructive" });
@@ -322,6 +328,9 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
     setCorDeclarado(f.declarado === null ? "" : String(f.declarado));
     setCorRecogido(f.efectivoRecogido === null ? "" : String(f.efectivoRecogido));
     setCorMotivo("");
+    // Si el acumulado con el que se declaró ya no es el que sale hoy, lo normal
+    // es querer ponerlo al día: viene marcado.
+    setCorRecalcular(f.esperadoDesfasado);
   };
 
   const esAdmin = datos?.yo.rol === "OWNER";
@@ -549,7 +558,8 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                     </span>
                     <span className="text-[var(--text-muted)]">=</span>
                     <span className="font-semibold text-[var(--text-dark)]">
-                      acumulado <span className="tabular-nums">{eur(f.esperado)}</span>
+                      acumulado{" "}
+                      <span className="tabular-nums">{eur(f.esperadoEnVivo ?? f.esperado)}</span>
                     </span>
                   </div>
                 ) : (
@@ -615,6 +625,24 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                   </p>
                 )}
 
+                {/* El arqueo se declaró contra un acumulado que ya no es el que
+                    sale hoy: pasa cuando se corrige el saldo de partida DESPUÉS
+                    de declarar. Se dice, en vez de dejar dos cifras que no
+                    cuadran sin explicación (ticket 5a71fe28). */}
+                {f.esperadoDesfasado && (
+                  <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900 flex items-start gap-2">
+                    <HelpCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <span>
+                      Este arqueo se declaró contra un acumulado de{" "}
+                      <strong className="tabular-nums">{eur(f.esperado ?? 0)}</strong>, y con los
+                      saldos de hoy saldría{" "}
+                      <strong className="tabular-nums">{eur(f.esperadoEnVivo ?? 0)}</strong> — el
+                      saldo de partida de la tienda se corrigió después.
+                      {esAdmin ? " Al corregir el arqueo puedes ponerlo al día." : ""}
+                    </span>
+                  </div>
+                )}
+
                 {/* Corregir un arqueo ya declarado —firmado o no— es cambiar
                     dinero que declaró otra persona: va con motivo y deja rastro,
                     en vez de sobrescribirlo en silencio (ticket 5a71fe28).
@@ -670,6 +698,22 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                           placeholder="Se contó dos veces un billete de 50; recuento con la tienda el lunes."
                         />
                       </div>
+                      {f.esperadoDesfasado && (
+                        <label className="flex items-start gap-2 cursor-pointer text-sm text-[var(--text-body)]">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)]"
+                            checked={corRecalcular}
+                            onChange={(e) => setCorRecalcular(e.target.checked)}
+                          />
+                          <span>
+                            Poner al día el acumulado esperado:{" "}
+                            <span className="tabular-nums">{eur(f.esperado ?? 0)}</span> →{" "}
+                            <strong className="tabular-nums">{eur(f.esperadoEnVivo ?? 0)}</strong>
+                          </span>
+                        </label>
+                      )}
+
                       <div className="flex gap-2 justify-end">
                         <Button variant="ghost" size="sm" onClick={() => setCorrigiendo(null)}>
                           Cancelar

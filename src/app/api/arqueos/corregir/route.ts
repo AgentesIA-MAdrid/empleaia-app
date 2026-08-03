@@ -18,14 +18,18 @@
  *    `ArqueoCorreccion`, no como un diff: un arqueo puede corregirse varias
  *    veces y lo que interesa es la cadena.
  *
- * Lo que NO se toca aquí:
+ * El **acumulado esperado** (`saldoEsperado`) se congela al declarar y por
+ * defecto no se toca: si se recalculara en cada corrección, el arqueo cuadraría
+ * moviendo la vara de medir. Pero hay un caso en que sí hay que recalcularlo, y
+ * pasó el primer fin de semana: el **saldo de partida de la tienda estaba mal**
+ * (dato erróneo en el Excel de arranque) y se corrigió DESPUÉS de declarar el
+ * arqueo, así que el arqueo se quedó comparado contra una cifra que ya no existe.
+ * Para eso está `recalcularEsperado`, que lo pone al día con el cálculo de hoy y
+ * lo deja anotado en el motivo.
  *
- *  - El **saldo esperado** (`saldoEsperado`), que se deriva del acumulado de la
- *    caja. Si lo que está mal es el acumulado, se arregla su saldo de partida,
- *    no el arqueo: si no, cuadraría a base de mover la vara de medir.
- *  - El **arranque de la semana siguiente**. El dinero salió del cajón al sobre
- *    cuando se declaró; corregir cuánto había en el sobre no lo devuelve a la
- *    caja.
+ * Lo que no se toca en ningún caso es el **arranque de la semana siguiente**: el
+ * dinero salió del cajón al sobre cuando se declaró, y corregir cuánto había en
+ * el sobre no lo devuelve a la caja.
  */
 
 import { auth } from "@/lib/auth";
@@ -36,8 +40,8 @@ import { withTenant } from "@/lib/tenant/with-tenant";
 import { withFeature } from "@/lib/feature-guard/with-feature";
 import { esDescuadre } from "@/lib/cierre-turno/core";
 import { diferenciaSaldo } from "@/lib/cierre-turno/saldo-caja";
-import { normalizarEfectivoArqueo } from "@/lib/cierre-turno/arqueos";
-import { umbralDescuadre } from "@/lib/cierre-turno/caja-queries";
+import { normalizarEfectivoArqueo, rangoSemanaISO } from "@/lib/cierre-turno/arqueos";
+import { acumuladoDeSede, umbralDescuadre } from "@/lib/cierre-turno/caja-queries";
 
 /** Un motivo de tres letras no es un motivo. */
 const MOTIVO_MIN = 5;
@@ -61,6 +65,8 @@ export const PUT = withTenant(
       efectivoDeclarado?: unknown;
       efectivoRecogido?: unknown;
       motivo?: unknown;
+      /** Poner al día el acumulado contra el que se compara. */
+      recalcularEsperado?: unknown;
     } | null;
     if (!body || typeof body.arqueoId !== "string" || !body.arqueoId) {
       return NextResponse.json({ error: "Falta el arqueo." }, { status: 400 });
@@ -86,6 +92,7 @@ export const PUT = withTenant(
         efectivoDeclarado: true,
         efectivoRecogido: true,
         saldoEsperado: true,
+        tiendaId: true,
         tienda: { select: { nombre: true } },
       },
     });
@@ -117,9 +124,22 @@ export const PUT = withTenant(
       }
     }
 
+    // Recalcular el acumulado: solo cuando lo piden, y con el mismo cálculo que
+    // usa la pantalla, para que no haya dos verdades.
+    const esperadoAntes = arqueo.saldoEsperado === null ? null : Number(arqueo.saldoEsperado);
+    let esperadoNuevo = esperadoAntes;
+    if (body.recalcularEsperado === true) {
+      const { hasta } = rangoSemanaISO(arqueo.semana);
+      const saldo = await acumuladoDeSede(prisma, { tiendaId: arqueo.tiendaId, hasta });
+      esperadoNuevo = saldo.esperado;
+    }
+
     const declaradoAntes = Number(arqueo.efectivoDeclarado);
     const recogidoAntes = arqueo.efectivoRecogido === null ? null : Number(arqueo.efectivoRecogido);
-    const sinCambios = declaradoAntes === declarado.importe && recogidoAntes === recogido;
+    const sinCambios =
+      declaradoAntes === declarado.importe &&
+      recogidoAntes === recogido &&
+      esperadoNuevo === esperadoAntes;
     if (sinCambios) {
       return NextResponse.json(
         { error: "Los importes son los mismos: no hay nada que corregir." },
@@ -133,6 +153,7 @@ export const PUT = withTenant(
         data: {
           efectivoDeclarado: declarado.importe,
           ...(body.efectivoRecogido !== undefined ? { efectivoRecogido: recogido } : {}),
+          ...(esperadoNuevo !== esperadoAntes ? { saldoEsperado: esperadoNuevo } : {}),
         },
       });
       await tx.arqueoCorreccion.create({
@@ -142,13 +163,18 @@ export const PUT = withTenant(
           recogidoAntes,
           declaradoDespues: declarado.importe,
           recogidoDespues: recogido,
-          motivo: motivo.slice(0, MOTIVO_MAX),
+          // El recálculo del acumulado se anota en el propio motivo: es parte de
+          // lo que hay que poder auditar después.
+          motivo: (esperadoNuevo !== esperadoAntes
+            ? `${motivo} · Acumulado esperado recalculado: ${esperadoAntes ?? "—"} → ${esperadoNuevo ?? "—"}`
+            : motivo
+          ).slice(0, MOTIVO_MAX),
           corregidoPorId: userId,
         },
       });
     });
 
-    const esperado = arqueo.saldoEsperado === null ? null : Number(arqueo.saldoEsperado);
+    const esperado = esperadoNuevo;
     const diferencia = diferenciaSaldo(declarado.importe, esperado);
     const umbral = await umbralDescuadre(prisma);
 

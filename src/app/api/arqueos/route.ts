@@ -233,6 +233,12 @@ export const GET = withTenant(
       // la caja vuelve a cero, así que recalcularlo daría otro número. Lo que se
       // declaró aquel día es lo que tiene que seguir viéndose.
       const esperado = a && a.saldoEsperado !== null ? Number(a.saldoEsperado) : saldo.esperado;
+      // El cálculo de HOY, que puede diferir del congelado si el saldo de
+      // partida se corrigió después de declarar el arqueo. Se devuelven los dos:
+      // enseñar el desglose en vivo junto al total congelado daba una suma que no
+      // sumaba —"29,04 + 29,04 = 43,56"— y eso mina la confianza en la pantalla
+      // más que el propio descuadre (ticket 5a71fe28).
+      const esperadoEnVivo = saldo.esperado;
       const diferencia = declarado === null ? null : diferenciaSaldo(declarado, esperado);
 
       return {
@@ -251,6 +257,10 @@ export const GET = withTenant(
           : null,
         cobradoDesdeArranque: saldo.cobrado,
         esperado,
+        esperadoEnVivo,
+        /** El arqueo se declaró contra otro acumulado del que sale hoy. */
+        esperadoDesfasado:
+          esperado !== null && esperadoEnVivo !== null && esperado !== esperadoEnVivo,
         sinSaldoMotivo: esperado === null ? saldo.motivo : null,
         diferencia,
         descuadre: diferencia === null ? false : esDescuadre(diferencia, umbral),

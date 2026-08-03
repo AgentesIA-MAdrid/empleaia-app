@@ -18,6 +18,7 @@ const sesion = {
 const arqueo = {
   id: "arq1",
   semana: "2026-W31",
+  tiendaId: "t1",
   estado: "recogido",
   efectivoDeclarado: 500,
   efectivoRecogido: 500 as number | null,
@@ -31,6 +32,17 @@ const prismaMock = {
     update: vi.fn(async () => ({}) as unknown),
   },
   arqueoCorreccion: { create: vi.fn(async () => ({ id: "cor1" })) },
+  // Para recalcular el acumulado: el saldo de partida y los cierres posteriores.
+  fondoCaja: {
+    findMany: vi.fn(async () => [
+      { tiendaId: "t1", fecha: new Date("2026-07-31T00:00:00Z"), importe: 29.04, incidencia: null },
+    ]),
+  },
+  cierreCaja: {
+    groupBy: vi.fn(async () => [
+      { tiendaId: "t1", fecha: new Date("2026-08-01T00:00:00Z"), _sum: { efectivo: 29.04 } },
+    ]),
+  },
   configuracionEmpresa: { findUnique: vi.fn(async () => ({ umbralDescuadreEur: 1 })) },
   $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prismaMock)),
 };
@@ -203,5 +215,63 @@ describe("PUT /api/arqueos/corregir", () => {
       motivo: MOTIVO,
     });
     expect(status).toBe(404);
+  });
+});
+
+/**
+ * Cuando el saldo de partida de la tienda se corrige DESPUÉS de declarar el
+ * arqueo, el arqueo se queda comparado contra una cifra que ya no existe. Pasó
+ * el primer fin de semana con El Ferial (14,52 → 29,04).
+ */
+describe("PUT /api/arqueos/corregir — poner al día el acumulado esperado", () => {
+  it("recalculado, el arqueo se compara contra el acumulado de hoy", async () => {
+    // Arranque 29,04 (ya corregido) + 29,04 cobrados = 58,08.
+    const { status, data } = await corregir({
+      arqueoId: "arq1",
+      efectivoDeclarado: "58.08",
+      efectivoRecogido: "58.08",
+      motivo: MOTIVO,
+      recalcularEsperado: true,
+    });
+    expect(status).toBe(200);
+    expect(data.esperado).toBe(58.08);
+    // Y ahora cuadra: 58,08 declarados contra 58,08 esperados.
+    expect(data.diferencia).toBe(0);
+    expect(data.descuadre).toBe(false);
+  });
+
+  it("sin pedirlo, el acumulado congelado NO se toca", async () => {
+    // Recalcularlo en cada corrección sería cuadrar moviendo la vara de medir.
+    const { data } = await corregir({
+      arqueoId: "arq1",
+      efectivoDeclarado: "450",
+      motivo: MOTIVO,
+    });
+    expect(data.esperado).toBe(480);
+  });
+
+  it("el recálculo queda anotado en el motivo, con las dos cifras", async () => {
+    await corregir({
+      arqueoId: "arq1",
+      efectivoDeclarado: "58.08",
+      motivo: MOTIVO,
+      recalcularEsperado: true,
+    });
+    const [args] = prismaMock.arqueoCorreccion.create.mock.calls[0] as unknown as [
+      { data: { motivo: string } },
+    ];
+    expect(args.data.motivo).toContain("480");
+    expect(args.data.motivo).toContain("58.08");
+  });
+
+  it("recalcular solo el acumulado, sin cambiar importes, también es una corrección", async () => {
+    // El importe declarado puede estar bien y ser la vara la que estaba mal.
+    const { status } = await corregir({
+      arqueoId: "arq1",
+      efectivoDeclarado: "500",
+      motivo: MOTIVO,
+      recalcularEsperado: true,
+    });
+    expect(status).toBe(200);
   });
 });
