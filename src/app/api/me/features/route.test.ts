@@ -12,6 +12,8 @@
  *  - `prismaApp.user.count` / `tienda.count`: loaders del current opt-in.
  *  - `withTenant`: identidad envuelta en runWithTenant con un ctx fijo,
  *    para no resolver host ni tocar JWT.
+ *  - `auth`: sesión válida por defecto. El endpoint exige sesión desde la
+ *    auditoría del 2026-08-04 (expone plantilla y consumo del cliente).
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -52,6 +54,11 @@ vi.mock("@/lib/tenant/with-tenant", async () => {
   };
 });
 
+let sesion: { user: { id: string; rol: string } } | null = {
+  user: { id: "u_1", rol: "EMPLEADO" },
+};
+vi.mock("@/lib/auth", () => ({ auth: vi.fn(async () => sesion) }));
+
 import { prismaMaster, prismaRuntime, prismaApp } from "@/lib/prisma";
 import { _resetTypedCatalogForTest } from "@/lib/feature-guard/catalog";
 
@@ -64,6 +71,7 @@ beforeEach(() => {
   _resetTypedCatalogForTest();
   vi.clearAllMocks();
   mockCtx.features.clear();
+  sesion = { user: { id: "u_1", rol: "EMPLEADO" } };
 });
 
 async function callGET(): Promise<Response> {
@@ -270,5 +278,21 @@ describe("GET /api/me/features — clasificación ternaria", () => {
     expect(body.booleans).toEqual({ geofencing: true });
     expect(body.limits).not.toHaveProperty("zombie_feature");
     expect(body.quotas).not.toHaveProperty("zombie_feature");
+  });
+});
+
+describe("GET /api/me/features — exige sesión", () => {
+  it("sin sesión responde 401 y no cuenta empleados ni tiendas", async () => {
+    // `withTenant` resuelve el tenant por el Host, no autentica: sin este
+    // guard un anónimo leía plantilla activa, nº de tiendas y consumo de
+    // cuota de cualquier cliente sabiendo solo su subdominio.
+    sesion = null;
+    featureFindMany.mockResolvedValue([] as never);
+
+    const res = await callGET();
+
+    expect(res.status).toBe(401);
+    expect(userCount).not.toHaveBeenCalled();
+    expect(tiendaCount).not.toHaveBeenCalled();
   });
 });

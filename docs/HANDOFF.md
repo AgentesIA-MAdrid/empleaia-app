@@ -597,8 +597,11 @@ simulado" sin ellas, pero el envío real requiere:
   random. Se introduce en Meta App Dashboard → WhatsApp → Webhooks como
   "Verify token" al registrar la URL `https://<slug>.empleaia.es/api/webhooks/whatsapp/<slug>`.
 - `WHATSAPP_APP_SECRET` (en Dokploy): App Secret del App de Meta. Se usa
-  para validar la firma HMAC del webhook (`X-Hub-Signature-256`). Si no
-  está definido, el webhook acepta sin validar (modo dev).
+  para validar la firma HMAC del webhook (`X-Hub-Signature-256`). **Es
+  obligatorio si se usa el webhook, también en desarrollo**: la firma es
+  su única autenticación, así que sin secret el webhook rechaza todo
+  (401). Antes aceptaba sin validar, lo que dejaba el buzón de cualquier
+  tenant abierto a inyección — corregido en la auditoría del 2026-08-04.
 
 Por tenant (en `WhatsappConfig` desde `/admin/whatsapp-bot`):
 - `phoneNumberId` (Meta WhatsApp Business Account → Phone Number ID).

@@ -35,6 +35,7 @@
 
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { currentTenant } from "@/lib/tenant/context";
+import { auth } from "@/lib/auth";
 import { prismaApp, prismaRuntime } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import type { ResolvedFeature } from "@/lib/tenant/features";
@@ -57,6 +58,14 @@ const LIMIT_CURRENT_LOADERS: Record<string, () => Promise<number>> = {
 };
 
 export const GET = withTenant(async () => {
+  // Sin sesión no se responde: `current` expone plantilla activa y número
+  // de tiendas del cliente, y las quotas su consumo. `withTenant` no
+  // autentica (sólo cruza el JWT con el host cuando el JWT existe).
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
   const ctx = currentTenant();
 
   const catalog = await loadTypedFeatureCatalog();

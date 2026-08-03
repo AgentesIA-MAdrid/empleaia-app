@@ -88,16 +88,21 @@ export async function sendWhatsappText(
 
 /**
  * Verifica la firma del webhook de Meta (HMAC-SHA256 con APP_SECRET).
- * Si `WHATSAPP_APP_SECRET` no está configurado, no se valida (modo
- * dev): devolver `true` para no bloquear durante el setup. En prod
- * SIEMPRE definir el secret.
+ * La firma es la ÚNICA autenticación del webhook, así que sin secret se
+ * falla cerrado —como GitHub, Telegram y Stripe—: aceptar sin validar
+ * convertiría el endpoint en un buzón abierto donde cualquiera inyecta
+ * mensajes en la bandeja de un tenant. `WHATSAPP_APP_SECRET` es
+ * obligatorio para usar el webhook, también en desarrollo.
  */
 export async function verifyWebhookSignature(
   rawBody: string,
   signatureHeader: string | null,
 ): Promise<boolean> {
   const secret = process.env.WHATSAPP_APP_SECRET;
-  if (!secret) return true;
+  if (!secret) {
+    console.error("[whatsapp] WHATSAPP_APP_SECRET sin definir: webhook rechazado");
+    return false;
+  }
   if (!signatureHeader || !signatureHeader.startsWith("sha256=")) return false;
   const provided = signatureHeader.slice("sha256=".length);
   const { createHmac, timingSafeEqual } = await import("node:crypto");

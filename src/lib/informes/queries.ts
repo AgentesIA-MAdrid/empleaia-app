@@ -622,8 +622,16 @@ async function informeDiscrepancias(
   // Historial de lo ya corregido en el periodo (ticket c1e94a7b): el cuadro de
   // discrepancias solo enseña lo que sigue sin cuadrar, así que sin esto no
   // quedaría constancia de lo que se tocó ni de quién lo tocó.
+  // El alcance del rol se aplica igual que a `entradas` y `turnos`: sin esto
+  // un empleado veía sus incidencias pero el historial de TODA la empresa.
+  // Se comprueba `in` y no truthiness a propósito — un MANAGER sin sede tiene
+  // `tiendaId: null` y debe filtrar por null (nada), no dejar de filtrar.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const scopeHistorial: any = {};
+  if (roleFilter.userId) scopeHistorial.userId = roleFilter.userId;
+  if ("tiendaId" in roleFilter) scopeHistorial.user = { tiendaId: roleFilter.tiendaId };
   const historial = await prisma.correccionCuadrante.findMany({
-    where: { fecha: { gte: inicio, lte: fin } },
+    where: { ...scopeHistorial, fecha: { gte: inicio, lte: fin } },
     orderBy: { createdAt: "desc" },
     take: 200,
     select: {
@@ -686,6 +694,10 @@ async function informePresencia(
   const whereEmpleados: any = { activo: true, rol: { not: "OWNER" } };
   if (userRol === Rol.MANAGER) whereEmpleados.tiendaId = userTiendaId;
   if (roleFilter.tiendaId) whereEmpleados.tiendaId = roleFilter.tiendaId;
+  // Un empleado se ve a sí mismo y a nadie más. Este informe no está en
+  // TIPOS_AVANZADOS, así que lo alcanza cualquiera de cualquier plan: sin esta
+  // línea el panel de presencia de la empresa entera quedaba a un GET.
+  if (roleFilter.userId) whereEmpleados.id = roleFilter.userId;
 
   const empleados = await prisma.user.findMany({
     where: whereEmpleados,
