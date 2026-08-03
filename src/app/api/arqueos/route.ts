@@ -140,7 +140,7 @@ export const GET = withTenant(
     }
     const tiendaFiltro = filtro.tipo === "sedes" ? filtro.tiendaIds : null;
 
-    const [arqueos, sedes, porSede, umbral, quien] = await Promise.all([
+    const [arqueos, sedes, porSede, umbral, quien, semanasConDatos] = await Promise.all([
       prisma.arqueo.findMany({
         where: { semana, ...(tiendaFiltro ? { tiendaId: { in: tiendaFiltro } } : {}) },
         select: {
@@ -196,6 +196,16 @@ export const GET = withTenant(
         where: { activo: true, puedeRecogerEfectivo: true },
         select: { id: true, nombre: true, apellidos: true, pinRecogidaHash: true },
         orderBy: [{ apellidos: "asc" }, { nombre: "asc" }],
+      }),
+      // Qué semanas tienen arqueos, para poder navegar hasta ellos. El arqueo se
+      // hace el último día de la semana, así que el lunes siguiente la pantalla
+      // abría en una semana vacía y parecía que no existían (ticket 5a71fe28).
+      prisma.arqueo.groupBy({
+        by: ["semana"],
+        where: { ...(tiendaFiltro ? { tiendaId: { in: tiendaFiltro } } : {}) },
+        _count: true,
+        orderBy: { semana: "desc" },
+        take: 12,
       }),
     ]);
 
@@ -280,6 +290,12 @@ export const GET = withTenant(
         puedeRecoger: quien.some((q) => q.id === s.userId),
         tienePin: quien.some((q) => q.id === s.userId && Boolean(q.pinRecogidaHash)),
       },
+      // Las semanas con algo declarado, la más reciente primero.
+      semanasConArqueos: semanasConDatos.map((w) => ({
+        semana: w.semana,
+        texto: semanaLegible(w.semana),
+        arqueos: w._count,
+      })),
       autorizados: quien.map((q) => ({
         id: q.id,
         nombre: `${q.nombre} ${q.apellidos}`.trim(),

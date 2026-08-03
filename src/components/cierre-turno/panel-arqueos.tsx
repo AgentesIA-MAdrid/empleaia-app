@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, KeyRound, Pencil, Wallet } from "lucide-react";
+import { AlertTriangle, CheckCircle2, HelpCircle, KeyRound, Pencil, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -66,6 +66,8 @@ interface Respuesta {
   yo: { rol: string; puedeRecoger: boolean; tienePin: boolean };
   autorizados: { id: string; nombre: string; conPin: boolean }[];
   filas: FilaArqueo[];
+  /** Semanas que tienen arqueos declarados, la más reciente primero. */
+  semanasConArqueos?: { semana: string; texto: string; arqueos: number }[];
   /** El servidor no ha podido acotar por sede: esta persona no tiene ninguna. */
   sinSede?: boolean;
   /** Con `sinSede`: las tiendas entre las que elegir, y la que se le propone. */
@@ -366,6 +368,31 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
         </CardContent>
       </Card>
 
+      {/* El arqueo se hace el último día de la semana, así que al día siguiente
+          esta pantalla abre en una semana vacía y parece que no hay nada. Se
+          dice dónde están y se va con un clic (ticket 5a71fe28). */}
+      {!cargando &&
+        (datos?.filas ?? []).every((f) => f.estado === "sin_declarar") &&
+        (datos?.semanasConArqueos ?? []).length > 0 && (
+          <div className="rounded-md border border-[var(--border)] bg-[var(--muted)] px-3 py-2.5 text-sm text-[var(--text-body)] flex flex-wrap items-center gap-2">
+            <HelpCircle className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+            <span>Esta semana todavía no hay arqueos. Los últimos son de:</span>
+            {(datos?.semanasConArqueos ?? [])
+              .filter((w) => w.semana !== semana)
+              .slice(0, 3)
+              .map((w) => (
+                <button
+                  key={w.semana}
+                  type="button"
+                  onClick={() => setSemana(w.semana)}
+                  className="underline underline-offset-2 font-medium text-[var(--primary)]"
+                >
+                  {w.texto} ({w.arqueos})
+                </button>
+              ))}
+          </div>
+        )}
+
       {error && (
         <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
           {error}
@@ -588,15 +615,18 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                   </p>
                 )}
 
-                {/* Un arqueo YA FIRMADO también se puede corregir, pero solo
-                    administración y con motivo: si el importe estaba mal, antes
-                    se quedaba mal para siempre (ticket 5a71fe28). */}
-                {f.estado === "recogido" && esAdmin && (
+                {/* Corregir un arqueo ya declarado —firmado o no— es cambiar
+                    dinero que declaró otra persona: va con motivo y deja rastro,
+                    en vez de sobrescribirlo en silencio (ticket 5a71fe28).
+                    Declarar uno que no existe sigue siendo el otro formulario. */}
+                {f.estado !== "sin_declarar" && esAdmin && (
                   corrigiendo === f.arqueoId ? (
                     <div className="rounded-md border border-[var(--border)] p-3 space-y-3">
                       <p className="text-sm text-[var(--text-body)]">
-                        Este arqueo ya lo firmó {f.recogidoPor ?? "un responsable"}. Corrige los
-                        importes y di por qué: queda registrado con tu nombre.
+                        {f.estado === "recogido"
+                          ? `Este arqueo ya lo firmó ${f.recogidoPor ?? "un responsable"}.`
+                          : `Lo declaró ${f.declaradoPor ?? "la tienda"} y está esperando a que lo recojan.`}{" "}
+                        Corrige los importes y di por qué: queda registrado con tu nombre.
                       </p>
                       <div className="grid sm:grid-cols-2 gap-3">
                         <div>
@@ -613,20 +643,22 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                             onChange={(e) => setCorDeclarado(e.target.value)}
                           />
                         </div>
-                        <div>
-                          <Label htmlFor={`cor-recogido-${f.tiendaId}`}>
-                            Efectivo que se llevó
-                          </Label>
-                          <Input
-                            id={`cor-recogido-${f.tiendaId}`}
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            className="mt-1 tabular-nums"
-                            value={corRecogido}
-                            onChange={(e) => setCorRecogido(e.target.value)}
-                          />
-                        </div>
+                        {f.estado === "recogido" && (
+                          <div>
+                            <Label htmlFor={`cor-recogido-${f.tiendaId}`}>
+                              Efectivo que se llevó
+                            </Label>
+                            <Input
+                              id={`cor-recogido-${f.tiendaId}`}
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              className="mt-1 tabular-nums"
+                              value={corRecogido}
+                              onChange={(e) => setCorRecogido(e.target.value)}
+                            />
+                          </div>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor={`cor-motivo-${f.tiendaId}`}>Por qué lo corriges</Label>
@@ -686,7 +718,11 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                   </div>
                 )}
 
-                {f.estado !== "recogido" && esAdmin && (
+                {/* `esAdmin` NO envuelve este bloque entero a propósito: dentro
+                    vive el botón de firmar la recogida, y quien recoge el dinero
+                    suele ser un responsable que no es administrador. Cada cosa
+                    lleva su propia condición. */}
+                {f.estado !== "recogido" && (esAdmin || datos?.yo.puedeRecoger) && (
                   <>
                     {declarando === f.tiendaId ? (
                       <div className="rounded-md border border-[var(--border)] p-3 space-y-3">
@@ -728,9 +764,11 @@ export function PanelArqueos({ titulo, descripcion }: { titulo: string; descripc
                       </div>
                     ) : (
                       <div className="flex gap-2 flex-wrap">
-                        <Button variant="outline" size="sm" onClick={() => abrirDeclaracion(f)}>
-                          {f.estado === "sin_declarar" ? "Declarar efectivo" : "Corregir"}
-                        </Button>
+                        {f.estado === "sin_declarar" && esAdmin && (
+                          <Button variant="outline" size="sm" onClick={() => abrirDeclaracion(f)}>
+                            Declarar efectivo
+                          </Button>
+                        )}
                         {/* Firmar la recogida: solo quien está autorizado y con
                             PIN puesto, y solo si ya hay algo declarado. */}
                         {datos?.yo.puedeRecoger && f.estado === "pendiente" && (

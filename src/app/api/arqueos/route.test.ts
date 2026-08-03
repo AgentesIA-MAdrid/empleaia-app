@@ -38,6 +38,8 @@ const prismaMock = {
     findMany: vi.fn(async () => [] as unknown[]),
     // El arqueo de esa semana, para comprobar que no está ya recogido.
     findUnique: vi.fn(async () => null as { estado: string } | null),
+    // Qué semanas tienen arqueos, para poder navegar hasta ellos.
+    groupBy: vi.fn(async () => [] as { semana: string; _count: number }[]),
     upsert: vi.fn(async () => ({
       id: "arq1",
       efectivoDeclarado: 719.32,
@@ -140,6 +142,7 @@ beforeEach(async () => {
   vi.clearAllMocks();
   prismaMock.arqueo.findMany.mockResolvedValue([]);
   prismaMock.arqueo.findUnique.mockResolvedValue(null);
+  prismaMock.arqueo.groupBy.mockResolvedValue([]);
   prismaMock.tienda.findMany.mockResolvedValue(SEDES);
   prismaMock.fondoCaja.findMany.mockResolvedValue(FONDOS);
   prismaMock.user.findMany.mockResolvedValue([]);
@@ -281,5 +284,37 @@ describe("GET /api/arqueos — quien no tiene sede en su ficha", () => {
     expect(status).toBe(409);
     expect(data.code).toBe("sin_sede");
     expect(prismaMock.arqueo.upsert).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Encontrar los arqueos ya hechos (ticket 5a71fe28).
+ *
+ * El arqueo se prepara el ÚLTIMO día de la semana, así que el lunes siguiente
+ * esta pantalla abre en una semana vacía. Pasó de verdad: 14 arqueos declarados
+ * el sábado y el domingo, y el lunes el cliente no encontraba ninguno.
+ */
+describe("GET /api/arqueos — dónde están los arqueos ya hechos", () => {
+  it("dice qué semanas tienen arqueos, la más reciente primero", async () => {
+    prismaMock.arqueo.groupBy.mockResolvedValue([
+      { semana: "2026-W31", _count: 14 },
+      { semana: "2026-W30", _count: 1 },
+    ]);
+    const { data } = (await get("?semana=2026-W32")) as unknown as {
+      data: { semanasConArqueos: { semana: string; texto: string; arqueos: number }[] };
+    };
+    expect(data.semanasConArqueos[0]).toMatchObject({ semana: "2026-W31", arqueos: 14 });
+    // Y con su texto legible, que es lo que se pinta en el enlace.
+    expect(data.semanasConArqueos[0]?.texto).toContain("de julio");
+  });
+
+  it("sin ningún arqueo en el sistema devuelve una lista vacía, no un error", async () => {
+    prismaMock.arqueo.groupBy.mockResolvedValue([]);
+    const { status, data } = (await get()) as unknown as {
+      status: number;
+      data: { semanasConArqueos: unknown[] };
+    };
+    expect(status).toBe(200);
+    expect(data.semanasConArqueos).toEqual([]);
   });
 });
