@@ -129,6 +129,63 @@ del subdominio tenant (`(dashboard)/layout.tsx`) que SÍ está envuelto.
 - `/api/webhooks/**` — no son del tenant (Stripe, etc.).
 - `/api/admin/**` — Fase 7, panel super-admin con su propio contexto.
 
+## `withTenant` NO autentica — el handler debe comprobar la sesión
+
+Esto ya ha costado dos fugas en producción (auditoría 2026-08-04), así
+que va con todas las letras: **`withTenant` resuelve el tenant a partir
+del `Host` y solo cruza el JWT contra el slug _cuando el JWT existe_**:
+
+```ts
+// src/lib/tenant/with-tenant.ts
+if (token && token.tenantSlug !== ctx.slug) return 401;
+```
+
+Una petición **sin cookie** tiene `token === null`, no entra en ese `if`
+y llega al handler. El proxy tampoco cubre: `src/proxy.ts` hace
+`if (isApiRoute) return NextResponse.next()` **antes** del redirect a
+`/login`. Resultado real: `GET /api/organigrama` servía nombres,
+correos corporativos, rol y jerarquía de toda la plantilla a cualquiera
+que supiera el subdominio, y `/api/me/features` la plantilla activa, el
+número de tiendas y el plan.
+
+Todo handler nuevo empieza por identificar a quien llama:
+
+```ts
+export const GET = withTenant(async () => {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+  // …
+});
+```
+
+Lo vigila la regla ESLint `fichaje/route-must-check-auth`. Acepta como
+comprobación cualquier acreditación real —`auth()`, `getToken`,
+`withApiV1` (API key), `requireServiceAuth`, un token HMAC de un solo
+uso, un accessToken hasheado o un `process.env.*_SECRET` comparado a
+mano—, no solo NextAuth. Si una ruta es pública **de verdad**, va a
+`EXEMPT_PATHS` en `eslint.config.mjs` **con el motivo escrito al lado**;
+si el motivo no cabe en una línea, probablemente sea un bug.
+
+## Filtrar por sede: `null` no es "todas"
+
+El otro rastrillo recurrente. Este filtro es una fuga esperando a pasar:
+
+```ts
+...(tiendaId ? { tiendaId } : {})   // ⚠️ con null DESAPARECE el filtro
+```
+
+Cuando `tiendaId` sale del **alcance del rol** (la sede de un
+coordinador), un `null` no significa "enséñale todo": significa que no
+tiene sede y no hay nada que enseñarle. Usa `sedesDelUsuario` +
+`filtroSede` (`src/lib/cierre-turno/core.ts`), que distinguen `todas`,
+`sedes` y `ninguna`. Además un coordinador lleva **varias** sedes desde
+el ticket 73, así que el scope es una lista, no un id.
+
+El ternario **sí** vale cuando el `tiendaId` es un filtro opcional que
+un OWNER elige por querystring: ahí "sin filtro" es justo lo que pide.
+
 ## El cliente Prisma del producto es un Proxy
 
 `prismaApp` (de `@/lib/prisma`) es un `Proxy` que en cada acceso de

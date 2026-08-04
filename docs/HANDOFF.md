@@ -1,8 +1,39 @@
-# Handoff — estado del proyecto a 2026-07-31
+# Handoff — estado del proyecto a 2026-08-04
 
 Documento para retomar el trabajo desde otra cuenta de Claude (o
 máquina). Resume lo que hay en marcha, decisiones recientes y
 operativa básica. Para reglas de código permanentes ver `AGENTS.md`.
+
+> **Auditoría de seguridad 2026-08-04.** Revisión de la rama con
+> verificación cruzada: 8 candidatos, 3 confirmados. Todo desplegado y
+> comprobado en producción (`/api/organigrama` pasó de **200 con la
+> plantilla entera** a 401 — la fuga era real, no teórica).
+>
+> Arreglado: guard de sesión en `/api/organigrama` y `/api/me/features`;
+> alcance de rol en el historial de `tipo=discrepancias` y en
+> `tipo=presencia`; webhook de WhatsApp pasa a fallar cerrado sin
+> `WHATSAPP_APP_SECRET`; `horas-por-centro` deja de fallar abierto con un
+> coordinador sin sede. Ver commits `34386da` y `37e6a06`.
+>
+> Añadidas dos secciones a `AGENTS.md` (`withTenant` NO autentica; `null`
+> no es "todas" al filtrar por sede) y la regla ESLint
+> `fichaje/route-must-check-auth`, que ya barrió toda la API.
+>
+> **Pendiente que necesita decisión de producto, no código:** la sede
+> autodeclarada de `PUT /api/cierre-turno/sede` no se valida (a
+> propósito, está documentado), pero `sedes-operables.ts` la convierte en
+> el alcance de autorización de `/api/arqueos` **cuando el usuario no
+> tiene ninguna sede asignada**. La pregunta es si ese "correturnos sin
+> sede" debe existir: si siempre se asigna al menos una, sobra el
+> fallback y el problema desaparece solo.
+>
+> **Ojo con el lint:** el repo arrastra **90 errores de ESLint**
+> preexistentes (56 son `no-explicit-any`), así que `npm run lint` no
+> pasa en limpio y no sirve de gate binario. Tampoco existe script
+> `verify`. Y hay **7 tests flaky** en `/api/fichajes` y `/api/arqueos`
+> que fallan por timeout de 5 s solo cuando corre la suite entera en
+> paralelo; aislados pasan. Conviene subir `testTimeout` y limpiar los
+> `any` para recuperar un gate de verdad.
 
 > **Actualización 2026-05-27** (solo lectura de estado, sin cambios de
 > código): ya hay **3 tenants reales** en prod (la BD dejó de estar
