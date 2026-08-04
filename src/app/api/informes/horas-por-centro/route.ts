@@ -22,6 +22,8 @@ import { Rol } from "@/generated/prisma-tenant/client";
 import type { NextRequest } from "next/server";
 import { withTenant } from "@/lib/tenant/with-tenant";
 import { hasFeature } from "@/lib/tenant/features";
+import { sedesDelUsuario } from "@/lib/tiendas/sedes-usuario";
+import { filtroSede } from "@/lib/cierre-turno/core";
 import {
   calcularHorasPorCentro,
   calcularHorasPorCentroCuadrante,
@@ -70,15 +72,29 @@ export const GET = withTenant(async (request: NextRequest) => {
     // Incluir todo el día final.
     fechaFin.setHours(23, 59, 59, 999);
 
-    const tiendaId =
-      userRol === Rol.MANAGER
-        ? ((session.user as { tiendaId?: string | null }).tiendaId ?? null)
-        : (searchParams.get("tiendaId") || null);
+    // El alcance sale de las sedes reales de la persona, no de su sede
+    // principal: un coordinador lleva varias (ticket 73) y puede no tener
+    // principal. Antes se pasaba `session.user.tiendaId` a pelo y un
+    // coordinador sin sede acababa viendo las horas de toda la cadena,
+    // porque `...(tiendaId ? …)` borra el filtro con null. `filtroSede`
+    // distingue "todas" de "ninguna", que es justo lo que faltaba.
+    const sesionUser = session.user as { id?: string; tiendaId?: string | null };
+    const sedesPropias =
+      userRol === Rol.MANAGER && sesionUser.id
+        ? await sedesDelUsuario(prisma, {
+            userId: sesionUser.id,
+            tiendaId: sesionUser.tiendaId ?? null,
+          })
+        : [];
+    const filtro = filtroSede(userRol, sedesPropias, searchParams.get("tiendaId"));
+    // Sin sedes no hay nada que enseñar — que no es lo mismo que enseñarlo todo.
+    if (filtro.tipo === "ninguna") return Response.json({ filas: [], origen });
+    const tiendaIds = filtro.tipo === "sedes" ? filtro.tiendaIds : null;
 
     const filas =
       origen === "cuadrante"
-        ? await calcularHorasPorCentroCuadrante({ prisma, fechaInicio, fechaFin, tiendaId })
-        : await calcularHorasPorCentro({ prisma, fechaInicio, fechaFin, tiendaId });
+        ? await calcularHorasPorCentroCuadrante({ prisma, fechaInicio, fechaFin, tiendaIds })
+        : await calcularHorasPorCentro({ prisma, fechaInicio, fechaFin, tiendaIds });
     return Response.json({ filas, origen });
   } catch (error) {
     console.error("GET /api/informes/horas-por-centro error:", error);

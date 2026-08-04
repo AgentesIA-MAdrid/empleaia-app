@@ -216,18 +216,31 @@ async function conContrato(
   });
 }
 
+/**
+ * Cláusula de sede. `null` = sin filtro (solo administración llega así); una
+ * lista siempre filtra, incluso vacía —que devuelve nada, no todo—.
+ *
+ * El scope es una LISTA desde el ticket 73: un coordinador lleva varios puntos
+ * de venta. Antes era `...(tiendaId ? { tiendaId } : {})`, y ese ternario tenía
+ * la trampa que documenta `cierre-turno/core.ts`: a un coordinador sin sede el
+ * `null` le borraba el filtro y le enseñaba las horas de toda la cadena.
+ */
+function whereSedes(tiendaIds: string[] | null): { tiendaId?: { in: string[] } } {
+  return tiendaIds ? { tiendaId: { in: tiendaIds } } : {};
+}
+
 /** Lee los fichajes del periodo con el scope pedido. */
 async function leerFichajes(
   prisma: PrismaClient,
   fechaInicio: Date,
   fechaFin: Date,
-  tiendaId: string | null,
+  tiendaIds: string[] | null,
   userIds?: string[],
 ): Promise<FichajeMin[]> {
   const fichajes = await prisma.fichaje.findMany({
     where: {
       timestamp: { gte: fechaInicio, lte: fechaFin },
-      ...(tiendaId ? { tiendaId } : {}),
+      ...whereSedes(tiendaIds),
       ...(userIds ? { userId: { in: userIds } } : {}),
     },
     select: {
@@ -248,19 +261,19 @@ export async function calcularHorasPorCentro(opts: {
   prisma: PrismaClient;
   fechaInicio: Date;
   fechaFin: Date;
-  /** Si se pasa, limita a una sede (para MANAGER). */
-  tiendaId?: string | null;
+  /** Sedes a las que limitar. `null`/ausente = todas (solo administración). */
+  tiendaIds?: string[] | null;
 }): Promise<FilaHorasCentroConContrato[]> {
-  const { prisma, fechaInicio, fechaFin, tiendaId } = opts;
+  const { prisma, fechaInicio, fechaFin, tiendaIds = null } = opts;
   const filas = agregarHorasPorCentro(
-    await leerFichajes(prisma, fechaInicio, fechaFin, tiendaId ?? null),
+    await leerFichajes(prisma, fechaInicio, fechaFin, tiendaIds),
   );
   // Con filtro de sede, el total contra el que se mide el contrato sigue
   // siendo el de TODAS las sedes de la persona (criterio de la columna
   // "Contrato" del cuadrante): si no, quien reparte su jornada entre varias
   // aparecería como deficitario en cada una.
   const filasGlobales =
-    tiendaId && filas.length > 0
+    tiendaIds && filas.length > 0
       ? agregarHorasPorCentro(
           await leerFichajes(prisma, fechaInicio, fechaFin, null, [
             ...new Set(filas.map((f) => f.userId)),
@@ -321,13 +334,13 @@ async function leerTurnos(
   prisma: PrismaClient,
   fechaInicio: Date,
   fechaFin: Date,
-  tiendaId: string | null,
+  tiendaIds: string[] | null,
   userIds?: string[],
 ): Promise<TurnoMin[]> {
   const turnos = await prisma.turno.findMany({
     where: {
       fecha: { gte: fechaInicio, lte: fechaFin },
-      ...(tiendaId ? { tiendaId } : {}),
+      ...whereSedes(tiendaIds),
       ...(userIds ? { userId: { in: userIds } } : {}),
       // Solo plantilla activa (ticket #65): un empleado dado de baja puede
       // conservar turnos planificados de sus últimos días, y el informe los
@@ -364,17 +377,17 @@ export async function calcularHorasPorCentroCuadrante(opts: {
   prisma: PrismaClient;
   fechaInicio: Date;
   fechaFin: Date;
-  /** Si se pasa, limita a una sede (para MANAGER o filtro del OWNER). */
-  tiendaId?: string | null;
+  /** Sedes a las que limitar. `null`/ausente = todas (solo administración). */
+  tiendaIds?: string[] | null;
 }): Promise<FilaHorasCentroConContrato[]> {
-  const { prisma, fechaInicio, fechaFin, tiendaId } = opts;
+  const { prisma, fechaInicio, fechaFin, tiendaIds = null } = opts;
   const filas = agregarHorasCuadrantePorCentro(
-    await leerTurnos(prisma, fechaInicio, fechaFin, tiendaId ?? null),
+    await leerTurnos(prisma, fechaInicio, fechaFin, tiendaIds),
   );
   // Ver `calcularHorasPorCentro`: con filtro de sede, el contrato se mide
   // contra las horas del empleado en todas las suyas.
   const filasGlobales =
-    tiendaId && filas.length > 0
+    tiendaIds && filas.length > 0
       ? agregarHorasCuadrantePorCentro(
           await leerTurnos(prisma, fechaInicio, fechaFin, null, [
             ...new Set(filas.map((f) => f.userId)),

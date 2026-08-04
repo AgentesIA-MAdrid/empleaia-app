@@ -20,6 +20,15 @@ import nextTs from "eslint-config-next/typescript";
  *    HTTP (GET, POST, ...) deben envolver el handler con `withTenant`.
  *    Whitelist: /api/auth, /api/webhooks, /api/onboarding, /api/health,
  *    /api/admin (panel super-admin).
+ *
+ * Auditoría de seguridad 2026-08-04:
+ *  - `route-must-check-auth`: rutas en src/app/api/** con export HTTP
+ *    deben comprobar la identidad de quien llama. `withTenant` NO
+ *    autentica —solo cruza el JWT con el host cuando el JWT existe—, así
+ *    que sin este guard una petición sin cookie entra. Dos endpoints se
+ *    publicaron así (`/api/organigrama` servía la plantilla entera a un
+ *    anónimo); la regla existe para que no vuelva a pasar en silencio.
+ *    Todo lo público de verdad va a la whitelist CON motivo escrito.
  */
 const fichajePlugin = {
   rules: {
@@ -227,6 +236,122 @@ const fichajePlugin = {
         };
       },
     },
+
+    "route-must-check-auth": {
+      meta: {
+        type: "problem",
+        docs: {
+          description:
+            "Los handlers HTTP de src/app/api/** deben comprobar identidad. withTenant resuelve el tenant por el Host pero NO autentica: sin JWT deja pasar. Whitelist explícita para lo público de verdad.",
+        },
+        schema: [],
+      },
+      create(context) {
+        // Rutas públicas a propósito. Cada entrada lleva su motivo: si algo
+        // se añade aquí sin poder explicarse en una línea, probablemente sea
+        // un bug y no una excepción.
+        const EXEMPT_PATHS = [
+          // NextAuth gestiona su propio flujo (login, callbacks, reset).
+          "/api/auth/",
+          // Firma HMAC / secret compartido del proveedor en vez de sesión.
+          "/api/webhooks/",
+          // Autenticados con CRON_SECRET, no con sesión de usuario.
+          "/api/cron/",
+          // Panel super-admin: cookie propia, fuera del NextAuth del tenant.
+          "/api/admin/",
+          // Liveness probe: sin datos.
+          "/api/health/",
+          // Alta de tenant y estado post-checkout: por definición pre-sesión.
+          "/api/onboarding/",
+          // Liveness probe: responde sin tocar datos del tenant.
+          "/api/healthz",
+          // Branding (nombre, colores, logo) — lo pinta la pantalla de LOGIN,
+          // así que se sirve antes de que exista sesión. No expone PII: solo
+          // la identidad visual que el tenant ya enseña en su portada.
+          "/api/branding",
+          // Candidatura a una oferta publicada: el candidato no tiene cuenta.
+          "/api/ofertas/publica/",
+        ];
+        const filename = context.filename || context.getFilename();
+        const relevant =
+          filename.includes("/src/app/api/") ||
+          filename.includes("\\src\\app\\api\\");
+        if (!relevant) return {};
+        const isExempt = EXEMPT_PATHS.some((p) =>
+          filename.includes(p) || filename.includes(p.replaceAll("/", "\\")),
+        );
+        if (isExempt) return {};
+
+        // Símbolos que acreditan quién llama. No todos son sesión NextAuth:
+        // una API key, un secret de servicio o un token HMAC firmado y de un
+        // solo uso identifican igual de bien. Lo que la regla persigue es que
+        // NO haya handlers que no comprueben nada.
+        const AUTH_SYMBOLS = new Set([
+          "auth",
+          "getToken",
+          "getServerSession",
+          // API pública por API key (withApiV1 valida el token).
+          "withApiV1",
+          // Servicio interno entre procesos (secret compartido).
+          "requireServiceAuth",
+          // Botón de acción en un email: token HMAC con TTL y single-use.
+          "verifyFeedbackActionToken",
+          // Denuncia anónima: el informante se acredita con el accessToken
+          // que solo él tiene (la BD guarda el sha256, no el token).
+          "hashAccessToken",
+        ]);
+        const HTTP = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]);
+        let checksAuth = false;
+        const httpExports = [];
+
+        return {
+          ImportSpecifier(node) {
+            const name = node.imported && node.imported.name;
+            if (AUTH_SYMBOLS.has(name)) checksAuth = true;
+          },
+          // Algunos endpoints de plataforma comparan un secret a pelo contra
+          // `process.env.X_SECRET` sin importar ninguna función (p.ej. el
+          // watchdog con CRON_SECRET). También cuenta como comprobación.
+          MemberExpression(node) {
+            if (node.object.type !== "MemberExpression") return;
+            const o = node.object;
+            if (
+              o.object.type !== "Identifier" || o.object.name !== "process" ||
+              o.property.type !== "Identifier" || o.property.name !== "env"
+            ) return;
+            const prop = node.property;
+            if (prop.type === "Identifier" && /_SECRET$/.test(prop.name)) {
+              checksAuth = true;
+            }
+          },
+          ExportNamedDeclaration(node) {
+            const decl = node.declaration;
+            if (!decl) return;
+            if (decl.type === "VariableDeclaration") {
+              for (const v of decl.declarations) {
+                if (v.id.type === "Identifier" && HTTP.has(v.id.name)) {
+                  httpExports.push(v.id);
+                }
+              }
+              return;
+            }
+            // `export async function GET(...)`, estilo de los webhooks.
+            if (decl.type === "FunctionDeclaration" && decl.id && HTTP.has(decl.id.name)) {
+              httpExports.push(decl.id);
+            }
+          },
+          "Program:exit"() {
+            if (checksAuth) return;
+            for (const id of httpExports) {
+              context.report({
+                node: id,
+                message: `'${id.name}' no comprueba identidad. 'withTenant' resuelve el tenant por el Host pero NO autentica: sin cookie la petición entra igual. Añade 'const session = await auth()' + 401, o añade la ruta a EXEMPT_PATHS con el motivo escrito. Auditoría 2026-08-04.`,
+              });
+            }
+          },
+        };
+      },
+    },
   },
 };
 
@@ -247,6 +372,7 @@ const eslintConfig = defineConfig([
       "fichaje/no-feature-gate-on-core": "error",
       "fichaje/no-quota-writer-leak": "error",
       "fichaje/route-must-use-withTenant": "error",
+      "fichaje/route-must-check-auth": "error",
     },
   },
   // Tests: las reglas custom NO aplican (los tests importan/mockean
@@ -257,6 +383,7 @@ const eslintConfig = defineConfig([
       "fichaje/no-legacy-prisma": "off",
       "fichaje/no-quota-writer-leak": "off",
       "fichaje/route-must-use-withTenant": "off",
+      "fichaje/route-must-check-auth": "off",
     },
   },
 ]);

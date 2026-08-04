@@ -187,10 +187,49 @@ describe("calcularHorasPorCentroCuadrante — filtros de la consulta", () => {
       prisma,
       fechaInicio: new Date("2026-07-01T00:00:00Z"),
       fechaFin: new Date("2026-07-31T23:59:59Z"),
-      tiendaId: "t1",
+      tiendaIds: ["t1"],
     });
-    const where = capturado.args?.where as { tiendaId?: string };
-    expect(where.tiendaId).toBe("t1");
+    const where = capturado.args?.where as { tiendaId?: { in: string[] } };
+    expect(where.tiendaId).toEqual({ in: ["t1"] });
+  });
+
+  it("filtra por TODAS las sedes del coordinador, no solo por la principal", async () => {
+    // Ticket 73: un coordinador lleva varios puntos de venta. Con una sola
+    // sede en el filtro veía de menos; el informe se quedaba corto.
+    const { prisma, capturado } = prismaEspia();
+    await calcularHorasPorCentroCuadrante({
+      prisma,
+      fechaInicio: new Date("2026-07-01T00:00:00Z"),
+      fechaFin: new Date("2026-07-31T23:59:59Z"),
+      tiendaIds: ["t1", "t2", "t3"],
+    });
+    const where = capturado.args?.where as { tiendaId?: { in: string[] } };
+    expect(where.tiendaId).toEqual({ in: ["t1", "t2", "t3"] });
+  });
+
+  it("una lista vacía de sedes no devuelve nada — nunca lo devuelve todo", async () => {
+    // La trampa que documenta cierre-turno/core.ts: con el ternario viejo un
+    // scope vacío hacía DESAPARECER el filtro y enseñaba la cadena entera.
+    const { prisma, capturado } = prismaEspia();
+    await calcularHorasPorCentroCuadrante({
+      prisma,
+      fechaInicio: new Date("2026-07-01T00:00:00Z"),
+      fechaFin: new Date("2026-07-31T23:59:59Z"),
+      tiendaIds: [],
+    });
+    const where = capturado.args?.where as { tiendaId?: { in: string[] } };
+    expect(where.tiendaId).toEqual({ in: [] });
+  });
+
+  it("sin sedes (null) no filtra: es el caso de administración", async () => {
+    const { prisma, capturado } = prismaEspia();
+    await calcularHorasPorCentroCuadrante({
+      prisma,
+      fechaInicio: new Date("2026-07-01T00:00:00Z"),
+      fechaFin: new Date("2026-07-31T23:59:59Z"),
+    });
+    const where = capturado.args?.where as { tiendaId?: unknown };
+    expect(where.tiendaId).toBeUndefined();
   });
 
   it("acepta rangos futuros: el cuadrante se planifica a futuro (ticket #64)", async () => {
