@@ -10,11 +10,17 @@
  * La tabla es la del Excel con el que se lleva esto a mano: objetivo del mes,
  * lo que tocaría llevar a día de hoy, lo vendido, la desviación entre ambos, la
  * consecución, la media diaria, las unidades por día que quedan para llegar y
- * la previsión de cierre. Tres vistas de lo mismo: por comercial, por punto de
- * venta y el día a día del mes.
+ * la previsión de cierre. Cuatro vistas de lo mismo: todos los objetivos de una
+ * vez, por comercial, por punto de venta y el día a día del mes.
  *
- * Cada vista se descarga en CSV con los filtros puestos, que es lo que se pide
- * para pasar el seguimiento al resto del equipo.
+ * "Todos los objetivos" es la que evita ir pulsando concepto por concepto en el
+ * desplegable cuando lo que se quiere es la foto entera de una tienda: una fila
+ * por objetivo —unidades totales, cada grupo y cada producto— con las mismas
+ * columnas (ticket #0091).
+ *
+ * Cada vista se descarga en CSV con los filtros puestos y con la fila de
+ * totales incluida, que es lo que se pide para pasar el seguimiento al resto
+ * del equipo y seguir filtrando en la hoja de cálculo.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -26,7 +32,7 @@ import { Label } from "@/components/ui/label";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { descargarCSV } from "@/lib/informes/csv-descarga";
 
-type Vista = "comercial" | "sede" | "dia";
+type Vista = "concepto" | "comercial" | "sede" | "dia";
 
 interface FilaSeguimiento {
   sujetoId: string;
@@ -63,6 +69,13 @@ interface Concepto {
   etiqueta: string;
 }
 
+/** Una fila de la vista "Todos los objetivos": un objetivo, no un sujeto. */
+interface FilaConcepto extends Omit<FilaSeguimiento, "sujetoId" | "sujeto" | "sede"> {
+  conceptoId: string;
+  tipo: Concepto["tipo"];
+  etiqueta: string;
+}
+
 interface Respuesta {
   mes: string;
   corte: string;
@@ -75,6 +88,7 @@ interface Respuesta {
   comerciales: { id: string; nombre: string; tiendaId: string | null }[];
   filasComerciales: FilaSeguimiento[];
   filasSedes: FilaSeguimiento[];
+  filasConceptos: FilaConcepto[];
   totalesComerciales: Totales | null;
   totalesSedes: Totales | null;
   serie: PuntoSerie[];
@@ -118,6 +132,13 @@ function Consecucion({ valor }: { valor: number | null }) {
 
 const num = (v: number | null) => (v === null ? "—" : String(v));
 
+/** Cómo se llama cada clase de objetivo en la tabla y en el CSV. */
+const TIPO_CONCEPTO: Record<Concepto["tipo"], string> = {
+  total: "Total",
+  grupo: "Grupo",
+  articulo: "Producto",
+};
+
 /** "12 jul" — el día del mes, para la tabla del día a día. */
 function diaCorto(fecha: string): string {
   return new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "UTC" }).format(
@@ -143,7 +164,9 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
   const [tiendaId, setTiendaId] = useState("");
   const [userId, setUserId] = useState("");
   const [concepto, setConcepto] = useState("");
-  const [vista, setVista] = useState<Vista>("comercial");
+  // Se abre en "todos los objetivos": es la foto que se quiere al entrar, sin
+  // tener que elegir antes qué concepto se mira (ticket #0091).
+  const [vista, setVista] = useState<Vista>("concepto");
   const [datos, setDatos] = useState<Respuesta | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -206,11 +229,23 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
 
   const totales = vista === "sede" ? datos?.totalesSedes : datos?.totalesComerciales;
   const filas = vista === "sede" ? (datos?.filasSedes ?? []) : (datos?.filasComerciales ?? []);
+  const filasConceptos = datos?.filasConceptos ?? [];
+  // Mirando todos los objetivos, la cabecera es la línea de unidades totales:
+  // el resumen del alcance, que es la fila que se lee primero.
+  const filaTotalConcepto = filasConceptos.find((f) => f.tipo === "total") ?? null;
   // En el día a día las cifras de cabecera son las de la serie: es lo que se
   // está mirando (el comercial elegido o el conjunto de sedes del alcance).
   const ultimo = datos?.serie[datos.serie.length - 1];
   const cabecera =
-    vista === "dia"
+    vista === "concepto"
+      ? {
+          objetivo: filaTotalConcepto?.objetivo ?? null,
+          vendido: filaTotalConcepto?.vendido ?? 0,
+          consecucion: filaTotalConcepto?.consecucion ?? null,
+          desviacion: filaTotalConcepto?.desviacion ?? null,
+          prevision: filaTotalConcepto?.prevision ?? null,
+        }
+      : vista === "dia"
       ? {
           objetivo: datos?.objetivoSerie ?? null,
           vendido: ultimo?.acumulado ?? 0,
@@ -232,6 +267,41 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
   const exportar = () => {
     if (!datos) return;
     const sufijo = `${datos.mes}_hasta_${datos.corte}_${slug(datos.concepto.etiqueta)}`;
+    // Mirando todos los objetivos el fichero no lleva concepto en el nombre:
+    // los lleva todos dentro, que es justo lo que se exporta para filtrar luego
+    // en la hoja de cálculo.
+    if (vista === "concepto") {
+      descargarCSV(
+        `seguimiento_todos_los_objetivos_${datos.mes}_hasta_${datos.corte}.csv`,
+        [
+          "Objetivo seguido",
+          "Tipo",
+          "Objetivo del mes",
+          "Objetivo a día de hoy",
+          "Vendido",
+          `Vendido el ${datos.corte}`,
+          "Desviación",
+          "Consecución %",
+          "Media diaria",
+          "Ritmo necesario",
+          "Previsión de cierre",
+        ],
+        filasConceptos.map((f) => [
+          f.etiqueta,
+          TIPO_CONCEPTO[f.tipo],
+          f.objetivo,
+          f.objetivoAlDia,
+          f.vendido,
+          f.vendidoDelDia,
+          f.desviacion,
+          f.consecucion,
+          f.mediaDiaria,
+          f.ritmoNecesario,
+          f.prevision,
+        ]),
+      );
+      return;
+    }
     if (vista === "dia") {
       descargarCSV(
         `seguimiento_dia_a_dia_${sufijo}.csv`,
@@ -263,19 +333,40 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
         "Ritmo necesario",
         "Previsión de cierre",
       ],
-      filas.map((f) => [
-        f.sujeto,
-        ...(esSede ? [] : [f.sede]),
-        f.objetivo,
-        f.objetivoAlDia,
-        f.vendido,
-        f.vendidoDelDia,
-        f.desviacion,
-        f.consecucion,
-        f.mediaDiaria,
-        f.ritmoNecesario,
-        f.prevision,
-      ]),
+      [
+        ...filas.map((f) => [
+          f.sujeto,
+          ...(esSede ? [] : [f.sede]),
+          f.objetivo,
+          f.objetivoAlDia,
+          f.vendido,
+          f.vendidoDelDia,
+          f.desviacion,
+          f.consecucion,
+          f.mediaDiaria,
+          f.ritmoNecesario,
+          f.prevision,
+        ]),
+        // El total va en el fichero: es la cifra que se mira primero al abrirlo
+        // y sacarla a mano de la pantalla era un paso de más.
+        ...(totales
+          ? [
+              [
+                "TOTAL",
+                ...(esSede ? [] : [""]),
+                totales.objetivo,
+                totales.objetivoAlDia,
+                totales.vendido,
+                totales.vendidoDelDia,
+                totales.desviacion,
+                totales.consecucion,
+                totales.mediaDiaria,
+                totales.ritmoNecesario,
+                totales.prevision,
+              ],
+            ]
+          : []),
+      ],
     );
   };
 
@@ -335,7 +426,9 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
                 ))}
               </select>
             </div>
-            <div>
+            {/* Mirando todos los objetivos a la vez no hay uno que elegir: el
+                desplegable solo aporta cuando la tabla es de un concepto. */}
+            <div className={vista === "concepto" ? "hidden" : undefined}>
               <Label htmlFor="seg-concepto">Qué se sigue</Label>
               <select
                 id="seg-concepto"
@@ -360,6 +453,7 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
                 value={vista}
                 onChange={(e) => setVista(e.target.value as Vista)}
               >
+                <option value="concepto">Todos los objetivos</option>
                 <option value="comercial">Por comercial</option>
                 <option value="sede">Por punto de venta</option>
                 <option value="dia">Día a día</option>
@@ -420,7 +514,14 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
           </Card>
         ))}
       </div>
-      {totales && vista !== "dia" && (
+      {vista === "concepto" && datos && (
+        <p className="text-xs text-[var(--text-muted)] -mt-3">
+          Todos los objetivos de {userId ? "este comercial" : tiendaId ? "esta tienda" : "el conjunto"}{" "}
+          con los filtros puestos. Las líneas sin objetivo fijado se quedan con un guion en la
+          columna del objetivo, pero siguen enseñando lo vendido.
+        </p>
+      )}
+      {totales && vista !== "dia" && vista !== "concepto" && (
         <p className="text-xs text-[var(--text-muted)] -mt-3">
           {totales.cumplen} de {totales.conObjetivo}{" "}
           {vista === "sede" ? "puntos de venta" : "comerciales"} con objetivo llegan al 100 %. Al
@@ -442,7 +543,9 @@ export function SeguimientoObjetivos({ mes }: { mes: string }) {
               No tienes ninguna sede asignada, así que no hay seguimiento que hacer. Pídele a
               administración que te asigne tu punto de venta.
             </p>
-          ) : !datos ? null : vista === "dia" ? (
+          ) : !datos ? null : vista === "concepto" ? (
+            <TablaConceptos corte={datos.corte} filas={filasConceptos} />
+          ) : vista === "dia" ? (
             <TablaDias serie={datos.serie} />
           ) : (
             <TablaFilas
@@ -591,6 +694,73 @@ function TablaFilas({
             </tr>
           </tfoot>
         )}
+      </table>
+    </div>
+  );
+}
+
+/**
+ * Todos los objetivos del alcance, uno por fila. Es la misma tabla de siempre
+ * con la primera columna cambiada: en vez de quién, qué se sigue.
+ */
+function TablaConceptos({ corte, filas }: { corte: string; filas: FilaConcepto[] }) {
+  if (filas.length === 0) {
+    return (
+      <p className="text-center py-10 text-[var(--text-muted)] text-sm">
+        No hay nada que seguir: el catálogo no tiene productos que cuenten para objetivos.
+      </p>
+    );
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <Cabeceras
+          columnas={[
+            "Objetivo seguido",
+            "Tipo",
+            "Objetivo",
+            "A día de hoy",
+            "Vendido",
+            `Día ${diaCorto(corte)}`,
+            "Desviación",
+            "Consecución",
+            "Media/día",
+            "Ritmo necesario",
+            "Previsión",
+          ]}
+        />
+        <tbody>
+          {filas.map((f) => (
+            <tr
+              key={f.conceptoId || "total"}
+              // La línea de unidades totales es el resumen de las demás: se
+              // resalta para no confundirla con un grupo más.
+              className={`border-b border-[var(--border)] last:border-0 ${
+                f.tipo === "total" ? "bg-[var(--muted)]" : ""
+              }`}
+            >
+              <td className="px-4 py-2.5 text-sm font-medium text-[var(--text-dark)]">{f.etiqueta}</td>
+              <td className="px-4 py-2.5 text-sm text-[var(--text-muted)]">{TIPO_CONCEPTO[f.tipo]}</td>
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-dark)]">{num(f.objetivo)}</td>
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-muted)]">
+                {num(f.objetivoAlDia)}
+              </td>
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-dark)]">{f.vendido}</td>
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-muted)]">{f.vendidoDelDia}</td>
+              <td className="px-4 py-2.5">
+                <Desviacion valor={f.desviacion} />
+              </td>
+              <td className="px-4 py-2.5">
+                <Consecucion valor={f.consecucion} />
+              </td>
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-body)]">{f.mediaDiaria}</td>
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-body)]">
+                {num(f.ritmoNecesario)}
+              </td>
+              <td className="px-4 py-2.5 text-sm tabular-nums text-[var(--text-body)]">{num(f.prevision)}</td>
+            </tr>
+          ))}
+        </tbody>
       </table>
     </div>
   );

@@ -91,6 +91,38 @@ export function normalizarConcepto(
   return { id, tipo: "articulo", grupo: null, articuloId: id, etiqueta: articulo.nombre };
 }
 
+/**
+ * Todo lo que se puede seguir, en el orden en que se enseña: las unidades
+ * totales, cada grupo de productos y cada producto que cuenta para objetivos
+ * (los excluidos no pueden tener objetivo, así que no se listan).
+ *
+ * Vive aquí y no en el endpoint porque la lista se usa dos veces: para el
+ * desplegable "Qué se sigue" y para la vista que mira todos los objetivos de
+ * una vez (`construirPorConcepto`). Dos listas separadas se desincronizan.
+ */
+export function conceptosDisponibles(
+  catalogo: { id: string; nombre: string }[],
+  subgrupos: SubgrupoProductos[],
+): Concepto[] {
+  return [
+    CONCEPTO_TOTAL,
+    ...subgrupos.map((g) => ({
+      id: columnaSubgrupo(g),
+      tipo: "grupo" as const,
+      grupo: g,
+      articuloId: null,
+      etiqueta: etiquetaSubgrupo(g),
+    })),
+    ...catalogo.map((a) => ({
+      id: a.id,
+      tipo: "articulo" as const,
+      grupo: null,
+      articuloId: a.id,
+      etiqueta: a.nombre,
+    })),
+  ];
+}
+
 /** Días que tiene un mes "YYYY-MM". */
 export function diasDelMes(mes: string): number {
   const [anio, m] = mes.split("-").map((x) => Number.parseInt(x, 10));
@@ -337,6 +369,69 @@ export function totalesSeguimiento(
     cumplen,
     ...metricasDe(objetivoTotal, vendido, progreso),
   };
+}
+
+/** Una fila de la vista que mira todos los objetivos a la vez. */
+export interface FilaConcepto extends Omit<FilaSeguimiento, "sujetoId" | "sujeto" | "sede"> {
+  conceptoId: string;
+  tipo: TipoConcepto;
+  etiqueta: string;
+}
+
+/**
+ * Seguimiento de **todos** los conceptos a la vez, para el alcance que se esté
+ * mirando: una fila por objetivo en vez de una por sujeto.
+ *
+ * Es la otra manera de leer lo mismo. Las tablas por comercial y por sede
+ * responden "¿quién va bien?" de un objetivo; esta responde "¿cómo van todos
+ * mis objetivos?" de una sede (o de un comercial, si se ha elegido uno), que es
+ * lo que se mira cuando hay cinco grupos de producto y no se quiere ir
+ * pulsando uno por uno en el desplegable (ticket #0091).
+ *
+ * Cada fila se calcula reutilizando `construirSeguimiento` + `totalesSeguimiento`
+ * con ese concepto, así que las reglas del módulo —"sin objetivo" no es cero, el
+ * total del sujeto es el fijado a mano o la suma de sus grupos— salen gratis y
+ * no hay una segunda versión de ellas que se pueda desviar.
+ */
+export function construirPorConcepto(args: {
+  conceptos: Concepto[];
+  ambito: AmbitoObjetivo;
+  sujetos: { id: string; nombre: string }[];
+  objetivos: ObjetivoFila[];
+  ventas: VentaDia[];
+  progreso: ProgresoMes;
+  articuloIds?: string[];
+  catalogo?: ArticuloObjetivo[];
+}): FilaConcepto[] {
+  return args.conceptos.map((concepto) => {
+    const filas = construirSeguimiento({
+      ambito: args.ambito,
+      sujetos: args.sujetos,
+      objetivos: args.objetivos,
+      ventas: args.ventas,
+      concepto,
+      progreso: args.progreso,
+      articuloIds: args.articuloIds,
+      catalogo: args.catalogo,
+    });
+    // Del pie de tabla solo interesan las cifras: "cuántos sujetos cumplen" es
+    // de la otra lectura, y aquí cada fila es un objetivo, no un sujeto.
+    const total = totalesSeguimiento(filas, args.progreso);
+    return {
+      conceptoId: concepto.id,
+      tipo: concepto.tipo,
+      etiqueta: concepto.etiqueta,
+      objetivo: total.objetivo,
+      objetivoAlDia: total.objetivoAlDia,
+      vendido: total.vendido,
+      vendidoDelDia: total.vendidoDelDia,
+      desviacion: total.desviacion,
+      consecucion: total.consecucion,
+      mediaDiaria: total.mediaDiaria,
+      ritmoNecesario: total.ritmoNecesario,
+      prevision: total.prevision,
+    };
+  });
 }
 
 /** Un día de la serie de seguimiento. */

@@ -16,6 +16,8 @@ import { describe, it, expect } from "vitest";
 import { columnaSubgrupo, type ObjetivoFila, type VentaDia } from "@/lib/cierre-turno/objetivos";
 import {
   CONCEPTO_TOTAL,
+  conceptosDisponibles,
+  construirPorConcepto,
   construirSeguimiento,
   diasDelMes,
   metricasDe,
@@ -243,6 +245,125 @@ describe("filas de seguimiento", () => {
       catalogo,
     });
     expect(totalesSeguimiento(filas, progreso).objetivo).toBeNull();
+  });
+});
+
+describe("todos los objetivos de una vez", () => {
+  const progreso = progresoDelMes("2026-07", "2026-07-10"); // 10 de 31
+  const ventas: VentaDia[] = [
+    venta("2026-07-02", "art_fibra", 5),
+    venta("2026-07-10", "art_pospago", 3),
+    // No cuenta para objetivos: no puede empujar ni el total ni su grupo.
+    venta("2026-07-10", "art_funda", 40),
+  ];
+  // Solo el grupo Hogar tiene objetivo de sede; el total sale de sumarlo.
+  const objetivos: ObjetivoFila[] = [
+    {
+      id: "o_hogar",
+      mes: "2026-07",
+      userId: null,
+      tiendaId: "t1",
+      articuloId: null,
+      ...HOGAR,
+      cantidad: 62,
+    },
+  ];
+  const conceptos = conceptosDisponibles(
+    catalogo.filter((a) => a.cuentaParaObjetivos),
+    [HOGAR],
+  );
+
+  it("lista un concepto por objetivo posible, con el total primero", () => {
+    expect(conceptos.map((c) => c.tipo)).toEqual(["total", "grupo", "articulo", "articulo"]);
+    expect(conceptos.map((c) => c.etiqueta)).toEqual([
+      "Unidades totales",
+      "Hogar",
+      "Alta de fibra",
+      "Pospago",
+    ]);
+    // El producto excluido no aparece: no puede tener objetivo.
+    expect(conceptos.some((c) => c.etiqueta === "Funda")).toBe(false);
+  });
+
+  it("da una fila por objetivo con las cifras del alcance", () => {
+    const filas = construirPorConcepto({
+      conceptos,
+      ambito: "sede",
+      sujetos: [{ id: "t1", nombre: "Centro" }],
+      objetivos,
+      ventas,
+      progreso,
+      articuloIds: ["art_fibra", "art_pospago"],
+      catalogo,
+    });
+    expect(filas.map((f) => f.etiqueta)).toEqual([
+      "Unidades totales",
+      "Hogar",
+      "Alta de fibra",
+      "Pospago",
+    ]);
+    // Total: sin objetivo propio, es la suma de los grupos (62), y lo vendido
+    // son las 8 unidades que cuentan (la funda excluida no suma).
+    expect(filas[0]).toMatchObject({ objetivo: 62, vendido: 8, objetivoAlDia: 20, desviacion: -12 });
+    expect(filas[1]).toMatchObject({ objetivo: 62, vendido: 8 });
+    // Los productos sueltos no tienen objetivo fijado: guion, no cero.
+    expect(filas[2]).toMatchObject({ objetivo: null, vendido: 5, consecucion: null });
+    expect(filas[3]).toMatchObject({ objetivo: null, vendido: 3 });
+  });
+
+  it("mide al comercial cuando el alcance es una persona", () => {
+    const filas = construirPorConcepto({
+      conceptos,
+      ambito: "comercial",
+      sujetos: [{ id: "u_ana", nombre: "Ana García" }],
+      objetivos: [
+        {
+          id: "o_ana",
+          mes: "2026-07",
+          userId: "u_ana",
+          tiendaId: null,
+          articuloId: null,
+          ...HOGAR,
+          cantidad: 31,
+        },
+        // El de la sede no es suyo y no debe colarse en sus filas.
+        ...objetivos,
+      ],
+      ventas,
+      progreso,
+      articuloIds: ["art_fibra", "art_pospago"],
+      catalogo,
+    });
+    expect(filas[1]).toMatchObject({ etiqueta: "Hogar", objetivo: 31, vendido: 8 });
+  });
+
+  it("suma las sedes del alcance en cada fila", () => {
+    const ventaOtra: VentaDia = { ...venta("2026-07-05", "art_fibra", 2), tiendaId: "t2", userId: "u_bea" };
+    const filas = construirPorConcepto({
+      conceptos,
+      ambito: "sede",
+      sujetos: [
+        { id: "t1", nombre: "Centro" },
+        { id: "t2", nombre: "Norte" },
+      ],
+      objetivos: [
+        ...objetivos,
+        {
+          id: "o_hogar_t2",
+          mes: "2026-07",
+          userId: null,
+          tiendaId: "t2",
+          articuloId: null,
+          ...HOGAR,
+          cantidad: 38,
+        },
+      ],
+      ventas: [...ventas, ventaOtra],
+      progreso,
+      articuloIds: ["art_fibra", "art_pospago"],
+      catalogo,
+    });
+    expect(filas[1]).toMatchObject({ etiqueta: "Hogar", objetivo: 100, vendido: 10 });
   });
 });
 

@@ -35,13 +35,13 @@ import { withFeature } from "@/lib/feature-guard/with-feature";
 import { diaMadrid, filtroSede, puedeVerObjetivos } from "@/lib/cierre-turno/core";
 import {
   anotarVentas,
-  columnaSubgrupo,
   cuentaParaObjetivos,
-  etiquetaSubgrupo,
   normalizarMes,
   subgruposDelCatalogo,
 } from "@/lib/cierre-turno/objetivos";
 import {
+  conceptosDisponibles,
+  construirPorConcepto,
   construirSeguimiento,
   normalizarConcepto,
   normalizarDiaCorte,
@@ -97,6 +97,7 @@ export const GET = withTenant(
         comerciales: [],
         filasComerciales: [],
         filasSedes: [],
+        filasConceptos: [],
         totalesComerciales: null,
         totalesSedes: null,
         serie: [],
@@ -163,6 +164,7 @@ export const GET = withTenant(
     const paraObjetivos = articulos.filter((a) => cuentaParaObjetivos(a));
     const articuloIds = paraObjetivos.map((a) => a.id);
     const subgrupos = subgruposDelCatalogo(paraObjetivos);
+    const conceptos = conceptosDisponibles(paraObjetivos, subgrupos);
     const concepto = normalizarConcepto(url.searchParams.get("concepto"), paraObjetivos, subgrupos);
     // Las ventas se anotan con el catálogo COMPLETO: es lo que permite saber
     // que una venta es de un producto excluido y no sumarla en el total.
@@ -204,6 +206,33 @@ export const GET = withTenant(
     const totalesComerciales = totalesSeguimiento(filasComerciales, progreso);
     const totalesSedes = totalesSeguimiento(filasSedes, progreso);
 
+    // Todos los objetivos de una vez, para el alcance que se está mirando: el
+    // comercial elegido si hay uno, y si no las sedes del alcance (la sede
+    // seleccionada, la zona del coordinador o la empresa entera). Se calcula
+    // siempre, como las dos tandas de filas: cambiar de vista en el panel no
+    // tiene que volver a preguntar al servidor.
+    const filasConceptos = construirPorConcepto({
+      conceptos,
+      ...(userId
+        ? {
+            ambito: "comercial" as const,
+            sujetos: personasFiltradas.map((p) => ({
+              id: p.id,
+              nombre: `${p.nombre} ${p.apellidos}`.trim(),
+            })),
+            ventas: ventasComerciales,
+          }
+        : {
+            ambito: "sede" as const,
+            sujetos: sedes.map((t) => ({ id: t.id, nombre: t.nombre })),
+            ventas,
+          }),
+      objetivos,
+      progreso,
+      articuloIds,
+      catalogo: paraObjetivos,
+    });
+
     // El día a día se mide contra el objetivo de lo que se está mirando: el del
     // comercial elegido si hay uno, y si no el de las sedes del alcance (que es
     // el objetivo de la zona o de la empresa, según quién mire).
@@ -219,15 +248,7 @@ export const GET = withTenant(
       concepto: { id: concepto.id, tipo: concepto.tipo, etiqueta: concepto.etiqueta },
       // Lo que se puede seguir: unidades totales, cada grupo y cada producto
       // que cuenta para objetivos (los excluidos no tienen objetivo posible).
-      conceptos: [
-        { id: "", tipo: "total" as const, etiqueta: "Unidades totales" },
-        ...subgrupos.map((g) => ({
-          id: columnaSubgrupo(g),
-          tipo: "grupo" as const,
-          etiqueta: etiquetaSubgrupo(g),
-        })),
-        ...paraObjetivos.map((a) => ({ id: a.id, tipo: "articulo" as const, etiqueta: a.nombre })),
-      ],
+      conceptos: conceptos.map((c) => ({ id: c.id, tipo: c.tipo, etiqueta: c.etiqueta })),
       sedes,
       comerciales: personas.map((p) => ({
         id: p.id,
@@ -237,6 +258,7 @@ export const GET = withTenant(
       filtros: { tiendaId: sedesFiltro?.length === 1 ? sedesFiltro[0] : null, userId },
       filasComerciales,
       filasSedes,
+      filasConceptos,
       totalesComerciales,
       totalesSedes,
       serie,
