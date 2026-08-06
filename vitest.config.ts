@@ -8,7 +8,9 @@ const RUN_INTEGRATION = process.env.VITEST_INTEGRATION === "1";
 
 export default defineConfig({
   test: {
-    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    // `ops/**` entra por el runner de ticketing: es JS suelto (no pasa por el
+    // build de Next), así que sus módulos puros se prueban aquí o no se prueban.
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx", "ops/**/*.test.mjs"],
     exclude: RUN_INTEGRATION
       ? ["node_modules/**"]
       : ["node_modules/**", ...INTEGRATION_PATTERN],

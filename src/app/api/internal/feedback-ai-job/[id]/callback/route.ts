@@ -15,9 +15,11 @@ export const dynamic = "force-dynamic";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// El runner solo reporta estos eventos (encolado lo pone el app al encolar).
+// Eventos que reporta el runner. `encolado` es la devolución a la cola cuando
+// no ha podido ni empezar por cuota agotada (ver ALLOWED en ai-jobs.ts); el
+// alta inicial en `encolado` la sigue haciendo el app al encolar.
 const Body = z.object({
-  event: z.enum(["ejecutando", "pr_abierto", "sin_cambios", "fallido"]),
+  event: z.enum(["ejecutando", "pr_abierto", "sin_cambios", "fallido", "encolado"]),
   pr_url: z.string().max(500).optional(),
   branch: z.string().max(200).optional(),
   error: z.string().max(5000).optional(),

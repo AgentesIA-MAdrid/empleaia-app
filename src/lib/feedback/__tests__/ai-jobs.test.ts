@@ -47,9 +47,22 @@ describe("applyJobEvent", () => {
     expect(applyJobEvent("desplegado", "ejecutando").ok).toBe(false);
   });
 
+  it("ejecutando → encolado (vuelta a la cola por cuota agotada)", () => {
+    // El runner devuelve el job a la cola cuando Claude ni ha podido empezar
+    // (429). No es un fallo del ticket y no debe quemar el intento; el runner
+    // se duerme hasta que la cuota vuelve, así que no se convierte en bucle.
+    expect(applyJobEvent("ejecutando", "encolado")).toEqual({ ok: true, next: "encolado" });
+  });
+
+  it("un job devuelto a la cola vuelve a ser reclamable, y solo por el runner", () => {
+    expect(applyJobEvent("encolado", "ejecutando")).toEqual({ ok: true, next: "ejecutando" });
+    // Pero sigue ocupando la cola: nadie puede encolar otro job del ticket.
+    expect(canEnqueue({ status: "encolado" })).toBe(false);
+  });
+
   it("rechaza transiciones inválidas", () => {
     expect(applyJobEvent("pr_abierto", "ejecutando").ok).toBe(false);
-    expect(applyJobEvent("ejecutando", "encolado").ok).toBe(false);
+    expect(applyJobEvent("fallido", "encolado").ok).toBe(false);
     expect(applyJobEvent("sin_cambios", "pr_abierto").ok).toBe(false);
   });
 });

@@ -33,7 +33,13 @@ export type JobTransition =
 /** Transiciones permitidas desde cada estado (excluida la idempotencia). */
 const ALLOWED: Record<JobStatus, readonly JobStatus[]> = {
   encolado: ["ejecutando", "fallido"],
-  ejecutando: ["pr_abierto", "sin_cambios", "fallido"],
+  // `ejecutando → encolado` es la vuelta a la cola cuando el trabajo no se ha
+  // podido ni intentar: hoy solo por cuota agotada de Claude (429). No es un
+  // fallo del ticket —el runner no llegó a leer una línea de código— y quemarlo
+  // como `fallido` obligaba a relanzarlo a mano y dejaba en el panel un error
+  // que no explicaba nada. El runner que reencola se duerme hasta que la cuota
+  // vuelve, así que esto no es un bucle: es una espera.
+  ejecutando: ["pr_abierto", "sin_cambios", "fallido", "encolado"],
   // pr_abierto → desplegado lo dispara el webhook de GitHub al mergear el PR.
   pr_abierto: ["desplegado"],
   desplegado: [],

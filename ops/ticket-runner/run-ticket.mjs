@@ -17,6 +17,13 @@ import { spawnSync, spawn } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, cpSync, existsSync, readdirSync, symlinkSync, lstatSync, unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, basename } from "node:path";
+import {
+  avisoDeCuota,
+  fechaLegible,
+  limiteDeCuota,
+  motivoDeMuerte,
+  msDePausa,
+} from "./cuota.mjs";
 
 const APP_BASE_URL = required("APP_BASE_URL");
 const SIGNING_SECRET = required("EMPLEAIA_SIGNING_SECRET");
@@ -119,6 +126,12 @@ function runClaudeHeartbeat(jobId, args, opts) {
     let resultText = "";     // texto final (evento {type:"result"})
     let assistantText = "";  // fallback: concatenación de bloques de texto
     let lastProgressAt = 0;  // throttle suave del POST de progreso
+    // Por qué ha muerto, cuando muere: el CLI cuenta el motivo real por STDOUT
+    // dentro del NDJSON, no por stderr. Sin leerlo, un 429 de cuota agotada
+    // llegaba al panel como "Warning: no stdin data received in 3s", que no
+    // dice absolutamente nada de lo que ha pasado.
+    let apiErrorStatus = null; // {type:"result"} → api_error_status (429, 500…)
+    let rateLimit = null;      // {type:"rate_limit_event"} → rate_limit_info
 
     function handleLine(line) {
       const s = line.trim();
@@ -138,8 +151,11 @@ function runClaudeHeartbeat(jobId, args, opts) {
             }
           }
         }
-      } else if (ev.type === "result" && typeof ev.result === "string") {
-        resultText = ev.result;
+      } else if (ev.type === "result") {
+        if (typeof ev.result === "string") resultText = ev.result;
+        if (typeof ev.api_error_status === "number") apiErrorStatus = ev.api_error_status;
+      } else if (ev.type === "rate_limit_event" && ev.rate_limit_info) {
+        rateLimit = ev.rate_limit_info;
       }
     }
 
@@ -183,11 +199,34 @@ function runClaudeHeartbeat(jobId, args, opts) {
       // Texto final para parseClaudeOutput: result event → fallback a textos
       // del assistant → fallback al stdout crudo (modo print legacy).
       const finalText = resultText || assistantText.trim() || stdout;
-      resolve({ code, stdout, stderr: extraErr ? `${stderr}\nspawn error: ${extraErr}` : stderr, timedOut, abandonado, finalText });
+      resolve({
+        code,
+        stdout,
+        stderr: extraErr ? `${stderr}\nspawn error: ${extraErr}` : stderr,
+        timedOut,
+        abandonado,
+        finalText,
+        apiErrorStatus,
+        rateLimit,
+        resultText,
+      });
     };
     child.on("error", (err) => finish(null, err.message));
     child.on("close", (code) => finish(code));
   });
+}
+
+// Mientras no haya cuota no se reclama nada. Sin esta pausa, devolver el job a
+// la cola sería un bucle caliente: reclamar → morir en 6 s → reencolar →
+// reclamar, cada POLL_INTERVAL y para siempre.
+let pausadoHasta = 0;
+
+function pausarPorCuota(cuota) {
+  const ms = msDePausa(cuota);
+  pausadoHasta = Date.now() + ms;
+  console.error(
+    `[runner] sin cuota: en pausa ${Math.round(ms / 60_000)} min (hasta ${fechaLegible(pausadoHasta)})`,
+  );
 }
 
 function parseClaudeOutput(stdout) {
@@ -322,7 +361,10 @@ async function processJob({ job, prompt }) {
         "--verbose",
         "--append-system-prompt", append,
         ...(existsSync(settings) ? ["--settings", settings] : []),
-      ], { cwd: wt, env: { ...process.env }, detached: true });
+        // stdin cerrado: el prompt va en `-p`, no por tubería. Heredarlo hacía
+        // que el CLI esperase 3 s y escupiera un warning que luego se colaba en
+        // el error del job tapando el motivo de verdad.
+      ], { cwd: wt, env: { ...process.env }, detached: true, stdio: ["ignore", "pipe", "pipe"] });
       if (cl.abandonado) {
         // El watchdog ya lo marcó fallido; cualquier callback nuestro daría 409.
         console.error(`[runner] job ${job.id} abandonado (ya resuelto por el watchdog)`);
@@ -333,9 +375,21 @@ async function processJob({ job, prompt }) {
         return;
       }
       if (cl.code !== 0) {
-        await callback(job.id, "fallido", {
-          error: `claude salió con código ${cl.code}: ${(cl.stderr || cl.stdout || "").slice(0, 3000)}`,
-        });
+        const cuota = limiteDeCuota(cl);
+        if (cuota) {
+          const aviso = avisoDeCuota(cuota);
+          console.error(`[runner] job ${job.id}: ${aviso}`);
+          await progress(job.id, "preparando", aviso);
+          const vuelta = await callback(job.id, "encolado", { error: aviso });
+          // Si el backend no acepta la vuelta a la cola (app sin esta versión, o
+          // el watchdog se le adelantó y el job ya no está `ejecutando`), el
+          // ticket no se queda en el aire: se marca fallido, pero con el motivo
+          // escrito de verdad.
+          if (!vuelta.ok) await callback(job.id, "fallido", { error: aviso });
+          pausarPorCuota(cuota);
+          return;
+        }
+        await callback(job.id, "fallido", { error: motivoDeMuerte(cl) });
         return;
       }
       const parsed = parseClaudeOutput(cl.finalText);
@@ -467,6 +521,12 @@ async function main() {
   console.log(`[runner] arrancado (stub=${STUB}, model=${CLAUDE_MODEL}, base=${BASE_BRANCH}, poll=${POLL_INTERVAL}ms)`);
   for (;;) {
     try {
+      // Con la cuota agotada no se reclama: reclamar sería sacar un job de la
+      // cola para matarlo seis segundos después (ver pausarPorCuota).
+      if (Date.now() < pausadoHasta) {
+        await sleep(POLL_INTERVAL);
+        continue;
+      }
       const claim = await apiPost("/api/internal/feedback-ai-job/claim", {});
       const job = claim.ok ? claim.json?.job : null;
       const jobId = job && typeof job.id === "string" && job.id ? job.id : null;

@@ -27,6 +27,10 @@ WORKDIR /home/runner/app
 RUN mkdir -p /home/runner/fichaje && chown -R runner:runner /home/runner
 
 COPY --chown=runner:runner run-ticket.mjs ./run-ticket.mjs
+# Módulo que lee por qué murió Claude (cuota agotada vs fallo real). Va aparte
+# para tener tests (cuota.test.mjs, en el repo); si falta aquí, el runner no
+# arranca — el import es duro a propósito, mejor eso que decidir a ciegas.
+COPY --chown=runner:runner cuota.mjs ./cuota.mjs
 COPY --chown=runner:runner runner-claude-settings.json ./runner-claude-settings.json
 # Hook de time-tracking del agente "Claudia": reporta a /agency/time del portal.
 # Copia literal de agency-portal:ops/claude-time-tracker/claude-time-hook.mjs

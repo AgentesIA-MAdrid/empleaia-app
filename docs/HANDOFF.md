@@ -1,8 +1,44 @@
-# Handoff — estado del proyecto a 2026-08-04
+# Handoff — estado del proyecto a 2026-08-06
 
 Documento para retomar el trabajo desde otra cuenta de Claude (o
 máquina). Resume lo que hay en marcha, decisiones recientes y
 operativa básica. Para reglas de código permanentes ver `AGENTS.md`.
+
+> **Sesión 2026-08-05/06 — dos entregas.**
+>
+> **1. Seguimiento de objetivos: vista "Todos los objetivos"** (ticket
+> #0091 de Mobileshop, commit `83f13da`). Había que ir eligiendo concepto
+> por concepto en "Qué se sigue" para ver la foto de una tienda. Ahora hay
+> una cuarta vista —y es **la que se abre por defecto**— con una fila por
+> objetivo (unidades totales, cada grupo y cada producto) sobre el alcance
+> puesto, y su CSV se baja entero. Los CSV por comercial y por punto de
+> venta pasan a incluir la fila de totales. Lógica en
+> `conceptosDisponibles` + `construirPorConcepto`
+> (`src/lib/cierre-turno/seguimiento.ts`), que reutilizan
+> `construirSeguimiento`/`totalesSeguimiento` para no tener una segunda
+> versión de las reglas del módulo.
+>
+> **2. Cuota agotada de Claude ya no quema el ticket.** El job #0091
+> falló con `claude salió con código 1: Warning: no stdin data received
+> in 3s` — un mensaje inútil: el motivo real (429, **límite semanal** de
+> la cuenta con el overage deshabilitado a nivel de organización) viaja
+> por **stdout** dentro del NDJSON, y el runner componía el error con
+> `stderr || stdout`, quedándose con el warning. Cambios:
+> - `ops/ticket-runner/cuota.mjs` (nuevo, con tests en `cuota.test.mjs`):
+>   distingue límite de cuota de fallo real, redacta el aviso y calcula la
+>   pausa. `vitest.config.ts` incluye ahora `ops/**/*.test.mjs`.
+> - Un 429 devuelve el job a la cola (`ejecutando → encolado`, nueva
+>   transición en `ai-jobs.ts` y evento aceptado en el callback) y **el
+>   runner se duerme** hasta el `resetsAt` (suelo 5 min, techo 1 h). Se
+>   reintenta solo; no hay que relanzar nada a mano.
+> - Cualquier otra muerte se reporta con el texto del evento `result`, no
+>   con el primer warning de stderr.
+> - El spawn de `claude` va con `stdin: "ignore"`: el warning de stdin era
+>   ruido heredado de la tubería.
+>
+> Si el app no aceptase el evento `encolado` (versión vieja), el runner cae
+> a `fallido` con el motivo bien escrito: el ticket nunca se queda en el
+> aire.
 
 > **Auditoría de seguridad 2026-08-04.** Revisión de la rama con
 > verificación cruzada: 8 candidatos, 3 confirmados. Todo desplegado y
