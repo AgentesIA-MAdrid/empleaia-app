@@ -185,25 +185,18 @@ export default function EmpleadoPage() {
   const [enviandoFueraSede, setEnviandoFueraSede] = useState(false);
 
   // Ticket 25c81b6b — intento de fichaje antes o después del turno del
-  // cuadrante en una empresa que no lo permite. Se le recuerda su horario y,
-  // cuando el ajuste tiene sentido, se le ofrece registrarlo a la hora del turno
-  // (ticket 9e4c2f10). Entrar después del cierre o salir antes de empezar no se
-  // ajusta: ahí solo se explica y se le manda a pedirlo (ticket b7d3e5a9).
+  // cuadrante en una empresa que no lo permite. Se le recuerda su horario y se
+  // queda ahí: fuera de turno no se ficha (ticket c726acd0). Si lo que
+  // intentaba era cerrar el turno, se le lleva a la solicitud de fichaje, que
+  // es donde administración se lo registra.
   const [fueraHorario, setFueraHorario] = useState<{
     tipo: TipoFichaje;
     motivo: "antes" | "despues";
     horaInicio: string;
     horaFin: string;
-    ajusteHora: string;
-    ajusteISO: string;
-    /** false = no hay hora del turno con la que cuadrarlo. */
-    ajustable: boolean;
     /** Minutos de cortesía a cada lado del turno que admite el fichaje. */
     margen: number;
-    mensaje: string;
   } | null>(null);
-  const [motivoFueraHorario, setMotivoFueraHorario] = useState("");
-  const [enviandoFueraHorario, setEnviandoFueraHorario] = useState(false);
 
   // Clock
   const [now, setNow] = useState<Date>(new Date());
@@ -466,14 +459,6 @@ export default function EmpleadoPage() {
         faceVerifyToken?: string;
         fotoSnapshot?: string;
         checklist?: RespuestaChecklist[];
-        /**
-         * El empleado ha aceptado que su fichaje se registre a la hora de su
-         * turno (ticket 9e4c2f10). Sin esto, fichar fuera de horario devuelve
-         * 409 y se le pregunta.
-         */
-        ajustarAlTurno?: boolean;
-        /** Lo que haya escrito el empleado al justificar el ajuste. */
-        nota?: string;
       } = {},
     ) => {
       setLoadingAction(tipo);
@@ -500,8 +485,6 @@ export default function EmpleadoPage() {
             ...(opts.faceVerifyToken ? { faceVerifyToken: opts.faceVerifyToken } : {}),
             ...(opts.fotoSnapshot ? { fotoSnapshot: opts.fotoSnapshot } : {}),
             ...(opts.checklist ? { checklist: opts.checklist } : {}),
-            ...(opts.ajustarAlTurno ? { ajustarAlTurno: true } : {}),
-            ...(opts.nota ? { nota: opts.nota } : {}),
           }),
         });
 
@@ -523,22 +506,16 @@ export default function EmpleadoPage() {
             });
             return;
           }
-          // 409 fuera_de_horario: la empresa exige fichar dentro del turno. Se
-          // le recuerda su horario y se le ofrece registrarlo a la hora del
-          // turno; si acepta, se repite la llamada con `ajustarAlTurno` y queda
-          // hecho, sin que nadie tenga que aprobar nada (ticket 9e4c2f10).
+          // 409 fuera_de_horario: la empresa exige fichar dentro del turno.
+          // Fuera de él no se ficha (ticket c726acd0): se le recuerda su
+          // horario y, si intentaba cerrar el turno, se le manda a solicitarlo.
           if (res.status === 409 && data.code === "fuera_de_horario") {
-            setMotivoFueraHorario("");
             setFueraHorario({
               tipo,
               motivo: data.motivo === "despues" ? "despues" : "antes",
               horaInicio: data.turno?.horaInicio ?? "",
               horaFin: data.turno?.horaFin ?? "",
-              ajusteHora: data.ajusteHora ?? "",
-              ajusteISO: data.ajuste ?? "",
-              ajustable: data.ajustable !== false,
               margen: typeof data.margen === "number" ? data.margen : 0,
-              mensaje: data.error ?? "",
             });
             return;
           }
@@ -637,32 +614,6 @@ export default function EmpleadoPage() {
       setEnviandoFueraSede(false);
     }
   }, [fueraSede, motivoFueraSede, toast]);
-
-  /**
-   * Registra el fichaje con la hora de su turno, después de que el empleado lo
-   * acepte en la ventana emergente (ticket 9e4c2f10).
-   *
-   * Antes esto abría una solicitud que tenía que aprobar un responsable, y al
-   * cliente le llegaban decenas al día. Ahora se registra en el momento: el
-   * servidor recalcula la hora desde el cuadrante —no se manda desde aquí, que
-   * no sería auditable— y deja escrito en el fichaje a qué hora se pulsó de
-   * verdad, para que administración lo pueda repasar después.
-   *
-   * El motivo que escriba se guarda como nota del fichaje. No se le exige: el
-   * fichaje no puede quedar bloqueado por un texto (RD 8/2019).
-   */
-  const registrarAjustadoAlTurno = useCallback(async () => {
-    if (!fueraHorario) return;
-    const tipo = fueraHorario.tipo;
-    const motivo = motivoFueraHorario.trim();
-    setEnviandoFueraHorario(true);
-    try {
-      setFueraHorario(null);
-      await handleFichar(tipo, { ajustarAlTurno: true, ...(motivo ? { nota: motivo } : {}) });
-    } finally {
-      setEnviandoFueraHorario(false);
-    }
-  }, [fueraHorario, motivoFueraHorario, handleFichar]);
 
   // Puntos de control activos para un tipo de fichaje concreto.
   const checksDe = useCallback(
@@ -1173,15 +1124,12 @@ export default function EmpleadoPage() {
             <div className="flex items-start justify-between">
               <h2 className="font-semibold text-lg flex items-center gap-2">
                 <Clock className="h-5 w-5 text-[var(--warning-text)]" />
-                {fueraHorario.motivo === "antes"
-                  ? "Tu turno todavía no ha empezado"
-                  : "Tu turno ya ha terminado"}
+                Fuera de turno
               </h2>
               <button
                 onClick={() => setFueraHorario(null)}
                 className="text-[var(--text-muted)] hover:text-[var(--text-body)]"
                 aria-label="Cerrar"
-                disabled={enviandoFueraHorario}
               >
                 <XIcon className="h-5 w-5" />
               </button>
@@ -1193,7 +1141,8 @@ export default function EmpleadoPage() {
                 fichaje —un margen a cada lado del turno— y qué puede hacer. */}
             <p className="text-sm text-muted-foreground">
               Tu turno de hoy es de <strong>{fueraHorario.horaInicio}</strong> a{" "}
-              <strong>{fueraHorario.horaFin}</strong>.
+              <strong>{fueraHorario.horaFin}</strong>, y{" "}
+              {fueraHorario.motivo === "antes" ? "todavía no ha empezado" : "ya ha terminado"}.
               {fueraHorario.margen > 0 && (
                 <>
                   {" "}
@@ -1205,64 +1154,37 @@ export default function EmpleadoPage() {
                 </>
               )}
             </p>
-            {fueraHorario.ajustable ? (
-              <>
-                <p className="text-sm text-muted-foreground">
-                  Puedes registrar tu {tipoLabel(fueraHorario.tipo).toLowerCase()} a las{" "}
-                  <strong>{fueraHorario.ajusteHora}</strong>, la hora de tu turno. Se guarda al
-                  momento y queda anotada la hora a la que has fichado de verdad.
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Si has {fueraHorario.motivo === "antes" ? "empezado" : "terminado"} a otra
-                  hora, díselo a tu responsable: el tiempo que trabajas se registra siempre.
-                </p>
-              </>
-            ) : (
-              /* Cruce sin hora con la que cuadrar —entrar después del cierre o
-                 salir antes de empezar—: no se inventa un ajuste, se le dice
-                 dónde pedirlo (ticket b7d3e5a9). */
+            {fueraHorario.tipo === "SALIDA" ? (
+              /* El olvido más habitual: se marcha sin fichar la salida y lo ve
+                 al día siguiente. El botón lo lleva a la solicitud, ya con la
+                 salida elegida (ticket c726acd0). */
               <p className="text-sm text-muted-foreground">
-                Esta vez no cuadra con el horario de hoy. Pídelo en{" "}
-                <a href="/empleado/mis-fichajes" className="underline font-medium">
+                Si te has olvidado de fichar, solicita el cierre de tu turno: administración lo
+                registra con la hora real y el tiempo que trabajas no se pierde.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Si necesitas registrar este fichaje, pídelo en{" "}
+                <Link href="/empleado/mis-fichajes" className="underline font-medium">
                   Mis Fichajes
-                </a>{" "}
+                </Link>{" "}
                 con la hora real y administración lo registra: el tiempo que trabajas se
                 registra siempre.
               </p>
             )}
-            {fueraHorario.ajustable && (
-            <div>
-              <label htmlFor="motivo-fuera-horario" className="text-sm font-medium text-[var(--text-dark)]">
-                Motivo <span className="font-normal text-[var(--text-muted)]">(opcional)</span>
-              </label>
-              <textarea
-                id="motivo-fuera-horario"
-                className="mt-1 w-full rounded-md border border-[var(--border)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                rows={3}
-                value={motivoFueraHorario}
-                onChange={(e) => setMotivoFueraHorario(e.target.value)}
-                placeholder="Ej.: he llegado antes para abrir la tienda, me he quedado terminando una venta…"
-                disabled={enviandoFueraHorario}
-              />
-            </div>
-            )}
             <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                onClick={() => setFueraHorario(null)}
-                disabled={enviandoFueraHorario}
-              >
-                {fueraHorario.ajustable ? "Cancelar" : "Entendido"}
+              <Button variant="outline" onClick={() => setFueraHorario(null)}>
+                Entendido
               </Button>
-              {fueraHorario.ajustable && (
-                <Button
-                  onClick={() => void registrarAjustadoAlTurno()}
-                  disabled={enviandoFueraHorario}
+              {fueraHorario.tipo === "SALIDA" && (
+                <Link
+                  href="/empleado/mis-fichajes?solicitar=SALIDA"
+                  onClick={() => setFueraHorario(null)}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg px-5 h-11 text-sm font-semibold bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white transition-colors"
                 >
-                  {enviandoFueraHorario
-                    ? "Registrando…"
-                    : `Registrar a las ${fueraHorario.ajusteHora}`}
-                </Button>
+                  Solicitar cierre de turno
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
               )}
             </div>
           </div>

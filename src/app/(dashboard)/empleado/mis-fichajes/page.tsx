@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { Suspense, useEffect, useState, useCallback } from "react";
 import {
   FileText,
   Clock,
@@ -333,8 +333,12 @@ export default function MisFichajesPage() {
         ))}
       </div>
 
-      {/* Solicitudes de fichaje (olvido / corrección) */}
-      <SolicitudesEmpleado />
+      {/* Solicitudes de fichaje (olvido / corrección). Lee `?solicitar=` para
+          abrirse ya con el tipo elegido, y `useSearchParams` exige un límite de
+          Suspense en Next 16 (misma pauta que /admin/fichajes). */}
+      <Suspense fallback={<div className="h-32 animate-pulse rounded-xl bg-[var(--muted)]" />}>
+        <SolicitudesEmpleado />
+      </Suspense>
 
       {/* Fichajes list */}
       <Card>

@@ -4,6 +4,19 @@ Documento para retomar el trabajo desde otra cuenta de Claude (o
 máquina). Resume lo que hay en marcha, decisiones recientes y
 operativa básica. Para reglas de código permanentes ver `AGENTS.md`.
 
+> **Sesión 2026-08-06 — fichar fuera de turno se acabó** (ticket
+> c726acd0). El cliente retira el atajo de "registrar a la hora del
+> turno" con un clic (ticket 9e4c2f10): fuera del horario publicado, con
+> **10 minutos** de margen antes de entrar y 10 después de salir, el
+> fichaje se rechaza con **«Fuera de turno»** y punto. Quien se olvida de
+> fichar la salida tiene un botón que lo lleva a la solicitud de fichaje
+> ya rellena (`/empleado/mis-fichajes?solicitar=SALIDA`), que aprueba
+> administración — la jornada nunca se pierde (RD 8/2019). El margen por
+> defecto pasa de 15 a 10 minutos: migración de tenant
+> `20260806100000_margen_fichaje_10`, que además baja a 10 los tenants que
+> seguían en el 15 heredado (mobileshop entre ellos). **Hay que aplicarla
+> con `npm run tenants:migrate:all`.** Detalle en §4.hoy-bis.
+
 > **Sesión 2026-08-05/06 — dos entregas.**
 >
 > **1. Seguimiento de objetivos: vista "Todos los objetivos"** (ticket
@@ -395,6 +408,23 @@ podía caer en otro día. Ahora `evaluarHorarioTurno` exige un turno con
 `offsetDias === 0` para comprobar nada, y los turnos de ayer/mañana solo
 cuentan si su ventana se solapa con hoy (turno de noche que cruza
 medianoche) — solo pueden ampliar la ventana admitida, nunca rechazar.
+
+**Cambio 2026-08-06 (ticket c726acd0)**: el atajo del ticket 9e4c2f10
+—ventana emergente con "Registrar a las HH:MM" que guardaba el fichaje
+cuadrado al borde del turno— **se retira**. Ahora el 409
+`fuera_de_horario` es final: el cuerpo ya no trae `ajustable`, `ajuste`
+ni `ajusteHora`, y el handler ignora `ajustarAlTurno` (un cliente viejo
+que lo mande sigue sin fichar; hay test). El mensaje empieza por «Fuera
+de turno» y, si lo que se intentaba era la SALIDA, remata con "solicita
+el cierre de tu turno"; la pantalla del empleado enseña ahí un botón a
+`/empleado/mis-fichajes?solicitar=SALIDA`, que abre el formulario de
+solicitud con el tipo y la hora ya puestos. `accionFueraHorario` se
+borra (ya no hay nada que decidir); `evaluarFichajeEnHorario` conserva el
+cálculo del ajuste porque lo usa `POST /api/solicitudes-fichaje` para la
+clase `fuera_horario`. Margen por defecto 15 → **10** (schema, UI de
+Configuración y `MARGEN_FICHAJE_DEFAULT`, que también alimenta los
+informes de retrasos), con migración
+`20260806100000_margen_fichaje_10`.
 
 ## 4.hoy. Lo último que hicimos (sesión 2026-07-29 → 30): módulo "Cierre de turno" COMPLETO
 

@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +49,13 @@ const ESTADO_BADGE: Record<string, string> = {
   CANCELADA: "bg-muted text-muted-foreground",
 };
 
+/** "YYYY-MM-DDTHH:mm" en hora local, que es lo que espera `datetime-local`. */
+function ahoraLocal(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 function fmt(iso: string): string {
   return new Date(iso).toLocaleString("es-ES", {
     day: "2-digit",
@@ -62,6 +70,7 @@ const inputCls =
 
 export function SolicitudesEmpleado() {
   const { toast } = useToast();
+  const searchParams = useSearchParams();
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -86,6 +95,18 @@ export function SolicitudesEmpleado() {
   useEffect(() => {
     cargar();
   }, [cargar]);
+
+  // Enlace directo desde el aviso de "Fuera de turno" del fichaje (ticket
+  // c726acd0): `?solicitar=SALIDA` abre el formulario con ese tipo elegido y la
+  // hora de ahora, que es lo que quiere quien se ha olvidado de fichar la
+  // salida. La hora sigue siendo editable: la real la pone él.
+  useEffect(() => {
+    const pedido = searchParams.get("solicitar");
+    if (!pedido || !(Object.keys(TIPO_LABEL) as string[]).includes(pedido)) return;
+    setTipo(pedido as Tipo);
+    setFechaHora((actual) => actual || ahoraLocal());
+    setOpen(true);
+  }, [searchParams]);
 
   const enviar = useCallback(async () => {
     if (!fechaHora || motivo.trim().length < 3) {

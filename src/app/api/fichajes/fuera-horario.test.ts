@@ -4,12 +4,12 @@
  * Verifica que:
  *  1. Con el interruptor apagado, fichar fuera de horario sigue funcionando.
  *  2. Encendido y fuera del turno → 409 `fuera_de_horario` con el horario del
- *     turno y la hora a la que se ajustaría el fichaje.
+ *     turno. Ticket c726acd0: no hay atajo, ni ajuste al borde del turno ni
+ *     nada que se pueda aceptar desde el propio fichaje.
  *  3. Dentro del turno (o del margen de cortesía) → 201.
  *  4. Sin turno publicado no se comprueba nada: el fichaje entra.
- *  5. Ticket 9e4c2f10: si el empleado acepta, el fichaje se registra en el acto
- *     con la hora del turno y con la hora real del intento anotada. Ya no se
- *     abre una solicitud que alguien tenga que aprobar.
+ *  5. Al cerrar el turno fuera de hora se le manda a la solicitud de fichaje,
+ *     que es donde administración lo registra (RD 8/2019).
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -24,7 +24,7 @@ const cfg = {
   fichajeTabletActivo: true,
   checklistFichajeActivo: false,
   exigirFichajeEnHorario: true,
-  margenFichajeMinutos: 15,
+  margenFichajeMinutos: 10,
   zonaHoraria: "Europe/Madrid",
 };
 
@@ -91,6 +91,8 @@ async function ficharA(
   horaMadrid: string,
   extra: { ajustarAlTurno?: boolean; nota?: string; tipo?: string } = {},
 ) {
+  // `ajustarAlTurno` ya no lo lee el handler (ticket c726acd0). Se sigue
+  // pudiendo mandar en el cuerpo para fijar que mandarlo no salta el bloqueo.
   // Verano en Madrid: UTC+2. "07:40" locales = 05:40Z.
   vi.setSystemTime(new Date(`2026-07-31T${horaMadrid}:00.000Z`));
   const { POST } = await import("./route");
@@ -120,7 +122,7 @@ beforeEach(async () => {
   (prismaApp.fichaje.findFirst as unknown as { mockResolvedValue: (v: unknown) => void })
     .mockResolvedValue(null);
   cfg.exigirFichajeEnHorario = true;
-  cfg.margenFichajeMinutos = 15;
+  cfg.margenFichajeMinutos = 10;
   turnos = [{ horaInicio: "09:00", horaFin: "17:00", fecha: new Date("2026-07-31T00:00:00Z") }];
   ctx.features.clear();
   const { _setFeatureCatalogForTest } = await import("@/lib/tenant/features");
@@ -138,31 +140,41 @@ describe("POST /api/fichajes — fichaje fuera del horario del cuadrante", () =>
     expect(res.status).toBe(201);
   });
 
-  it("antes del turno responde 409 con el ajuste al inicio", async () => {
+  it("antes del turno responde 409 y no ofrece ningún atajo", async () => {
     const res = await ficharA("05:40"); // 07:40 en Madrid
     expect(res.status).toBe(409);
     const body = await res.json();
     expect(body.code).toBe("fuera_de_horario");
     expect(body.motivo).toBe("antes");
     expect(body.turno).toEqual({ horaInicio: "09:00", horaFin: "17:00" });
-    expect(body.ajusteHora).toBe("09:00");
-    expect(body.ajuste).toBe("2026-07-31T07:00:00.000Z");
+    expect(body.error).toContain("Fuera de turno");
+    // Ticket c726acd0: se acabó el "registrar a las 09:00" con un clic.
+    expect(body.ajustable).toBeUndefined();
+    expect(body.ajusteHora).toBeUndefined();
+    expect(body.ajuste).toBeUndefined();
   });
 
-  it("la salida después del turno responde 409 con el ajuste al fin", async () => {
+  it("la salida después del turno responde 409 y manda a solicitar el cierre", async () => {
     await conEntradaFichada();
     const res = await ficharA("16:30", { tipo: "SALIDA" }); // 18:30 en Madrid
     expect(res.status).toBe(409);
     const body = await res.json();
     expect(body.code).toBe("fuera_de_horario");
     expect(body.motivo).toBe("despues");
-    expect(body.ajustable).toBe(true);
-    expect(body.ajusteHora).toBe("17:00");
+    expect(body.error).toContain("Fuera de turno");
+    expect(body.error).toContain("solicita el cierre de tu turno");
+    expect(body.ajusteHora).toBeUndefined();
   });
 
   it("dentro del margen de cortesía deja fichar", async () => {
     const res = await ficharA("06:50"); // 08:50 en Madrid, turno a las 09:00
     expect(res.status).toBe(201);
+  });
+
+  it("pasado el margen de cortesía ya no deja fichar", async () => {
+    // 08:49 en Madrid: un minuto antes de que se abra la ventana de 10 min.
+    const res = await ficharA("06:49");
+    expect(res.status).toBe(409);
   });
 
   it("dentro del turno deja fichar", async () => {
@@ -187,85 +199,43 @@ describe("POST /api/fichajes — fichaje fuera del horario del cuadrante", () =>
     expect(res.status).toBe(201);
   });
 
-  it("aceptando el ajuste, el fichaje se registra con la hora del turno", async () => {
-    // Ticket 9e4c2f10: intenta a las 18:30 de Madrid y acepta; la entrada se
-    // guarda a las 17:00 (fin del turno), sin pasar por ninguna aprobación.
-    await conEntradaFichada();
-    const res = await ficharA("16:30", { tipo: "SALIDA", ajustarAlTurno: true });
-    expect(res.status).toBe(201);
+  it("el fichaje que sí entra se guarda con su hora real, sin tocar nada", async () => {
+    await ficharA("08:00"); // 10:00 en Madrid, dentro del turno
     const { prismaApp } = await import("@/lib/prisma");
     const [args] = (prismaApp.fichaje.create as unknown as { mock: { calls: [{ data: Record<string, unknown> }][] } })
       .mock.calls[0];
-    expect((args.data.timestamp as Date).toISOString()).toBe("2026-07-31T15:00:00.000Z");
-  });
-
-  it("el fichaje ajustado deja escrita la hora real del intento", async () => {
-    await conEntradaFichada();
-    const res = await ficharA("16:30", { tipo: "SALIDA", ajustarAlTurno: true });
-    expect(res.status).toBe(201);
-    const { prismaApp } = await import("@/lib/prisma");
-    const [args] = (prismaApp.fichaje.create as unknown as { mock: { calls: [{ data: Record<string, unknown> }][] } })
-      .mock.calls[0];
-    const nota = String(args.data.nota);
-    // Sin esto no habría forma de auditar que la jornada registrada no coincide
-    // con el minuto en que se pulsó el botón.
-    expect(nota).toContain("se registra a las 17:00");
-    expect(nota).toContain("el intento fue a las 18:30");
-  });
-
-  it("el motivo que escribe el empleado se conserva detrás del ajuste", async () => {
-    await conEntradaFichada();
-    await ficharA("16:30", { tipo: "SALIDA", ajustarAlTurno: true, nota: "Estaba cerrando una venta" });
-    const { prismaApp } = await import("@/lib/prisma");
-    const [args] = (prismaApp.fichaje.create as unknown as { mock: { calls: [{ data: Record<string, unknown> }][] } })
-      .mock.calls[0];
-    expect(String(args.data.nota)).toContain("Estaba cerrando una venta");
-  });
-
-  it("dentro del turno, el flag no cambia nada: se registra a su hora", async () => {
-    await ficharA("08:00", { ajustarAlTurno: true });
-    const { prismaApp } = await import("@/lib/prisma");
-    const [args] = (prismaApp.fichaje.create as unknown as { mock: { calls: [{ data: Record<string, unknown> }][] } })
-      .mock.calls[0];
-    // Sin ajuste no se toca el timestamp: lo pone la BD con la hora real.
+    // Nunca se cuadra la hora al turno: la pone la BD con la del fichaje.
     expect(args.data.timestamp).toBeUndefined();
     expect(args.data.nota).toBeUndefined();
   });
 
-  it("entrar DESPUÉS del cierre se bloquea: no se cuadra a una hora ya pasada", async () => {
-    // Ticket b7d3e5a9: ajustar esto dejaría la entrada registrada a las 17:00,
-    // la hora en que su turno ya había acabado.
+  it("mandar el viejo flag de ajuste no salta el bloqueo", async () => {
+    // Ticket c726acd0: el atajo del ticket 9e4c2f10 se retiró; un cliente
+    // antiguo (o alguien curioso) que siga mandando `ajustarAlTurno` no ficha.
+    await conEntradaFichada();
+    const res = await ficharA("16:30", { tipo: "SALIDA", ajustarAlTurno: true });
+    expect(res.status).toBe(409);
+    const { prismaApp } = await import("@/lib/prisma");
+    expect(prismaApp.fichaje.create).not.toHaveBeenCalled();
+  });
+
+  it("entrar DESPUÉS del cierre se bloquea", async () => {
     const res = await ficharA("16:30", { tipo: "ENTRADA" });
     expect(res.status).toBe(409);
     const body = await res.json();
     expect(body.code).toBe("fuera_de_horario");
-    expect(body.ajustable).toBe(false);
     expect(body.ajusteHora).toBeUndefined();
     expect(body.error).toContain("Mis Fichajes");
   });
 
-  it("y aceptando el ajuste tampoco entra: el bloqueo no se puede saltar", async () => {
-    const res = await ficharA("16:30", { tipo: "ENTRADA", ajustarAlTurno: true });
-    expect(res.status).toBe(409);
-    expect((await res.json()).ajustable).toBe(false);
-  });
-
-  it("salir después del cierre sí se ajusta", async () => {
-    await conEntradaFichada();
-    const res = await ficharA("16:30", { tipo: "SALIDA", ajustarAlTurno: true });
-    expect(res.status).toBe(201);
-  });
-
-  it("una pausa fuera de la ventana se ajusta al borde", async () => {
+  it("una pausa fuera de la ventana también se bloquea", async () => {
     await conEntradaFichada();
     const res = await ficharA("16:30", { tipo: "PAUSA" });
     expect(res.status).toBe(409);
     const body = await res.json();
-    expect(body.ajustable).toBe(true);
-    expect(body.ajusteHora).toBe("17:00");
+    expect(body.code).toBe("fuera_de_horario");
+    expect(body.ajusteHora).toBeUndefined();
   });
-
-
 });
 
 /**
@@ -284,9 +254,9 @@ describe("el aviso de fuera de horario no dice que se le impida fichar", () => {
     const res = await ficharA("05:40");
     const body = await res.json();
     for (const mala of prohibidas) expect(body.error).not.toMatch(mala);
-    // Y ofrece la salida real: registrar a la hora del turno.
+    // Y le dice su horario y dónde pedir el registro.
     expect(body.error).toContain("09:00");
-    expect(body.ajustable).toBe(true);
+    expect(body.error).toContain("Mis Fichajes");
   });
 
   it("dice cómo está hecho el fichaje: el margen configurado, con su cifra", async () => {
@@ -294,8 +264,8 @@ describe("el aviso de fuera de horario no dice que se le impida fichar", () => {
     // te deja". Y va la cifra de verdad, no una redonda inventada.
     const res = await ficharA("05:40");
     const body = await res.json();
-    expect(body.error).toContain("15 minutos antes de entrar");
-    expect(body.margen).toBe(15);
+    expect(body.error).toContain("10 minutos antes de entrar");
+    expect(body.margen).toBe(10);
   });
 
   it("sin margen configurado no se habla de minutos de cortesía", async () => {
