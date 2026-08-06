@@ -5,12 +5,12 @@
  * publicado. Doctrina igual que el geofencing estricto del ticket #61: se
  * bloquea el camino fácil, NUNCA el registro de la jornada (RD 8/2019).
  *
- * Qué pasa con el intento rechazado (ticket 9e4c2f10): la app le enseña la hora
- * a la que se ajustaría y, si acepta, el fichaje se registra en el momento con
- * esa hora —sin que nadie tenga que aprobarlo— y con la hora real del intento
- * anotada en el propio fichaje. Antes se abría una `SolicitudFichaje` de clase
- * "fuera_horario"; ese camino sigue existiendo para resolver las que ya se
- * crearon, pero la app no crea ninguna nueva.
+ * Qué pasa con el intento rechazado (ticket c726acd0): nada, se rechaza con un
+ * "Fuera de turno". El atajo de registrarlo ajustado al borde del turno con un
+ * clic (ticket 9e4c2f10) lo ha retirado el cliente. Quien se olvida de fichar
+ * lo pide desde Mis Fichajes y lo registra administración: esa es la única
+ * puerta, y por eso el ajuste al borde del turno se sigue calculando aquí —lo
+ * usa POST /api/solicitudes-fichaje para la clase "fuera_horario"—.
  *
  * Reglas:
  *  - Solo se comprueba si el tenant activó `exigirFichajeEnHorario`.
@@ -32,7 +32,7 @@
 import type { PrismaClient } from "@/generated/prisma-tenant/client";
 
 /** Minutos de cortesía a cada lado del turno si el tenant no fija otro. */
-export const MARGEN_FICHAJE_DEFAULT = 15;
+export const MARGEN_FICHAJE_DEFAULT = 10;
 
 const MIN_POR_DIA = 1440;
 
@@ -272,35 +272,9 @@ export async function evaluarFichajeEnHorario(
   };
 }
 
-/**
- * Qué se hace con un intento fuera de horario, según QUÉ se está fichando y por
- * qué lado se sale del turno (ticket b7d3e5a9).
- *
- * El ajuste al borde del turno solo tiene sentido en los dos casos que pidió el
- * cliente:
- *
- *  - **Entrada antes** de que empiece: se registra al inicio. Llega temprano a
- *    abrir y no queremos regalarle esos minutos.
- *  - **Salida después** de que acabe: se registra al fin. Se queda cerrando y la
- *    jornada se cuadra al turno.
- *
- * Los cruces NO se ajustan, porque el resultado sería una hora absurda: una
- * entrada a las 18:30 ajustada "al borde" quedaría registrada a las 17:00, la
- * hora en que su turno ya había acabado, y con la salida ajustada igual la
- * jornada saldría de cero minutos. En esos casos se bloquea y se le dice que lo
- * pida desde Mis Fichajes, donde administración se lo registra a mano.
- *
- * Las pausas sí se ajustan (decisión del cliente): si alguien pausa o vuelve
- * fuera de la ventana, su hora se cuadra al borde más cercano.
+/*
+ * Aquí vivía `accionFueraHorario` (ticket b7d3e5a9): decidía qué intento fuera
+ * de horario se podía registrar ajustado al borde del turno y cuál se bloqueaba.
+ * El ticket c726acd0 retiró el ajuste con un clic, así que ya no hay nada que
+ * decidir: fuera de la ventana del turno no se ficha, se solicita.
  */
-export type AccionFueraHorario = "ajustar" | "bloquear";
-
-export function accionFueraHorario(
-  tipo: "ENTRADA" | "SALIDA" | "PAUSA" | "VUELTA_PAUSA" | string,
-  motivo: MotivoFueraHorario,
-): AccionFueraHorario {
-  if (tipo === "ENTRADA") return motivo === "antes" ? "ajustar" : "bloquear";
-  if (tipo === "SALIDA") return motivo === "despues" ? "ajustar" : "bloquear";
-  // Pausa y vuelta de pausa: siempre al borde.
-  return "ajustar";
-}

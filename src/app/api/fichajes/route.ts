@@ -12,7 +12,7 @@ import { currentTenant } from "@/lib/tenant/context";
 import { resolveEmpresaScope, fichajeScopeFilter } from "@/lib/multi-empresa/scope";
 import { calcularDistancia } from "@/lib/utils";
 import { notifyFichajeFueraSede } from "@/lib/fichajes/notify-fuera-sede";
-import { accionFueraHorario, evaluarFichajeEnHorario } from "@/lib/fichajes/horario-turno";
+import { evaluarFichajeEnHorario } from "@/lib/fichajes/horario-turno";
 import { diaMadrid } from "@/lib/cierre-turno/core";
 import { exentoDeControlesDeTienda } from "@/lib/cierre-turno/exencion-coordinacion";
 import {
@@ -120,7 +120,6 @@ export const POST = withTenant(async (request: NextRequest) => {
       faceVerifyToken,
       fotoSnapshot,
       checklist,
-      ajustarAlTurno,
     } = body as {
       tipo: TipoFichaje;
       latitud?: number;
@@ -134,12 +133,6 @@ export const POST = withTenant(async (request: NextRequest) => {
       fotoSnapshot?: string;
       /** Puntos de control confirmados por el empleado (ticket c4bc33d6). */
       checklist?: RespuestaChecklist[];
-      /**
-       * El empleado ha aceptado en la ventana emergente que su fichaje se
-       * registre ajustado al horario de su turno (ticket 9e4c2f10). Sin esto, un
-       * intento fuera de horario sigue devolviendo 409.
-       */
-      ajustarAlTurno?: boolean;
     };
 
     if (!tipo || !Object.values(TipoFichaje).includes(tipo)) {
@@ -309,93 +302,47 @@ export const POST = withTenant(async (request: NextRequest) => {
     // antes del checklist y de Face ID para no gastar el token de verificación
     // en un intento que se va a rechazar.
     //
-    // Qué pasa cuando ficha fuera (ticket 9e4c2f10): la primera vez se responde
-    // 409 con la hora a la que se ajustaría, y la app se lo pregunta. Si acepta,
-    // repite la llamada con `ajustarAlTurno` y el fichaje se registra ahí mismo
-    // con la hora del turno. Ya NO se crea una solicitud que alguien tenga que
-    // aprobar: el cliente lo pidió así porque le llegaban decenas al día.
-    //
-    // El fichaje queda marcado con la hora real del intento en la nota, que es
-    // lo que permite auditarlo después: la jornada registrada no coincide con el
-    // minuto en que se pulsó el botón.
-    let ajusteAplicado: { timestamp: Date; nota: string } | null = null;
+    // Qué pasa cuando ficha fuera (ticket c726acd0): se rechaza y punto. Antes
+    // se le ofrecía registrarlo ajustado al borde del turno con un solo clic
+    // (ticket 9e4c2f10) y el cliente lo ha retirado: fuera de su horario —con el
+    // margen de cortesía a cada lado— nadie ficha. El camino para no perder la
+    // jornada sigue abierto y es el mismo de siempre: la solicitud de fichaje de
+    // Mis Fichajes, que registra administración con la hora real.
     if (cfg?.exigirFichajeEnHorario) {
-      const ahora = new Date();
       const ev = await evaluarFichajeEnHorario(prisma, {
         userId: userId!,
-        ahora,
+        ahora: new Date(),
         margenMin: cfg.margenFichajeMinutos,
         zona: cfg.zonaHoraria,
       });
       if (ev.estado === "fuera") {
         const cuando = ev.motivo === "antes" ? "aún no ha empezado" : "ya ha terminado";
-        // Qué toca según lo que se ficha y por qué lado se sale del turno: el
-        // ajuste solo vale para entrada-antes y salida-después (y las pausas por
-        // los dos lados). Los cruces se bloquean, porque ajustarlos dejaría una
-        // hora absurda — ver `accionFueraHorario` (ticket b7d3e5a9).
-        const accion = accionFueraHorario(tipo, ev.motivo);
-        if (accion === "bloquear") {
-          const queEs = tipo === "ENTRADA" ? "la entrada" : "la salida";
-          return Response.json(
-            {
-              error:
-                `Tu turno de ${ev.turno.horaInicio} a ${ev.turno.horaFin} ${cuando}, ` +
-                (cfg.margenFichajeMinutos > 0
-                  ? `y el fichaje está pensado para hacerse como mucho ${cfg.margenFichajeMinutos} ` +
-                    `minutos antes de entrar o ${cfg.margenFichajeMinutos} después de salir. `
-                  : "") +
-                `Pide ${queEs} desde Mis Fichajes con la hora real y administración la ` +
-                `registra: tu tiempo de trabajo no se pierde.`,
-              code: "fuera_de_horario",
-              // Sin ajuste posible: la ventana no ofrece registrar, solo explica.
-              ajustable: false,
-              motivo: ev.motivo,
-              turno: { horaInicio: ev.turno.horaInicio, horaFin: ev.turno.horaFin },
-              margen: cfg.margenFichajeMinutos,
-            },
-            { status: 409 },
-          );
-        }
-        if (!ajustarAlTurno) {
-          return Response.json(
-            {
-              // Nunca "tu empresa no te deja fichar": el registro de jornada es
-              // un derecho y decirlo así, además de sonar a castigo, da a
-              // entender lo contrario de lo que hace el sistema —que registra la
-              // jornada y anota la hora real del intento— (ticket 9a3f27d0). Se
-              // explica cómo está hecho el fichaje: un margen de cortesía a cada
-              // lado del turno, que es un dato objetivo y configurado.
-              error:
-                `Tu turno de ${ev.turno.horaInicio} a ${ev.turno.horaFin} ${cuando}. ` +
-                (cfg.margenFichajeMinutos > 0
-                  ? `El fichaje está pensado para hacerse como mucho ${cfg.margenFichajeMinutos} ` +
-                    `minutos antes de entrar o ${cfg.margenFichajeMinutos} después de salir. `
-                  : "") +
-                `Puedes registrar ${tipo === "ENTRADA" ? "tu entrada" : "tu salida"} a las ` +
-                `${ev.ajusteHora}, la hora de tu turno; queda anotada también la hora a la ` +
-                `que has fichado.`,
-              code: "fuera_de_horario",
-              ajustable: true,
-              motivo: ev.motivo,
-              turno: { horaInicio: ev.turno.horaInicio, horaFin: ev.turno.horaFin },
-              ajuste: ev.ajuste.toISOString(),
-              ajusteHora: ev.ajusteHora,
-              margen: cfg.margenFichajeMinutos,
-            },
-            { status: 409 },
-          );
-        }
-        const horaIntento = new Intl.DateTimeFormat("es-ES", {
-          hour: "2-digit",
-          minute: "2-digit",
-          timeZone: cfg.zonaHoraria,
-        }).format(ahora);
-        ajusteAplicado = {
-          timestamp: ev.ajuste,
-          nota:
-            `Ajustado al horario del turno (${ev.turno.horaInicio}–${ev.turno.horaFin}): ` +
-            `se registra a las ${ev.ajusteHora} y el intento fue a las ${horaIntento}.`,
-        };
+        return Response.json(
+          {
+            // Nunca "tu empresa no te deja fichar": el registro de jornada es
+            // un derecho y decirlo así, además de sonar a castigo, da a
+            // entender lo contrario de lo que hace el sistema —que sigue
+            // registrando la jornada, por la solicitud— (ticket 9a3f27d0). Se
+            // explica cómo está hecho el fichaje: un margen de cortesía a cada
+            // lado del turno, que es un dato objetivo y configurado.
+            error:
+              `Fuera de turno. Tu turno de ${ev.turno.horaInicio} a ${ev.turno.horaFin} ${cuando}. ` +
+              (cfg.margenFichajeMinutos > 0
+                ? `El fichaje está pensado para hacerse como mucho ${cfg.margenFichajeMinutos} ` +
+                  `minutos antes de entrar o ${cfg.margenFichajeMinutos} después de salir. `
+                : "") +
+              (tipo === "SALIDA"
+                ? "Si te has olvidado de fichar, solicita el cierre de tu turno desde Mis " +
+                  "Fichajes: administración lo registra y tu tiempo de trabajo no se pierde."
+                : `Pide ${tipo === "ENTRADA" ? "la entrada" : "el fichaje"} desde Mis Fichajes ` +
+                  `con la hora real y administración lo registra: tu tiempo de trabajo no se pierde.`),
+            code: "fuera_de_horario",
+            motivo: ev.motivo,
+            turno: { horaInicio: ev.turno.horaInicio, horaFin: ev.turno.horaFin },
+            margen: cfg.margenFichajeMinutos,
+          },
+          { status: 409 },
+        );
       }
     }
 
@@ -510,15 +457,7 @@ export const POST = withTenant(async (request: NextRequest) => {
         longitud: lon,
         distancia: dist,
         metodo,
-        // Con ajuste, la hora es la del turno y la nota deja dicho a qué hora se
-        // pulsó de verdad. Si el empleado había escrito una nota, se conserva
-        // detrás: la suya explica el motivo y la nuestra, el ajuste.
-        ...(ajusteAplicado
-          ? {
-              timestamp: ajusteAplicado.timestamp,
-              nota: nota ? `${ajusteAplicado.nota} · ${nota}` : ajusteAplicado.nota,
-            }
-          : { nota }),
+        nota,
         ip,
         ...(fotoEnc ? { fotoSnapshotEnc: fotoEnc } : {}),
       },

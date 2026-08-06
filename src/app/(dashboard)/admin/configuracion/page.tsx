@@ -169,7 +169,7 @@ function ConfiguracionPageInner() {
     geofencingActivo: true, geoObligatoria: false, faceIdObligatorio: false, faceIdGuardarFoto: false,
     retencionFotosDias: 90,
     fichajeMovilActivo: true, fichajeTabletActivo: true,
-    exigirFichajeEnHorario: false, margenFichajeMinutos: 15,
+    exigirFichajeEnHorario: false, margenFichajeMinutos: 10,
     notifAusencias: true, notifTurnos: true, notifTareas: true,
     notifFichajes: false, notifComunicados: true, notifDocumentos: true,
     notifFueraSede: true,
@@ -541,15 +541,15 @@ function ConfiguracionPageInner() {
                         value={config.margenFichajeMinutos}
                         onChange={(e) => {
                           const v = parseInt(e.target.value);
-                          setConfig((c) => c && ({ ...c, margenFichajeMinutos: Number.isNaN(v) ? 15 : v }));
+                          setConfig((c) => c && ({ ...c, margenFichajeMinutos: Number.isNaN(v) ? 10 : v }));
                         }}
                       />
-                      <span className="text-sm text-muted-foreground">minutos (default: 15)</span>
+                      <span className="text-sm text-muted-foreground">minutos (default: 10)</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">
                       Solo afecta a empleados con turno publicado en el cuadrante. Si intentan fichar
-                      fuera de ese horario, se les avisa y pueden pedir que el fichaje se registre
-                      ajustado al inicio o al fin de su turno; la solicitud llega a Solicitudes de
+                      fuera de ese horario, el fichaje se rechaza con un aviso de «Fuera de turno» y
+                      se les manda a solicitar el registro; la solicitud llega a Solicitudes de
                       fichaje para que la apruebes (RD 8/2019: la jornada nunca se pierde).
                     </p>
                   </div>

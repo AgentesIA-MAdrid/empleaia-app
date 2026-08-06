@@ -704,8 +704,9 @@ model ConfiguracionEmpresa {
   // responsable (SolicitudFichaje clase "fuera_horario"). Off por defecto.
   exigirFichajeEnHorario      Boolean  @default(false) @map("exigir_fichaje_en_horario")
   // Minutos de cortesía antes del inicio y después del fin del turno en los
-  // que sí se admite fichar directamente.
-  margenFichajeMinutos        Int      @default(15) @map("margen_fichaje_minutos")
+  // que sí se admite fichar directamente. 10 desde el ticket c726acd0 (antes
+  // eran 15): el cliente fijó ese margen al retirar el ajuste al turno.
+  margenFichajeMinutos        Int      @default(10) @map("margen_fichaje_minutos")
   notifAusencias              Boolean  @default(true)
   notifTurnos                 Boolean  @default(true)
   notifTareas                 Boolean  @default(true)
