@@ -24,10 +24,13 @@
  *   arqueo ya recogido no se toca.
  *
  * Alcance: el empleado ve y declara el de su sede (el efectivo es de la
- * tienda), el coordinador el de la suya, y administración todas. Quien no tiene
- * ninguna sede en su ficha —un correturnos— opera en la que haya confirmado hoy
- * al abrir su cierre de turno (`sedesOperables`); y si aún no ha confirmado
- * nada, la pantalla se lo pregunta con el mismo desplegable del cierre.
+ * tienda), el coordinador el de las suyas, y administración todas. Y como el
+ * sobre es de la SEDE y no de quien lo declaró, también entran las sedes en las
+ * que esa persona trabaja aunque no sean "suyas": las de su cuadrante de esa
+ * semana, donde haya fichado y la que haya confirmado al abrir su cierre de
+ * turno (`sedesOperables`, ticket 225e527c). Quien no tiene ninguna —un
+ * correturnos que aún no ha confirmado nada— no se queda fuera: la pantalla se
+ * lo pregunta con el mismo desplegable del cierre.
  */
 
 import { auth } from "@/lib/auth";
@@ -90,10 +93,18 @@ export const GET = withTenant(
     const semana = semanaOk.semana;
     const { desde, hasta } = rangoSemanaISO(semana);
 
-    // Solo administración elige sede; el resto va atado a la suya. Y quien
-    // tiene alcance de sede pero ninguna asignada NO ve todas: no ve ninguna.
+    // Solo administración elige sede; el resto va atado a las suyas —las de su
+    // ficha y aquellas en las que trabaja: cuadrante, fichajes y cierres, esa
+    // semana incluida (ticket 225e527c)—. Y quien tiene alcance de sede pero
+    // ninguna NO ve todas: no ve ninguna.
     const sedesPropias =
-      s.rol === "OWNER" ? [] : await sedesOperables(prisma, { userId: s.userId, tiendaId: s.tiendaId });
+      s.rol === "OWNER"
+        ? []
+        : await sedesOperables(prisma, {
+            userId: s.userId,
+            tiendaId: s.tiendaId,
+            periodos: [{ desde, hasta }],
+          });
     const filtro = filtroSede(s.rol, sedesPropias, url.searchParams.get("tiendaId"));
     if (filtro.tipo === "ninguna") {
       // Ni sede en la ficha ni centro de trabajo confirmado hoy. En vez de
@@ -340,6 +351,8 @@ export const POST = withTenant(
     const efectivoOk = normalizarEfectivoArqueo(body.efectivo);
     if (!efectivoOk.ok) return NextResponse.json({ error: efectivoOk.error }, { status: 400 });
 
+    const { desde, hasta } = rangoSemanaISO(semanaOk.semana);
+
     // Administración declara la sede que quiera. Quien coordina varias declara
     // la que diga, siempre que sea una de las suyas (ticket 73); el resto, la
     // principal de su ficha.
@@ -348,9 +361,14 @@ export const POST = withTenant(
     if (s.rol === "OWNER") {
       tiendaId = sedePedida ?? s.tiendaId;
     } else {
-      // Las suyas o, si no tiene, la que haya confirmado hoy como centro de
-      // trabajo: quien cubre en una tienda es quien cuenta su caja.
-      const propias = await sedesOperables(prisma, { userId: s.userId, tiendaId: s.tiendaId });
+      // Las suyas y aquellas en las que trabaja esa semana (cuadrante, fichajes
+      // o el centro de trabajo que confirmó al abrir su cierre): quien cubre en
+      // una tienda es quien cuenta su caja.
+      const propias = await sedesOperables(prisma, {
+        userId: s.userId,
+        tiendaId: s.tiendaId,
+        periodos: [{ desde, hasta }],
+      });
       tiendaId = sedePedida && propias.includes(sedePedida) ? sedePedida : (propias[0] ?? s.tiendaId ?? null);
     }
     if (!tiendaId) {
@@ -367,7 +385,6 @@ export const POST = withTenant(
     const notas =
       typeof body.notas === "string" && body.notas.trim() ? body.notas.trim().slice(0, 1000) : null;
 
-    const { desde, hasta } = rangoSemanaISO(semanaOk.semana);
     const previo = await prisma.arqueo.findUnique({
       where: { tiendaId_semana: { tiendaId, semana: semanaOk.semana } },
       select: { id: true, estado: true },

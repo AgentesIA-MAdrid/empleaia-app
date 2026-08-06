@@ -192,9 +192,18 @@ export const POST = withTenant(
       );
     }
 
-    // Quien opera la pantalla solo firma sobres de sus sedes.
+    // Quien opera la pantalla solo firma sobres de sus sedes: las de su ficha y
+    // aquellas en las que trabaja —cuadrante, fichajes o el centro de trabajo
+    // que confirmó—, tanto ahora como en la semana de cada sobre. El sobre es de
+    // la sede, así que lo firma quien está allí (ticket 225e527c).
     const sedesPropias =
-      rol === "OWNER" ? [] : await sedesOperables(prisma, { userId, tiendaId: tiendaSesion });
+      rol === "OWNER"
+        ? []
+        : await sedesOperables(prisma, {
+            userId,
+            tiendaId: tiendaSesion,
+            periodos: arqueos.map((a) => rangoSemanaISO(a.semana)),
+          });
     const filtro = filtroSede(rol, sedesPropias, null);
     if (filtro.tipo === "ninguna") {
       return NextResponse.json(

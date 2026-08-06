@@ -17,6 +17,16 @@ const sesion = {
   user: { id: "u_own", rol: "OWNER", tiendaId: null as string | null, name: "Owner" },
 };
 
+/** Día de referencia de los dobles: la fecha de sus turnos y fichajes. */
+const HOY = new Date();
+
+/** Una jornada suya: dónde y cuándo (cierre confirmado, turno o fichaje). */
+interface Trabajo {
+  tiendaId: string | null;
+  fecha?: Date;
+  timestamp?: Date;
+}
+
 const SEDES = [
   { id: "t1", nombre: "NEKSUS CARTAGENA" },
   { id: "t2", nombre: "NEKSUS CC ISLA AZUL" },
@@ -67,11 +77,19 @@ const prismaMock = {
   user: { findMany: vi.fn(async () => [] as unknown[]) },
   usuarioSede: { findMany: vi.fn(async () => [] as { tiendaId: string }[]) },
   cierreTurno: {
-    // La sede que confirmó hoy como centro de trabajo (ticket 8c05f3e1).
-    findUnique: vi.fn(async () => null as { tiendaId: string | null } | null),
+    // Las sedes que confirmó como centro de trabajo (ticket 8c05f3e1).
+    findMany: vi.fn(async () => [] as Trabajo[]),
   },
-  fichaje: { findFirst: vi.fn(async () => null) },
-  turno: { findFirst: vi.fn(async () => null) },
+  // Dónde ha fichado y qué dice su cuadrante: también son sedes suyas para el
+  // arqueo, porque el sobre es de la tienda (ticket 225e527c).
+  fichaje: {
+    findFirst: vi.fn(async () => null),
+    findMany: vi.fn(async () => [] as Trabajo[]),
+  },
+  turno: {
+    findFirst: vi.fn(async () => null),
+    findMany: vi.fn(async () => [] as Trabajo[]),
+  },
   configuracionEmpresa: { findUnique: vi.fn(async () => ({ umbralDescuadreEur: 1 })) },
   $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prismaMock)),
 };
@@ -147,7 +165,9 @@ beforeEach(async () => {
   prismaMock.fondoCaja.findMany.mockResolvedValue(FONDOS);
   prismaMock.user.findMany.mockResolvedValue([]);
   prismaMock.usuarioSede.findMany.mockResolvedValue([]);
-  prismaMock.cierreTurno.findUnique.mockResolvedValue(null);
+  prismaMock.cierreTurno.findMany.mockResolvedValue([]);
+  prismaMock.fichaje.findMany.mockResolvedValue([]);
+  prismaMock.turno.findMany.mockResolvedValue([]);
   sesion.user = { id: "u_own", rol: "OWNER", tiendaId: null, name: "Owner" };
   prismaMock.$transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
     fn(prismaMock),
@@ -246,7 +266,7 @@ describe("GET /api/arqueos — quien no tiene sede en su ficha", () => {
   it("opera en la tienda que confirmó hoy al abrir su cierre", async () => {
     // Un correturnos cubriendo en Cartagena: tiene que poder arquear ESA caja.
     sesion.user = { id: "u_ana", rol: "EMPLEADO", tiendaId: null, name: "Ana" };
-    prismaMock.cierreTurno.findUnique.mockResolvedValue({ tiendaId: "t1" });
+    prismaMock.cierreTurno.findMany.mockResolvedValue([{ tiendaId: "t1", fecha: HOY }]);
     const { data } = await get();
     expect((data as unknown as { sinSede?: boolean }).sinSede).toBeUndefined();
     // Se consulta acotado a esa tienda (el doble de Prisma no aplica el where).
@@ -269,7 +289,24 @@ describe("GET /api/arqueos — quien no tiene sede en su ficha", () => {
 
   it("declara el efectivo de la tienda que confirmó, aunque no sea suya", async () => {
     sesion.user = { id: "u_ana", rol: "EMPLEADO", tiendaId: null, name: "Ana" };
-    prismaMock.cierreTurno.findUnique.mockResolvedValue({ tiendaId: "t1" });
+    prismaMock.cierreTurno.findMany.mockResolvedValue([{ tiendaId: "t1", fecha: HOY }]);
+    const { status } = await post({ semana: "2026-W31", efectivo: "719,32" });
+    expect(status).toBe(200);
+    const [args] = prismaMock.arqueo.upsert.mock.calls[0] as unknown as [
+      { where: { tiendaId_semana: { tiendaId: string } } },
+    ];
+    expect(args.where.tiendaId_semana.tiendaId).toBe("t1");
+  });
+
+  it("declara donde está hoy, no donde cubrió hace semanas", async () => {
+    // Al ampliarse el alcance a las sedes cubiertas, el sobre que se declara
+    // desde el asistente (que no manda tienda) tiene que seguir siendo el de
+    // donde está trabajando hoy.
+    sesion.user = { id: "u_ana", rol: "EMPLEADO", tiendaId: null, name: "Ana" };
+    prismaMock.cierreTurno.findMany.mockResolvedValue([{ tiendaId: "t1", fecha: HOY }]);
+    prismaMock.turno.findMany.mockResolvedValue([
+      { tiendaId: "t2", fecha: new Date(HOY.getTime() - 21 * 86_400_000) },
+    ]);
     const { status } = await post({ semana: "2026-W31", efectivo: "719,32" });
     expect(status).toBe(200);
     const [args] = prismaMock.arqueo.upsert.mock.calls[0] as unknown as [
@@ -284,6 +321,70 @@ describe("GET /api/arqueos — quien no tiene sede en su ficha", () => {
     expect(status).toBe(409);
     expect(data.code).toBe("sin_sede");
     expect(prismaMock.arqueo.upsert).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * El sobre es de la SEDE, no del comercial que lo declaró (ticket 225e527c).
+ *
+ * Quien tiene tienda en su ficha pero esa semana cubre en otra veía solo la
+ * suya: el alcance se cortaba en cuanto había una sede propia, así que el sobre
+ * de la tienda cubierta le quedaba invisible y no podía ni arquearla ni firmar
+ * su recogida.
+ */
+describe("GET /api/arqueos — las sedes en las que se trabaja, no solo la de la ficha", () => {
+  it("suma la sede del cuadrante de esa semana a la de su ficha", async () => {
+    sesion.user = { id: "u_ana", rol: "EMPLEADO", tiendaId: "t1", name: "Ana" };
+    prismaMock.usuarioSede.findMany.mockResolvedValue([{ tiendaId: "t1" }]);
+    prismaMock.turno.findMany.mockResolvedValue([{ tiendaId: "t2", fecha: HOY }]);
+
+    const { data } = await get();
+    const [args] = prismaMock.tienda.findMany.mock.calls[0] as unknown as [
+      { where: { id?: { in: string[] } } },
+    ];
+    expect(args.where.id?.in).toEqual(["t1", "t2"]);
+    expect((data as unknown as { sinSede?: boolean }).sinSede).toBeUndefined();
+  });
+
+  it("suma la sede donde ha fichado aunque no esté en su cuadrante", async () => {
+    sesion.user = { id: "u_ana", rol: "EMPLEADO", tiendaId: "t1", name: "Ana" };
+    prismaMock.usuarioSede.findMany.mockResolvedValue([{ tiendaId: "t1" }]);
+    prismaMock.fichaje.findMany.mockResolvedValue([{ tiendaId: "t2", timestamp: HOY }]);
+
+    await get();
+    const [args] = prismaMock.tienda.findMany.mock.calls[0] as unknown as [
+      { where: { id?: { in: string[] } } },
+    ];
+    expect(args.where.id?.in).toEqual(["t1", "t2"]);
+  });
+
+  it("mira la semana que se está consultando, no solo la de hoy", async () => {
+    sesion.user = { id: "u_ana", rol: "EMPLEADO", tiendaId: "t1", name: "Ana" };
+    prismaMock.usuarioSede.findMany.mockResolvedValue([{ tiendaId: "t1" }]);
+
+    await get("?semana=2020-W10");
+    const [args] = prismaMock.turno.findMany.mock.calls[0] as unknown as [
+      { where: { OR: { fecha: { gte: Date; lte: Date } }[] } },
+    ];
+    // Además del periodo reciente, el de la semana pedida.
+    expect(
+      args.where.OR.some(
+        (r) =>
+          r.fecha.gte.toISOString().slice(0, 10) === "2020-03-02" &&
+          r.fecha.lte.toISOString().slice(0, 10) === "2020-03-08",
+      ),
+    ).toBe(true);
+  });
+
+  it("sigue sin ver las sedes en las que no trabaja", async () => {
+    sesion.user = { id: "u_ana", rol: "EMPLEADO", tiendaId: "t1", name: "Ana" };
+    prismaMock.usuarioSede.findMany.mockResolvedValue([{ tiendaId: "t1" }]);
+
+    await get();
+    const [args] = prismaMock.tienda.findMany.mock.calls[0] as unknown as [
+      { where: { id?: { in: string[] } } },
+    ];
+    expect(args.where.id?.in).toEqual(["t1"]);
   });
 });
 
