@@ -42,6 +42,13 @@ const arqueo = {
   tienda: { id: "t1", nombre: "Centro" },
 };
 
+/** Una jornada suya: dónde y cuándo (cierre confirmado, turno o fichaje). */
+interface Trabajo {
+  tiendaId: string | null;
+  fecha?: Date;
+  timestamp?: Date;
+}
+
 const prismaMock = {
   user: {
     findUnique: vi.fn(async () => yo as unknown),
@@ -51,9 +58,12 @@ const prismaMock = {
     findMany: vi.fn(async () => [arqueo] as unknown[]),
     update: vi.fn(async () => ({}) as unknown),
   },
-  // Alcance de sedes de quien opera la pantalla.
+  // Alcance de sedes de quien opera la pantalla: las de su ficha y aquellas en
+  // las que trabaja (cierres, cuadrante y fichajes — ticket 225e527c).
   usuarioSede: { findMany: vi.fn(async () => [] as { tiendaId: string }[]) },
-  cierreTurno: { findUnique: vi.fn(async () => null as { tiendaId: string | null } | null) },
+  cierreTurno: { findMany: vi.fn(async () => [] as Trabajo[]) },
+  turno: { findMany: vi.fn(async () => [] as Trabajo[]) },
+  fichaje: { findMany: vi.fn(async () => [] as Trabajo[]) },
   tienda: {
     findMany: vi.fn(async () => [{ id: "t1" }]),
     findFirst: vi.fn(async () => ({ id: "t1" }) as { id: string } | null),
@@ -137,7 +147,9 @@ beforeEach(async () => {
   prismaMock.arqueo.findMany.mockResolvedValue([arqueo]);
   prismaMock.usuarioSede.findMany.mockResolvedValue([]);
   prismaMock.tienda.findFirst.mockResolvedValue({ id: "t1" });
-  prismaMock.cierreTurno.findUnique.mockResolvedValue(null);
+  prismaMock.cierreTurno.findMany.mockResolvedValue([]);
+  prismaMock.turno.findMany.mockResolvedValue([]);
+  prismaMock.fichaje.findMany.mockResolvedValue([]);
   const { _setFeatureCatalogForTest } = await import("@/lib/tenant/features");
   _setFeatureCatalogForTest(["cierre_turno"]);
 });
@@ -328,6 +340,18 @@ describe("POST /api/arqueos/recoger — varios sobres y firma de otra persona", 
     const res = await recoger({ arqueoIds: ["arq2"], pin: PIN });
     expect(res.status).toBe(403);
     expect(prismaMock.arqueo.update).not.toHaveBeenCalled();
+  });
+
+  it("un sobre de la sede que cubrió esa semana SÍ se firma", async () => {
+    // El sobre es de la tienda, no del comercial que lo declaró (ticket
+    // 225e527c): quien tiene esa sede en su cuadrante puede recogerlo.
+    prismaMock.arqueo.findMany.mockResolvedValue([
+      { ...otroSobre, tiendaId: "t_otra", tienda: { id: "t_otra", nombre: "Otra" } },
+    ]);
+    prismaMock.turno.findMany.mockResolvedValue([{ tiendaId: "t_otra", fecha: new Date() }]);
+    const res = await recoger({ arqueoIds: ["arq2"], pin: PIN });
+    expect(res.status).toBe(200);
+    expect(prismaMock.arqueo.update).toHaveBeenCalled();
   });
 
   it("con varios sobres no se admite un importe parcial", async () => {

@@ -8,8 +8,10 @@
  * cuáles quedaron sin firmar.
  *
  * Esto devuelve **todos los pendientes, de todas las semanas**, dentro del
- * alcance de quien mira: administración los ve todos; el resto, los de sus sedes
- * (o los de la sede que haya confirmado hoy como centro de trabajo).
+ * alcance de quien mira: administración los ve todos; el resto, los de las sedes
+ * en las que trabaja —las de su ficha, las de su cuadrante, donde haya fichado y
+ * el centro de trabajo que haya confirmado— porque el sobre es de la sede y el
+ * responsable pasa a recogerlo en cualquier turno de esa tienda (`sedesOperables`).
  *
  * Ordenados por sede y por semana, del más viejo al más nuevo: el sobre que
  * lleva tres semanas en el cajón es el que hay que sacar primero.
